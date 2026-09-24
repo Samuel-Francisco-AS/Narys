@@ -1,5 +1,13 @@
 # M0-B — Luna: status central
 
+## Parecer humano e decisão de retomada — 24/09/2026
+
+**M0-B segue aberto: integração funcional, animações não aprovadas artisticamente.** O usuário observou que o Idle do M0-B1 continua semelhante a manequim; no Wave a mão se move, mas o corpo permanece rígido e a palma fica orientada para baixo. O usuário relatou boa fluidez aparente no Tauri, sem atribuir esses defeitos a travamento. O ajuste de enquadramento do M0-B1 foi implementado, mas não resolve a linguagem corporal.
+
+**Decisão:** manter a base Luna atual e adiar alterações em roupa/rosto e modelagem autoral. Suspender novas tentativas automáticas de animação enquanto o usuário aprende a criar poses diretamente no Blender 3.3.21. Próxima sessão: primeiro pose estática de repouso com braços/ombros relaxados; depois pose de saudação com palma orientada à câmera. Só depois, se viável, keyframes e integração técnica sob validação. A versão em `main` permanece a referência funcional; não sobrescrever GLB, VRM ou script de geração durante a experiência.
+
+**Guia completo de contexto, decisões, lições e roteiro passo a passo:** [RETOMADA-BLENDER-LUNA.md](RETOMADA-BLENDER-LUNA.md). As verificações técnicas do M0-B1 listadas abaixo continuam válidas como verificações técnicas, não como aprovação da naturalidade.
+
 ## M0-B1 — primeira versão refinada pronta para avaliação (24/09/2026)
 
 - A — Inspeção concluída em `main`, HEAD `c554ac9090c1d01c20810822e4aacc2f797168e2`, worktree inicialmente limpa. Conferidos rig real, rotações de repouso e os clipes Idle/Wave exportados; ombros e braços têm ramos auxiliares paralelos.
@@ -74,10 +82,11 @@ Teste desktop usou Vite já aberto, por isso o comando foi `. "$HOME/.cargo/env"
 - Mesa por software continua necessário no Tauri. Não medidos FPS, CPU, memória ou estabilidade prolongada; não alegar desempenho sustentado.
 - Base usa licença própria VRM, com condições acima; preservar os avisos e revisar usos futuros contra essas condições.
 
-## Próximo passo exato para retomada
-1. Conferir `git status --short --branch` e `git rev-parse HEAD` sem descartar as alterações M0-B1 existentes.
-2. Executar `. "$HOME/.cargo/env"` e `npm run tauri dev` (sem outro Vite na porta 5173); Mesa em software continua necessário nesta máquina.
-3. Avaliar a candidata M0-B1 por alguns minutos: naturalidade do Idle, arco e ritmo do Wave, transições, margem vertical em janela grande/pequena, clique direto e botão. Registrar aqui o parecer visual e de fluidez. Caso haja ajuste de animação, editar `scripts/prepare_luna.py`, regenerar GLB e verificar os pontos afetados.
-4. Não considerar M0-B aprovado antes desse parecer. Não iniciar outro checkpoint, fazer commit/push ou mudar/criar branch sem nova instrução.
+## Próximo passo exato para retomada (revisado após parecer humano)
 
-**Modelo já exportado e integrado.** Retomada não exige nova busca de assets nem reconstrução da investigação. Não houve commit, push ou troca/criação de branch nesta execução.
+1. Ler `docs/RETOMADA-BLENDER-LUNA.md` e este status; conferir `git status --short --branch` e HEAD sem descartar trabalho local.
+2. Iniciar a **aula guiada de Blender 3.3.21**, primeiro com importação segura de cópia experimental da Luna, identificação do armature e Pose Mode. Salvar `.blend` de teste separado, sem sobrescrever assets integrados.
+3. Criar e avaliar visualmente a **pose de Idle estática** (prioridade). Só depois criar **pose de saudação** com braço/cotovelo articulados e palma visivelmente voltada para a câmera. Se houver tempo e rig adequado, ensinar keyframes básicos; não exigir animação completa nesta sessão.
+4. Registrar resultados reais e bloqueios. Somente planejar substituição do pipeline/GLB quando houver pose aprovada e teste de exportação/integração. Preservar licença, M0-A e workaround Mesa. M0-B continua aberto; não iniciar agente/chat/Android aqui.
+
+**Referência integrada atual:** `main` contém M0-B1 funcional, mas sem aprovação artística; não é necessário repetir busca de asset ou desenvolvimento do app para a aula.
