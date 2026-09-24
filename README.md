@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-B com primeira candidata Luna integrada e verificada tecnicamente; avaliação visual e de fluidez pelo usuário pendente. Progresso, licença e retomada em [docs/M0-B-STATUS.md](docs/M0-B-STATUS.md). M0-A permanece aprovado e encerrado, conforme [VALIDACAO.md](VALIDACAO.md).
+**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. O próximo trabalho será uma aula prática de poses no Blender, sem substituir a versão funcional. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
 
 ## Requisitos no Fedora
 
@@ -68,6 +68,8 @@ A candidata Luna adapta `VRM1_Constraint_Twist_Sample` v1.0.1 da pixiv Inc., sob
 
 ## Continuidade
 
-O M0-B aguarda avaliação manual da candidata na janela Tauri: aparência, botão/clique, retorno ao repouso e fluidez durante alguns minutos. O [status central](docs/M0-B-STATUS.md) contém o próximo passo exato, as capturas e os comandos de reprodução. A roupa ainda conserva uma silhueta casual; a direção futurista pode precisar de refinamento localizado após essa avaliação.
+A Luna atual é uma candidata técnica funcional, **não uma animação aprovada**: o usuário relatou Idle muito rígido e aceno pouco natural, com a palma voltada para baixo. A apresentação ficou cerca de 12% menor no M0-B1. O próximo passo é aprender no Blender a ajustar primeiro a pose de repouso e depois a pose de saudação, trabalhando numa cópia e preservando o GLB utilizado pelo aplicativo.
 
-Conversação funcional, agente de IA, ferramentas operacionais, Android e mensageiros permanecem fora do escopo.
+Para o contexto cronológico, a estratégia de integração sem sobrescrita dos assets e a sequência da próxima sessão, veja [RETOMADA-BLENDER-LUNA.md](docs/RETOMADA-BLENDER-LUNA.md). O progresso e os riscos técnicos permanecem em [M0-B-STATUS.md](docs/M0-B-STATUS.md).
+
+Conversação funcional, agente de IA, ferramentas operacionais, Android e mensageiros continuam fora do escopo implementado.
