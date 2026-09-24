@@ -1,6 +1,8 @@
-# Assistente 3D — M0-A
+# Assistente 3D
 
-Protótipo desktop mínimo para validar uma personagem humanoide 3D no Fedora com Tauri 2, React, TypeScript e Three.js.
+Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
+
+**Estado:** M0-A (fundação e validação gráfica 3D) aprovado pelo usuário em 24/09/2026 e encerrado. O resultado e os limites da validação estão em [VALIDACAO.md](VALIDACAO.md).
 
 ## Requisitos no Fedora
 
@@ -14,8 +16,6 @@ sudo dnf install webkit2gtk4.1-devel openssl-devel wget libappindicator-gtk3-dev
 
 Esses pacotes exigem privilégios de administrador. Instale-os manualmente; o projeto não executa `sudo`.
 
-Se Rust foi instalado via rustup e o terminal ainda não encontra `cargo`, execute `. "$HOME/.cargo/env"` na sessão atual.
-
 ## Executar
 
 ```bash
@@ -23,11 +23,14 @@ npm install
 npm run dev
 ```
 
-Abra o endereço mostrado pelo Vite, normalmente `http://localhost:5173/`. Para a janela desktop:
+Abra o endereço mostrado pelo Vite, normalmente `http://localhost:5173/`. Para a janela desktop, carregue Rust/Cargo no terminal antes de iniciar o Tauri:
 
 ```bash
+. "$HOME/.cargo/env"
 npm run tauri dev
 ```
+
+Na validação manual, a primeira tentativa de `npm run tauri dev` falhou porque `cargo` não estava no PATH. O comando acima corrigiu o ambiente da sessão.
 
 Verificações de código:
 
@@ -55,8 +58,19 @@ Fluxo: o React monta `CharacterScene` → Three.js cria o renderizador WebGL e c
 
 `RobotExpressive.glb` vem do [Three.js r186](https://github.com/mrdoob/three.js/tree/r186/examples/models/gltf/RobotExpressive). O [README do asset](https://github.com/mrdoob/three.js/blob/r186/examples/models/gltf/RobotExpressive/README.md) declara **CC0 1.0**. Modelo por Tomás Laulhé; modificações por Don McCurdy. O arquivo incluído tem SHA-256 `047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319`.
 
-É um robô humanoide de teste, não a identidade visual definitiva do produto. Como o asset é GLB, `@pixiv/three-vrm` não é necessário neste checkpoint.
+É um robô humanoide usado exclusivamente para validar M0-A, não a personagem definitiva. Como o asset é GLB, `@pixiv/three-vrm` não é necessário neste checkpoint.
 
-## Validação M0-A
+## Continuidade
 
-Consulte [VALIDACAO.md](VALIDACAO.md) para resultados, limitações e passos de inspeção visual.
+O próximo checkpoint previsto é **M0-B**, ainda não iniciado: identidade visual e integração de uma personagem feminina 3D estilizada, possivelmente com estética anime, androide ou ciborgue. A personagem candidata deverá ser avaliada quanto a:
+
+- aparência visual;
+- licença e procedência dos assets;
+- compatibilidade com Three.js;
+- esqueleto e recursos de animação;
+- expressões e reações possíveis;
+- desempenho na janela Tauri no hardware real.
+
+Blender e GPT-6 Astra poderão apoiar trabalhos artísticos posteriores.
+
+Conversação funcional, agente de IA, ferramentas operacionais, Android e mensageiros não fazem parte do escopo concluído em M0-A.
