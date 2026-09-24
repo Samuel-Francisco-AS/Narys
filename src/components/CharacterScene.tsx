@@ -39,11 +39,12 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
     let idleAction: THREE.AnimationAction | undefined
     let waveAction: THREE.AnimationAction | undefined
     let waveEndsAt = 0
+    let waveReadyAt = 0
     let lastFrame = performance.now()
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100)
-    camera.position.set(0, 1.55, 4.7)
-    camera.lookAt(0, 1.45, 0)
+    camera.position.set(0, 1.40, 4.7)
+    camera.lookAt(0, 1.30, 0)
 
     scene.add(new THREE.HemisphereLight(0xe9f3ff, 0x38435e, 2.1))
     const keyLight = new THREE.DirectionalLight(0xffffff, 2.4)
@@ -113,12 +114,13 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
 
     playWaveRef.current = () => {
       if (!idleAction || !waveAction || !mixer) return
+      if (waveEndsAt > 0 || mixer.time < waveReadyAt) return
       waveAction.reset()
       waveAction.setLoop(THREE.LoopOnce, 1)
       waveAction.clampWhenFinished = true
-      idleAction.fadeOut(0.18)
-      waveAction.fadeIn(0.18).play()
-      waveEndsAt = mixer.time + waveAction.getClip().duration
+      idleAction.fadeOut(0.26)
+      waveAction.fadeIn(0.26).play()
+      waveEndsAt = mixer.time + waveAction.getClip().duration - 0.32
       onStatusChange('Luna está acenando.')
     }
 
@@ -134,7 +136,7 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
         const center = box.getCenter(new THREE.Vector3())
-        const scale = 2.9 / size.y
+        const scale = 2.55 / size.y
         model.scale.setScalar(scale)
         model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale)
         scene.add(model)
@@ -168,8 +170,10 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
       lastFrame = now
       mixer?.update(delta)
       if (mixer && waveEndsAt > 0 && mixer.time >= waveEndsAt) {
-        waveAction?.fadeOut(0.25)
-        idleAction?.reset().fadeIn(0.25).play()
+        waveAction?.fadeOut(0.32)
+        if (idleAction) idleAction.enabled = true
+        idleAction?.fadeIn(0.32).play()
+        waveReadyAt = mixer.time + 0.32
         waveEndsAt = 0
         onStatusChange('Luna · WebGL ativo · animação de repouso')
       }
