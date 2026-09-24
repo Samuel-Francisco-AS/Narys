@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A (fundação e validação gráfica 3D) aprovado pelo usuário em 24/09/2026 e encerrado. O resultado e os limites da validação estão em [VALIDACAO.md](VALIDACAO.md).
+**Estado:** M0-B com primeira candidata Luna integrada e verificada tecnicamente; avaliação visual e de fluidez pelo usuário pendente. Progresso, licença e retomada em [docs/M0-B-STATUS.md](docs/M0-B-STATUS.md). M0-A permanece aprovado e encerrado, conforme [VALIDACAO.md](VALIDACAO.md).
 
 ## Requisitos no Fedora
 
@@ -48,13 +48,19 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 - `src/App.tsx`: composição da interface e botão de interação.
 - `src/components/CharacterScene.tsx`: cria a cena, carrega o GLB, toca os clipes e informa falhas de WebGL/carregamento.
 - `src/styles.css`: layout escuro e responsivo.
-- `public/models/RobotExpressive.glb`: personagem local, sem dependência de rede durante a execução.
+- `public/models/Luna.glb`: candidata local, sem dependência de rede durante a execução; licença em `public/models/Luna.LICENSE.json`.
+- `assets/luna/base.vrm` e `scripts/prepare_luna.py`: original e preparação reproduzível.
+- `public/models/RobotExpressive.glb`: modelo anterior preservado.
 - `assets/app-icon.svg`: ícone original do protótipo; `src-tauri/icons/` contém versões geradas pelo CLI.
 - `src-tauri/`: configuração e inicialização da janela Tauri.
 
 Fluxo: o React monta `CharacterScene` → Three.js cria o renderizador WebGL e carrega o GLB → `AnimationMixer` toca `Idle` → clique inicia `Wave` → o laço de renderização atualiza a animação e desenha a cena.
 
-## Modelo e licença
+## Modelos e licenças
+
+A candidata Luna adapta `VRM1_Constraint_Twist_Sample` v1.0.1 da pixiv Inc., sob **VRM Public License 1.0** com permissões de modificação e redistribuição e restrição a expressões antissociais/de ódio. A adaptação mantém os mesmos termos. Procedência, hash, configurações e limitações estão no [status central](docs/M0-B-STATUS.md). Os clipes `Idle` e `Wave` foram criados localmente; a base não tinha animações. O app continua usando GLTFLoader, sem runtime VRM.
+
+### Modelo anterior (M0-A)
 
 `RobotExpressive.glb` vem do [Three.js r186](https://github.com/mrdoob/three.js/tree/r186/examples/models/gltf/RobotExpressive). O [README do asset](https://github.com/mrdoob/three.js/blob/r186/examples/models/gltf/RobotExpressive/README.md) declara **CC0 1.0**. Modelo por Tomás Laulhé; modificações por Don McCurdy. O arquivo incluído tem SHA-256 `047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319`.
 
@@ -62,15 +68,6 @@ Fluxo: o React monta `CharacterScene` → Three.js cria o renderizador WebGL e c
 
 ## Continuidade
 
-O próximo checkpoint previsto é **M0-B**, ainda não iniciado: identidade visual e integração de uma personagem feminina 3D estilizada, possivelmente com estética anime, androide ou ciborgue. A personagem candidata deverá ser avaliada quanto a:
+O M0-B aguarda avaliação manual da candidata na janela Tauri: aparência, botão/clique, retorno ao repouso e fluidez durante alguns minutos. O [status central](docs/M0-B-STATUS.md) contém o próximo passo exato, as capturas e os comandos de reprodução. A roupa ainda conserva uma silhueta casual; a direção futurista pode precisar de refinamento localizado após essa avaliação.
 
-- aparência visual;
-- licença e procedência dos assets;
-- compatibilidade com Three.js;
-- esqueleto e recursos de animação;
-- expressões e reações possíveis;
-- desempenho na janela Tauri no hardware real.
-
-Blender e GPT-6 Astra poderão apoiar trabalhos artísticos posteriores.
-
-Conversação funcional, agente de IA, ferramentas operacionais, Android e mensageiros não fazem parte do escopo concluído em M0-A.
+Conversação funcional, agente de IA, ferramentas operacionais, Android e mensageiros permanecem fora do escopo.

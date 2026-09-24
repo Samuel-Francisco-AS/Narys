@@ -8,6 +8,23 @@ type Props = {
   onReadyChange: (ready: boolean) => void
 }
 
+// The candidate has embedded textures: release them on unmount and late loads.
+function disposeCharacter(root: THREE.Object3D) {
+  const textures = new Set<THREE.Texture>()
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return
+    object.geometry.dispose()
+    const materials = Array.isArray(object.material) ? object.material : [object.material]
+    for (const material of materials) {
+      for (const value of Object.values(material)) {
+        if (value instanceof THREE.Texture) textures.add(value)
+      }
+      material.dispose()
+    }
+  })
+  textures.forEach((texture) => texture.dispose())
+}
+
 export default function CharacterScene({ waveSignal, onStatusChange, onReadyChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const playWaveRef = useRef<() => void>(() => {})
@@ -37,7 +54,7 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
     scene.add(fillLight)
 
     const canvas = document.createElement('canvas')
-    canvas.setAttribute('aria-label', 'Modelo 3D do robô humanoide')
+    canvas.setAttribute('aria-label', 'Modelo 3D da assistente Luna')
     canvas.addEventListener('webglcontextlost', onContextLost)
     canvas.addEventListener('webglcontextrestored', onContextRestored)
 
@@ -45,12 +62,12 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
       event.preventDefault()
       onReadyChange(false)
       onStatusChange('Contexto WebGL perdido. Recarregue a janela.')
-      console.error('[M0-A] Contexto WebGL perdido')
+      console.error('[M0-B] Contexto WebGL perdido')
     }
 
     function onContextRestored() {
       onStatusChange('WebGL restaurado. Recarregue para refazer a cena.')
-      console.warn('[M0-A] Contexto WebGL restaurado; recarregamento necessário')
+      console.warn('[M0-B] Contexto WebGL restaurado; recarregamento necessário')
     }
 
     let renderer: THREE.WebGLRenderer
@@ -60,9 +77,9 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
       renderer.outputColorSpace = THREE.SRGBColorSpace
       container.appendChild(canvas)
       const gl = renderer.getContext()
-      console.info('[M0-A] WebGL:', gl.getParameter(gl.VERSION), '| Renderer:', gl.getParameter(gl.RENDERER))
+      console.info('[M0-B] WebGL:', gl.getParameter(gl.VERSION), '| Renderer:', gl.getParameter(gl.RENDERER))
     } catch (error) {
-      console.error('[M0-A] Falha ao iniciar WebGL:', error)
+      console.error('[M0-B] Falha ao iniciar WebGL:', error)
       onStatusChange('WebGL indisponível neste ambiente. Veja o console.')
       return () => canvas.remove()
     }
@@ -102,14 +119,17 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
       idleAction.fadeOut(0.18)
       waveAction.fadeIn(0.18).play()
       waveEndsAt = mixer.time + waveAction.getClip().duration
-      onStatusChange('A personagem está acenando.')
+      onStatusChange('Luna está acenando.')
     }
 
     const loader = new GLTFLoader()
     loader.load(
-      '/models/RobotExpressive.glb',
+      '/models/Luna.glb',
       (gltf) => {
-        if (disposed) return
+        if (disposed) {
+          disposeCharacter(gltf.scene)
+          return
+        }
         model = gltf.scene
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
@@ -123,7 +143,7 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
         const waveClip = THREE.AnimationClip.findByName(gltf.animations, 'Wave')
         if (!idleClip || !waveClip) {
           onStatusChange('Modelo carregado, mas faltam clipes Idle/Wave.')
-          console.error('[M0-A] Clipes Idle/Wave ausentes:', gltf.animations.map((clip) => clip.name))
+          console.error('[M0-B] Clipes Idle/Wave ausentes:', gltf.animations.map((clip) => clip.name))
           return
         }
         mixer = new THREE.AnimationMixer(model)
@@ -131,13 +151,13 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
         waveAction = mixer.clipAction(waveClip)
         idleAction.play()
         onReadyChange(true)
-        onStatusChange('Modelo carregado · WebGL ativo · animação de repouso')
-        console.info('[M0-A] GLB carregado; clipes:', gltf.animations.map((clip) => clip.name).join(', '))
+        onStatusChange('Luna · WebGL ativo · animação de repouso')
+        console.info('[M0-B] GLB carregado; clipes:', gltf.animations.map((clip) => clip.name).join(', '))
       },
       undefined,
       (error) => {
         if (disposed) return
-        console.error('[M0-A] Falha ao carregar GLB:', error)
+        console.error('[M0-B] Falha ao carregar GLB:', error)
         onStatusChange('Falha ao carregar a personagem. Veja o console.')
       },
     )
@@ -151,7 +171,7 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
         waveAction?.fadeOut(0.25)
         idleAction?.reset().fadeIn(0.25).play()
         waveEndsAt = 0
-        onStatusChange('Modelo carregado · WebGL ativo · animação de repouso')
+        onStatusChange('Luna · WebGL ativo · animação de repouso')
       }
       try {
         renderer.render(scene, camera)
@@ -160,14 +180,14 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
           if (errorCode !== gl.NO_ERROR) {
             reportedGlError = true
             onStatusChange(`Erro WebGL ${errorCode}. Veja o console.`)
-            console.error('[M0-A] Erro WebGL:', errorCode)
+            console.error('[M0-B] Erro WebGL:', errorCode)
           }
         }
       } catch (error) {
         renderer.setAnimationLoop(null)
         onReadyChange(false)
         onStatusChange('Erro de renderização. Veja o console.')
-        console.error('[M0-A] Erro de renderização:', error)
+        console.error('[M0-B] Erro de renderização:', error)
       }
     })
 
@@ -180,13 +200,11 @@ export default function CharacterScene({ waveSignal, onStatusChange, onReadyChan
       canvas.removeEventListener('webglcontextlost', onContextLost)
       canvas.removeEventListener('webglcontextrestored', onContextRestored)
       if (model) scene.remove(model)
-      model?.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          object.geometry.dispose()
-          const materials = Array.isArray(object.material) ? object.material : [object.material]
-          materials.forEach((material) => material.dispose())
-        }
-      })
+      mixer?.stopAllAction()
+      if (model) {
+        mixer?.uncacheRoot(model)
+        disposeCharacter(model)
+      }
       renderer.dispose()
       canvas.remove()
     }

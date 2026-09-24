@@ -11,10 +11,10 @@ export default function App() {
       <header className="topbar">
         <div className="brand-mark" aria-hidden="true">A</div>
         <div>
-          <div className="eyebrow">PROTÓTIPO DESKTOP · M0-A</div>
+          <div className="eyebrow">PROTÓTIPO DESKTOP · M0-B</div>
           <h1>Assistente 3D</h1>
         </div>
-        <span className="version">Validação gráfica</span>
+        <span className="version">Candidata Luna</span>
       </header>
 
       <div className="workspace">
@@ -22,7 +22,7 @@ export default function App() {
           <div className="panel-heading">
             <div>
               <span className="section-label">PERSONAGEM</span>
-              <h2>Presença visual</h2>
+              <h2>Luna</h2>
             </div>
             <span className={ready ? 'live-badge ready' : 'live-badge'}>
               <span className="status-dot" />{ready ? 'Em cena' : 'Verificando'}

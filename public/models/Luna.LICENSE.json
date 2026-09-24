@@ -1,0 +1,27 @@
+{
+  "source": "https://github.com/pixiv/three-vrm/blob/1b4fc0cc7ef39a49d62bb7a66dcfeca8f65316f7/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm",
+  "sourceSha256": "12c2b97e95e700783a6a550dc0eee2d7880aeedccef9ae67bc4c5a2f0f2631a2",
+  "originalLicenseSettings": {
+    "allowAntisocialOrHateUsage": false,
+    "allowExcessivelySexualUsage": true,
+    "allowExcessivelyViolentUsage": true,
+    "allowPoliticalOrReligiousUsage": true,
+    "allowRedistribution": true,
+    "authors": [
+      "pixiv Inc."
+    ],
+    "avatarPermission": "everyone",
+    "commercialUsage": "corporation",
+    "copyrightInformation": "(c) 2022 pixiv Inc.",
+    "creditNotation": "unnecessary",
+    "licenseUrl": "https://vrm.dev/licenses/1.0/",
+    "modification": "allowModificationRedistribution",
+    "name": "VRM1_Constraint_Twist_Sample",
+    "thumbnailImage": 18,
+    "version": "v1.0.1"
+  },
+  "adapterLicense": "VRM Public License 1.0 with the same settings as the original",
+  "licenseUrl": "https://vrm.dev/licenses/1.0/",
+  "modifications": "Luna M0-B: cool palette, reduced textures, chest/ear accents, smaller head and dark leggings, standard glTF materials, Idle/Wave clips, no morph targets or VRM dynamics.",
+  "disclaimer": "Provided without warranties; no endorsement by pixiv Inc."
+}
