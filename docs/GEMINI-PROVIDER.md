@@ -42,3 +42,12 @@ A arquitetura local passou na revisão de privacidade, SecretStore, streaming, c
 **PASS.** A revisão confirmou que somente `interaction.status=completed` com usage válido produz `ProviderResponse`; estados `incomplete`, `failed`, `cancelled`, `requires_action` e status ausente/desconhecido falham fechado. O mapper central de `error.code` é compartilhado por HTTP e SSE, preserva `Retry-After` para rate limit, distingue quota de limitação transitória e mantém erros terminais fora de retry/fallback. A regra pós-primeiro-chunk continua impedindo retry/fallback para evitar resposta/custo duplicado.
 
 Com isso, o gate de protocolo está encerrado e a validação real com API key no painel Tauri está liberada. LR-6 permanece aberta até provar chamada real, SSE/usage, cancelamento e reinício.
+
+
+## Validação real e fechamento — 26/09/2026
+
+**LR-6 PASS.** A API key foi inserida exclusivamente no painel Tauri e permaneceu disponível após reinício, via Stronghold + credential store do SO. Uma chamada real ao Gemini concluiu com streaming e usage observado de 48 tokens de entrada, 78 de saída, 126 totais e 0 thinking; a resposta final foi persistida na conversa local.
+
+Os testes manuais posteriores também exercitaram os caminhos de falha reais: uma tentativa terminou `unavailable`, outra terminou `provider_incomplete` com resposta parcial mantida apenas como preview, e uma terceira foi cancelada manualmente após receber chunks. O cancelamento terminou em `cancelled` antes da persistência da resposta final. Após fechar e reabrir a aplicação, Gemini permaneceu configurado e a conversa bem-sucedida anterior continuou disponível.
+
+Com chamada real, SSE/usage, persistência, cancelamento e reinício comprovados, o gate LR-6 está encerrado. A próxima rodada planejada é de UI/performance antes de LR-7.
