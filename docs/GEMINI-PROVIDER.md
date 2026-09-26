@@ -35,3 +35,10 @@ A arquitetura local passou na revisão de privacidade, SecretStore, streaming, c
 2. Eventos SSE `error` hoje são achatados para `Unavailable`, e erros HTTP são classificados principalmente pelo status. A API oficial fornece `error.code`; o adapter deve usar esse código para distinguir `quota_exceeded`, `rate_limit_exceeded`/`too_many_requests`, `authentication`/`permission_denied`, cancelamento, timeout e falhas transitórias, preservando fallback por status HTTP apenas quando o corpo não puder ser interpretado.
 
 **LR-6 protocol FIX concluído em 26/09/2026:** os dois pontos acima foram corrigidos e cobertos por testes HTTP/SSE locais. A validação com API real está liberada como próxima ação manual, ainda pendente; não houve chave real nem request externa nesta rodada. O endpoint permanece `v1beta/interactions`; a migração para `v1` não faz parte desta correção. A referência oficial descreve `errors[]` no objeto completo da interação, mas não o garante no objeto parcial do evento terminal; `failed` sem código utilizável falha sem retry. A página oficial de erros recomenda, em alguns casos, modificar a entrada e tentar novamente; esta LR-6 encerra bloqueios e erros estruturais sem reenvio automático para preservar privacidade e custo.
+
+
+## Auditoria da FIX — 26/09/2026
+
+**PASS.** A revisão confirmou que somente `interaction.status=completed` com usage válido produz `ProviderResponse`; estados `incomplete`, `failed`, `cancelled`, `requires_action` e status ausente/desconhecido falham fechado. O mapper central de `error.code` é compartilhado por HTTP e SSE, preserva `Retry-After` para rate limit, distingue quota de limitação transitória e mantém erros terminais fora de retry/fallback. A regra pós-primeiro-chunk continua impedindo retry/fallback para evitar resposta/custo duplicado.
+
+Com isso, o gate de protocolo está encerrado e a validação real com API key no painel Tauri está liberada. LR-6 permanece aberta até provar chamada real, SSE/usage, cancelamento e reinício.
