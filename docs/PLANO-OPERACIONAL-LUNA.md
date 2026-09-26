@@ -192,6 +192,8 @@ Nenhuma LLM necessária.
 
 **Gate:** `cargo check`, `cargo test`, `npm run typecheck`, `npm run build` e `git diff --check` passaram. `cargo fmt --check` ficou indisponível porque `rustfmt` não está instalado nesta toolchain. Na janela Tauri, WebGL/Idle/Acenar, tarefa mock/Channel/cancelamento, status de storage e reinício foram validados. No Firefox comum, WebGL/Idle/Acenar e retorno ao repouso funcionaram; o painel desabilitou a tarefa Rust e informou indisponibilidade do SecretStore, sem erro no console inspecionado. Nenhuma credencial real do aplicativo foi usada.
 
+**Auditoria:** PASS em 26/09/2026 para a fundação de segurança desktop. Ficaram registrados como itens futuros não bloqueantes: remover completamente os comandos de diagnóstico da superfície de release e revalidar permissões do material de desbloqueio existente. O gate duro para qualquer credencial real permanece obrigatório antes da LR-6.
+
 **Lane principal:** D.
 
 Deve acontecer antes de cadastrar API keys reais.
