@@ -53,3 +53,9 @@ Ambiente observado: Fedora 44, Linux 7.2.5, Intel Core i7-3770 (8 CPUs lógicas)
 - A soma de RSS conta memória compartilhada mais de uma vez e é uma aproximação de footprint de processos, não memória física exclusiva. O RSS subiu entre cenários sequenciais; não foi feito ciclo prolongado ou repetição controlada para diagnosticar vazamento. A inspeção remota e o Vite de desenvolvimento também podem afetar a medição.
 - FPS é a frequência do callback de `setAnimationLoop()`, não taxa de apresentação efetiva da tela. `update+render` mede tempo síncrono em JavaScript/WebGL, não execução completa na GPU/Mesa. p50/p95 são percentis por janela de 5 s, não uma distribuição global de 30 s.
 - O canvas atual, com quase 2 mil pixels de altura, é um risco de custo de render. Na UIP-2 comparar novamente dimensões, FPS/intervalos, CPU/RSS e contexto WebGL ao avaliar teto de 30 FPS, DPR e perfis de foco/visibilidade; só então atribuir ganhos. Na UIP-7 comparar também abertura/recolhimento de UI e ciclos para crescimento de memória. A regra de resolução fixa ao abrir `composer`/`conversation` deve ser verificada quando esses modos existirem.
+
+## Validação humana e fechamento
+
+Em 26/09/2026, Sam concluiu os gates manuais pendentes: minimizar/restaurar, resize manual da janela e inspeção visual de Idle/aceno. O comportamento permaneceu normal e a instrumentação DEV não produziu alteração perceptível no avatar, nas animações ou no uso da janela.
+
+Combinando a auditoria de código, as verificações automáticas e essa validação humana, **UIP-0 = PASS completo**. A próxima etapa é **UIP-1 — Presence Shell**.
