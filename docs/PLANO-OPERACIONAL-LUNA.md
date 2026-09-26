@@ -304,6 +304,8 @@ Testes automatizados demonstram:
 
 ## 10. LR-6 — primeiro provider real: Gemini
 
+**Gate de segurança obrigatório antes de iniciar:** a proteção da chave de desbloqueio do SecretStore precisa estar resolvida para credenciais reais. O POC LR-3 mantém a chave local junto ao snapshot e, portanto, **não autoriza armazenar API keys reais**. LR-4 e LR-5 podem avançar normalmente sem essa decisão; LR-6 não.
+
 **Lane principal:** C.
 
 ### Objetivo
