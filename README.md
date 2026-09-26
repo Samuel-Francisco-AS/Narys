@@ -4,6 +4,21 @@ Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
 **Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. O próximo trabalho será uma aula prática de poses no Blender, sem substituir a versão funcional. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
 
+## Direção arquitetural pós-M0
+
+A partir de 25/09/2026, o projeto passa a evoluir em **duas frentes paralelas**: o trabalho artístico de avatar/animação continua no Blender enquanto o núcleo funcional da agente é construído em Rust/Tauri. Uma frente não deve bloquear a outra.
+
+A arquitetura-alvo mantém Tauri 2 + Rust + React/TypeScript + Three.js, promove Rust a **Luna Core** e trata LLMs como recursos cognitivos substituíveis. Avatar e animações serão desacoplados do agente, com direção para VRM/VRMA e Animation Director semântico.
+
+Documentos principais:
+
+- [Arquitetura-alvo da Luna](docs/ARCHITECTURE-LUNA.md)
+- [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
+- [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
+- [Plano operacional paralelo](docs/PLANO-OPERACIONAL-LUNA.md)
+
+**Importante:** esses documentos descrevem a direção e o plano; o estado implementado continua sendo o M0 descrito neste README e nos relatórios de validação.
+
 ## Requisitos no Fedora
 
 - Node.js e npm
@@ -70,6 +85,8 @@ A candidata Luna adapta `VRM1_Constraint_Twist_Sample` v1.0.1 da pixiv Inc., sob
 
 A Luna atual é uma candidata técnica funcional, **não uma animação aprovada**: o usuário relatou Idle muito rígido e aceno pouco natural, com a palma voltada para baixo. A apresentação ficou cerca de 12% menor no M0-B1. O próximo passo é aprender no Blender a ajustar primeiro a pose de repouso e depois a pose de saudação, trabalhando numa cópia e preservando o GLB utilizado pelo aplicativo.
 
-Para o contexto cronológico, a estratégia de integração sem sobrescrita dos assets e a sequência da próxima sessão, veja [RETOMADA-BLENDER-LUNA.md](docs/RETOMADA-BLENDER-LUNA.md). O progresso e os riscos técnicos permanecem em [M0-B-STATUS.md](docs/M0-B-STATUS.md).
+Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA.md](docs/RETOMADA-BLENDER-LUNA.md). O progresso e os riscos técnicos do protótipo permanecem em [M0-B-STATUS.md](docs/M0-B-STATUS.md).
 
-Conversação funcional, agente de IA, ferramentas operacionais, Android e mensageiros continuam fora do escopo implementado.
+O trabalho artístico não precisa mais bloquear a evolução estrutural: o próximo marco funcional recomendado é **LR-1**, uma refatoração sem mudança visual que separa o runtime de avatar/animação; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
+
+Conversação funcional, Luna Core, memória, provedores de IA, ferramentas operacionais, Android e mensageiros continuam **fora do estado implementado atual**, embora já tenham arquitetura e plano documentados.
