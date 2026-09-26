@@ -315,7 +315,7 @@ Testes automatizados demonstram:
 
 ## 10. LR-6 — primeiro provider real: Gemini
 
-**Gate de segurança obrigatório antes de iniciar:** a proteção da chave de desbloqueio do SecretStore precisa estar resolvida para credenciais reais. O POC LR-3 mantém a chave local junto ao snapshot e, portanto, **não autoriza armazenar API keys reais**. LR-4 e LR-5 podem avançar normalmente sem essa decisão; LR-6 não.
+**Gate de segurança:** liberado no desktop Fedora após o PRE-LR-6 hardening de 26/09/2026. A chave de desbloqueio Stronghold foi migrada do arquivo local para o credential store do sistema operacional, a migração do vault existente foi validada e o arquivo legado foi removido. Permanecem como limitações conhecidas a ausência de teste com a toolchain Rust 1.77.2 exata, logout/reboot do SO e validação em Windows/macOS; consulte [SECURITY.md](SECURITY.md). Nenhuma API key real foi cadastrada durante o hardening.
 
 **Lane principal:** C.
 
@@ -690,3 +690,5 @@ Codex, Copilot e grande catálogo de animações podem ser adicionados increment
 ## PRE-LR-6 hardening — fechamento dos gates
 
 O hardening introduz propagação terminal de falha do Channel (`channel_closed`), mocks transitórios por tentativa de cada tarefa e chave Stronghold no credential store do SO, com migração verificada do arquivo legado. O release deixa de registrar handlers diagnósticos LR-3/LR-4/LR-5; permissões declarativas residuais da capability estática seguem documentadas. **Estado: concluído no Fedora em 26/09/2026.** `cargo check`, `cargo test`, `cargo check --release`, typecheck/build frontend e migração/reabertura real passaram. O Secret Service disponibilizou a chave após reinício do app; `luna-lr3.unlock` não reapareceu. A toolchain Rust 1.77.2 exata e um reboot/logout do SO não foram testados. **LR-6 — Gemini** é a próxima etapa somente após esses gates, e não foi iniciada nesta rodada.
+
+**Auditoria:** PASS em 26/09/2026. A revisão confirmou que falhas do event sink impedem execução/retry/fallback subsequentes e resultam em `channel_closed`; os mocks transitórios usam `attempt` por execução e permanecem repetíveis com o mesmo runtime; cooldown continua compartilhado entre tarefas; o SecretStore usa `UnlockKeyStore` interno com credential store do SO e não possui fallback plaintext. A migração só remove o legado após validação da chave recuperada e do snapshot. O gate técnico para iniciar LR-6 no desktop Fedora está liberado.
