@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. Antes da LR-7, o projeto entra na trilha **UIP-0 → UIP-7**, dedicada à interface de presença desktop e performance. O trabalho artístico de Blender segue independente. Consulte [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
+**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. Antes da LR-7, o projeto percorre a trilha **UIP-0 → UIP-7**, dedicada à interface de presença desktop e performance; UIP-0 já está concluída. O trabalho artístico de Blender segue independente. Consulte [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## Direção arquitetural pós-M0
 
@@ -21,7 +21,7 @@ Documentos principais:
 - [Identidade e memória LR-4](docs/MEMORY-IDENTITY.md)
 - [Runtime cognitivo LR-5](docs/COGNITION-RUNTIME.md)
 
-**Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. A próxima etapa é **UIP-0 — contratos + baseline**, antes de qualquer LR-7. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
+**Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. A **UIP-0 — contratos + baseline** está em PASS completo; a próxima etapa é **UIP-1 — Presence Shell**, antes de qualquer LR-7. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
 
 ## Requisitos no Fedora
 
