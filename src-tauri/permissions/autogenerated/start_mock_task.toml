@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-start-mock-task"
+description = "Enables the start_mock_task command without any pre-configured scope."
+commands.allow = ["start_mock_task"]
+
+[[permission]]
+identifier = "deny-start-mock-task"
+description = "Denies the start_mock_task command without any pre-configured scope."
+commands.deny = ["start_mock_task"]

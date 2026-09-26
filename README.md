@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. A LR-1 separou o runtime visual sem alterar os assets ou movimentos. A LR-2 acrescentou um núcleo Rust mínimo para tarefas mock, cancelamento e eventos via Tauri Channel. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
+**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. A LR-1 separou o runtime visual sem alterar os assets ou movimentos. A LR-2 acrescentou tarefas mock, cancelamento e eventos via Tauri Channel. A LR-3 preparou CSP, permissões por comando, validação de entrada, audit e um teste Rust de Stronghold sem credenciais reais. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
 
 ## Direção arquitetural pós-M0
 
@@ -16,8 +16,9 @@ Documentos principais:
 - [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
 - [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
 - [Plano operacional paralelo](docs/PLANO-OPERACIONAL-LUNA.md)
+- [Segurança LR-3](docs/SECURITY.md)
 
-**Importante:** esses documentos descrevem a direção e o plano; o estado implementado é o M0 visual, o runtime separado na LR-1 e o núcleo de tarefas/eventos da LR-2.
+**Importante:** esses documentos descrevem a direção e o plano; o estado implementado é o M0 visual, o runtime separado na LR-1, o núcleo de tarefas/eventos da LR-2 e a fundação de segurança da LR-3.
 
 ## Requisitos no Fedora
 
@@ -58,6 +59,8 @@ Clique na personagem ou no botão **Acenar**. O modelo deve voltar ao repouso ap
 
 Na janela Tauri, o painel **LUNA CORE · LR-2** inicia uma tarefa mock de duas etapas, mostra TaskId e eventos reais do Rust, e permite cancelá-la. Após conclusão ou cancelamento, outra tarefa pode ser iniciada. No navegador comum, o avatar continua disponível e o painel informa que o Luna Core requer Tauri.
 
+O diagnóstico **SECURITY · LR-3** mostra disponibilidade do SecretStore e presença de um segredo artificial sem devolver seu valor à UI. Em `tauri dev`, botões permitem gravar/verificar/remover esse teste; em release eles são rejeitados. A CSP e a capability `main-window` limitam a WebView. O snapshot Stronghold ainda usa uma chave local no mesmo diretório: isso prova o mecanismo, mas **não autoriza cadastrar API keys reais**. Detalhes e limitações estão em [Segurança LR-3](docs/SECURITY.md).
+
 Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com aceleração Intel HD 4000 apresentou canvas vazio/erro WebGL 1282, enquanto o modo de software exibiu e animou a personagem. Para repetir o diagnóstico com a GPU, execute `LIBGL_ALWAYS_SOFTWARE=0 npm run tauri dev`.
 
 ## Arquivos principais
@@ -68,6 +71,7 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 - `src/avatar/adapters/LegacyGlbAdapter.ts`: carrega e libera a Luna GLB atual, mapeando os clipes embutidos.
 - `src/luna/`: painel de diagnóstico, tipos de eventos, cliente Tauri e mapeamento `TaskEvent → AnimationIntent`.
 - `src-tauri/src/luna/`: tipos de tarefa/evento, registro em memória e execução/cancelamento assíncronos.
+- `src-tauri/src/security/`: validação de entrada, audit e SecretStore Stronghold acessível só ao Rust.
 - `src/styles.css`: layout escuro e responsivo.
 - `public/models/Luna.glb`: candidata local, sem dependência de rede durante a execução; licença em `public/models/Luna.LICENSE.json`.
 - `assets/luna/base.vrm` e `scripts/prepare_luna.py`: original e preparação reproduzível.

@@ -30,7 +30,7 @@ Ainda não implementado:
 - feedback de tarefas reais além do mock da LR-2;
 - VRM/VRMA runtime;
 - Animation Director completo (prioridades, packs e novos estados);
-- segurança para segredos/agente.
+- proteção final da chave de desbloqueio para segredos reais e políticas de ferramentas futuras.
 
 ## 2. Estratégia de execução
 
@@ -187,6 +187,10 @@ Uma tarefa fake de alguns passos deve:
 Nenhuma LLM necessária.
 
 ## 7. LR-3 — segurança mínima antes de segredos
+
+**Estado:** implementada em 26/09/2026 para o protótipo desktop. CSP restritiva de produção e `devCsp` para Vite, capability `main-window` com cinco comandos declarados no `AppManifest`, validação de `TaskId`, audit estruturado e `SecretStore` Rust com Stronghold foram adicionados. O segredo artificial foi gravado, recuperado após reinício e removido sem passar valor ao React. A chave local do POC ainda precisa de proteção adicional antes de API keys reais; consulte [SECURITY.md](SECURITY.md).
+
+**Gate:** `cargo check`, `cargo test`, `npm run typecheck`, `npm run build` e `git diff --check` passaram. `cargo fmt --check` ficou indisponível porque `rustfmt` não está instalado nesta toolchain. Na janela Tauri, WebGL/Idle/Acenar, tarefa mock/Channel/cancelamento, status de storage e reinício foram validados. No Firefox comum, WebGL/Idle/Acenar e retorno ao repouso funcionaram; o painel desabilitou a tarefa Rust e informou indisponibilidade do SecretStore, sem erro no console inspecionado. Nenhuma credencial real do aplicativo foi usada.
 
 **Lane principal:** D.
 
@@ -648,12 +652,12 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-2 concluída**, a próxima rodada de implementação estrutural deve ser **LR-3 — segurança mínima antes de segredos**.
+Com **LR-3 concluída**, a próxima rodada de implementação estrutural prevista é **LR-4 — persistência, identidade e memória v0**. Esta rodada deve ser iniciada separadamente, após a revisão do gate LR-3.
 
 Motivo:
 
-- o stream de tarefas e a ponte com o avatar já foram comprovados;
-- a próxima etapa precisa preparar o boundary Tauri antes de qualquer segredo ou ferramenta;
+- o stream de tarefas, a ponte com o avatar e a fronteira Tauri mínima já foram comprovados;
+- a próxima etapa pode trabalhar persistência sem colocar segredos no frontend;
 - continua independente do término do Idle/VRM/VRMA.
 
 Em paralelo, o trabalho atual de Blender continua normalmente.

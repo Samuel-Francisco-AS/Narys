@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AnimationIntent } from '../avatar/runtime/types'
+import SecurityPanel from '../security/SecurityPanel'
 import { taskEventToAnimationIntent } from './taskAnimation'
 import { cancelTask, lunaCoreAvailable, startMockTask } from './taskClient'
 import type { TaskEvent, TaskId, TaskState, TaskStep } from './types'
@@ -148,6 +149,7 @@ export default function LunaCorePanel({ onAnimationIntent }: Props) {
         <ol className="luna-core-events" aria-live="polite">
           {events.map((event) => <li key={`${event.taskId}-${event.sequence}`}>{eventLabel(event)}</li>)}
         </ol>
+        <SecurityPanel />
       </div>
     </aside>
   )

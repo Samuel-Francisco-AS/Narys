@@ -43,5 +43,8 @@ h3 { font-size: 18px; margin-bottom: 10px; }
 .luna-core-events-title { margin: 4px 0 0; font-size: 14px; }
 .luna-core-events { flex: 1; min-height: 160px; max-height: 320px; overflow-y: auto; margin: 0; padding: 0 0 0 26px; color: #c4cee4; font-size: 13px; line-height: 1.9; }
 .luna-core-events li { padding-left: 3px; }
+.security-panel { border-top: 1px solid #30394d; padding-top: 16px; display: flex; flex-direction: column; gap: 9px; color: #aab4ca; font-size: 12px; }
+.security-panel .luna-core-controls { margin-top: 4px; }
+.security-panel .secondary-button { padding: 8px 11px; font-size: 11px; }
 @media (max-width: 850px) { .workspace { grid-template-columns: 1fr; } .character-stage { min-height: 430px; } .conversation-panel { min-height: 260px; } }
 @media (max-width: 480px) { .app-shell { padding: 18px 12px; } .version { display: none; } .panel-heading { padding: 18px; } .character-stage { margin: 0 10px; min-height: 390px; } .character-toolbar { padding: 15px; } .luna-core-body { padding: 0 18px 18px; } .stage-caption { font-size: 8px; } }

@@ -18,3 +18,10 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["time"] }
+tauri-plugin-stronghold = { version = "2.3.2", default-features = false }
+getrandom = "0.3"
+iota_stronghold = { version = "2.1.0", default-features = false }
+
+# Stronghold usa scrypt ao abrir/salvar snapshots; em debug sem otimizacao fica muito lento.
+[profile.dev.package.scrypt]
+opt-level = 3

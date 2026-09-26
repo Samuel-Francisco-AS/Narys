@@ -132,7 +132,7 @@ pub fn start(registry: Arc<TaskRegistry>, channel: Channel<TaskEvent>) -> Result
       // A closed Channel cannot receive this event, but the task is still cleaned up.
       let kind = if state == TaskState::Cancelled { TaskEventKind::TaskCancelled } else { TaskEventKind::TaskFailed { detail: detail.clone() } };
       let _ = emit(&channel, id, &mut sequence, state, kind);
-      eprintln!("[Luna Core] tarefa {} falhou: {detail}", id.0);
+      eprintln!("[Luna Core] tarefa {} falhou; code=channel_or_worker_error", id.0);
     }
   });
   Ok(id)
