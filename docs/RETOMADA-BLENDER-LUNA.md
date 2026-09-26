@@ -2,12 +2,14 @@
 
 > Registro de 24/09/2026. Este documento resume decisões e resultados discutidos com o usuário e orienta a próxima sessão de trabalho. Não substitui `VALIDACAO.md` (M0-A), `docs/M0-B-STATUS.md` (estado técnico) nem os testes do aplicativo.
 
+> **Atualização de direção — 25/09/2026:** este arquivo permanece como registro histórico e guia da oficina de Blender. As decisões futuras sobre núcleo do agente, providers e pipeline de avatar foram refinadas depois deste registro. Para implementação estrutural, prevalecem [ARCHITECTURE-LUNA.md](ARCHITECTURE-LUNA.md), [AI-PROVIDERS-ORCHESTRATION.md](AI-PROVIDERS-ORCHESTRATION.md), [AVATAR-ANIMATION-RUNTIME.md](AVATAR-ANIMATION-RUNTIME.md) e [PLANO-OPERACIONAL-LUNA.md](PLANO-OPERACIONAL-LUNA.md). Em especial, a ideia abaixo de Python como núcleo futuro do agente foi substituída por **Rust como Luna Core**, com Python apenas opcional/auxiliar.
+
 ## 1. Produto, objetivos e forma de trabalho
 
 - Produto: assistente virtual com personagem feminina 3D, inicialmente desktop, futuramente Android; capacidade de agente para **executar** tarefas autorizadas, com possível integração a Telegram e/ou WhatsApp.
 - Prioridade de entrega: ver a personagem funcionando cedo, manter checkpoints pequenos e observáveis como no GestorFlow; não repetir um período longo de infraestrutura antes de apresentar resultado visual.
 - Prioridade pedagógica: arquitetura organizada e código legível, de modo que o usuário consiga abrir um arquivo e entender, com orientação, seu papel e fluxo. Aprendizado progressivo sem transformar o produto num exercício simplório.
-- Stack inicial: React + TypeScript + Three.js + Tauri 2; Python para agente/ferramentas quando esse marco começar; Kotlin para recursos Android quando pertinente. Interesse em C++ permanece, mas não é razão para acrescentá-lo ao núcleo sem necessidade técnica. Não introduzir essas camadas agora.
+- Stack registrada em 24/09: React + TypeScript + Three.js + Tauri 2; naquele momento Python era cogitado para agente/ferramentas e Kotlin para Android. **Decisão posterior (25/09):** manter Tauri/React/Three, promover Rust a Luna Core e usar Python apenas como ferramenta/sidecar opcional. Ver documentação arquitetural pós-M0.
 - Personagem desejada: Luna, mulher adulta estilizada com anime suave; cabelo em tons frios, olhos violeta/ciano, roupa escura elegante e detalhes discretos de androide/ciborgue. Não realista, infantilizada ou militarizada. O usuário prioriza agora movimento sobre refinamento de roupa e rosto.
 
 ## 2. Acontecimentos e commits
