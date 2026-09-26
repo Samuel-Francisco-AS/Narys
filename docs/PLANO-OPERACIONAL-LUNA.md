@@ -351,6 +351,8 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 **Atualização LR-6 (26/09/2026):** adapter Interactions API, Stronghold, política outbound mínima, chat SQLite e testes HTTP locais implementados. O gate real permanece pendente de configuração manual da chave e validação Tauri com chamada, cancelamento e reinício; portanto LR-6 ainda não é PASS completo. [Detalhes](GEMINI-PROVIDER.md). LR-7 não foi iniciada.
 
+**Auditoria de implementação (26/09/2026):** arquitetura, privacidade outbound, SecretStore, SSE incremental, cancelamento e persistência local foram aprovados, mas a validação com chave real permanece bloqueada por dois ajustes de protocolo: (1) `interaction.completed` precisa validar `interaction.status` e não tratar `incomplete`, `failed`, `cancelled` ou `requires_action` como sucesso; (2) erros da Interactions API devem usar o campo oficial `error.code` tanto em respostas HTTP quanto em eventos SSE, distinguindo pelo menos `quota_exceeded`, `rate_limit_exceeded`/`too_many_requests`, `authentication`/`permission_denied`, timeout/cancelamento e falhas transitórias. Nenhuma API key real deve ser inserida antes dessa correção.
+
 ## 11. LR-7 — segundo provider real + distribuição
 
 **Candidatos preferidos:** Groq ou Mistral.
