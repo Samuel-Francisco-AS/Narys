@@ -12,12 +12,13 @@
   "app": {
     "windows": [
       {
-        "title": "Assistente 3D · Luna M0-B",
-        "width": 1120,
-        "height": 760,
-        "minWidth": 720,
-        "minHeight": 600,
-        "resizable": true,
+        "title": "Luna",
+        "width": 440,
+        "height": 660,
+        "resizable": false,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
         "fullscreen": false
       }
     ],
