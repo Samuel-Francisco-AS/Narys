@@ -11,7 +11,7 @@ Implementado hoje:
 - Tauri 2 abre a aplicação desktop;
 - React/TypeScript compõe a UI;
 - Three.js renderiza Luna.glb;
-- CharacterScene carrega o avatar;
+- AvatarViewport/LegacyGlbAdapter carregam o avatar após LR-1;
 - Idle e Wave existem embutidos no GLB atual;
 - clique/botão acionam Wave;
 - retorno ao Idle funciona;
@@ -29,7 +29,7 @@ Ainda não implementado:
 - ferramentas;
 - feedback de tarefa;
 - VRM/VRMA runtime;
-- Animation Director;
+- Animation Director completo (prioridades, packs e novos estados);
 - segurança para segredos/agente.
 
 ## 2. Estratégia de execução
@@ -88,6 +88,8 @@ Gate:
 - M0 histórico permanece preservado.
 
 ## 5. LR-1 — separar o runtime visual sem mudar o comportamento
+
+**Estado:** implementado em 25/09/2026. `AvatarViewport` conecta React ao runtime; `SceneRuntime` cuida de Three.js/WebGL; `AvatarManager` cuida do avatar em cena e do carregamento tardio; `LegacyGlbAdapter` mantém `/models/Luna.glb` e os clipes embutidos; `AnimationRegistry` expõe apenas `idle`/`greeting`; `AnimationDirector` executa as transições atuais. O botão e o raycast solicitam `greeting`. VRM/VRMA, Avatar Packs e o diretor completo continuam fora desta etapa.
 
 **Objetivo:** transformar CharacterScene de protótipo monolítico em componentes internos, mantendo exatamente a Luna atual.
 

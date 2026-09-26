@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import CharacterScene from './components/CharacterScene'
+import AvatarViewport from './avatar/AvatarViewport'
+import type { AnimationRequest } from './avatar/runtime/types'
 
 export default function App() {
-  const [waveSignal, setWaveSignal] = useState(0)
+  const [animationRequest, setAnimationRequest] = useState<AnimationRequest | null>(null)
   const [sceneStatus, setSceneStatus] = useState('Preparando cena 3D…')
   const [ready, setReady] = useState(false)
 
@@ -30,8 +31,8 @@ export default function App() {
           </div>
 
           <div className="character-stage">
-            <CharacterScene
-              waveSignal={waveSignal}
+            <AvatarViewport
+              animationRequest={animationRequest}
               onStatusChange={setSceneStatus}
               onReadyChange={setReady}
             />
@@ -44,7 +45,10 @@ export default function App() {
               type="button"
               className="primary-button"
               disabled={!ready}
-              onClick={() => setWaveSignal((value) => value + 1)}
+              onClick={() => setAnimationRequest((current) => ({
+                id: (current?.id ?? 0) + 1,
+                intent: { type: 'greeting' },
+              }))}
             >
               <span aria-hidden="true">✳</span> Acenar
             </button>

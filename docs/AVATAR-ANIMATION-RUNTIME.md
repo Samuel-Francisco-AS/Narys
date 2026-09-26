@@ -17,32 +17,13 @@ Trocar o corpo visual não deve alterar memória, personalidade, providers ou fe
 
 ## 2. Estado atual
 
-O protótipo M0-B carrega:
+O protótipo M0-B, após a LR-1, continua carregando:
 
 ~~~text
 public/models/Luna.glb
 ~~~
 
-O arquivo contém Idle e Wave embutidos. src/components/CharacterScene.tsx:
-
-- cria cena/câmera/luzes;
-- carrega GLB;
-- cria AnimationMixer;
-- procura clipes por nome;
-- executa Idle;
-- executa Wave por clique/botão;
-- faz transição de volta;
-- trata raycast e descarte.
-
-Esse desenho é adequado para validar M0, mas acopla:
-
-- renderer;
-- avatar;
-- catálogo de animações;
-- regras de comportamento;
-- input do usuário.
-
-A refatoração deve separar essas responsabilidades.
+O arquivo contém Idle e Wave embutidos. A LR-1 separou `SceneRuntime` (cena/WebGL), `AvatarManager` e `LegacyGlbAdapter` (avatar/GLB), `AnimationRegistry` (capacidades `idle` e `greeting`) e `AnimationDirector` (mixer e transição atual). `AvatarViewport` liga essas peças ao React e mantém o raycast. O adapter ainda resolve os nomes concretos dos clipes embutidos; VRM, VRMA e packs continuam planejados.
 
 ## 3. Formato-alvo
 
@@ -313,7 +294,7 @@ src/avatar/
 │  ├─ AnimationRegistry.ts
 │  └─ types.ts
 └─ adapters/
-   ├─ VrmAvatarAdapter.ts
+   ├─ VrmAvatarAdapter.ts  (futuro)
    └─ LegacyGlbAdapter.ts
 ~~~
 

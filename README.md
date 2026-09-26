@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. O próximo trabalho será uma aula prática de poses no Blender, sem substituir a versão funcional. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
+**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. A LR-1 separou o runtime visual sem alterar os assets ou movimentos. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
 
 ## Direção arquitetural pós-M0
 
@@ -61,7 +61,9 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 ## Arquivos principais
 
 - `src/App.tsx`: composição da interface e botão de interação.
-- `src/components/CharacterScene.tsx`: cria a cena, carrega o GLB, toca os clipes e informa falhas de WebGL/carregamento.
+- `src/avatar/AvatarViewport.tsx`: liga o viewport React ao runtime e trata o clique na personagem.
+- `src/avatar/runtime/`: cena/WebGL, ciclo de vida do avatar, catálogo semântico e transições Idle/greeting.
+- `src/avatar/adapters/LegacyGlbAdapter.ts`: carrega e libera a Luna GLB atual, mapeando os clipes embutidos.
 - `src/styles.css`: layout escuro e responsivo.
 - `public/models/Luna.glb`: candidata local, sem dependência de rede durante a execução; licença em `public/models/Luna.LICENSE.json`.
 - `assets/luna/base.vrm` e `scripts/prepare_luna.py`: original e preparação reproduzível.
@@ -69,7 +71,7 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 - `assets/app-icon.svg`: ícone original do protótipo; `src-tauri/icons/` contém versões geradas pelo CLI.
 - `src-tauri/`: configuração e inicialização da janela Tauri.
 
-Fluxo: o React monta `CharacterScene` → Three.js cria o renderizador WebGL e carrega o GLB → `AnimationMixer` toca `Idle` → clique inicia `Wave` → o laço de renderização atualiza a animação e desenha a cena.
+Fluxo: o React monta `AvatarViewport` → `SceneRuntime` cria o renderizador WebGL → o adapter carrega a Luna GLB → `AnimationDirector` toca `Idle` → clique ou botão solicita `greeting` → o diretor toca o clipe legado `Wave` e retorna ao Idle.
 
 ## Modelos e licenças
 
@@ -87,6 +89,6 @@ A Luna atual é uma candidata técnica funcional, **não uma animação aprovada
 
 Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA.md](docs/RETOMADA-BLENDER-LUNA.md). O progresso e os riscos técnicos do protótipo permanecem em [M0-B-STATUS.md](docs/M0-B-STATUS.md).
 
-O trabalho artístico não precisa mais bloquear a evolução estrutural: o próximo marco funcional recomendado é **LR-1**, uma refatoração sem mudança visual que separa o runtime de avatar/animação; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
+O trabalho artístico não precisa bloquear a evolução estrutural: **LR-1** separou o runtime de avatar/animação sem mudar o asset atual; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
 
 Conversação funcional, Luna Core, memória, provedores de IA, ferramentas operacionais, Android e mensageiros continuam **fora do estado implementado atual**, embora já tenham arquitetura e plano documentados.
