@@ -357,6 +357,8 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 **Auditoria da FIX (26/09/2026): PASS.** A revisão confirmou status terminal fail-closed, mapper compartilhado de `error.code` para HTTP/SSE, distinção entre rate limit e quota, ausência de retry para erros terminais e preservação da regra de não retry/fallback após primeiro chunk. A validação com API key real está liberada; LR-6 só poderá ser fechada após chamada real, streaming/usage, cancelamento e reinício.
 
+**Validação real (26/09/2026): PASS.** A chave Gemini foi cadastrada pelo painel Tauri e permaneceu configurada após fechar/reabrir a aplicação. Uma chamada real concluiu com streaming e usage observado (48 tokens de entrada, 78 de saída, 126 total, thinking 0) e a conversa local persistiu. Em testes adicionais, uma resposta terminou como `provider_incomplete` e permaneceu apenas como prévia não persistida; outra tentativa retornou `unavailable` sem corromper estado; por fim, uma chamada com chunks reais foi cancelada manualmente antes da fase de persistência e terminou como `cancelled`, sem gravar resposta final. Com restart, credencial e conversa anterior foram recuperadas corretamente. **LR-6 = PASS completo.** LR-7 continua não iniciada; a próxima rodada será dedicada a UI/performance antes de avançar providers.
+
 ## 11. LR-7 — segundo provider real + distribuição
 
 **Candidatos preferidos:** Groq ou Mistral.
