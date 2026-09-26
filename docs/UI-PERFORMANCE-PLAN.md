@@ -205,6 +205,8 @@ Não perseguir 60 FPS por princípio.
 
 ## 8. UIP-0 — contratos + baseline
 
+**Estado:** **PASS completo em 26/09/2026.** Contratos, instrumentação DEV e baseline foram implementados; typecheck/build/diff-check passaram; Tauri/WebGL permaneceram funcionais; a validação humana confirmou minimizar/restaurar, resize manual e Idle/aceno sem regressão perceptível. Consulte [UIP-0-BASELINE.md](UIP-0-BASELINE.md).
+
 **Objetivo:** formalizar estados, fronteiras e capturar a linha de base antes da transformação visual.
 
 ### Trabalho
@@ -475,6 +477,6 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Iniciar **UIP-0**.
+Iniciar **UIP-1 — Presence Shell**.
 
-A primeira execução deve ser pequena e auditável: contratos, instrumentação/baseline e documentação do comportamento atual. Não combinar UIP-0 com toda a transformação visual em uma única rodada.
+A execução deve continuar pequena e auditável: transformar apenas a casca visual/janela principal em presença desktop mínima, preservando Luna Core, conversa LR-6, instrumentação UIP-0 e o comportamento do avatar. Não antecipar Render Budget/UIP-2 nem ergonomia/UIP-3.
