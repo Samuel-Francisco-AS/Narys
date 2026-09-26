@@ -359,6 +359,31 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 **Validação real (26/09/2026): PASS.** A chave Gemini foi cadastrada pelo painel Tauri e permaneceu configurada após fechar/reabrir a aplicação. Uma chamada real concluiu com streaming e usage observado (48 tokens de entrada, 78 de saída, 126 total, thinking 0) e a conversa local persistiu. Em testes adicionais, uma resposta terminou como `provider_incomplete` e permaneceu apenas como prévia não persistida; outra tentativa retornou `unavailable` sem corromper estado; por fim, uma chamada com chunks reais foi cancelada manualmente antes da fase de persistência e terminou como `cancelled`, sem gravar resposta final. Com restart, credencial e conversa anterior foram recuperadas corretamente. **LR-6 = PASS completo.** LR-7 continua não iniciada; a próxima rodada será dedicada a UI/performance antes de avançar providers.
 
+## Interlúdio UIP — interface de presença + performance
+
+**Estado:** planejado em 26/09/2026 após **LR-6 = PASS completo**. Antes da LR-7, o projeto executará a trilha **UIP-0 → UIP-7** para transformar a casca M0-B em uma interface de presença desktop e estabelecer orçamento real de renderização.
+
+Princípios fechados:
+
+- Luna/personagem é o centro; UI é acessória e recolhível;
+- janela principal transparente, sem borda e pequena em relação ao monitor;
+- modos `always-on-top`, normal e click-through configuráveis;
+- reposicionamento por região/comando específico, preservando interação com a personagem;
+- compositor e conversa podem desaparecer sem encerrar a sessão;
+- cada execução inicia sessão nova; `Nova conversa` cria outra sessão;
+- histórico é dividido em sessões e não vira prompt infinito;
+- resumo de sessão pode usar LLM assíncrona por papel cognitivo configurável;
+- resumo de sessão não equivale a memória persistente;
+- UI, Conversation Runtime, Luna Core e Avatar Runtime permanecem independentes;
+- renderer usa **30 FPS como teto padrão** e perfis reduzidos quando apropriado;
+- gates de performance são curtos/reproduzíveis; endurance virá do uso cotidiano;
+- abrir o painel de conversa não aumenta a dimensão de render do CharacterStage;
+- futuras reações ao ambiente entram por eventos/BehaviorIntent sem acoplar desktop context ao renderer.
+
+Plano detalhado: [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md).
+
+**Sequência obrigatória antes da LR-7:** UIP-0 contratos/baseline → UIP-1 Presence Shell → UIP-2 Render Budget → UIP-3 ergonomia da janela → UIP-4 compositor/conversa → UIP-5 histórico/resumo assíncrono → UIP-6 janelas de configuração → UIP-7 consolidação/performance.
+
 ## 11. LR-7 — segundo provider real + distribuição
 
 **Candidatos preferidos:** Groq ou Mistral.
@@ -675,7 +700,7 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-5 e PRE-LR-6 hardening concluídos**, a próxima etapa planejada é LR-6. Esta rodada terminou antes de qualquer provider real ou API key. O trabalho de Blender segue independente.
+Com **LR-6 = PASS completo**, a próxima etapa é **UIP-0 — contratos + baseline**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando o fechamento da trilha UIP. O trabalho de Blender segue independente.
 
 ## 25. Definição da primeira grande entrega funcional
 
@@ -699,6 +724,6 @@ Codex, Copilot e grande catálogo de animações podem ser adicionados increment
 
 ## PRE-LR-6 hardening — fechamento dos gates
 
-O hardening introduz propagação terminal de falha do Channel (`channel_closed`), mocks transitórios por tentativa de cada tarefa e chave Stronghold no credential store do SO, com migração verificada do arquivo legado. O release deixa de registrar handlers diagnósticos LR-3/LR-4/LR-5; permissões declarativas residuais da capability estática seguem documentadas. **Estado: concluído no Fedora em 26/09/2026.** `cargo check`, `cargo test`, `cargo check --release`, typecheck/build frontend e migração/reabertura real passaram. O Secret Service disponibilizou a chave após reinício do app; `luna-lr3.unlock` não reapareceu. A toolchain Rust 1.77.2 exata e um reboot/logout do SO não foram testados. **LR-6 — Gemini** é a próxima etapa somente após esses gates, e não foi iniciada nesta rodada.
+O hardening introduz propagação terminal de falha do Channel (`channel_closed`), mocks transitórios por tentativa de cada tarefa e chave Stronghold no credential store do SO, com migração verificada do arquivo legado. O release deixa de registrar handlers diagnósticos LR-3/LR-4/LR-5; permissões declarativas residuais da capability estática seguem documentadas. **Estado: concluído no Fedora em 26/09/2026.** `cargo check`, `cargo test`, `cargo check --release`, typecheck/build frontend e migração/reabertura real passaram. O Secret Service disponibilizou a chave após reinício do app; `luna-lr3.unlock` não reapareceu. A toolchain Rust 1.77.2 exata e um reboot/logout do SO não foram testados. Esse hardening posteriormente liberou e sustentou a LR-6, que foi implementada, auditada e validada com API real em 26/09/2026. O próximo trabalho estrutural é a trilha UIP antes da LR-7.
 
 **Auditoria:** PASS em 26/09/2026. A revisão confirmou que falhas do event sink impedem execução/retry/fallback subsequentes e resultam em `channel_closed`; os mocks transitórios usam `attempt` por execução e permanecem repetíveis com o mesmo runtime; cooldown continua compartilhado entre tarefas; o SecretStore usa `UnlockKeyStore` interno com credential store do SO e não possui fallback plaintext. A migração só remove o legado após validação da chave recuperada e do snapshot. O gate técnico para iniciar LR-6 no desktop Fedora está liberado.
