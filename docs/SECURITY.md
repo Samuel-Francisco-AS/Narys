@@ -56,3 +56,16 @@ Melhorias futuras não bloqueantes:
 ## Validação manual
 
 No Tauri dev, verificar Luna/Idle/Acenar, tarefa mock/Channel/cancelamento, ausência de violações CSP relevantes e os botões de storage de teste. Após gravar o segredo artificial, reiniciar a aplicação e confirmar apenas o indicador “armazenado”; então removê-lo. Em navegador comum, o painel deve dizer que SecretStore está indisponível e não invocar comandos Tauri.
+
+
+## Auditoria PRE-LR-6 — 26/09/2026
+
+**PASS no desktop Fedora.** A revisão pós-implementação confirmou que a unlock key do Stronghold não possui mais fallback plaintext: o credential store do sistema é autoritativo, snapshot existente sem chave falha fechado e o arquivo legado só é removido depois da validação da chave recuperada e do vault. A migração real preservou o snapshot e `luna-lr3.unlock` permaneceu ausente após reabertura.
+
+Limitações conhecidas que não bloqueiam LR-6 no desktop atual:
+
+- a toolchain Rust 1.77.2 exata ainda não foi executada; o manifesto continua declarando esse MSRV;
+- logout/reboot do sistema ainda não foi testado;
+- Windows e macOS ainda não foram validados;
+- o backend Linux `sync-secret-service` é síncrono/bloqueante; futuras leituras de credenciais a partir de fluxos async de providers devem ser executadas fora do executor assíncrono, por exemplo com `spawn_blocking`;
+- permissions diagnósticas residuais ainda aparecem na capability estática, embora os handlers não existam em release.
