@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. LR-1 a LR-4 estabeleceram runtime visual, tarefas/eventos, segurança inicial e SQLite local. LR-5 acrescentou Context Builder, Registry, Scheduler e MockProvider locais. LR-6 implementou Gemini e chat mínimo, com validação externa pendente de chave manual. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
+**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. Antes da LR-7, o projeto entra na trilha **UIP-0 → UIP-7**, dedicada à interface de presença desktop e performance. O trabalho artístico de Blender segue independente. Consulte [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## Direção arquitetural pós-M0
 
@@ -16,11 +16,12 @@ Documentos principais:
 - [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
 - [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
 - [Plano operacional paralelo](docs/PLANO-OPERACIONAL-LUNA.md)
+- [Plano de UI e performance](docs/UI-PERFORMANCE-PLAN.md)
 - [Segurança LR-3](docs/SECURITY.md)
 - [Identidade e memória LR-4](docs/MEMORY-IDENTITY.md)
 - [Runtime cognitivo LR-5](docs/COGNITION-RUNTIME.md)
 
-**Estado LR-6:** o adapter Gemini e o chat local mínimo estão implementados. A validação com a API real depende de inserir manualmente uma chave no painel Tauri; até então o gate real permanece pendente. O PRE-LR-6 hardening protege a chave de desbloqueio Stronghold no cofre do sistema e interrompe o trabalho se o Channel fechar. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md).
+**Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. A próxima etapa é **UIP-0 — contratos + baseline**, antes de qualquer LR-7. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
 
 ## Requisitos no Fedora
 
@@ -109,4 +110,4 @@ Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA
 
 O trabalho artístico não precisa bloquear a evolução estrutural: **LR-1** separou o runtime de avatar/animação sem mudar o asset atual; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
 
-O chat Gemini LR-6 funciona apenas na janela Tauri e requer chave inserida manualmente no painel. Ferramentas operacionais, Android, mensageiros e segundo provider continuam fora do estado implementado.
+O chat Gemini LR-6 funciona na janela Tauri com credencial mantida no SecretStore. Ferramentas operacionais, Android, mensageiros e segundo provider continuam fora do estado implementado. Antes deles, a trilha UIP transforma a interface atual em presença desktop transparente/recolhível e estabelece orçamento de performance.
