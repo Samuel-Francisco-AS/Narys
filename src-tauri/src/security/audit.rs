@@ -7,6 +7,7 @@ pub enum Action {
   SecretTestWritten,
   SecretTestDeleted,
   SecurityError,
+  UnlockKeyMigrated,
 }
 
 impl Action {
@@ -17,6 +18,7 @@ impl Action {
       Self::SecretTestWritten => "secret_test_written",
       Self::SecretTestDeleted => "secret_test_deleted",
       Self::SecurityError => "security_error",
+      Self::UnlockKeyMigrated => "unlock_key_migrated",
     }
   }
 }

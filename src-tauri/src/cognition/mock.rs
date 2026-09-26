@@ -21,15 +21,15 @@ impl Provider for MockProvider {
     on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send)) -> ProviderFuture<'a> {
     Box::pin(async move {
       if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
-      let call = self.calls.fetch_add(1, Ordering::SeqCst) + 1;
+      self.calls.fetch_add(1, Ordering::SeqCst);
       // Check structure only. The mock never echoes identity, memories or conversation.
       if request.context.identity.canonical_name.is_empty() { return Err(ProviderError::Fatal); }
       match self.scenario {
         MockScenario::RateLimited => return Err(ProviderError::RateLimited { retry_after_ms: Some(3_000) }),
         MockScenario::QuotaExceeded => return Err(ProviderError::QuotaExceeded),
         MockScenario::Fatal => return Err(ProviderError::Fatal),
-        MockScenario::Timeout if call == 1 => { delay(cancelled, 100).await?; return Err(ProviderError::Timeout); },
-        MockScenario::TransientThenSuccess if call == 1 => return Err(ProviderError::Timeout),
+        MockScenario::Timeout if request.attempt == 1 => { delay(cancelled, 100).await?; return Err(ProviderError::Timeout); },
+        MockScenario::TransientThenSuccess if request.attempt == 1 => return Err(ProviderError::Timeout),
         _ => {}
       }
       let pieces: Vec<String> = if matches!(self.scenario, MockScenario::Streaming) {

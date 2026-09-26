@@ -5,6 +5,8 @@ type SecurityStatus = {
   storeAvailable: boolean
   testSecretConfigured: boolean
   errorCode: string | null
+  unlockProtection: string
+  legacyKeyPresent: boolean
 }
 
 export default function SecurityPanel() {
@@ -39,6 +41,7 @@ export default function SecurityPanel() {
     <section className="security-panel" aria-label="Diagnóstico de segurança LR-3">
       <span className="section-label">SECURITY · LR-3</span>
       <p>CSP: configurada · SecretStore: {!available ? 'indisponível no navegador' : !status ? 'verificando' : status.storeAvailable ? 'disponível' : 'indisponível'}</p>
+      {available && <p>Unlock protection: {status?.unlockProtection === 'system_credential_store' ? 'cofre do sistema' : status?.unlockProtection === 'legacy_pending_migration' ? 'migração pendente' : 'indisponível'} · Legacy key: {status?.legacyKeyPresent ? 'presente' : 'ausente'}</p>}
       {available && <p>Segredo artificial: {status?.testSecretConfigured ? 'armazenado' : 'ausente'}</p>}
       {status?.errorCode && <p className="luna-core-error" role="alert">Falha de segurança: {status.errorCode}</p>}
       {error && <p className="luna-core-error" role="alert">{error}</p>}

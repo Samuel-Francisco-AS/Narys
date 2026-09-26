@@ -8,17 +8,19 @@ Esta etapa protege a fronteira antes de qualquer API key real. O React apresenta
 
 `devCsp` acrescenta apenas WebSocket HMR do Vite em localhost e `style-src 'unsafe-inline'` para estilos injetados pelo Vite em desenvolvimento. Isso não é aplicado ao build distribuído. O navegador comum executa via Vite, sem IPC Tauri.
 
-`main-window.json` aplica-se somente à janela com label `main` em Linux/macOS/Windows. A lista inclui cinco comandos próprios (`start_mock_task`, `cancel_task`, `security_status`, `security_test_store_secret`, `security_test_delete_secret`) e nenhuma permissão de plugin/core. `build.rs` declara os mesmos comandos no `AppManifest` para que o ACL do Tauri os verifique. Os dois comandos de teste rejeitam chamadas em compilação release. Eles nunca recebem valor/chave do frontend nem devolvem bytes do segredo.
+`main-window.json` limita a janela `main` a comandos específicos, sem API genérica de keyring, Stronghold, filesystem ou shell. Os comandos diagnósticos LR-3/LR-4/LR-5 ficam fora do `invoke_handler` release e da lista release no `AppManifest`. A capability estática ainda contém permissões declarativas diagnósticas; a separação dessa ACL por perfil exige configuração Tauri adicional e permanece registrada como superfície residual sem handler executável.
 
-## Segredo artificial
+## Chave de desbloqueio Stronghold
 
-`SecretStore` usa a implementação Stronghold do plugin oficial pelo Rust, sem registrar o plugin IPC ou instalar binding JavaScript. O snapshot fica no diretório de dados locais do aplicativo (`app_local_data_dir`), em `luna-lr3.stronghold`. A chave aleatória de desbloqueio de 32 bytes é criada uma vez em `luna-lr3.unlock`; no Unix, o diretório recebe `0700` e os dois arquivos recebem `0600`. Se houver snapshot e a chave faltar, ou se um arquivo for inválido/corrompido, o acesso falha e o status informa um código controlado. Nenhum caminho interno, chave ou valor é retornado ao frontend. O perfil dev otimiza apenas o pacote `scrypt`, conforme a recomendação do plugin, para evitar minutos de CPU por operação em debug.
+O snapshot `luna-lr3.stronghold` continua em `app_local_data_dir`. A chave aleatória de 32 bytes reside no credential store nativo: Secret Service persistente via D-Bus no Linux, Credential Manager no Windows e Keychain no macOS. O backend Rust usa `keyring` 3.6.3 com `sync-secret-service` e `crypto-rust` no Linux, sem `keyutils` de sessão. A crate declara MSRV 1.75; `dbus-secret-service` foi fixada em 4.0.1 (MSRV 1.70), pois 4.1.0 exige Rust 1.78. O `rust-version = 1.77.2` do projeto não foi alterado. A toolchain exata 1.77.2 não está instalada; o check de MSRV foi feito por metadata e o build local usa a toolchain disponível. React recebe apenas status e nunca acessa a chave.
 
-Este POC demonstra criptografia do snapshot e persistência após reinício, mas **a chave de desbloqueio reside ao lado do snapshot, acessível ao mesmo usuário do sistema**. Isso não é proteção suficiente contra comprometimento dessa conta nem está aprovado para API keys reais. Antes da primeira chave real, decidir proteção da chave por mecanismo do sistema ou senha do usuário e rever backup/recuperação. A persistência não foi avaliada em Android/iOS.
+No primeiro uso sem snapshot nem chave legada, o core gera 32 bytes, grava no cofre do SO, relê e verifica antes de abrir o Stronghold. Não cria novo `luna-lr3.unlock`. Se snapshot existir sem credencial, falha fechado. Se Secret Service/D-Bus estiver indisponível, bloqueado ou corrompido, falha fechado, sem fallback plaintext. O diretório é revalidado em `0700` e o snapshot em `0600` a cada abertura no Unix.
 
-**Gate operacional:** LR-4 (persistência/memória) e LR-5 (MockProvider/Scheduler) podem avançar sem credenciais reais. **LR-6 e qualquer integração que precise armazenar uma API key real ficam bloqueadas** até que a chave de desbloqueio seja protegida por mecanismo independente do snapshot (por exemplo, credencial do sistema operacional ou segredo derivado de senha do usuário) e o fluxo de recuperação seja definido.
+Para migrar um vault legado, o core valida arquivo regular e permissões, lê a chave antiga, confirma que ela abre o snapshot, grava no credential store, relê e compara a chave, abre novamente o snapshot com a credencial recuperada e só então remove `luna-lr3.unlock`. Se a gravação no cofre falhar, o legado e snapshot permanecem. Se a remoção falhar, o status aponta hardening incompleto e a próxima abertura tenta novamente; o cofre do SO permanece como fonte principal. Nenhum caminho ou byte da chave é enviado à UI ou ao audit.
 
-O único identificador aceito nesta fase é `SecretKey::Lr3Test`, mapeado internamente no Rust. `ProviderConfig` futuro conterá apenas dados públicos como `enabled`, `priority` e `model`; `ProviderSecret` será uma referência tipada a um segredo no `SecretStore`, sem valor em React ou em configuração comum. O Provider Registry continua fora da LR-3.
+A chave agora pertence ao ambiente do usuário no sistema operacional. A separação entre snapshot e chave melhora a proteção contra cópia do diretório de dados, sem prometer segurança absoluta contra comprometimento da sessão do usuário. Perda ou corrupção do credential store pode tornar o snapshot irrecuperável; credenciais futuras teriam de ser cadastradas novamente. Não há backup plaintext automático nem export/recovery nesta rodada.
+
+O único segredo funcional permanece `SecretKey::Lr3Test`, artificial. No Fedora, o vault existente migrou em `tauri dev` com audit `unlock_key_migrated`; após encerrar e reabrir o app, `security_status` voltou sem erro. Uma leitura manual somente de status confirmou segredo artificial ausente, como esperado após a remoção na LR-3, e arquivo legado ausente. O snapshot foi preservado em `0600`, e o diretório em `0700`.
 
 ## Audit e erros
 
@@ -27,7 +29,9 @@ O backend escreve linhas `security_audit timestamp_ms=... action=... result=... 
 O `TaskId` recebido por `cancel_task` deve estar no intervalo `1..=Number.MAX_SAFE_INTEGER`; a desserialização de `u64` e a validação no Rust rejeitam valores inválidos. O registry continua removendo tarefas concluídas/canceladas.
 
 
-## Parecer de auditoria — 26/09/2026
+## Parecer histórico de auditoria LR-3 — 26/09/2026
+
+Os itens abaixo descrevem o estado da LR-3 antes do PRE-LR-6 hardening. As mudanças atuais estão registradas acima.
 
 **LR-3 aprovada para a fundação de segurança do protótipo desktop.** A auditoria confirmou:
 

@@ -42,6 +42,7 @@ pub struct ProviderRequest {
   pub context: Arc<ContextBundle>,
   pub max_output_tokens: u32,
   pub required_capabilities: ProviderCapabilities,
+  pub attempt: u32,
 }
 #[derive(Clone, Debug)]
 pub struct ProviderChunk { pub text: String }
@@ -53,12 +54,12 @@ pub struct ProviderResponse { pub text: String, pub usage: ProviderUsage }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderError {
-  RateLimited { retry_after_ms: Option<u64> }, Timeout, QuotaExceeded, Fatal, Cancelled, Unavailable,
+  RateLimited { retry_after_ms: Option<u64> }, Timeout, QuotaExceeded, Fatal, Cancelled, Unavailable, EventSinkClosed,
 }
 impl ProviderError {
   pub fn code(&self) -> &'static str { match self {
     Self::RateLimited { .. } => "rate_limited", Self::Timeout => "timeout", Self::QuotaExceeded => "quota_exceeded",
-    Self::Fatal => "fatal", Self::Cancelled => "cancelled", Self::Unavailable => "unavailable",
+    Self::Fatal => "fatal", Self::Cancelled => "cancelled", Self::Unavailable => "unavailable", Self::EventSinkClosed => "channel_closed",
   }}
 }
 
@@ -75,7 +76,7 @@ pub struct SchedulerUsage {
 pub struct TaskResult { pub text: String, pub provider_id: ProviderId, pub usage: SchedulerUsage, pub context_metadata: ContextMetadata }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum SchedulerError { BudgetExceeded, Cancelled, NoProvider, Provider(ProviderError) }
+pub enum SchedulerError { BudgetExceeded, Cancelled, EventSinkClosed, NoProvider, Provider(ProviderError) }
 impl SchedulerError { pub fn code(&self) -> &'static str { match self {
-  Self::BudgetExceeded => "budget_exceeded", Self::Cancelled => "cancelled", Self::NoProvider => "provider_unavailable", Self::Provider(e) => e.code(),
+  Self::BudgetExceeded => "budget_exceeded", Self::Cancelled => "cancelled", Self::EventSinkClosed => "channel_closed", Self::NoProvider => "provider_unavailable", Self::Provider(e) => e.code(),
 }} }

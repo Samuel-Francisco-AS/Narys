@@ -40,7 +40,7 @@ fn context(db: &Database) -> super::types::ContextBundle {
     min_importance: 0, memory_limit: 3, include_recent_conversation: false }).unwrap()
 }
 fn request(db: &Database) -> ProviderRequest { ProviderRequest { input: "synthetic".into(), context: Arc::new(context(db)),
-  max_output_tokens: 30, required_capabilities: ProviderCapabilities::text_stream() } }
+  max_output_tokens: 30, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 } }
 fn entry(id: &str, priority: u16, enabled: bool, caps: ProviderCapabilities, mock: Arc<MockProvider>, registry: &mut ProviderRegistry) {
   registry.register(ProviderConfig { id:id.into(), enabled, priority, capabilities:caps }, mock).unwrap();
 }
@@ -98,30 +98,30 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
   let scheduler=Scheduler::new(registry);
   let cancelled=AtomicBool::new(false);
   let mut events=vec![];
-  let result=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |e| events.push(e))).unwrap();
+  let result=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |e| { events.push(e); Ok(()) })).unwrap();
   assert_eq!(result.provider_id,"mock-fallback"); assert_eq!(result.usage.provider_calls,2);
   assert_eq!(result.usage.providers_used,vec!["mock-primary","mock-fallback"]);
   assert_eq!(result.usage.fallbacks,1); assert!(result.usage.input_tokens > 0); assert!(result.usage.output_tokens > 0);
   assert!(events.iter().any(|e|matches!(e,SchedulerEvent::Fallback { reason_code:"rate_limited",.. })));
   assert!(scheduler.status().iter().any(|s|s.id=="mock-primary" && s.cooldown_ms>0));
-  let next=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |_| {})).unwrap();
+  let next=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |_| Ok(()))).unwrap();
   assert_eq!(next.usage.provider_calls,1); assert_eq!(primary.calls(),1); assert_eq!(fallback.calls(),2);
   let mut registry=ProviderRegistry::default();
   let limited=Arc::new(MockProvider::new(MockScenario::RateLimited));
   let untouched=Arc::new(MockProvider::new(MockScenario::Normal));
   entry("a",1,true,ProviderCapabilities::text_stream(),limited.clone(),&mut registry);
   entry("b",2,true,ProviderCapabilities::text_stream(),untouched.clone(),&mut registry);
-  assert_eq!(tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(1),&cancelled,&mut |_| {})).unwrap_err(),SchedulerError::BudgetExceeded);
+  assert_eq!(tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(1),&cancelled,&mut |_| Ok(()))).unwrap_err(),SchedulerError::BudgetExceeded);
   assert_eq!(untouched.calls(),0);
   let mut registry=ProviderRegistry::default();
   let timeout=Arc::new(MockProvider::new(MockScenario::Timeout));
   entry("timeout",1,true,ProviderCapabilities::text_stream(),timeout.clone(),&mut registry);
-  let retry=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(2),&cancelled,&mut |_| {})).unwrap();
+  let retry=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(2),&cancelled,&mut |_| Ok(()))).unwrap();
   assert_eq!(retry.usage.provider_calls,2); assert_eq!(retry.usage.retries,1); assert_eq!(timeout.calls(),2);
   let mut registry=ProviderRegistry::default();
   let transient=Arc::new(MockProvider::new(MockScenario::TransientThenSuccess));
   entry("transient",1,true,ProviderCapabilities::text_stream(),transient.clone(),&mut registry);
-  let recovered=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(2),&cancelled,&mut |_| {})).unwrap();
+  let recovered=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(2),&cancelled,&mut |_| Ok(()))).unwrap();
   assert_eq!(recovered.usage.retries,1); assert_eq!(transient.calls(),2);
   fs::remove_dir_all(dir).unwrap();
 }
@@ -134,17 +134,17 @@ fn mock_streaming_cancellation_and_error_classes() {
   let mut registry=ProviderRegistry::default(); entry("stream",1,true,ProviderCapabilities::text_stream(),mock,&mut registry);
   let scheduler=Scheduler::new(registry);
   let mut chunks=vec![];
-  let result=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(1),&cancelled,&mut |e| { if let SchedulerEvent::Chunk{text,..}=e {chunks.push(text)} })).unwrap();
+  let result=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(1),&cancelled,&mut |e| { if let SchedulerEvent::Chunk{text,..}=e {chunks.push(text)} Ok(()) })).unwrap();
   assert_eq!(chunks,vec!["Analisando ","contexto ","local..."]);
   assert_eq!(chunks.concat(),result.text);
   let signal=cancelled.clone();
   let handle=std::thread::spawn(move || {std::thread::sleep(Duration::from_millis(145));signal.store(true,Ordering::Release)});
-  let stopped=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(2),&cancelled,&mut |_| {}));
+  let stopped=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(2),&cancelled,&mut |_| Ok(())));
   handle.join().unwrap(); assert_eq!(stopped.unwrap_err(),SchedulerError::Cancelled);
   for (scenario,error) in [(MockScenario::QuotaExceeded,ProviderError::QuotaExceeded),(MockScenario::Fatal,ProviderError::Fatal)] {
     let mut registry=ProviderRegistry::default(); entry("only",1,true,ProviderCapabilities::text_stream(),Arc::new(MockProvider::new(scenario)),&mut registry);
     let signal=AtomicBool::new(false);
-    assert_eq!(tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(2),&signal,&mut |_| {})).unwrap_err(),SchedulerError::Provider(error));
+    assert_eq!(tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(2),&signal,&mut |_| Ok(()))).unwrap_err(),SchedulerError::Provider(error));
   }
   fs::remove_dir_all(dir).unwrap();
 }
@@ -158,7 +158,7 @@ fn disabled_provider_is_never_called_and_output_budget_is_respected() {
   entry("disabled",0,false,ProviderCapabilities::text_stream(),disabled.clone(),&mut registry);
   entry("enabled",1,true,ProviderCapabilities::text_stream(),enabled.clone(),&mut registry);
   let signal=AtomicBool::new(false);
-  let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),TaskBudget{max_provider_calls:1,max_output_tokens:2},&signal,&mut |_| {})).unwrap();
+  let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),TaskBudget{max_provider_calls:1,max_output_tokens:2},&signal,&mut |_| Ok(()))).unwrap();
   assert_eq!(result.provider_id,"enabled"); assert_eq!(result.usage.output_tokens,2); assert_eq!(disabled.calls(),0); assert_eq!(enabled.calls(),1);
   fs::remove_dir_all(dir).unwrap();
 }
@@ -175,13 +175,77 @@ fn cancellation_prevents_fallback_and_normal_is_deterministic() {
   let signal=Arc::new(AtomicBool::new(false));
   let signal_for_thread=signal.clone();
   let handle=std::thread::spawn(move || { std::thread::sleep(Duration::from_millis(145)); signal_for_thread.store(true,Ordering::Release); });
-  assert_eq!(tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&signal,&mut |_| {})).unwrap_err(),SchedulerError::Cancelled);
+  assert_eq!(tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&signal,&mut |_| Ok(()))).unwrap_err(),SchedulerError::Cancelled);
   handle.join().unwrap(); assert_eq!(fallback.calls(),0);
   let signal=AtomicBool::new(false);
   let mut registry=ProviderRegistry::default();
   entry("normal",1,true,ProviderCapabilities::text_stream(),Arc::new(MockProvider::new(MockScenario::Normal)),&mut registry);
-  let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(1),&signal,&mut |_| {})).unwrap();
+  let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(1),&signal,&mut |_| Ok(()))).unwrap();
   assert_eq!(result.provider_id,"normal"); assert!(result.text.contains("3 memórias relevantes"));
   assert!(!result.text.contains("Synthetic private marker"));
+  fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn event_sink_failure_stops_before_provider_during_stream_and_before_retry() {
+  let (db, dir) = fixture(); seed(&db);
+  for (scenario, fail_at, expected_calls) in [
+    (MockScenario::Normal, "selected", 0),
+    (MockScenario::Streaming, "second_chunk", 1),
+    (MockScenario::Timeout, "retry", 1),
+  ] {
+    let primary = Arc::new(MockProvider::new(scenario));
+    let fallback = Arc::new(MockProvider::new(MockScenario::Normal));
+    let mut registry = ProviderRegistry::default();
+    entry("primary", 1, true, ProviderCapabilities::text_stream(), primary.clone(), &mut registry);
+    entry("fallback", 2, true, ProviderCapabilities::text_stream(), fallback.clone(), &mut registry);
+    let scheduler = Scheduler::new(registry);
+    let signal = AtomicBool::new(false);
+    let mut chunks = 0;
+    let failure = tauri::async_runtime::block_on(scheduler.run(request(&db), budget(3), &signal, &mut |event| {
+      match event {
+        SchedulerEvent::Selected { .. } if fail_at == "selected" => Err(SchedulerError::EventSinkClosed),
+        SchedulerEvent::Chunk { .. } if fail_at == "second_chunk" => {
+          chunks += 1;
+          if chunks == 2 { Err(SchedulerError::EventSinkClosed) } else { Ok(()) }
+        }
+        SchedulerEvent::Retry { .. } if fail_at == "retry" => Err(SchedulerError::EventSinkClosed),
+        _ => Ok(()),
+      }
+    }));
+    assert_eq!(failure.unwrap_err(), SchedulerError::EventSinkClosed);
+    assert!(signal.load(Ordering::Acquire));
+    assert_eq!(primary.calls(), expected_calls);
+    assert_eq!(fallback.calls(), 0);
+    if fail_at == "second_chunk" { assert_eq!(chunks, 2); }
+  }
+  fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn transient_mocks_repeat_per_task_with_same_runtime_and_cooldown_persists() {
+  let (db, dir) = fixture(); seed(&db);
+  let runtime = super::CognitionRuntime::new();
+  let signal = AtomicBool::new(false);
+  for _ in 0..2 {
+    let result = tauri::async_runtime::block_on(runtime.scheduler(super::DiagnosticScenario::TimeoutRetry)
+      .run(request(&db), budget(3), &signal, &mut |_| Ok(()))).unwrap();
+    assert_eq!(result.usage.provider_calls, 2);
+    assert_eq!(result.usage.retries, 1);
+  }
+  let mut registry = ProviderRegistry::default();
+  entry("transient", 1, true, ProviderCapabilities::text_stream(), Arc::new(MockProvider::new(MockScenario::TransientThenSuccess)), &mut registry);
+  let scheduler = Scheduler::new(registry);
+  for _ in 0..2 {
+    let result = tauri::async_runtime::block_on(scheduler.run(request(&db), budget(2), &signal, &mut |_| Ok(()))).unwrap();
+    assert_eq!(result.usage.provider_calls, 2);
+    assert_eq!(result.usage.retries, 1);
+  }
+  let a = tauri::async_runtime::block_on(runtime.scheduler(super::DiagnosticScenario::RateLimitFallback)
+    .run(request(&db), budget(3), &signal, &mut |_| Ok(()))).unwrap();
+  let b = tauri::async_runtime::block_on(runtime.scheduler(super::DiagnosticScenario::RateLimitFallback)
+    .run(request(&db), budget(3), &signal, &mut |_| Ok(()))).unwrap();
+  assert_eq!(a.usage.provider_calls, 2);
+  assert_eq!(b.usage.provider_calls, 1);
   fs::remove_dir_all(dir).unwrap();
 }

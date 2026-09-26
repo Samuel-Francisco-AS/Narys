@@ -25,7 +25,7 @@ impl Scheduler {
       cooldown_ms: cooldowns.get(&config.id).map(|until| until.saturating_duration_since(now).as_millis() as u64).unwrap_or(0) }).collect()
   }
   pub async fn run(&self, request: ProviderRequest, budget: TaskBudget, cancelled: &AtomicBool,
-    on_event: &mut (dyn FnMut(SchedulerEvent) + Send)) -> Result<TaskResult, SchedulerError> {
+    on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send)) -> Result<TaskResult, SchedulerError> {
     let output_limit = budget.max_output_tokens.min(request.max_output_tokens);
     let mut usage = SchedulerUsage::default();
     let mut last_error = None;
@@ -43,18 +43,19 @@ impl Scheduler {
         usage.provider_calls += 1;
         if attempt > 1 { usage.retries += 1; }
         if !usage.providers_used.contains(&entry.config.id) { usage.providers_used.push(entry.config.id.clone()); }
-        on_event(SchedulerEvent::Selected { provider_id: entry.config.id.clone(), attempt });
+        on_event(SchedulerEvent::Selected { provider_id: entry.config.id.clone(), attempt }).map_err(|_| { cancelled.store(true, Ordering::Release); SchedulerError::EventSinkClosed })?;
         let mut chunks = String::new();
         let mut on_chunk = |chunk: ProviderChunk| -> Result<(), ProviderError> {
           if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
           chunks.push_str(&chunk.text);
-          on_event(SchedulerEvent::Chunk { provider_id: entry.config.id.clone(), text: chunk.text });
-          Ok(())
+          on_event(SchedulerEvent::Chunk { provider_id: entry.config.id.clone(), text: chunk.text })
+            .map_err(|_| { cancelled.store(true, Ordering::Release); ProviderError::EventSinkClosed })
         };
         let attempt_request = ProviderRequest { input: request.input.clone(), context: request.context.clone(),
-          max_output_tokens: output_limit - usage.output_tokens, required_capabilities: request.required_capabilities };
+          max_output_tokens: output_limit - usage.output_tokens, required_capabilities: request.required_capabilities, attempt };
         // Keep the same structured context across retry/fallback; adapters decide serialization.
         let result = entry.provider.execute(&attempt_request, cancelled, &mut on_chunk).await;
+        if matches!(result, Err(ProviderError::EventSinkClosed)) { return Err(SchedulerError::EventSinkClosed); }
         match result {
           Ok(response) => {
             if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
@@ -65,11 +66,13 @@ impl Scheduler {
             return Ok(TaskResult { text, provider_id: entry.config.id.clone(), usage, context_metadata: request.context.metadata.clone() });
           }
           Err(ProviderError::Cancelled) => return Err(SchedulerError::Cancelled),
+          Err(ProviderError::EventSinkClosed) => return Err(SchedulerError::EventSinkClosed),
           Err(error) => {
             if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
             let retry = matches!(error, ProviderError::Timeout | ProviderError::Unavailable) && attempt == 1;
             if retry {
-              on_event(SchedulerEvent::Retry { provider_id: entry.config.id.clone(), reason_code: error.code() });
+              on_event(SchedulerEvent::Retry { provider_id: entry.config.id.clone(), reason_code: error.code() })
+                .map_err(|_| { cancelled.store(true, Ordering::Release); SchedulerError::EventSinkClosed })?;
               // Cancellable asynchronous backoff.
               let until = tokio::time::Instant::now() + Duration::from_millis(80);
               while tokio::time::Instant::now() < until {
@@ -83,7 +86,8 @@ impl Scheduler {
             }
             if index + 1 < candidates.len() {
               if usage.provider_calls >= budget.max_provider_calls { return Err(SchedulerError::BudgetExceeded); }
-              on_event(SchedulerEvent::Fallback { from: entry.config.id.clone(), reason_code: error.code() });
+              on_event(SchedulerEvent::Fallback { from: entry.config.id.clone(), reason_code: error.code() })
+                .map_err(|_| { cancelled.store(true, Ordering::Release); SchedulerError::EventSinkClosed })?;
               usage.fallbacks += 1;
             }
             last_error = Some(error);

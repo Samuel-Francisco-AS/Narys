@@ -33,8 +33,7 @@ pub fn run() {
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![
     luna::start_mock_task, luna::cancel_task,
-    security::security_status, security::security_test_store_secret, security::security_test_delete_secret,
-    persistence::lr4_status,
+    security::security_status,
   ]);
   builder
     .run(tauri::generate_context!())

@@ -9,7 +9,7 @@ use chrono::{SecondsFormat, Utc};
 use crate::persistence::{database::Database, task_history::{self, TaskRecord}};
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
-  types::{ProviderCapabilities, ProviderRequest, TaskBudget}};
+  types::{ProviderCapabilities, ProviderRequest, TaskBudget, SchedulerError}};
 
 use super::task::{TaskEvent, TaskEventKind, TaskId, TaskState, TaskStep};
 
@@ -68,6 +68,11 @@ impl TaskRegistry {
     active.remove(&id);
     if cancelled { TaskState::Cancelled } else { outcome }
   }
+
+  fn finish_channel_closed(&self, id: TaskId) -> TaskState {
+    self.remove(id);
+    TaskState::Failed
+  }
 }
 
 // Also removes the registration if the spawned future is dropped unexpectedly.
@@ -85,6 +90,14 @@ impl Drop for ActiveTask {
 fn emit(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32, state: TaskState, kind: TaskEventKind) -> Result<(), String> {
   *sequence += 1;
   channel.send(TaskEvent { task_id: id, sequence: *sequence, state, kind }).map_err(|error| error.to_string())
+}
+
+#[cfg(debug_assertions)]
+fn emit_cognitive(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32,
+  kind: TaskEventKind, interrupted: &AtomicBool) -> Result<(), ()> {
+  emit(channel, id, sequence, TaskState::Running, kind).map_err(|_| {
+    interrupted.store(true, Ordering::Release);
+  })
 }
 
 async fn wait_or_cancel(cancelled: &AtomicBool, duration: Duration) -> bool {
@@ -167,52 +180,65 @@ pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc
     let _active = ActiveTask { registry: registry.clone(), id };
     let mut sequence = 0;
     registry.mark_running(id);
-    let _ = emit(&channel, id, &mut sequence, TaskState::Running, TaskEventKind::TaskStarted);
+    let started = emit_cognitive(&channel, id, &mut sequence, TaskEventKind::TaskStarted, &cancelled);
     let db_for_context = db.clone();
-    let context = tauri::async_runtime::spawn_blocking(move || {
+    let context = if started.is_ok() { Some(tauri::async_runtime::spawn_blocking(move || {
       let conn = db_for_context.open().map_err(|e| e.code())?;
       ContextBuilder::build(&conn, ContextRequest { domain: None, kind: None, min_importance: 0,
         memory_limit: 3, include_recent_conversation: true }).map_err(|e| e.code())
-    }).await;
+    }).await) } else { None };
     let result = match context {
-      Ok(Ok(context)) => {
-        let _ = emit(&channel, id, &mut sequence, TaskState::Running, TaskEventKind::ContextBuilt {
-          memory_count: context.metadata.memory_count, recent_message_count: context.metadata.recent_message_count });
+      None => Err("channel_closed"),
+      Some(Ok(Ok(context))) => {
+        let context_event = emit_cognitive(&channel, id, &mut sequence, TaskEventKind::ContextBuilt {
+          memory_count: context.metadata.memory_count, recent_message_count: context.metadata.recent_message_count }, &cancelled);
         let budget = if scenario == DiagnosticScenario::BudgetExhausted {
           TaskBudget { max_provider_calls: 1, max_output_tokens: 32 }
         } else { TaskBudget { max_provider_calls: 3, max_output_tokens: 32 } };
         let request = ProviderRequest { input: "Execute o diagnóstico cognitivo LR-5.".into(), context: Arc::new(context),
-          max_output_tokens: budget.max_output_tokens, required_capabilities: ProviderCapabilities::text_stream() };
-        cognition.scheduler(scenario).run(request, budget, &cancelled, &mut |event| {
+          max_output_tokens: budget.max_output_tokens, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
+        if context_event.is_err() { Err("channel_closed") } else { cognition.scheduler(scenario).run(request, budget, &cancelled, &mut |event| {
           let kind = match event {
             SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
             SchedulerEvent::Chunk { provider_id, text } => TaskEventKind::ProviderChunk { provider_id, chunk: text },
             SchedulerEvent::Retry { provider_id, reason_code } => TaskEventKind::ProviderRetry { provider_id, reason_code: reason_code.into() },
             SchedulerEvent::Fallback { from, reason_code } => TaskEventKind::ProviderFallback { provider_id: from, reason_code: reason_code.into() },
           };
-          let _ = emit(&channel, id, &mut sequence, TaskState::Running, kind);
-        }).await.map_err(|e| e.code())
+          emit_cognitive(&channel, id, &mut sequence, kind, &cancelled).map_err(|_| SchedulerError::EventSinkClosed)
+        }).await.map_err(|e| e.code()) }
       }
-      Ok(Err(code)) => Err(code),
-      Err(_) => Err("worker_failed"),
+      Some(Ok(Err(code))) => Err(code),
+      Some(Err(_)) => Err("worker_failed"),
     };
-    let (outcome, error_code, result_ready) = match result {
+    let (mut outcome, mut error_code, result_ready) = match result {
       Ok(result) => (TaskState::Completed, None, Some(result)),
       Err("cancelled") => (TaskState::Cancelled, None, None),
       Err(code) => (TaskState::Failed, Some(code), None),
     };
-    let state = registry.finish(id, outcome);
-    if state == TaskState::Completed {
+    if outcome == TaskState::Completed && !cancelled.load(Ordering::Acquire) {
       if let Some(result) = result_ready {
-        let _ = emit(&channel, id, &mut sequence, TaskState::Running, TaskEventKind::TaskResultReady { result });
+        if emit_cognitive(&channel, id, &mut sequence, TaskEventKind::TaskResultReady { result }, &cancelled).is_err() {
+          outcome = TaskState::Failed;
+          error_code = Some("channel_closed");
+        }
       }
     }
+    let mut state = if error_code == Some("channel_closed") { registry.finish_channel_closed(id) }
+      else { registry.finish(id, outcome) };
     let terminal = match state {
       TaskState::Completed => TaskEventKind::TaskCompleted,
       TaskState::Cancelled => TaskEventKind::TaskCancelled,
       _ => TaskEventKind::TaskFailed { detail: error_code.unwrap_or("task_failed").into() },
     };
-    let _ = emit(&channel, id, &mut sequence, state, terminal);
+    if emit(&channel, id, &mut sequence, state, terminal).is_err() {
+      cancelled.store(true, Ordering::Release);
+      state = TaskState::Failed;
+      error_code = Some("channel_closed");
+    }
+    if error_code == Some("channel_closed") {
+      crate::security::audit::AuditEvent::new(crate::security::audit::Action::SecurityError,
+        crate::security::audit::Outcome::Failed).with_task_id(id.0).with_detail("channel_closed").emit();
+    }
     let record = TaskRecord { task_id: id.0, kind: "mock_cognition".into(),
       state: match state { TaskState::Completed => "completed", TaskState::Cancelled => "cancelled", _ => "failed" }.into(),
       started_at, finished_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
@@ -255,5 +281,14 @@ mod tests {
     let (completed, _) = registry.register().unwrap();
     assert_eq!(registry.finish(completed, TaskState::Completed), TaskState::Completed);
     assert!(!registry.cancel(completed));
+  }
+
+  #[test]
+  fn channel_failure_is_failed_and_removes_active_task() {
+    let registry = TaskRegistry::default();
+    let (id, interrupted) = registry.register().unwrap();
+    interrupted.store(true, Ordering::Release);
+    assert_eq!(registry.finish_channel_closed(id), TaskState::Failed);
+    assert!(!registry.cancel(id));
   }
 }

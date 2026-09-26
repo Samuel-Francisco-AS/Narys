@@ -10,25 +10,20 @@ O Context Builder aceita `domain`, `kind`, `min_importance`, `memory_limit` e es
 
 ## Contrato Provider
 
-O trait `Provider` recebe `ProviderRequest`, sinal de cancelamento do TaskRegistry e callback de `ProviderChunk`, e retorna `ProviderResponse` ou `ProviderError`. Ele usa `Pin<Box<dyn Future<...> + Send>>` para permitir `Arc<dyn Provider>` em Rust 1.77.2 sem dependência `async-trait`. `ProviderCapabilities` declara texto e streaming; campos futuros de visão, ferramentas e saída estruturada permanecem falsos no mock. `ProviderConfig` contém ID estável, `enabled`, prioridade e capabilities; nenhuma chave. `ProviderUsage` mede chamadas e tokens artificiais de entrada/saída; não estima dinheiro. Erros tipados: `RateLimited` com retry-after opcional, `Timeout`, `QuotaExceeded`, `Fatal`, `Cancelled` e `Unavailable`.
+O trait `Provider` recebe `ProviderRequest` com `attempt` por tarefa/provider, sinal de cancelamento do TaskRegistry e callback de `ProviderChunk`, e retorna `ProviderResponse` ou `ProviderError`. Ele usa `Pin<Box<dyn Future<...> + Send>>` para permitir `Arc<dyn Provider>` em Rust 1.77.2 sem dependência `async-trait`. `ProviderCapabilities` declara texto e streaming; campos futuros de visão, ferramentas e saída estruturada permanecem falsos no mock. `ProviderConfig` contém ID estável, `enabled`, prioridade e capabilities; nenhuma chave. `ProviderUsage` mede chamadas e tokens artificiais de entrada/saída; não estima dinheiro. Erros tipados incluem `RateLimited`, `Timeout`, `QuotaExceeded`, `Fatal`, `Cancelled`, `Unavailable` e `EventSinkClosed`.
 
 O Registry mantém `mock-primary` e `mock-fallback` por cenário. Só retorna providers habilitados e com todas as capabilities exigidas. **Menor número de prioridade vence**; ID desempata. O Scheduler ignora cooldown ativo, impõe `TaskBudget` de chamadas e output tokens antes de cada tentativa, informa o restante ao provider e agrega chamadas, tokens, providers usados, retries e fallbacks. `Timeout`/`Unavailable` recebem no máximo um retry no mesmo provider após 80 ms canceláveis. `RateLimited` grava cooldown runtime pelo retry-after (padrão 3 s) e tenta fallback. Quota/fatal seguem para fallback sem retry. Cancelamento interrompe espera e chunks e impede fallback. Cooldown, Registry e budgets ficam em memória; não houve migration.
 
 ## Diagnóstico e limites
 
-Os cenários da UI debug são `normal`, `streaming`, `rate_limit_fallback`, `timeout_retry`, `budget_exhausted` e `cancel`. A implementação configurável também cobre `transient_then_success`, `quota_exceeded` e `fatal` nos testes. Chunks são emitidos no Rust com esperas assíncronas; o React apenas os exibe. `cognition_provider_status` devolve somente ID, enabled, prioridade, capabilities e cooldown. Os comandos LR-5 ficam fora do `invoke_handler` release. Como a capability é estática, seus nomes/permissões ainda aparecem declarados no build distribuído, mas não possuem handler executável. A ACL existente não foi ampliada para filesystem, shell, Stronghold IPC ou rede.
+Os cenários da UI debug são `normal`, `streaming`, `rate_limit_fallback`, `timeout_retry`, `budget_exhausted` e `cancel`. A implementação configurável também cobre `transient_then_success`, `quota_exceeded` e `fatal` nos testes. Chunks são emitidos no Rust com esperas assíncronas; o React apenas os exibe. `cognition_provider_status` devolve somente ID, enabled, prioridade, capabilities e cooldown. Os comandos LR-5 ficam fora do `invoke_handler` e do AppManifest release. A capability estática ainda declara as permissões, sem handler executável. A ACL existente não foi ampliada para filesystem, shell, Stronghold IPC ou rede.
 
 O contexto completo não é logado, auditado, enviado ao frontend nem à rede. Logs de falha de histórico contêm apenas código e TaskId. Testes usam SQLite temporário e dados sintéticos. O banco local real continua sem criptografia integral como registrado na LR-4. A LR-5 não oferece chat funcional, provider real, busca semântica, rate manager completo ou custo monetário.
 
-## Auditoria pós-LR-5
+## PRE-LR-6 hardening
 
-A auditoria de 26/09/2026 aprovou a arquitetura da LR-5. Ficaram dois itens de hardening obrigatórios antes de provider real:
+O callback de eventos do Scheduler é falível. Qualquer falha do Tauri Channel em `TaskStarted`, `ContextBuilt`, seleção, retry, fallback, chunk, resultado ou evento terminal define `channel_closed`. O mesmo `AtomicBool` do TaskRegistry interrompe provider e backoff; `EventSinkClosed` é terminal e não dispara retry/fallback. Cancelamento pedido pelo usuário continua `cancelled`. O registry é limpo e o `TaskRecord` é `failed` com `error_code=channel_closed`, inclusive se resultado ou terminal não forem entregues. A entrega falha é tratada como falha operacional da tarefa; não há panic nem tarefa ativa indefinidamente.
 
-1. Hoje os envios de eventos cognitivos para o Tauri Channel descartam o erro de `send` dentro do callback do Scheduler. Em provider real, a perda do consumidor deve interromper/cancelar o trabalho em vez de permitir consumo de quota sem UI.
-2. Os mocks transitórios `Timeout`/transient usam contador interno do provider persistente no `CognitionRuntime`. Após a primeira execução, uma nova tarefa do mesmo cenário não reproduz necessariamente a falha na primeira tentativa. O estado transitório deve ser por tarefa/tentativa diagnóstica, não global ao lifetime do provider.
+O número da tentativa agora é recebido pelo provider na request da invocação. `Timeout` e `TransientThenSuccess` falham na tentativa 1 de cada tarefa e funcionam na tentativa 2, mesmo com o mesmo `CognitionRuntime`. Cooldown de rate limit permanece no Scheduler compartilhado entre tarefas. Testes exercitam falhas antes do provider, no segundo chunk e no evento de retry, além de duas tarefas consecutivas de timeout/transient e cooldown entre tarefas.
 
-Esses pontos não invalidam o gate mock já demonstrado, mas devem ser corrigidos antes da LR-6.
-
-## Continuidade
-
-LR-5 concluída → hardening LR-5 + resolver o gate da chave de desbloqueio do SecretStore Stronghold → só então iniciar LR-6 Gemini com credencial real. O POC atual guarda a chave junto ao snapshot e não autoriza API keys reais.
+LR-6 permanece uma etapa futura. Não foi implementado provider real, cliente HTTP ou chave de API.

@@ -665,7 +665,7 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-5 concluída**, fazer uma pequena rodada de hardening antes de qualquer provider real: resolver o **gate duro da chave de desbloqueio do SecretStore Stronghold** descrito em [SECURITY.md](SECURITY.md), propagar falhas do Channel no fluxo cognitivo e tornar os cenários mock transitórios repetíveis por tarefa. Só depois LR-6 Gemini poderá iniciar com API key real. LR-6 não foi iniciada nesta rodada. O trabalho de Blender segue independente.
+Com **LR-5 e PRE-LR-6 hardening concluídos**, a próxima etapa planejada é LR-6. Esta rodada terminou antes de qualquer provider real ou API key. O trabalho de Blender segue independente.
 
 ## 25. Definição da primeira grande entrega funcional
 
@@ -686,3 +686,7 @@ A primeira versão da “Luna estrutural” estará demonstrada quando houver:
 - secrets protegidos.
 
 Codex, Copilot e grande catálogo de animações podem ser adicionados incrementalmente depois sem refazer essa base.
+
+## PRE-LR-6 hardening — fechamento dos gates
+
+O hardening introduz propagação terminal de falha do Channel (`channel_closed`), mocks transitórios por tentativa de cada tarefa e chave Stronghold no credential store do SO, com migração verificada do arquivo legado. O release deixa de registrar handlers diagnósticos LR-3/LR-4/LR-5; permissões declarativas residuais da capability estática seguem documentadas. **Estado: concluído no Fedora em 26/09/2026.** `cargo check`, `cargo test`, `cargo check --release`, typecheck/build frontend e migração/reabertura real passaram. O Secret Service disponibilizou a chave após reinício do app; `luna-lr3.unlock` não reapareceu. A toolchain Rust 1.77.2 exata e um reboot/logout do SO não foram testados. **LR-6 — Gemini** é a próxima etapa somente após esses gates, e não foi iniciada nesta rodada.
