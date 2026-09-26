@@ -644,17 +644,17 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-A próxima rodada de implementação estrutural deve ser **LR-1**.
+Com **LR-1 concluída**, a próxima rodada de implementação estrutural deve ser **LR-2 — Luna Core mínimo + stream de eventos**.
 
 Motivo:
 
-- baixo risco;
-- não exige API key;
-- não exige animação nova;
-- cria fronteira necessária para a lane de avatar;
-- reduz acoplamento antes de introduzir Rust Core/IA.
+- usa as fronteiras visuais criadas na LR-1;
+- ainda não exige API key ou LLM real;
+- começa o núcleo Rust e o contrato de TaskEvent;
+- permite provar feedback de progresso, cancelamento e reação do avatar antes de introduzir cognição;
+- continua independente do término do Idle/VRM/VRMA.
 
-Em paralelo, o trabalho atual de Blender continua normalmente. O Idle manual não precisa estar terminado para LR-1 começar.
+Em paralelo, o trabalho atual de Blender continua normalmente. O Idle manual não precisa estar terminado para LR-2 começar.
 
 ## 25. Definição da primeira grande entrega funcional
 
