@@ -218,6 +218,8 @@ Deve acontecer antes de cadastrar API keys reais.
 
 **Estado:** implementada e validada em 26/09/2026. SQLite no Luna Core, importador privado, painel diagnóstico, migration e testes sintéticos foram adicionados. No Tauri dev, a importação produziu uma identidade atual e quatro memórias; a conversa artificial e duas tarefas mock permaneceram após fechar e reabrir. Em um segundo reinício com o JSON privado temporariamente renomeado, os mesmos registros continuaram disponíveis pelo SQLite. O arquivo foi restaurado ao final. Uma tarefa mock cancelada também ficou no histórico como `cancelled`. Consulte [MEMORY-IDENTITY.md](MEMORY-IDENTITY.md).
 
+**Auditoria:** PASS em 26/09/2026. A revisão confirmou separação Rust↔React, migrations versionadas, importação privada transacional/idempotente, versionamento de identidade sem sobrescrita, recuperação determinística de memórias e persistência de conversa/tarefas. Nenhum marcador exclusivo do bootstrap privado foi encontrado no remoto. Pendências não bloqueantes: validar futuramente o `rust-version = 1.77.2` com a toolchain exata e substituir o refresh temporizado do painel de histórico por sinalização explícita após a persistência quando o fluxo deixar de ser diagnóstico.
+
 **Lane principal:** B/D.
 
 ### Persistência
@@ -661,8 +663,9 @@ Com **LR-4 concluída**, a próxima rodada estrutural prevista é **LR-5 — Con
 
 Motivo:
 
-- o stream de tarefas, a ponte com o avatar e a fronteira Tauri mínima já foram comprovados;
-- a próxima etapa pode trabalhar persistência sem colocar segredos no frontend;
+- identidade, memória, conversa e histórico local já possuem persistência própria;
+- LR-5 pode consumir essas estruturas pelo Context Builder sem depender de Notion ou de uma LLM real;
+- o MockProvider permitirá provar Provider Registry, Scheduler, budgets, fallback e cancelamento sem gastar cota;
 - continua independente do término do Idle/VRM/VRMA.
 
 Em paralelo, o trabalho atual de Blender continua normalmente.
