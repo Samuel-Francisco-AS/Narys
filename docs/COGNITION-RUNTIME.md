@@ -20,6 +20,15 @@ Os cenários da UI debug são `normal`, `streaming`, `rate_limit_fallback`, `tim
 
 O contexto completo não é logado, auditado, enviado ao frontend nem à rede. Logs de falha de histórico contêm apenas código e TaskId. Testes usam SQLite temporário e dados sintéticos. O banco local real continua sem criptografia integral como registrado na LR-4. A LR-5 não oferece chat funcional, provider real, busca semântica, rate manager completo ou custo monetário.
 
+## Auditoria pós-LR-5
+
+A auditoria de 26/09/2026 aprovou a arquitetura da LR-5. Ficaram dois itens de hardening obrigatórios antes de provider real:
+
+1. Hoje os envios de eventos cognitivos para o Tauri Channel descartam o erro de `send` dentro do callback do Scheduler. Em provider real, a perda do consumidor deve interromper/cancelar o trabalho em vez de permitir consumo de quota sem UI.
+2. Os mocks transitórios `Timeout`/transient usam contador interno do provider persistente no `CognitionRuntime`. Após a primeira execução, uma nova tarefa do mesmo cenário não reproduz necessariamente a falha na primeira tentativa. O estado transitório deve ser por tarefa/tentativa diagnóstica, não global ao lifetime do provider.
+
+Esses pontos não invalidam o gate mock já demonstrado, mas devem ser corrigidos antes da LR-6.
+
 ## Continuidade
 
-LR-5 concluída → resolver o gate da chave de desbloqueio do SecretStore Stronghold → só então iniciar LR-6 Gemini com credencial real. O POC atual guarda a chave junto ao snapshot e não autoriza API keys reais.
+LR-5 concluída → hardening LR-5 + resolver o gate da chave de desbloqueio do SecretStore Stronghold → só então iniciar LR-6 Gemini com credencial real. O POC atual guarda a chave junto ao snapshot e não autoriza API keys reais.
