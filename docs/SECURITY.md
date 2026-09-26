@@ -16,6 +16,8 @@ Esta etapa protege a fronteira antes de qualquer API key real. O React apresenta
 
 Este POC demonstra criptografia do snapshot e persistência após reinício, mas **a chave de desbloqueio reside ao lado do snapshot, acessível ao mesmo usuário do sistema**. Isso não é proteção suficiente contra comprometimento dessa conta nem está aprovado para API keys reais. Antes da primeira chave real, decidir proteção da chave por mecanismo do sistema ou senha do usuário e rever backup/recuperação. A persistência não foi avaliada em Android/iOS.
 
+**Gate operacional:** LR-4 (persistência/memória) e LR-5 (MockProvider/Scheduler) podem avançar sem credenciais reais. **LR-6 e qualquer integração que precise armazenar uma API key real ficam bloqueadas** até que a chave de desbloqueio seja protegida por mecanismo independente do snapshot (por exemplo, credencial do sistema operacional ou segredo derivado de senha do usuário) e o fluxo de recuperação seja definido.
+
 O único identificador aceito nesta fase é `SecretKey::Lr3Test`, mapeado internamente no Rust. `ProviderConfig` futuro conterá apenas dados públicos como `enabled`, `priority` e `model`; `ProviderSecret` será uma referência tipada a um segredo no `SecretStore`, sem valor em React ou em configuração comum. O Provider Registry continua fora da LR-3.
 
 ## Audit e erros
