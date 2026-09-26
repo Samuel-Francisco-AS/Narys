@@ -267,6 +267,8 @@ Fechar/reabrir app e preservar:
 
 ## 9. LR-5 — Context Builder + MockProvider
 
+**Estado:** implementada em 26/09/2026. Context Builder usa SQLite LR-4 com limites explícitos; Provider trait object safe (boxed future), Registry mock, Scheduler determinístico, budgets, retry, cooldown, fallback e cancelamento usam Rust. O painel debug recebe chunks/resultados pelo Channel LR-2. Testes usam dados sintéticos. Consulte [COGNITION-RUNTIME.md](COGNITION-RUNTIME.md). Nenhuma API externa ou credencial real foi usada.
+
 **Lane principal:** C.
 
 Antes de gastar cota real, testar contrato completo com MockProvider.
@@ -659,16 +661,7 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-4 concluída**, a próxima rodada estrutural prevista é **LR-5 — Context Builder + MockProvider**, em sessão separada. Esta rodada não inicia LR-5.
-
-Motivo:
-
-- identidade, memória, conversa e histórico local já possuem persistência própria;
-- LR-5 pode consumir essas estruturas pelo Context Builder sem depender de Notion ou de uma LLM real;
-- o MockProvider permitirá provar Provider Registry, Scheduler, budgets, fallback e cancelamento sem gastar cota;
-- continua independente do término do Idle/VRM/VRMA.
-
-Em paralelo, o trabalho atual de Blender continua normalmente.
+Com **LR-5 concluída**, resolver em sessão própria o **gate duro da chave de desbloqueio do SecretStore Stronghold** descrito em [SECURITY.md](SECURITY.md). Só depois LR-6 Gemini poderá iniciar com API key real. LR-6 não foi iniciada nesta rodada. O trabalho de Blender segue independente.
 
 ## 25. Definição da primeira grande entrega funcional
 

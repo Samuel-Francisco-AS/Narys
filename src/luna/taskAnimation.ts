@@ -13,6 +13,12 @@ export function taskEventToAnimationIntent(event: TaskEvent): AnimationIntent | 
     case 'task_completed':
       return { type: 'greeting' }
     case 'step_completed':
+    case 'context_built':
+    case 'provider_selected':
+    case 'provider_chunk':
+    case 'provider_retry':
+    case 'provider_fallback':
+    case 'task_result_ready':
       return null
   }
 }

@@ -30,6 +30,12 @@ pub enum TaskEventKind {
   TaskCompleted,
   TaskCancelled,
   TaskFailed { detail: String },
+  ContextBuilt { memory_count: usize, recent_message_count: usize },
+  ProviderSelected { provider_id: String, attempt: u32 },
+  ProviderChunk { provider_id: String, chunk: String },
+  ProviderRetry { provider_id: String, reason_code: String },
+  ProviderFallback { provider_id: String, reason_code: String },
+  TaskResultReady { result: crate::cognition::types::TaskResult },
 }
 
 #[derive(Debug, Serialize)]

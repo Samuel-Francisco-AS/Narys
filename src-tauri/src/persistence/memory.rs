@@ -19,7 +19,7 @@ pub struct MemoryInput {
   pub confidence: String,
   pub event_date: Option<String>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct MemoryRecord { pub id: i64, pub import_key: Option<String>, pub kind: String, pub domains: Vec<String>, pub state: String, pub title: String, pub summary: String, pub content: Option<String>, pub retrieval_hint: Option<String>, pub source_context: Option<String>, pub importance: i64, pub confidence: String, pub event_date: Option<String>, pub created_at: String, pub updated_at: String, pub supersedes_id: Option<i64> }
 #[derive(Default)]
 pub struct MemoryFilter<'a> { pub kind: Option<&'a str>, pub domain: Option<&'a str>, pub min_importance: Option<i64>, pub limit: u32 }

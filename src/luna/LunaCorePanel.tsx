@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { AnimationIntent } from '../avatar/runtime/types'
 import SecurityPanel from '../security/SecurityPanel'
 import MemoryPanel from './MemoryPanel'
+import CognitionPanel from './CognitionPanel'
 import { taskEventToAnimationIntent } from './taskAnimation'
 import { cancelTask, lunaCoreAvailable, startMockTask } from './taskClient'
 import type { TaskEvent, TaskId, TaskState, TaskStep } from './types'
@@ -31,6 +32,12 @@ function eventLabel(event: TaskEvent): string {
     case 'task_completed': return 'Tarefa concluída'
     case 'task_cancelled': return 'Tarefa cancelada'
     case 'task_failed': return `Tarefa falhou: ${event.detail}`
+    case 'context_built': return `Contexto: ${event.memory_count} memórias`
+    case 'provider_selected': return `${event.provider_id}: tentativa ${event.attempt}`
+    case 'provider_chunk': return `Chunk: ${event.chunk}`
+    case 'provider_retry': return `${event.provider_id}: retry (${event.reason_code})`
+    case 'provider_fallback': return `${event.provider_id}: fallback (${event.reason_code})`
+    case 'task_result_ready': return `Resultado: ${event.result.providerId}`
   }
 }
 
@@ -152,6 +159,7 @@ export default function LunaCorePanel({ onAnimationIntent }: Props) {
           {events.map((event) => <li key={`${event.taskId}-${event.sequence}`}>{eventLabel(event)}</li>)}
         </ol>
         <MemoryPanel />
+        <CognitionPanel onAnimationIntent={onAnimationIntent} />
         <SecurityPanel />
       </div>
     </aside>

@@ -11,6 +11,8 @@ fn main() {
         "lr4_import_private_bootstrap",
         "lr4_create_diagnostic_conversation",
         "lr4_get_recent_conversation",
+        "start_mock_cognition_task",
+        "cognition_provider_status",
       ]),
     ),
   ).expect("erro ao gerar permissoes Tauri")

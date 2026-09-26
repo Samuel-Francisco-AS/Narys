@@ -1,6 +1,12 @@
 export type TaskId = number
 export type TaskState = 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'
 export type TaskStep = 'prepare' | 'verify'
+export type CognitiveResult = {
+  text: string
+  providerId: string
+  usage: { providerCalls: number; inputTokens: number; outputTokens: number; providersUsed: string[]; retries: number; fallbacks: number }
+  contextMetadata: { identityVersion: string; memoryCount: number; recentMessageCount: number }
+}
 
 type TaskEventBase = {
   taskId: TaskId
@@ -15,4 +21,10 @@ export type TaskEvent = TaskEventBase & (
   | { type: 'task_completed' }
   | { type: 'task_cancelled' }
   | { type: 'task_failed'; detail: string }
+  | { type: 'context_built'; memory_count: number; recent_message_count: number }
+  | { type: 'provider_selected'; provider_id: string; attempt: number }
+  | { type: 'provider_chunk'; provider_id: string; chunk: string }
+  | { type: 'provider_retry'; provider_id: string; reason_code: string }
+  | { type: 'provider_fallback'; provider_id: string; reason_code: string }
+  | { type: 'task_result_ready'; result: CognitiveResult }
 )

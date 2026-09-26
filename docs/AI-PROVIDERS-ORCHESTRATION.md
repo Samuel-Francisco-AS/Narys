@@ -402,6 +402,8 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 
 ## 12. Ordem de integração recomendada
 
+**Estado LR-5 (26/09/2026):** o contrato `Provider` Rust, Registry, Context Builder e Scheduler inicial estão implementados com dois IDs mock locais. Há seleção por enabled/capability/prioridade, retry básico, cooldown por `retry_after`, fallback, budget de chamadas/output e uso artificial. Chunks passam por Tauri Channel. Consulte [runtime cognitivo LR-5](COGNITION-RUNTIME.md). Nenhum provider real, segredo ou quota comercial foi integrado. A etapa 2 abaixo depende primeiro do gate da chave de desbloqueio Stronghold em [SECURITY.md](SECURITY.md).
+
 1. MockProvider local para testar Scheduler sem gastar cota.
 2. Gemini como primeiro provider geral.
 3. Groq ou Mistral como segundo provider para provar distribuição real.

@@ -1,4 +1,5 @@
 mod luna;
+mod cognition;
 mod persistence;
 mod security;
 
@@ -19,6 +20,7 @@ pub fn run() {
       Ok(())
     })
     .manage(std::sync::Arc::new(luna::runtime::TaskRegistry::default()));
+  let builder = builder.manage(std::sync::Arc::new(cognition::CognitionRuntime::new()));
   let builder = builder;
   #[cfg(debug_assertions)]
   let builder = builder.invoke_handler(tauri::generate_handler![
@@ -26,6 +28,7 @@ pub fn run() {
     security::security_status, security::security_test_store_secret, security::security_test_delete_secret,
     persistence::lr4_status, persistence::lr4_import_private_bootstrap,
     persistence::lr4_create_diagnostic_conversation, persistence::lr4_get_recent_conversation,
+    luna::start_mock_cognition_task, luna::cognition_provider_status,
   ]);
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![

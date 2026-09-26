@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 use tauri::{ipc::Channel, State};
 use crate::persistence::database::Database;
+#[cfg(debug_assertions)]
+use crate::cognition::{CognitionRuntime, DiagnosticScenario, scheduler::ProviderStatus};
 
 use runtime::TaskRegistry;
 use task::{TaskEvent, TaskId};
@@ -29,4 +31,18 @@ pub fn cancel_task(registry: State<'_, Arc<TaskRegistry>>, task_id: u64) -> Resu
   AuditEvent::new(Action::TaskCancelRequested, if accepted { Outcome::Succeeded } else { Outcome::Denied })
     .with_task_id(id).emit();
   Ok(accepted)
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+pub fn start_mock_cognition_task(registry: State<'_, Arc<TaskRegistry>>, db: State<'_, Database>,
+  cognition: State<'_, Arc<CognitionRuntime>>, scenario: DiagnosticScenario, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+  AuditEvent::new(Action::CommandInvoked, Outcome::Allowed).with_detail("start_mock_cognition_task").emit();
+  runtime::start_cognition(registry.inner().clone(), db.inner().clone(), cognition.inner().clone(), scenario, channel)
+}
+
+#[cfg(debug_assertions)]
+#[tauri::command]
+pub fn cognition_provider_status(cognition: State<'_, Arc<CognitionRuntime>>) -> Vec<ProviderStatus> {
+  cognition.status()
 }

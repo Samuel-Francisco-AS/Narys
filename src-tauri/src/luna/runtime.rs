@@ -7,6 +7,9 @@ use std::{
 use tauri::ipc::Channel;
 use chrono::{SecondsFormat, Utc};
 use crate::persistence::{database::Database, task_history::{self, TaskRecord}};
+#[cfg(debug_assertions)]
+use crate::cognition::{CognitionRuntime, DiagnosticScenario, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
+  types::{ProviderCapabilities, ProviderRequest, TaskBudget}};
 
 use super::task::{TaskEvent, TaskEventKind, TaskId, TaskState, TaskStep};
 
@@ -149,6 +152,73 @@ pub fn start(registry: Arc<TaskRegistry>, db: Database, channel: Channel<TaskEve
     let write = tauri::async_runtime::spawn_blocking(move || {
       let conn = db.open()?;
       task_history::insert(&conn, &record)
+    }).await;
+    if !matches!(write, Ok(Ok(()))) { eprintln!("[Luna Core] task_history code=write_failed task_id={}", id.0); }
+  });
+  Ok(id)
+}
+
+#[cfg(debug_assertions)]
+pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc<CognitionRuntime>,
+  scenario: DiagnosticScenario, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+  let (id, cancelled) = registry.register()?;
+  let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+  tauri::async_runtime::spawn(async move {
+    let _active = ActiveTask { registry: registry.clone(), id };
+    let mut sequence = 0;
+    registry.mark_running(id);
+    let _ = emit(&channel, id, &mut sequence, TaskState::Running, TaskEventKind::TaskStarted);
+    let db_for_context = db.clone();
+    let context = tauri::async_runtime::spawn_blocking(move || {
+      let conn = db_for_context.open().map_err(|e| e.code())?;
+      ContextBuilder::build(&conn, ContextRequest { domain: None, kind: None, min_importance: 0,
+        memory_limit: 3, include_recent_conversation: true }).map_err(|e| e.code())
+    }).await;
+    let result = match context {
+      Ok(Ok(context)) => {
+        let _ = emit(&channel, id, &mut sequence, TaskState::Running, TaskEventKind::ContextBuilt {
+          memory_count: context.metadata.memory_count, recent_message_count: context.metadata.recent_message_count });
+        let budget = if scenario == DiagnosticScenario::BudgetExhausted {
+          TaskBudget { max_provider_calls: 1, max_output_tokens: 32 }
+        } else { TaskBudget { max_provider_calls: 3, max_output_tokens: 32 } };
+        let request = ProviderRequest { input: "Execute o diagnóstico cognitivo LR-5.".into(), context: Arc::new(context),
+          max_output_tokens: budget.max_output_tokens, required_capabilities: ProviderCapabilities::text_stream() };
+        cognition.scheduler(scenario).run(request, budget, &cancelled, &mut |event| {
+          let kind = match event {
+            SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
+            SchedulerEvent::Chunk { provider_id, text } => TaskEventKind::ProviderChunk { provider_id, chunk: text },
+            SchedulerEvent::Retry { provider_id, reason_code } => TaskEventKind::ProviderRetry { provider_id, reason_code: reason_code.into() },
+            SchedulerEvent::Fallback { from, reason_code } => TaskEventKind::ProviderFallback { provider_id: from, reason_code: reason_code.into() },
+          };
+          let _ = emit(&channel, id, &mut sequence, TaskState::Running, kind);
+        }).await.map_err(|e| e.code())
+      }
+      Ok(Err(code)) => Err(code),
+      Err(_) => Err("worker_failed"),
+    };
+    let (outcome, error_code, result_ready) = match result {
+      Ok(result) => (TaskState::Completed, None, Some(result)),
+      Err("cancelled") => (TaskState::Cancelled, None, None),
+      Err(code) => (TaskState::Failed, Some(code), None),
+    };
+    let state = registry.finish(id, outcome);
+    if state == TaskState::Completed {
+      if let Some(result) = result_ready {
+        let _ = emit(&channel, id, &mut sequence, TaskState::Running, TaskEventKind::TaskResultReady { result });
+      }
+    }
+    let terminal = match state {
+      TaskState::Completed => TaskEventKind::TaskCompleted,
+      TaskState::Cancelled => TaskEventKind::TaskCancelled,
+      _ => TaskEventKind::TaskFailed { detail: error_code.unwrap_or("task_failed").into() },
+    };
+    let _ = emit(&channel, id, &mut sequence, state, terminal);
+    let record = TaskRecord { task_id: id.0, kind: "mock_cognition".into(),
+      state: match state { TaskState::Completed => "completed", TaskState::Cancelled => "cancelled", _ => "failed" }.into(),
+      started_at, finished_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+      summary: Some("Diagnóstico cognitivo LR-5".into()), error_code: if state == TaskState::Failed { Some(error_code.unwrap_or("task_failed").into()) } else { None } };
+    let write = tauri::async_runtime::spawn_blocking(move || {
+      let conn = db.open()?; task_history::insert(&conn, &record)
     }).await;
     if !matches!(write, Ok(Ok(()))) { eprintln!("[Luna Core] task_history code=write_failed task_id={}", id.0); }
   });
