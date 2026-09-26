@@ -361,7 +361,7 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 ## Interlúdio UIP — interface de presença + performance
 
-**Estado:** planejado em 26/09/2026 após **LR-6 = PASS completo**. Antes da LR-7, o projeto executará a trilha **UIP-0 → UIP-7** para transformar a casca M0-B em uma interface de presença desktop e estabelecer orçamento real de renderização.
+**Estado:** em andamento desde 26/09/2026 após **LR-6 = PASS completo**. **UIP-0 = PASS completo**; a próxima etapa é **UIP-1 — Presence Shell**. A trilha **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7.
 
 Princípios fechados:
 
@@ -700,7 +700,7 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, a próxima etapa é **UIP-0 — contratos + baseline**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando o fechamento da trilha UIP. O trabalho de Blender segue independente.
+Com **LR-6 = PASS completo** e **UIP-0 = PASS completo**, a próxima etapa é **UIP-1 — Presence Shell**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando o fechamento da trilha UIP. O trabalho de Blender segue independente.
 
 ## 25. Definição da primeira grande entrega funcional
 
