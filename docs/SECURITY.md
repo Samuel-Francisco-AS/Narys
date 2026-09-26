@@ -46,7 +46,8 @@ A aprovação **não remove o gate de credenciais reais** descrito acima.
 Melhorias futuras não bloqueantes:
 
 1. Os comandos `security_test_store_secret` e `security_test_delete_secret` ainda existem na ACL de release, embora rejeitem execução em release por `debug_assertions`. Em hardening futuro, preferir não compilá-los/não expô-los em builds distribuídos.
-2. Antes de credenciais reais, além de mover/proteger a chave de desbloqueio, revalidar permissões dos arquivos e diretório existentes a cada abertura do vault, não apenas no momento de criação/escrita.
+2. Os comandos diagnósticos LR-4 são removidos do `invoke_handler` em release, mas seus nomes/permissões ainda são declarados no `AppManifest`/capability. Eles não ficam executáveis sem handler, porém a superfície declarativa também deve ser removida em hardening futuro.
+3. Antes de credenciais reais, além de mover/proteger a chave de desbloqueio, revalidar permissões dos arquivos e diretório existentes a cada abertura do vault, não apenas no momento de criação/escrita.
 
 ## Validação manual
 
