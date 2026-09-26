@@ -355,6 +355,8 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 **LR-6 protocol FIX (26/09/2026):** os dois ajustes da auditoria estão implementados e cobertos por testes locais. Somente `status=completed` com usage válido alcança a resposta final; `error.code` tem prioridade em HTTP e SSE. Estado: **LR-6 implementation complete; protocol audit PASS; real API validation pending**. A validação real está liberada como próxima ação manual, sem ter sido executada nesta rodada. LR-6 ainda não é PASS completo e LR-7 não foi iniciada.
 
+**Auditoria da FIX (26/09/2026): PASS.** A revisão confirmou status terminal fail-closed, mapper compartilhado de `error.code` para HTTP/SSE, distinção entre rate limit e quota, ausência de retry para erros terminais e preservação da regra de não retry/fallback após primeiro chunk. A validação com API key real está liberada; LR-6 só poderá ser fechada após chamada real, streaming/usage, cancelamento e reinício.
+
 ## 11. LR-7 — segundo provider real + distribuição
 
 **Candidatos preferidos:** Groq ou Mistral.
