@@ -269,6 +269,10 @@ Fechar/reabrir app e preservar:
 
 **Estado:** implementada em 26/09/2026. Context Builder usa SQLite LR-4 com limites explícitos; Provider trait object safe (boxed future), Registry mock, Scheduler determinístico, budgets, retry, cooldown, fallback e cancelamento usam Rust. O painel debug recebe chunks/resultados pelo Channel LR-2. Testes usam dados sintéticos. Consulte [COGNITION-RUNTIME.md](COGNITION-RUNTIME.md). Nenhuma API externa ou credencial real foi usada.
 
+**Auditoria:** PASS em 26/09/2026. A revisão confirmou que o Context Builder permanece estruturado e desacoplado de adapters reais, o Scheduler respeita prioridade/capability/cooldown/budget, o mesmo cancelamento do TaskRegistry atravessa provider/retry/fallback e o resultado não expõe identidade ou memória. Nenhum marcador exclusivo do bootstrap privado foi encontrado no remoto.
+
+**Antes da LR-6:** além do gate já existente da chave de desbloqueio Stronghold, endurecer dois pontos da LR-5: (1) propagar falha do Tauri Channel como cancelamento/falha da tarefa cognitiva em vez de descartar o erro de envio, para evitar trabalho/quota continuando sem consumidor; (2) tornar os cenários mock transitórios repetíveis por tarefa — hoje o comportamento `Timeout`/transient usa contador no provider persistente e deixa de falhar na primeira tentativa após a primeira execução do cenário.
+
 **Lane principal:** C.
 
 Antes de gastar cota real, testar contrato completo com MockProvider.
@@ -661,7 +665,7 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-5 concluída**, resolver em sessão própria o **gate duro da chave de desbloqueio do SecretStore Stronghold** descrito em [SECURITY.md](SECURITY.md). Só depois LR-6 Gemini poderá iniciar com API key real. LR-6 não foi iniciada nesta rodada. O trabalho de Blender segue independente.
+Com **LR-5 concluída**, fazer uma pequena rodada de hardening antes de qualquer provider real: resolver o **gate duro da chave de desbloqueio do SecretStore Stronghold** descrito em [SECURITY.md](SECURITY.md), propagar falhas do Channel no fluxo cognitivo e tornar os cenários mock transitórios repetíveis por tarefa. Só depois LR-6 Gemini poderá iniciar com API key real. LR-6 não foi iniciada nesta rodada. O trabalho de Blender segue independente.
 
 ## 25. Definição da primeira grande entrega funcional
 
