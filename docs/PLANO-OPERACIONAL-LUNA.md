@@ -20,14 +20,14 @@ Implementado hoje:
 Ainda não implementado:
 
 - conversa funcional;
-- Luna Core;
+- Luna Core além do núcleo mínimo de tarefas/eventos da LR-2;
 - memória persistente;
 - identidade estruturada;
 - providers de IA;
 - orquestração;
 - rate limiting;
 - ferramentas;
-- feedback de tarefa;
+- feedback de tarefas reais além do mock da LR-2;
 - VRM/VRMA runtime;
 - Animation Director completo (prioridades, packs e novos estados);
 - segurança para segredos/agente.
@@ -134,6 +134,10 @@ A forma exata pode variar durante implementação.
 - sem regressão evidente de WebGL/dispose.
 
 ## 6. LR-2 — Luna Core mínimo + stream de eventos
+
+**Estado:** implementado em 26/09/2026. O Rust registra tarefas mock com `TaskId` monotônico, mantém `TaskState` em memória, executa duas etapas com esperas assíncronas, envia `TaskEvent` estruturado por Tauri Channel e aceita cancelamento cooperativo. O registro ativo é removido ao terminar, cancelar ou falhar. O painel React mostra TaskId, estado e eventos recebidos; no navegador sem Tauri ele informa a indisponibilidade do núcleo. A ponte de eventos para `AnimationIntent` mantém `idle` durante trabalho e usa `greeting` provisoriamente na conclusão. Nenhuma LLM, memória ou ferramenta foi introduzida.
+
+**Gate:** `cargo check`, `cargo test`, `npm run typecheck`, `npm run build` e `git diff --check` passaram. Na janela Tauri, o stream chegou em ordem, a conclusão acionou o gesto, o cancelamento limpou a tarefa ativa e uma nova tarefa iniciou depois. Idle e botão manual de aceno permaneceram operantes.
 
 **Lane principal:** B.
 
@@ -644,17 +648,15 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-1 concluída**, a próxima rodada de implementação estrutural deve ser **LR-2 — Luna Core mínimo + stream de eventos**.
+Com **LR-2 concluída**, a próxima rodada de implementação estrutural deve ser **LR-3 — segurança mínima antes de segredos**.
 
 Motivo:
 
-- usa as fronteiras visuais criadas na LR-1;
-- ainda não exige API key ou LLM real;
-- começa o núcleo Rust e o contrato de TaskEvent;
-- permite provar feedback de progresso, cancelamento e reação do avatar antes de introduzir cognição;
+- o stream de tarefas e a ponte com o avatar já foram comprovados;
+- a próxima etapa precisa preparar o boundary Tauri antes de qualquer segredo ou ferramenta;
 - continua independente do término do Idle/VRM/VRMA.
 
-Em paralelo, o trabalho atual de Blender continua normalmente. O Idle manual não precisa estar terminado para LR-2 começar.
+Em paralelo, o trabalho atual de Blender continua normalmente.
 
 ## 25. Definição da primeira grande entrega funcional
 

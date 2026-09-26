@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. A LR-1 separou o runtime visual sem alterar os assets ou movimentos. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
+**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. A LR-1 separou o runtime visual sem alterar os assets ou movimentos. A LR-2 acrescentou um núcleo Rust mínimo para tarefas mock, cancelamento e eventos via Tauri Channel. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
 
 ## Direção arquitetural pós-M0
 
@@ -17,7 +17,7 @@ Documentos principais:
 - [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
 - [Plano operacional paralelo](docs/PLANO-OPERACIONAL-LUNA.md)
 
-**Importante:** esses documentos descrevem a direção e o plano; o estado implementado continua sendo o M0 descrito neste README e nos relatórios de validação.
+**Importante:** esses documentos descrevem a direção e o plano; o estado implementado é o M0 visual, o runtime separado na LR-1 e o núcleo de tarefas/eventos da LR-2.
 
 ## Requisitos no Fedora
 
@@ -56,6 +56,8 @@ npm run build
 
 Clique na personagem ou no botão **Acenar**. O modelo deve voltar ao repouso após o gesto.
 
+Na janela Tauri, o painel **LUNA CORE · LR-2** inicia uma tarefa mock de duas etapas, mostra TaskId e eventos reais do Rust, e permite cancelá-la. Após conclusão ou cancelamento, outra tarefa pode ser iniciada. No navegador comum, o avatar continua disponível e o painel informa que o Luna Core requer Tauri.
+
 Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com aceleração Intel HD 4000 apresentou canvas vazio/erro WebGL 1282, enquanto o modo de software exibiu e animou a personagem. Para repetir o diagnóstico com a GPU, execute `LIBGL_ALWAYS_SOFTWARE=0 npm run tauri dev`.
 
 ## Arquivos principais
@@ -64,6 +66,8 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 - `src/avatar/AvatarViewport.tsx`: liga o viewport React ao runtime e trata o clique na personagem.
 - `src/avatar/runtime/`: cena/WebGL, ciclo de vida do avatar, catálogo semântico e transições Idle/greeting.
 - `src/avatar/adapters/LegacyGlbAdapter.ts`: carrega e libera a Luna GLB atual, mapeando os clipes embutidos.
+- `src/luna/`: painel de diagnóstico, tipos de eventos, cliente Tauri e mapeamento `TaskEvent → AnimationIntent`.
+- `src-tauri/src/luna/`: tipos de tarefa/evento, registro em memória e execução/cancelamento assíncronos.
 - `src/styles.css`: layout escuro e responsivo.
 - `public/models/Luna.glb`: candidata local, sem dependência de rede durante a execução; licença em `public/models/Luna.LICENSE.json`.
 - `assets/luna/base.vrm` e `scripts/prepare_luna.py`: original e preparação reproduzível.
@@ -71,7 +75,9 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 - `assets/app-icon.svg`: ícone original do protótipo; `src-tauri/icons/` contém versões geradas pelo CLI.
 - `src-tauri/`: configuração e inicialização da janela Tauri.
 
-Fluxo: o React monta `AvatarViewport` → `SceneRuntime` cria o renderizador WebGL → o adapter carrega a Luna GLB → `AnimationDirector` toca `Idle` → clique ou botão solicita `greeting` → o diretor toca o clipe legado `Wave` e retorna ao Idle.
+Fluxo visual: o React monta `AvatarViewport` → `SceneRuntime` cria o renderizador WebGL → o adapter carrega a Luna GLB → `AnimationDirector` toca `Idle` → clique ou botão solicita `greeting` → o diretor toca o clipe legado `Wave` e retorna ao Idle.
+
+Fluxo LR-2: o painel cria um Tauri Channel → `start_mock_task` registra um TaskId → o worker Rust emite eventos de etapas → o painel mostra o stream e solicita intenções ao avatar. Durante a tarefa o avatar permanece em `idle`; na conclusão, `greeting` serve provisoriamente como confirmação. O botão **Cancelar** chama `cancel_task` no Rust. Nenhuma LLM ou API externa participa desse fluxo.
 
 ## Modelos e licenças
 
@@ -91,4 +97,4 @@ Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA
 
 O trabalho artístico não precisa bloquear a evolução estrutural: **LR-1** separou o runtime de avatar/animação sem mudar o asset atual; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
 
-Conversação funcional, Luna Core, memória, provedores de IA, ferramentas operacionais, Android e mensageiros continuam **fora do estado implementado atual**, embora já tenham arquitetura e plano documentados.
+Conversação funcional, Luna Core além do núcleo mínimo de tarefas/eventos, memória, provedores de IA, ferramentas operacionais, Android e mensageiros continuam **fora do estado implementado atual**, embora já tenham arquitetura e plano documentados.

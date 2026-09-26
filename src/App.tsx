@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import AvatarViewport from './avatar/AvatarViewport'
-import type { AnimationRequest } from './avatar/runtime/types'
+import type { AnimationIntent, AnimationRequest } from './avatar/runtime/types'
+import LunaCorePanel from './luna/LunaCorePanel'
 
 export default function App() {
   const [animationRequest, setAnimationRequest] = useState<AnimationRequest | null>(null)
   const [sceneStatus, setSceneStatus] = useState('Preparando cena 3D…')
   const [ready, setReady] = useState(false)
+  const requestAnimation = (intent: AnimationIntent) => {
+    setAnimationRequest((current) => ({ id: (current?.id ?? 0) + 1, intent }))
+  }
 
   return (
     <main className="app-shell">
@@ -45,32 +49,14 @@ export default function App() {
               type="button"
               className="primary-button"
               disabled={!ready}
-              onClick={() => setAnimationRequest((current) => ({
-                id: (current?.id ?? 0) + 1,
-                intent: { type: 'greeting' },
-              }))}
+              onClick={() => requestAnimation({ type: 'greeting' })}
             >
               <span aria-hidden="true">✳</span> Acenar
             </button>
           </div>
         </section>
 
-        <aside className="conversation-panel" aria-label="Espaço reservado para conversa">
-          <div className="panel-heading">
-            <div>
-              <span className="section-label">CONVERSAÇÃO</span>
-              <h2>Área reservada</h2>
-            </div>
-          </div>
-          <div className="conversation-empty">
-            <div className="conversation-icon" aria-hidden="true">•••</div>
-            <h3>Um espaço para conversar</h3>
-            <p>A conversa será construída em um próximo checkpoint. Aqui validamos a presença e a animação da personagem.</p>
-          </div>
-          <div className="conversation-placeholder" aria-hidden="true">
-            <span>Campo de mensagem futuro</span><span>→</span>
-          </div>
-        </aside>
+        <LunaCorePanel onAnimationIntent={requestAnimation} />
       </div>
     </main>
   )
