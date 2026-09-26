@@ -5,6 +5,8 @@ use std::{
 };
 
 use tauri::ipc::Channel;
+use chrono::{SecondsFormat, Utc};
+use crate::persistence::{database::Database, task_history::{self, TaskRecord}};
 
 use super::task::{TaskEvent, TaskEventKind, TaskId, TaskState, TaskStep};
 
@@ -20,6 +22,7 @@ pub struct TaskRegistry {
 }
 
 impl TaskRegistry {
+  pub fn seed_next_id(&self, last: u64) { self.next_id.store(last, Ordering::Relaxed); }
   pub fn register(&self) -> Result<(TaskId, Arc<AtomicBool>), String> {
     // JavaScript numbers represent integers exactly only through 2^53 - 1.
     let id = self.next_id.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |last| {
@@ -95,7 +98,7 @@ async fn run_mock_task(
   cancelled: &AtomicBool,
   channel: &Channel<TaskEvent>,
   sequence: &mut u32,
-) -> Result<(), String> {
+) -> Result<TaskState, String> {
   if cancelled.load(Ordering::Acquire) {
     return finish_and_emit(registry, channel, id, sequence, TaskState::Cancelled);
   }
@@ -116,24 +119,38 @@ async fn run_mock_task(
   finish_and_emit(registry, channel, id, sequence, TaskState::Completed)
 }
 
-fn finish_and_emit(registry: &TaskRegistry, channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32, outcome: TaskState) -> Result<(), String> {
+fn finish_and_emit(registry: &TaskRegistry, channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32, outcome: TaskState) -> Result<TaskState, String> {
   let state = registry.finish(id, outcome);
   let kind = if state == TaskState::Cancelled { TaskEventKind::TaskCancelled } else { TaskEventKind::TaskCompleted };
-  emit(channel, id, sequence, state, kind)
+  emit(channel, id, sequence, state, kind)?;
+  Ok(state)
 }
 
-pub fn start(registry: Arc<TaskRegistry>, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+pub fn start(registry: Arc<TaskRegistry>, db: Database, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   let (id, cancelled) = registry.register()?;
+  let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
   tauri::async_runtime::spawn(async move {
     let _active = ActiveTask { registry: registry.clone(), id };
     let mut sequence = 0;
-    if let Err(detail) = run_mock_task(&registry, id, &cancelled, &channel, &mut sequence).await {
-      let state = registry.finish(id, TaskState::Failed);
-      // A closed Channel cannot receive this event, but the task is still cleaned up.
-      let kind = if state == TaskState::Cancelled { TaskEventKind::TaskCancelled } else { TaskEventKind::TaskFailed { detail: detail.clone() } };
-      let _ = emit(&channel, id, &mut sequence, state, kind);
-      eprintln!("[Luna Core] tarefa {} falhou; code=channel_or_worker_error", id.0);
-    }
+    let outcome = match run_mock_task(&registry, id, &cancelled, &channel, &mut sequence).await {
+      Ok(state) => state,
+      Err(_) => {
+        let state = registry.finish(id, TaskState::Failed);
+        let kind = if state == TaskState::Cancelled { TaskEventKind::TaskCancelled } else { TaskEventKind::TaskFailed { detail: "Falha no canal ou worker".into() } };
+        let _ = emit(&channel, id, &mut sequence, state, kind);
+        eprintln!("[Luna Core] tarefa {} falhou; code=channel_or_worker_error", id.0);
+        state
+      }
+    };
+    let state = match outcome { TaskState::Completed => "completed", TaskState::Cancelled => "cancelled", _ => "failed" };
+    let record = TaskRecord { task_id:id.0,kind:"mock".into(),state:state.into(),started_at,
+      finished_at:Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true),
+      summary:Some("Tarefa mock LR-2".into()),error_code:if state == "failed" { Some("channel_or_worker_error".into()) } else { None } };
+    let write = tauri::async_runtime::spawn_blocking(move || {
+      let conn = db.open()?;
+      task_history::insert(&conn, &record)
+    }).await;
+    if !matches!(write, Ok(Ok(()))) { eprintln!("[Luna Core] task_history code=write_failed task_id={}", id.0); }
   });
   Ok(id)
 }

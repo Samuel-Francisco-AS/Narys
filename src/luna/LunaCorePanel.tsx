@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AnimationIntent } from '../avatar/runtime/types'
 import SecurityPanel from '../security/SecurityPanel'
+import MemoryPanel from './MemoryPanel'
 import { taskEventToAnimationIntent } from './taskAnimation'
 import { cancelTask, lunaCoreAvailable, startMockTask } from './taskClient'
 import type { TaskEvent, TaskId, TaskState, TaskStep } from './types'
@@ -82,6 +83,7 @@ export default function LunaCorePanel({ onAnimationIntent }: Props) {
           busyRef.current = false
           setCancelRequested(false)
           setError(null)
+          window.dispatchEvent(new Event('lr4-task-terminal'))
         } else {
           activeTaskRef.current = event.taskId
         }
@@ -149,6 +151,7 @@ export default function LunaCorePanel({ onAnimationIntent }: Props) {
         <ol className="luna-core-events" aria-live="polite">
           {events.map((event) => <li key={`${event.taskId}-${event.sequence}`}>{eventLabel(event)}</li>)}
         </ol>
+        <MemoryPanel />
         <SecurityPanel />
       </div>
     </aside>

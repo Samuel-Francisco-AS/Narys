@@ -21,6 +21,9 @@ tokio = { version = "1", features = ["time"] }
 tauri-plugin-stronghold = { version = "2.3.2", default-features = false }
 getrandom = "0.3"
 iota_stronghold = { version = "2.1.0", default-features = false }
+rusqlite = { version = "0.31", features = ["bundled"] }
+serde_json = "1"
+chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
 
 # Stronghold usa scrypt ao abrir/salvar snapshots; em debug sem otimizacao fica muito lento.
 [profile.dev.package.scrypt]

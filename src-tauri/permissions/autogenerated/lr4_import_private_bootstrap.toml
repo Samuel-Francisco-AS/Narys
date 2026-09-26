@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-lr4-import-private-bootstrap"
+description = "Enables the lr4_import_private_bootstrap command without any pre-configured scope."
+commands.allow = ["lr4_import_private_bootstrap"]
+
+[[permission]]
+identifier = "deny-lr4-import-private-bootstrap"
+description = "Denies the lr4_import_private_bootstrap command without any pre-configured scope."
+commands.deny = ["lr4_import_private_bootstrap"]

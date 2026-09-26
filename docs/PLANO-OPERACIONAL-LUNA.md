@@ -21,8 +21,7 @@ Ainda não implementado:
 
 - conversa funcional;
 - Luna Core além do núcleo mínimo de tarefas/eventos da LR-2;
-- memória persistente;
-- identidade estruturada;
+- recuperação semântica/Context Builder;
 - providers de IA;
 - orquestração;
 - rate limiting;
@@ -216,6 +215,8 @@ Deve acontecer antes de cadastrar API keys reais.
 - secrets acessíveis apenas pelo core.
 
 ## 8. LR-4 — persistência, identidade e memória v0
+
+**Estado:** implementada e validada em 26/09/2026. SQLite no Luna Core, importador privado, painel diagnóstico, migration e testes sintéticos foram adicionados. No Tauri dev, a importação produziu uma identidade atual e quatro memórias; a conversa artificial e duas tarefas mock permaneceram após fechar e reabrir. Em um segundo reinício com o JSON privado temporariamente renomeado, os mesmos registros continuaram disponíveis pelo SQLite. O arquivo foi restaurado ao final. Uma tarefa mock cancelada também ficou no histórico como `cancelled`. Consulte [MEMORY-IDENTITY.md](MEMORY-IDENTITY.md).
 
 **Lane principal:** B/D.
 
@@ -656,7 +657,7 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-3 concluída**, a próxima rodada de implementação estrutural prevista é **LR-4 — persistência, identidade e memória v0**. Esta rodada deve ser iniciada separadamente, após a revisão do gate LR-3.
+Com **LR-4 concluída**, a próxima rodada estrutural prevista é **LR-5 — Context Builder + MockProvider**, em sessão separada. Esta rodada não inicia LR-5.
 
 Motivo:
 

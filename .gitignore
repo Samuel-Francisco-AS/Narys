@@ -5,3 +5,10 @@ src-tauri/target/
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# Dados locais e bootstrap privado da Luna
+*.sqlite
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+src-tauri/private/

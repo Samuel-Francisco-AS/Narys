@@ -48,3 +48,4 @@ h3 { font-size: 18px; margin-bottom: 10px; }
 .security-panel .secondary-button { padding: 8px 11px; font-size: 11px; }
 @media (max-width: 850px) { .workspace { grid-template-columns: 1fr; } .character-stage { min-height: 430px; } .conversation-panel { min-height: 260px; } }
 @media (max-width: 480px) { .app-shell { padding: 18px 12px; } .version { display: none; } .panel-heading { padding: 18px; } .character-stage { margin: 0 10px; min-height: 390px; } .character-toolbar { padding: 15px; } .luna-core-body { padding: 0 18px 18px; } .stage-caption { font-size: 8px; } }
+.memory-titles { margin: 0; padding-left: 18px; line-height: 1.6; }

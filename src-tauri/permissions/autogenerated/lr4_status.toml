@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-lr4-status"
+description = "Enables the lr4_status command without any pre-configured scope."
+commands.allow = ["lr4_status"]
+
+[[permission]]
+identifier = "deny-lr4-status"
+description = "Denies the lr4_status command without any pre-configured scope."
+commands.deny = ["lr4_status"]

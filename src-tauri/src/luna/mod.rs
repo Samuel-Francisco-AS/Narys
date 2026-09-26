@@ -4,15 +4,16 @@ mod task;
 use std::sync::Arc;
 
 use tauri::{ipc::Channel, State};
+use crate::persistence::database::Database;
 
 use runtime::TaskRegistry;
 use task::{TaskEvent, TaskId};
 use crate::security::{audit::{Action, AuditEvent, Outcome}, validation};
 
 #[tauri::command]
-pub fn start_mock_task(registry: State<'_, Arc<TaskRegistry>>, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+pub fn start_mock_task(registry: State<'_, Arc<TaskRegistry>>, db: State<'_, Database>, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   AuditEvent::new(Action::CommandInvoked, Outcome::Allowed).with_detail("start_mock_task").emit();
-  runtime::start(registry.inner().clone(), channel).inspect_err(|_| {
+  runtime::start(registry.inner().clone(), db.inner().clone(), channel).inspect_err(|_| {
     AuditEvent::new(Action::SecurityError, Outcome::Failed).with_detail("task_registration_failed").emit();
   })
 }

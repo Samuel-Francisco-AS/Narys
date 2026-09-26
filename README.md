@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. A LR-1 separou o runtime visual sem alterar os assets ou movimentos. A LR-2 acrescentou tarefas mock, cancelamento e eventos via Tauri Channel. A LR-3 preparou CSP, permissões por comando, validação de entrada, audit e um teste Rust de Stronghold sem credenciais reais. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
+**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. A LR-1 separou o runtime visual sem alterar os assets ou movimentos. A LR-2 acrescentou tarefas mock, cancelamento e eventos via Tauri Channel. A LR-3 preparou CSP, permissões por comando, validação de entrada, audit e um teste Rust de Stronghold sem credenciais reais. A LR-4 adicionou SQLite local para identidade versionada, memória, conversa diagnóstica e histórico resumido de tarefas. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
 
 ## Direção arquitetural pós-M0
 
@@ -17,8 +17,9 @@ Documentos principais:
 - [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
 - [Plano operacional paralelo](docs/PLANO-OPERACIONAL-LUNA.md)
 - [Segurança LR-3](docs/SECURITY.md)
+- [Identidade e memória LR-4](docs/MEMORY-IDENTITY.md)
 
-**Importante:** esses documentos descrevem a direção e o plano; o estado implementado é o M0 visual, o runtime separado na LR-1, o núcleo de tarefas/eventos da LR-2 e a fundação de segurança da LR-3.
+**Importante:** esses documentos descrevem a direção e o plano; o estado implementado é o M0 visual, o runtime separado na LR-1, o núcleo de tarefas/eventos da LR-2, a fundação de segurança da LR-3 e a persistência LR-4.
 
 ## Requisitos no Fedora
 
@@ -59,6 +60,8 @@ Clique na personagem ou no botão **Acenar**. O modelo deve voltar ao repouso ap
 
 Na janela Tauri, o painel **LUNA CORE · LR-2** inicia uma tarefa mock de duas etapas, mostra TaskId e eventos reais do Rust, e permite cancelá-la. Após conclusão ou cancelamento, outra tarefa pode ser iniciada. No navegador comum, o avatar continua disponível e o painel informa que o Luna Core requer Tauri.
 
+O diagnóstico **MEMORY · LR-4** apresenta apenas metadados da persistência. Em desenvolvimento, permite importar o bootstrap privado opcional e criar uma conversa artificial. O banco fica no diretório local da aplicação e continua disponível após remover o arquivo de bootstrap. O SQLite não é criptografado nesta fase e nunca armazena credenciais.
+
 O diagnóstico **SECURITY · LR-3** mostra disponibilidade do SecretStore e presença de um segredo artificial sem devolver seu valor à UI. Em `tauri dev`, botões permitem gravar/verificar/remover esse teste; em release eles são rejeitados. A CSP e a capability `main-window` limitam a WebView. O snapshot Stronghold ainda usa uma chave local no mesmo diretório: isso prova o mecanismo, mas **não autoriza cadastrar API keys reais**. Detalhes e limitações estão em [Segurança LR-3](docs/SECURITY.md).
 
 Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com aceleração Intel HD 4000 apresentou canvas vazio/erro WebGL 1282, enquanto o modo de software exibiu e animou a personagem. Para repetir o diagnóstico com a GPU, execute `LIBGL_ALWAYS_SOFTWARE=0 npm run tauri dev`.
@@ -72,6 +75,7 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 - `src/luna/`: painel de diagnóstico, tipos de eventos, cliente Tauri e mapeamento `TaskEvent → AnimationIntent`.
 - `src-tauri/src/luna/`: tipos de tarefa/evento, registro em memória e execução/cancelamento assíncronos.
 - `src-tauri/src/security/`: validação de entrada, audit e SecretStore Stronghold acessível só ao Rust.
+- `src-tauri/src/persistence/` e `src-tauri/migrations/`: SQLite, identidade versionada, memória operacional, conversa, histórico de tarefas e migration.
 - `src/styles.css`: layout escuro e responsivo.
 - `public/models/Luna.glb`: candidata local, sem dependência de rede durante a execução; licença em `public/models/Luna.LICENSE.json`.
 - `assets/luna/base.vrm` e `scripts/prepare_luna.py`: original e preparação reproduzível.
@@ -101,4 +105,4 @@ Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA
 
 O trabalho artístico não precisa bloquear a evolução estrutural: **LR-1** separou o runtime de avatar/animação sem mudar o asset atual; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
 
-Conversação funcional, Luna Core além do núcleo mínimo de tarefas/eventos, memória, provedores de IA, ferramentas operacionais, Android e mensageiros continuam **fora do estado implementado atual**, embora já tenham arquitetura e plano documentados.
+Conversação funcional, provedores de IA, ferramentas operacionais, Android e mensageiros continuam **fora do estado implementado atual**, embora já tenham arquitetura e plano documentados.

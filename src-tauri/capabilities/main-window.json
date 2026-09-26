@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Janela main: somente comandos de tarefa e diagnostico LR-3. Sem APIs core, filesystem, shell ou Stronghold no WebView.",
+  "description": "Janela main: somente comandos de tarefa e diagnosticos LR-3/LR-4. Sem APIs core, filesystem, shell ou Stronghold no WebView.",
   "windows": ["main"],
   "platforms": ["linux", "macOS", "windows"],
   "permissions": [
@@ -9,6 +9,10 @@
     "allow-cancel-task",
     "allow-security-status",
     "allow-security-test-store-secret",
-    "allow-security-test-delete-secret"
+    "allow-security-test-delete-secret",
+    "allow-lr4-status",
+    "allow-lr4-import-private-bootstrap",
+    "allow-lr4-create-diagnostic-conversation",
+    "allow-lr4-get-recent-conversation"
   ]
 }
