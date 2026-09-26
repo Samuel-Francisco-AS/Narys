@@ -26,6 +26,28 @@ O backend escreve linhas `security_audit timestamp_ms=... action=... result=... 
 
 O `TaskId` recebido por `cancel_task` deve estar no intervalo `1..=Number.MAX_SAFE_INTEGER`; a desserialização de `u64` e a validação no Rust rejeitam valores inválidos. O registry continua removendo tarefas concluídas/canceladas.
 
+
+## Parecer de auditoria — 26/09/2026
+
+**LR-3 aprovada para a fundação de segurança do protótipo desktop.** A auditoria confirmou:
+
+- CSP de produção restritiva, sem `unsafe-eval` e sem `unsafe-inline`;
+- `devCsp` separado para o ambiente Vite;
+- capability da janela principal limitada aos cinco comandos próprios previstos;
+- ausência de filesystem, shell, process ou Stronghold IPC na WebView;
+- `SecretStore` acessível somente pelo Rust;
+- comandos de teste sem parâmetro de segredo e sem retorno do valor armazenado;
+- audit estruturado sem campo para conteúdo sensível;
+- validação de `TaskId` no boundary Rust;
+- preservação da LR-2, avatar e fluxo WebGL.
+
+A aprovação **não remove o gate de credenciais reais** descrito acima.
+
+Melhorias futuras não bloqueantes:
+
+1. Os comandos `security_test_store_secret` e `security_test_delete_secret` ainda existem na ACL de release, embora rejeitem execução em release por `debug_assertions`. Em hardening futuro, preferir não compilá-los/não expô-los em builds distribuídos.
+2. Antes de credenciais reais, além de mover/proteger a chave de desbloqueio, revalidar permissões dos arquivos e diretório existentes a cada abertura do vault, não apenas no momento de criação/escrita.
+
 ## Validação manual
 
 No Tauri dev, verificar Luna/Idle/Acenar, tarefa mock/Channel/cancelamento, ausência de violações CSP relevantes e os botões de storage de teste. Após gravar o segredo artificial, reiniciar a aplicação e confirmar apenas o indicador “armazenado”; então removê-lo. Em navegador comum, o painel deve dizer que SecretStore está indisponível e não invocar comandos Tauri.
