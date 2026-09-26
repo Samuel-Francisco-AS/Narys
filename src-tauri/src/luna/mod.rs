@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use tauri::{ipc::Channel, State};
 use crate::persistence::database::Database;
+use crate::cognition::GeminiRuntime;
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario, scheduler::ProviderStatus};
 
@@ -45,4 +46,11 @@ pub fn start_mock_cognition_task(registry: State<'_, Arc<TaskRegistry>>, db: Sta
 #[tauri::command]
 pub fn cognition_provider_status(cognition: State<'_, Arc<CognitionRuntime>>) -> Vec<ProviderStatus> {
   cognition.status()
+}
+
+#[tauri::command]
+pub fn start_gemini_task(registry: State<'_, Arc<TaskRegistry>>, db: State<'_, Database>,
+  gemini: State<'_, Arc<GeminiRuntime>>, message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+  if message.trim().is_empty() || message.len() > 4096 { return Err("gemini_input_invalid".into()); }
+  runtime::start_gemini(registry.inner().clone(), db.inner().clone(), gemini.inner().clone(), message, channel)
 }

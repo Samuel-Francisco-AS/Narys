@@ -4,7 +4,7 @@ export type TaskStep = 'prepare' | 'verify'
 export type CognitiveResult = {
   text: string
   providerId: string
-  usage: { providerCalls: number; inputTokens: number; outputTokens: number; providersUsed: string[]; retries: number; fallbacks: number }
+  usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; providersUsed: string[]; retries: number; fallbacks: number }
   contextMetadata: { identityVersion: string; memoryCount: number; recentMessageCount: number }
 }
 

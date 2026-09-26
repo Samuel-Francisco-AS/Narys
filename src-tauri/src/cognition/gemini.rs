@@ -1,0 +1,328 @@
+use std::{collections::HashSet, sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, SystemTime}};
+use reqwest::{header::{HeaderMap, HeaderValue, RETRY_AFTER}, Client, StatusCode};
+use serde_json::{json, Value};
+use crate::security::secrets::{SecretKey, SecretStore};
+use super::{provider::{Provider, ProviderFuture}, types::{ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage}};
+
+pub const MODEL: &str = "gemini-3.8-flash";
+pub const ENDPOINT: &str = "https://generativelanguage.googleapis.com/v1beta/interactions";
+
+#[derive(Clone)]
+pub struct GeminiConfig {
+  pub model: String,
+  pub endpoint: String,
+  pub max_output_tokens: u32,
+  pub connect_timeout: Duration,
+  pub idle_timeout: Duration,
+  pub request_timeout: Duration,
+}
+impl Default for GeminiConfig {
+  fn default() -> Self { Self { model: MODEL.into(), endpoint: ENDPOINT.into(), max_output_tokens: 512,
+    connect_timeout: Duration::from_secs(8), idle_timeout: Duration::from_secs(15), request_timeout: Duration::from_secs(45) } }
+}
+
+// Explicit allowlist: the local bundle can contain intimate relationship, memories and history.
+// The cloud receives only these two identity fields and the current user message.
+pub struct MinimalOutboundContext { system_instruction: String }
+impl MinimalOutboundContext {
+  pub fn from_bundle(bundle: &ContextBundle) -> Result<Self, ProviderError> {
+    let name = bundle.identity.canonical_name.trim();
+    let language = bundle.identity.primary_language.trim();
+    if name.is_empty() || name.len() > 64 || name.chars().any(|c| c.is_control())
+      || language.is_empty() || language.len() > 16 || !language.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
+      return Err(ProviderError::Fatal);
+    }
+    let language = if language == "pt-BR" { "português brasileiro".to_owned() } else { format!("idioma {language}") };
+    Ok(Self { system_instruction: format!("Você é {name}, uma assistente virtual. Responda em {language}. Seja clara, natural e tecnicamente rigorosa. Avalie premissas e preserve a autonomia do usuário.") })
+  }
+  fn payload(&self, model: &str, input: &str, max_output_tokens: u32) -> Value {
+    json!({"model":model,"store":false,"stream":true,"system_instruction":self.system_instruction,
+      "input":input,"generation_config":{"max_output_tokens":max_output_tokens,"thinking_level":"low","thinking_summaries":"none"}})
+  }
+}
+
+pub struct GeminiProvider { config: GeminiConfig, client: Client, secrets: Arc<SecretStore> }
+impl GeminiProvider {
+  pub fn new(config: GeminiConfig, secrets: Arc<SecretStore>) -> Result<Self, ProviderError> {
+    let client = Client::builder().connect_timeout(config.connect_timeout).timeout(config.request_timeout)
+      .build().map_err(|_| ProviderError::Unavailable)?;
+    Ok(Self { config, client, secrets })
+  }
+  fn classify(status: StatusCode, headers: &HeaderMap) -> ProviderError {
+    match status.as_u16() {
+      429 => ProviderError::RateLimited { retry_after_ms: retry_after_ms(headers) },
+      401 | 403 => ProviderError::Authentication,
+      408 => ProviderError::Timeout,
+      500..=599 => ProviderError::Unavailable,
+      _ => ProviderError::Fatal,
+    }
+  }
+}
+fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
+  const MAX_RETRY_AFTER_MS: u64 = 7 * 24 * 60 * 60 * 1000;
+  let value = headers.get(RETRY_AFTER)?.to_str().ok()?;
+  if let Ok(seconds) = value.parse::<u64>() { return Some(seconds.saturating_mul(1000).min(MAX_RETRY_AFTER_MS)); }
+  httpdate::parse_http_date(value).ok().and_then(|date| date.duration_since(SystemTime::now()).ok())
+    .map(|duration| duration.as_millis().min(MAX_RETRY_AFTER_MS as u128) as u64)
+}
+fn network_error(error: &reqwest::Error) -> ProviderError {
+  if error.is_timeout() { ProviderError::Timeout } else { ProviderError::Unavailable }
+}
+async fn cancellation(cancelled: &AtomicBool) {
+  while !cancelled.load(Ordering::Acquire) { tokio::time::sleep(Duration::from_millis(20)).await; }
+}
+impl Provider for GeminiProvider {
+  fn execute<'a>(&'a self, request: &'a ProviderRequest, cancelled: &'a AtomicBool,
+    on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send)) -> ProviderFuture<'a> {
+    Box::pin(async move {
+      if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
+      let secrets = self.secrets.clone();
+      let key = tokio::select! {
+        _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
+        result = tauri::async_runtime::spawn_blocking(move || secrets.get_secret(SecretKey::GeminiApiKey)) =>
+          result.map_err(|_| ProviderError::Unavailable)?.map_err(|_| ProviderError::Unavailable)?.ok_or(ProviderError::Authentication)?,
+      };
+      let key = HeaderValue::from_bytes(&key).map_err(|_| ProviderError::Authentication)?;
+      let payload = MinimalOutboundContext::from_bundle(&request.context)?.payload(&self.config.model, &request.input,
+        request.max_output_tokens.min(self.config.max_output_tokens));
+      let send = self.client.post(&self.config.endpoint).header("x-goog-api-key", key).json(&payload).send();
+      let mut response = tokio::select! {
+        _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
+        result = send => result.map_err(|e| network_error(&e))?,
+      };
+      if !response.status().is_success() { return Err(Self::classify(response.status(), response.headers())); }
+      let mut parser = SseParser::default();
+      let mut text = String::new();
+      let mut usage = None;
+      'stream: loop {
+        let next = tokio::select! {
+          _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
+          result = tokio::time::timeout(self.config.idle_timeout, response.chunk()) =>
+            result.map_err(|_| ProviderError::Timeout)?.map_err(|e| network_error(&e))?,
+        };
+        let Some(bytes) = next else { break };
+        for event in parser.push(&bytes)? {
+          match event {
+            StreamEvent::Text(piece) => { text.push_str(&piece); on_chunk(ProviderChunk { text: piece })?; },
+            StreamEvent::Completed(final_usage) => usage = Some(final_usage),
+            StreamEvent::Done => break 'stream,
+            StreamEvent::Error => return Err(ProviderError::Unavailable),
+            StreamEvent::Ignore => {},
+          }
+        }
+      }
+      if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
+      let usage = usage.ok_or(ProviderError::Unavailable)?;
+      if text.trim().is_empty() { return Err(ProviderError::Fatal); }
+      Ok(ProviderResponse { text, usage })
+    })
+  }
+}
+
+enum StreamEvent { Text(String), Completed(ProviderUsage), Done, Error, Ignore }
+#[derive(Default)]
+struct SseParser { pending: Vec<u8>, event: Option<String>, data: String, model_steps: HashSet<u64> }
+impl SseParser {
+  fn push(&mut self, bytes: &[u8]) -> Result<Vec<StreamEvent>, ProviderError> {
+    self.pending.extend_from_slice(bytes);
+    if self.pending.len() > 1_048_576 { return Err(ProviderError::Fatal); }
+    let mut events = Vec::new();
+    while let Some(end) = self.pending.iter().position(|b| *b == b'\n') {
+      let mut line = self.pending.drain(..=end).collect::<Vec<_>>();
+      line.pop(); if line.last() == Some(&b'\r') { line.pop(); }
+      let line = std::str::from_utf8(&line).map_err(|_| ProviderError::Fatal)?;
+      if line.is_empty() {
+        if let Some(event) = self.finish()? { events.push(event); }
+      } else if let Some(value) = line.strip_prefix("event:") { self.event = Some(value.trim().into()); }
+      else if let Some(value) = line.strip_prefix("data:") { if !self.data.is_empty() { self.data.push('\n'); } self.data.push_str(value.trim_start()); }
+      if self.data.len() > 1_048_576 { return Err(ProviderError::Fatal); }
+    }
+    Ok(events)
+  }
+  fn finish(&mut self) -> Result<Option<StreamEvent>, ProviderError> {
+    let event = self.event.take().unwrap_or_default();
+    let data = std::mem::take(&mut self.data);
+    if data.is_empty() { return Ok(None); }
+    if data == "[DONE]" { return Ok(Some(StreamEvent::Done)); }
+    if !matches!(event.as_str(), "step.start" | "step.delta" | "step.stop" | "interaction.completed" | "error") { return Ok(Some(StreamEvent::Ignore)); }
+    let value: Value = serde_json::from_str(&data).map_err(|_| ProviderError::Fatal)?;
+    Ok(Some(match event.as_str() {
+      "step.start" => { if value.pointer("/step/type").and_then(Value::as_str) == Some("model_output") {
+        if let Some(index) = value.get("index").and_then(Value::as_u64) { self.model_steps.insert(index); }
+      } StreamEvent::Ignore },
+      "step.stop" => { if let Some(index) = value.get("index").and_then(Value::as_u64) { self.model_steps.remove(&index); } StreamEvent::Ignore },
+      "step.delta" if value.get("index").and_then(Value::as_u64).is_some_and(|index| self.model_steps.contains(&index))
+        && value.pointer("/delta/type").and_then(Value::as_str) == Some("text") =>
+        StreamEvent::Text(value.pointer("/delta/text").and_then(Value::as_str).ok_or(ProviderError::Fatal)?.into()),
+      "interaction.completed" => {
+        let raw = value.pointer("/interaction/usage").ok_or(ProviderError::Unavailable)?;
+        let count = |field| raw.get(field).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok());
+        StreamEvent::Completed(ProviderUsage { calls: 1, input_tokens: count("total_input_tokens").ok_or(ProviderError::Unavailable)?,
+          output_tokens: count("total_output_tokens").ok_or(ProviderError::Unavailable)?, total_tokens: Some(count("total_tokens").ok_or(ProviderError::Unavailable)?), thought_tokens: count("total_thought_tokens") })
+      },
+      "error" => StreamEvent::Error,
+      _ => StreamEvent::Ignore,
+    }))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::{fs, io::{Read, Write}, net::TcpListener, path::PathBuf,
+    sync::{Mutex, atomic::AtomicBool}, thread, time::{SystemTime, UNIX_EPOCH}};
+  use crate::{persistence::{identity::IdentityInput, memory::MemoryRecord, conversation::ConversationMessage},
+    security::secrets::{SecretError, UnlockKeyStore}};
+  use super::super::{registry::ProviderRegistry, scheduler::{Scheduler, SchedulerEvent}, types::{ContextMetadata, ProviderCapabilities, ProviderConfig, TaskBudget}};
+
+  #[derive(Default)] struct Keys(Mutex<Option<Vec<u8>>>);
+  impl UnlockKeyStore for Keys {
+    fn load(&self) -> Result<Option<Vec<u8>>,SecretError> { Ok(self.0.lock().unwrap().clone()) }
+    fn store(&self,key:&[u8]) -> Result<(),SecretError> { *self.0.lock().unwrap()=Some(key.to_vec()); Ok(()) }
+    fn delete(&self) -> Result<(),SecretError> { *self.0.lock().unwrap()=None; Ok(()) }
+  }
+  fn fixture() -> (Arc<SecretStore>,PathBuf) {
+    let n=SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let dir=std::env::temp_dir().join(format!("gemini-test-{}-{n}",std::process::id()));
+    let store=Arc::new(SecretStore::with_key_store(dir.clone(),Arc::new(Keys::default())));
+    store.set_secret(SecretKey::GeminiApiKey,b"fake-secret-token").unwrap();
+    (store,dir)
+  }
+  fn bundle() -> Arc<ContextBundle> {
+    let identity: IdentityInput=serde_json::from_value(json!({
+      "version":"v1","canonicalName":"Luna","presentation":"private","primaryLanguage":"pt-BR","concept":"private",
+      "traits":{"private":"relationship secret marker"},"behavioralInvariants":["secret"],"modes":{},
+      "relationship":{"primaryPersonName":"relationship secret marker","relationModes":[],
+        "affectionStyle":{"warm":false,"provocative":false,"playfulJealousy":false,"playfulTerritoriality":false,"coercion":false,"isolation":false,"emotionalBlackmail":false},
+        "interactionPreferences":{"wantsRealDisagreement":true,"wantsLunaToProposeDirectionsDuringStructuring":false,"prefersLinearFlowDuringImplementation":true}},
+      "memoryPolicy":{"retrieval":"private","history":"private","continuity":"private","storePrivateChainOfThought":false},
+      "provenance":"private","effectiveFrom":"2026-01-01"})).unwrap();
+    Arc::new(ContextBundle { identity, relevant_memories:vec![MemoryRecord { id:1,import_key:None,kind:"project".into(),domains:vec![],state:"active".into(),title:"memory secret marker".into(),summary:"memory secret marker".into(),content:None,retrieval_hint:Some("memory secret marker".into()),source_context:Some("memory secret marker".into()),importance:1,confidence:"high".into(),event_date:None,created_at:"now".into(),updated_at:"now".into(),supersedes_id:None }],
+      recent_messages:vec![ConversationMessage { id:1,session_id:1,role:"user".into(),content:"recent private marker".into(),created_at:"now".into() }],
+      metadata:ContextMetadata { identity_version:"v1".into(),memory_count:1,recent_message_count:1 } })
+  }
+  fn request() -> ProviderRequest { ProviderRequest { input:"Quanto é 2 + 2?".into(),context:bundle(),max_output_tokens:512,
+    required_capabilities:ProviderCapabilities::text_stream(),attempt:1 } }
+  fn server(status:&str, body:&str, extra:&str, split:bool) -> (String,thread::JoinHandle<String>) {
+    let listener=TcpListener::bind("127.0.0.1:0").unwrap(); let url=format!("http://{}/v1beta/interactions",listener.local_addr().unwrap());
+    let status=status.to_owned();let body=body.to_owned();let extra=extra.to_owned();
+    let handle=thread::spawn(move || {
+      let (mut conn,_)=listener.accept().unwrap();conn.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+      let mut bytes=Vec::new();let mut buf=[0u8;4096];
+      loop { let n=conn.read(&mut buf).unwrap();if n==0 {break}bytes.extend_from_slice(&buf[..n]);
+        if let Some(end)=bytes.windows(4).position(|w|w==b"\r\n\r\n") {
+          let head=String::from_utf8_lossy(&bytes[..end]);
+          let length=head.lines().find_map(|line|line.to_ascii_lowercase().strip_prefix("content-length: ").and_then(|n|n.parse::<usize>().ok())).unwrap_or(0);
+          if bytes.len()>=end+4+length {break}
+        }
+      }
+      let response=format!("HTTP/1.1 {status}\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\n{extra}\r\n{body}",body.len());
+      if split { for chunk in response.as_bytes().chunks(7) { if conn.write_all(chunk).is_err() {break} thread::sleep(Duration::from_millis(1)); } }
+      else { let _=conn.write_all(response.as_bytes()); }
+      String::from_utf8_lossy(&bytes).into_owned()
+    });(url,handle)
+  }
+  const SSE:&str="event: interaction.created\ndata: {\"event_type\":\"interaction.created\"}\n\nevent: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"}}\n\nevent: step.delta\ndata: {\"index\":0,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"private\"}}\n\nevent: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"model_output\"}}\n\nevent: step.delta\ndata: {\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\"Quatro\"}}\n\nevent: future.event\ndata: {\"anything\":true}\n\nevent: step.delta\ndata: {\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\".\"}}\n\nevent: interaction.completed\ndata: {\"interaction\":{\"usage\":{\"total_input_tokens\":20,\"total_output_tokens\":2,\"total_tokens\":30,\"total_thought_tokens\":8}}}\n\nevent: done\ndata: [DONE]\n\n";
+  #[test] fn request_privacy_stream_usage_and_secret_lifecycle() {
+    let (store,dir)=fixture();assert!(store.get_secret(SecretKey::GeminiApiKey).unwrap().is_some());
+    let (url,handle)=server("200 OK",SSE,"",true);
+    let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
+    let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
+    let mut chunks=Vec::new();let signal=AtomicBool::new(false);
+    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(),TaskBudget {max_provider_calls:1,max_output_tokens:512},&signal,
+      &mut |event| {if let SchedulerEvent::Chunk {text,..}=event {chunks.push(text)}Ok(())})).unwrap();
+    assert_eq!(chunks,vec!["Quatro","."]);assert_eq!(result.text,"Quatro.");assert_eq!(result.usage.total_tokens,Some(30));assert_eq!(result.usage.thought_tokens,Some(8));
+    let raw=handle.join().unwrap();let (_,body)=raw.split_once("\r\n\r\n").unwrap();let payload:Value=serde_json::from_str(body).unwrap();
+    assert_eq!(payload["store"],false);assert_eq!(payload["stream"],true);assert_eq!(payload["model"],MODEL);
+    assert_eq!(payload["generation_config"]["max_output_tokens"],512);assert!(payload.get("previous_interaction_id").is_none());
+    for marker in ["relationship secret marker","memory secret marker","recent private marker","fake-secret-token"] {assert!(!body.contains(marker));}
+    assert!(raw.to_ascii_lowercase().contains("x-goog-api-key: fake-secret-token"));
+    store.delete_secret(SecretKey::GeminiApiKey).unwrap();assert!(store.get_secret(SecretKey::GeminiApiKey).unwrap().is_none());fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn http_error_classes_and_retry_after() {
+    let (store,dir)=fixture();
+    for (status,extra,expected) in [("429 Too Many Requests","Retry-After: 3\r\n",ProviderError::RateLimited{retry_after_ms:Some(3000)}),
+      ("401 Unauthorized","",ProviderError::Authentication),("403 Forbidden","",ProviderError::Authentication),
+      ("408 Request Timeout","",ProviderError::Timeout),("500 Internal Server Error","",ProviderError::Unavailable)] {
+      let (url,handle)=server(status,"",extra,false);let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
+      let signal=AtomicBool::new(false);let result=tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(())));
+      assert_eq!(result.unwrap_err(),expected);let raw=handle.join().unwrap();assert!(!raw.contains("relationship secret marker"));
+    }
+    fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn rate_limit_http_date_enters_scheduler_cooldown() {
+    let mut extreme=HeaderMap::new();extreme.insert(RETRY_AFTER,HeaderValue::from_static("18446744073709551615"));
+    assert_eq!(retry_after_ms(&extreme),Some(7*24*60*60*1000));
+    let (store,dir)=fixture();
+    // Stronghold setup can take several seconds in debug builds, so keep the
+    // synthetic HTTP date comfortably ahead of the request.
+    let date=httpdate::fmt_http_date(SystemTime::now()+Duration::from_secs(60));
+    let header=format!("Retry-After: {date}\r\n");
+    let (url,handle)=server("429 Too Many Requests","",&header,false);
+    let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
+    let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,
+      capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
+    let scheduler=Scheduler::new(registry);let signal=AtomicBool::new(false);
+    let result=tauri::async_runtime::block_on(scheduler.run(request(),TaskBudget {max_provider_calls:1,max_output_tokens:512},
+      &signal,&mut |_|Ok(())));
+    assert!(matches!(result.unwrap_err(),super::super::types::SchedulerError::Provider(
+      ProviderError::RateLimited {retry_after_ms:Some(ms)} ) if ms>0 && ms<=60_000));
+    assert!(scheduler.status()[0].cooldown_ms>0);
+    handle.join().unwrap();fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn parser_never_emits_thought_or_unknown_delta() {
+    let mut parser=SseParser::default();let mut text=Vec::new();
+    for byte in SSE.as_bytes().chunks(3) {for event in parser.push(byte).unwrap() {if let StreamEvent::Text(piece)=event{text.push(piece)}}}
+    assert_eq!(text,vec!["Quatro","."]);
+  }
+  #[test] fn event_sink_closed_stops_stream_without_retry() {
+    let (store,dir)=fixture();let (url,handle)=server("200 OK",SSE,"",true);
+    let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
+    let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
+    let signal=AtomicBool::new(false);let mut chunks=0;
+    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(),TaskBudget {max_provider_calls:2,max_output_tokens:512},&signal,
+      &mut |event| {if matches!(event,SchedulerEvent::Chunk{..}) {chunks+=1;return Err(super::super::types::SchedulerError::EventSinkClosed)}Ok(())}));
+    assert_eq!(result.unwrap_err(),super::super::types::SchedulerError::EventSinkClosed);assert_eq!(chunks,1);
+    assert!(signal.load(Ordering::Acquire));handle.join().unwrap();fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn idle_timeout_and_cancel_interrupt_http_stream() {
+    let (store,dir)=fixture();
+    for cancel in [false,true] {
+      let listener=TcpListener::bind("127.0.0.1:0").unwrap();let url=format!("http://{}/v1beta/interactions",listener.local_addr().unwrap());
+      let connected=Arc::new(AtomicBool::new(false));let server_connected=connected.clone();
+      let handle=thread::spawn(move || {let (mut conn,_)=listener.accept().unwrap();let mut buf=[0u8;4096];let _=conn.read(&mut buf);
+        let _=conn.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n");
+        server_connected.store(true,Ordering::Release);
+        thread::sleep(Duration::from_millis(180)); });
+      let provider=GeminiProvider::new(GeminiConfig {endpoint:url,idle_timeout:Duration::from_millis(60),..Default::default()},store.clone()).unwrap();
+      let signal=Arc::new(AtomicBool::new(false));let signal_thread=signal.clone();
+      let trigger=if cancel {Some(thread::spawn(move || {while !connected.load(Ordering::Acquire) {thread::sleep(Duration::from_millis(2));}
+        thread::sleep(Duration::from_millis(25));signal_thread.store(true,Ordering::Release)}))}else{None};
+      let result=tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(())));
+      assert_eq!(result.unwrap_err(),if cancel {ProviderError::Cancelled}else{ProviderError::Timeout});
+      if let Some(trigger)=trigger {trigger.join().unwrap()}handle.join().unwrap();
+    }
+    fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn sqlite_context_scheduler_fake_http_and_conversation() {
+    use crate::persistence::{database::Database, identity, conversation};
+    use super::super::context::{ContextBuilder,ContextRequest};
+    let (store,dir)=fixture();let db=Database::for_test(dir.join("integration.sqlite3"));
+    let mut local=(*bundle()).identity.clone();
+    local.modes.insert("default".into(),identity::IdentityMode {priority:"clear".into(),tone:"natural".into()});
+    let mut conn=db.open().unwrap();let tx=conn.transaction().unwrap();identity::insert_version(&tx,&local).unwrap();tx.commit().unwrap();
+    let context=ContextBuilder::build(&conn,ContextRequest {domain:None,kind:None,min_importance:0,memory_limit:0,include_recent_conversation:false}).unwrap();
+    assert_eq!(context.metadata.memory_count,0);
+    let (url,handle)=server("200 OK",SSE,"",true);
+    let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
+    let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
+    let signal=AtomicBool::new(false);
+    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(ProviderRequest {input:"Quanto é 2 + 2?".into(),context:Arc::new(context),max_output_tokens:512,
+      required_capabilities:ProviderCapabilities::text_stream(),attempt:1},TaskBudget {max_provider_calls:1,max_output_tokens:512},&signal,&mut |_|Ok(()))).unwrap();
+    assert_eq!(result.provider_id,"gemini");assert_eq!(result.text,"Quatro.");
+    conversation::append_gemini_exchange(&mut conn,"Quanto é 2 + 2?",&result.text).unwrap();
+    drop(conn);let reopened=db.open().unwrap();let session=conversation::gemini_session(&reopened).unwrap().unwrap();
+    assert_eq!(session.messages.len(),2);assert_eq!(session.messages[1].content,"Quatro.");
+    let raw=handle.join().unwrap();assert!(!raw.contains("relationship secret marker"));fs::remove_dir_all(dir).unwrap();
+  }
+}

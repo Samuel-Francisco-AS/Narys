@@ -1,4 +1,6 @@
 pub mod context;
+pub mod gemini;
+pub mod gemini_commands;
 pub mod mock;
 pub mod provider;
 pub mod registry;
@@ -11,6 +13,18 @@ use mock::{MockProvider, MockScenario};
 use registry::ProviderRegistry;
 use scheduler::{ProviderStatus, Scheduler};
 use types::{ProviderCapabilities, ProviderConfig};
+use crate::security::secrets::SecretStore;
+
+pub struct GeminiRuntime { pub scheduler: Arc<Scheduler> }
+impl GeminiRuntime {
+  pub fn new(secrets: Arc<SecretStore>) -> Result<Self, types::ProviderError> {
+    let mut registry = ProviderRegistry::default();
+    registry.register(ProviderConfig { id: "gemini".into(), enabled: true, priority: 1,
+      capabilities: ProviderCapabilities::text_stream() },
+      Arc::new(gemini::GeminiProvider::new(gemini::GeminiConfig::default(), secrets)?)).expect("unique Gemini ID");
+    Ok(Self { scheduler: Arc::new(Scheduler::new(registry)) })
+  }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]
 #[serde(rename_all = "snake_case")]

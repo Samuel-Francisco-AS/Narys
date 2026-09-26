@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-gemini-delete-api-key"
+description = "Enables the gemini_delete_api_key command without any pre-configured scope."
+commands.allow = ["gemini_delete_api_key"]
+
+[[permission]]
+identifier = "deny-gemini-delete-api-key"
+description = "Denies the gemini_delete_api_key command without any pre-configured scope."
+commands.deny = ["gemini_delete_api_key"]

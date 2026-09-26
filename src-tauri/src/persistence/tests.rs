@@ -77,3 +77,21 @@ fn conflicting_import_keys_are_rejected() {
   assert!(matches!(import_bootstrap(&db,&path),Err(database::PersistenceError::Conflict)));
   let conn=db.open().unwrap(); assert_eq!(identity::current_identity(&conn).unwrap().unwrap().input.canonical_name,"Synthetic");
 }
+
+#[test]
+fn gemini_exchange_rolls_back_if_final_answer_cannot_be_saved() {
+  let (db,_) = fixture();
+  let mut conn = db.open().unwrap();
+  conn.execute_batch("CREATE TRIGGER reject_gemini_answer BEFORE INSERT ON conversation_messages WHEN NEW.role='assistant' BEGIN SELECT RAISE(ABORT, 'synthetic rejection'); END;").unwrap();
+  assert!(conversation::append_gemini_exchange(&mut conn,"pergunta neutra","resposta final").is_err());
+  assert!(conversation::gemini_session(&conn).unwrap().is_none());
+  conn.execute_batch("DROP TRIGGER reject_gemini_answer").unwrap();
+  conversation::append_gemini_exchange(&mut conn,"pergunta neutra","resposta final").unwrap();
+  let session = conversation::gemini_session(&conn).unwrap().unwrap();
+  assert_eq!(session.messages.len(),2);
+  task_history::insert(&conn,&task_history::TaskRecord { task_id:17,kind:"gemini_chat".into(),state:"completed".into(),
+    started_at:"2026-01-01T00:00:00Z".into(),finished_at:"2026-01-01T00:00:01Z".into(),summary:None,error_code:None }).unwrap();
+  task_history::mark_failed(&conn,17,"channel_closed").unwrap();
+  let (state,code):(String,String)=conn.query_row("SELECT state,error_code FROM task_records WHERE task_id=17",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+  assert_eq!((state.as_str(),code.as_str()),("failed","channel_closed"));
+}

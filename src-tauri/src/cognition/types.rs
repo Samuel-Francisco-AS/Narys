@@ -48,18 +48,18 @@ pub struct ProviderRequest {
 pub struct ProviderChunk { pub text: String }
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProviderUsage { pub calls: u32, pub input_tokens: u32, pub output_tokens: u32 }
+pub struct ProviderUsage { pub calls: u32, pub input_tokens: u32, pub output_tokens: u32, pub total_tokens: Option<u32>, pub thought_tokens: Option<u32> }
 #[derive(Clone, Debug)]
 pub struct ProviderResponse { pub text: String, pub usage: ProviderUsage }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderError {
-  RateLimited { retry_after_ms: Option<u64> }, Timeout, QuotaExceeded, Fatal, Cancelled, Unavailable, EventSinkClosed,
+  RateLimited { retry_after_ms: Option<u64> }, Timeout, QuotaExceeded, Authentication, Fatal, Cancelled, Unavailable, EventSinkClosed,
 }
 impl ProviderError {
   pub fn code(&self) -> &'static str { match self {
     Self::RateLimited { .. } => "rate_limited", Self::Timeout => "timeout", Self::QuotaExceeded => "quota_exceeded",
-    Self::Fatal => "fatal", Self::Cancelled => "cancelled", Self::Unavailable => "unavailable", Self::EventSinkClosed => "channel_closed",
+    Self::Authentication => "gemini_auth_failed", Self::Fatal => "fatal", Self::Cancelled => "cancelled", Self::Unavailable => "unavailable", Self::EventSinkClosed => "channel_closed",
   }}
 }
 
@@ -68,7 +68,7 @@ pub struct TaskBudget { pub max_provider_calls: u32, pub max_output_tokens: u32 
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerUsage {
-  pub provider_calls: u32, pub input_tokens: u32, pub output_tokens: u32,
+  pub provider_calls: u32, pub input_tokens: u32, pub output_tokens: u32, pub total_tokens: Option<u32>, pub thought_tokens: Option<u32>,
   pub providers_used: Vec<ProviderId>, pub retries: u32, pub fallbacks: u32,
 }
 #[derive(Clone, Debug, Serialize)]

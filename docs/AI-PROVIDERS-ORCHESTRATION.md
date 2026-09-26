@@ -404,6 +404,8 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 
 **Estado LR-5 (26/09/2026):** o contrato `Provider` Rust, Registry, Context Builder e Scheduler inicial estão implementados com dois IDs mock locais. Há seleção por enabled/capability/prioridade, retry básico, cooldown por `retry_after`, fallback, budget de chamadas/output e uso artificial. Chunks passam por Tauri Channel. Consulte [runtime cognitivo LR-5](COGNITION-RUNTIME.md). Nenhum provider real, segredo ou quota comercial foi integrado. A etapa 2 abaixo depende primeiro do gate da chave de desbloqueio Stronghold em [SECURITY.md](SECURITY.md).
 
+**Extensão LR-6 (26/09/2026):** `GeminiProvider` implementa Interactions API em um Scheduler separado com somente `gemini`; não há fallback mock para chat real. `ProviderRequest` mantém o `ContextBundle` local, mas `MinimalOutboundContext` só autoriza nome e idioma da identidade e a mensagem atual. `store:false` é explícito. SSE fornece texto e usage real; 429 usa o cooldown do Scheduler. O gate com a API real aguarda chave manual. Contrato e limites: [GEMINI-PROVIDER.md](GEMINI-PROVIDER.md).
+
 1. MockProvider local para testar Scheduler sem gastar cota.
 2. Gemini como primeiro provider geral.
 3. Groq ou Mistral como segundo provider para provar distribuição real.

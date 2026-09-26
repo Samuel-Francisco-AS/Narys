@@ -67,5 +67,8 @@ Limitações conhecidas que não bloqueiam LR-6 no desktop atual:
 - a toolchain Rust 1.77.2 exata ainda não foi executada; o manifesto continua declarando esse MSRV;
 - logout/reboot do sistema ainda não foi testado;
 - Windows e macOS ainda não foram validados;
-- o backend Linux `sync-secret-service` é síncrono/bloqueante; futuras leituras de credenciais a partir de fluxos async de providers devem ser executadas fora do executor assíncrono, por exemplo com `spawn_blocking`;
+- o backend Linux `sync-secret-service` é síncrono/bloqueante; a leitura de credenciais no GeminiProvider usa `spawn_blocking`;
 - permissions diagnósticas residuais ainda aparecem na capability estática, embora os handlers não existam em release.
+# Extensão LR-6 · Gemini
+
+O segredo tipado `GeminiApiKey` é gravado no Stronghold; o unlock continua no credential store do SO. Os comandos Tauri `gemini_set_api_key`, `gemini_delete_api_key` e `gemini_status` não devolvem o valor. A leitura no executor do provider ocorre em `spawn_blocking`. O header HTTP `x-goog-api-key` é o único local de autenticação. O frontend não envia requests ao Google, não expõe a chave nem amplia a CSP. O aviso do Free Tier antecede o envio manual; `store:false` e a política de saída mínima são aplicados no Rust. Veja [GEMINI-PROVIDER.md](GEMINI-PROVIDER.md).

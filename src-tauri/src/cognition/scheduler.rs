@@ -62,6 +62,8 @@ impl Scheduler {
             if response.usage.output_tokens > output_limit - usage.output_tokens { return Err(SchedulerError::BudgetExceeded); }
             usage.input_tokens += response.usage.input_tokens;
             usage.output_tokens += response.usage.output_tokens;
+            usage.total_tokens = response.usage.total_tokens;
+            usage.thought_tokens = response.usage.thought_tokens;
             let text = if response.text.is_empty() { chunks } else { response.text };
             return Ok(TaskResult { text, provider_id: entry.config.id.clone(), usage, context_metadata: request.context.metadata.clone() });
           }
@@ -69,6 +71,12 @@ impl Scheduler {
           Err(ProviderError::EventSinkClosed) => return Err(SchedulerError::EventSinkClosed),
           Err(error) => {
             if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
+            if let ProviderError::RateLimited { retry_after_ms } = error {
+              self.cooldowns.lock().unwrap_or_else(|p| p.into_inner()).insert(entry.config.id.clone(), Instant::now() + Duration::from_millis(retry_after_ms.unwrap_or(3_000).max(1)));
+            }
+            // Once text has reached the UI, another attempt would concatenate
+            // incompatible partial answers and could double provider cost.
+            if !chunks.is_empty() { return Err(SchedulerError::Provider(error)); }
             let retry = matches!(error, ProviderError::Timeout | ProviderError::Unavailable) && attempt == 1;
             if retry {
               on_event(SchedulerEvent::Retry { provider_id: entry.config.id.clone(), reason_code: error.code() })
@@ -80,9 +88,6 @@ impl Scheduler {
                 tokio::time::sleep(Duration::from_millis(15)).await;
               }
               continue;
-            }
-            if let ProviderError::RateLimited { retry_after_ms } = error {
-              self.cooldowns.lock().unwrap_or_else(|p| p.into_inner()).insert(entry.config.id.clone(), Instant::now() + Duration::from_millis(retry_after_ms.unwrap_or(3_000).max(1)));
             }
             if index + 1 < candidates.len() {
               if usage.provider_calls >= budget.max_provider_calls { return Err(SchedulerError::BudgetExceeded); }

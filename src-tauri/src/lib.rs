@@ -16,7 +16,10 @@ pub fn run() {
         }
       }
       app.manage(db);
-      app.manage(security::secrets::SecretStore::new(directory));
+      let secrets = std::sync::Arc::new(security::secrets::SecretStore::new(directory));
+      let gemini = cognition::GeminiRuntime::new(secrets.clone()).map_err(|_| "gemini_http_client_unavailable")?;
+      app.manage(secrets);
+      app.manage(std::sync::Arc::new(gemini));
       Ok(())
     })
     .manage(std::sync::Arc::new(luna::runtime::TaskRegistry::default()));
@@ -29,11 +32,15 @@ pub fn run() {
     persistence::lr4_status, persistence::lr4_import_private_bootstrap,
     persistence::lr4_create_diagnostic_conversation, persistence::lr4_get_recent_conversation,
     luna::start_mock_cognition_task, luna::cognition_provider_status,
+    cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
+    cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation, luna::start_gemini_task,
   ]);
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![
     luna::start_mock_task, luna::cancel_task,
     security::security_status,
+    cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
+    cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation, luna::start_gemini_task,
   ]);
   builder
     .run(tauri::generate_context!())

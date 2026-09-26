@@ -1,0 +1,27 @@
+# Gemini Provider · LR-6
+
+**Estado:** implementação local concluída; gate de API real pendente de chave inserida manualmente no painel Tauri. Nenhuma chave é solicitada no chat, terminal ou arquivo.
+
+## Contrato e estado
+
+O adapter Rust usa `POST https://generativelanguage.googleapis.com/v1beta/interactions`, modelo fixado por padrão em `gemini-3.8-flash` e autenticação exclusivamente no header `x-goog-api-key`. O `GeminiConfig` guarda modelo, endpoint e timeouts; nunca a chave. Toda request inclui `store:false`, `stream:true`, `max_output_tokens:512`, `thinking_level:low` e `thinking_summaries:none`. Não há `previous_interaction_id`, tools, grounding ou execução em background. O estado da Luna permanece no SQLite local. A [visão oficial da Interactions API](https://ai.google.dev/gemini-api/docs/interactions-overview), a [referência](https://ai.google.dev/api/interactions-api-v1), o [guia de streaming](https://ai.google.dev/gemini-api/docs/streaming) e a [página do modelo](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash/) embasam este contrato.
+
+## Privacidade de saída
+
+O Context Builder continua criando um `ContextBundle` local; nesta tarefa ele já pede zero memórias e nenhum histórico. `MinimalOutboundContext` é uma fronteira adicional com allowlist: somente `canonical_name` e `primary_language` da identidade local entram na system instruction. Nome e idioma são limitados e validados; entrada inválida falha antes de acessar a rede. A mensagem atual digitada explicitamente pelo usuário vira `input`. Não saem `relationship`, `traits`, invariantes arbitrários, `MemoryRecord`, `source_context`, `retrieval_hint`, conversas LR-4 ou histórico geral. Nesta primeira versão, nem mesmo o histórico da própria sessão LR-6 é reenviado. A UI avisa sobre a [política do Free Tier](https://ai.google.dev/gemini-api/docs/pricing) antes do botão “Enviar ao Gemini”. `store:false` impede state da Interactions API, mas não altera os termos de tratamento de conteúdo do Free Tier.
+
+## Segredo e fluxo
+
+O campo `type=password` mantém a chave no state React apenas durante edição e limpa após sucesso. `gemini_set_api_key`, `gemini_delete_api_key` e `gemini_status` expõem somente status. O Rust valida tamanho de 1 a 512 bytes após trim e rejeita caracteres de controle. `SecretKey::GeminiApiKey` grava no Stronghold; a chave de unlock do snapshot vem do credential store do SO. A leitura síncrona usa `spawn_blocking` antes do HTTP. A chave não entra em SQLite, config, URL, body, log, TaskRecord ou resultado. A [documentação oficial de chaves](https://ai.google.dev/gemini-api/docs/api-key) confirma o header REST; novas chaves AI Studio podem ser auth keys, mas o header permanece o mesmo.
+
+## Execução
+
+`start_gemini_task` limita a mensagem a 4096 bytes, registra TaskId, emite `TaskStarted` e `ContextBuilt`, executa o Scheduler real isolado (somente Gemini), recebe `ProviderSelected` e `ProviderChunk`, e emite `TaskResultReady` e `TaskCompleted`. Mocks diagnósticos continuam separados. O bridge atual mantém `idle` durante a tarefa e usa `greeting` provisório na conclusão. O parser SSE aceita fronteiras HTTP arbitrárias, ignora eventos futuros e só emite `step.delta` de tipo `text` dentro de um `model_output`. `thought_signature`, thoughts e summaries não entram na UI ou no banco. `interaction.completed` fornece contagens reais de input, output, total e thought tokens; o adapter não estima uso.
+
+O cliente `reqwest 0.11.27` usa rustls, timeout de conexão de 8 s, timeout total de 45 s e timeout idle de 15 s. Cancelamento e `channel_closed` abandonam o future e o stream sem retry ou fallback. HTTP 429 cria `RateLimited` e cooldown no Scheduler, com `Retry-After` em segundos ou data HTTP (limitado a sete dias); sem header vale o cooldown conservador existente. 401/403 viram `gemini_auth_failed`; 408/timeout viram `Timeout`; 5xx/conexão indisponível viram `Unavailable`; outros 4xx são `Fatal`. Timeout e indisponibilidade podem receber uma tentativa adicional do Scheduler se nenhum texto tiver sido emitido; após um chunk, não há retry nem fallback para evitar duplicação da resposta e de custo. Limites comerciais não são codificados.
+
+Após sucesso, uma transação SQLite grava a mensagem do usuário e a resposta final na sessão `Luna · Gemini LR-6`. Chunks não são persistidos separadamente. Se a chamada falha ou é cancelada antes da fase de commit, nenhuma fala é adicionada. Ao entrar nessa fase, o TaskRegistry encerra a aceitação de cancelamento para impedir uma tarefa `cancelled` com resposta final persistida. O TaskRecord é gravado antes de `TaskCompleted`; falha nessa escrita produz erro operacional visível, sem reenviar a chamada Gemini. Se o Channel fechar ao emitir o evento terminal, o registro é marcado como `channel_closed`. A saída é texto não confiável e a UI a renderiza como texto.
+
+## Validação e limites
+
+Os testes usam servidor HTTP local e credential store fake, sem quota externa. Cobrem payload e marcadores privados, header, SSE partido, ordem dos chunks, usage, errors, Retry-After, cancelamento e Channel fechado. O gate de API real requer inserir a chave no painel Tauri, enviar pergunta neutra, observar chunks/usage/TaskRecord, cancelar outra chamada e reabrir o aplicativo. Nenhuma request é feita ao iniciar. A toolchain Rust 1.77.2 exata ainda deve ser verificada; `cargo check` em toolchain mais nova não prova MSRV. O SQLite local não tem criptografia integral.

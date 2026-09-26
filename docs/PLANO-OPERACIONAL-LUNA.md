@@ -349,6 +349,8 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 - 429 não quebra sessão;
 - uso aparece em painel de diagnóstico.
 
+**Atualização LR-6 (26/09/2026):** adapter Interactions API, Stronghold, política outbound mínima, chat SQLite e testes HTTP locais implementados. O gate real permanece pendente de configuração manual da chave e validação Tauri com chamada, cancelamento e reinício; portanto LR-6 ainda não é PASS completo. [Detalhes](GEMINI-PROVIDER.md). LR-7 não foi iniciada.
+
 ## 11. LR-7 — segundo provider real + distribuição
 
 **Candidatos preferidos:** Groq ou Mistral.

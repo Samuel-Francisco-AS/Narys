@@ -15,6 +15,11 @@
     "allow-lr4-create-diagnostic-conversation",
     "allow-lr4-get-recent-conversation",
     "allow-start-mock-cognition-task",
-    "allow-cognition-provider-status"
+    "allow-cognition-provider-status",
+    "allow-gemini-status",
+    "allow-gemini-set-api-key",
+    "allow-gemini-delete-api-key",
+    "allow-gemini-conversation",
+    "allow-start-gemini-task"
   ]
 }

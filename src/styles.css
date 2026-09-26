@@ -49,3 +49,11 @@ h3 { font-size: 18px; margin-bottom: 10px; }
 @media (max-width: 850px) { .workspace { grid-template-columns: 1fr; } .character-stage { min-height: 430px; } .conversation-panel { min-height: 260px; } }
 @media (max-width: 480px) { .app-shell { padding: 18px 12px; } .version { display: none; } .panel-heading { padding: 18px; } .character-stage { margin: 0 10px; min-height: 390px; } .character-toolbar { padding: 15px; } .luna-core-body { padding: 0 18px 18px; } .stage-caption { font-size: 8px; } }
 .memory-titles { margin: 0; padding-left: 18px; line-height: 1.6; }
+.gemini-panel { border-top: 1px solid #30394d; padding-top: 18px; display: flex; flex-direction: column; gap: 12px; color: #c4cee4; font-size: 13px; line-height: 1.5; }
+.gemini-panel input, .gemini-panel textarea { background: #111b2d; border: 1px solid #4a5570; border-radius: 9px; padding: 10px; color: #eff2fb; font: inherit; }
+.gemini-panel input { min-width: 0; flex: 1; }
+.gemini-panel textarea { min-height: 94px; resize: vertical; }
+.gemini-panel button { border: 1px solid #59627b; border-radius: 9px; background: #242f49; color: #eff2fb; padding: 9px 12px; cursor: pointer; }
+.gemini-panel button:disabled { opacity: .45; cursor: not-allowed; }
+.gemini-panel ol, .gemini-panel ul { margin: 0; padding-left: 20px; max-height: 220px; overflow-y: auto; }
+.gemini-response { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid #4a5570; border-radius: 9px; padding: 12px; }

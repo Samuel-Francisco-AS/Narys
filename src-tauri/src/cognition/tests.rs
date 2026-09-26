@@ -249,3 +249,30 @@ fn transient_mocks_repeat_per_task_with_same_runtime_and_cooldown_persists() {
   assert_eq!(b.usage.provider_calls, 1);
   fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn partial_stream_failure_does_not_retry_or_fallback() {
+  use super::{provider::{Provider,ProviderFuture}, types::{ProviderChunk,ProviderResponse}};
+  use std::sync::atomic::AtomicU32;
+  struct Partial { calls: AtomicU32 }
+  impl Provider for Partial {
+    fn execute<'a>(&'a self, _request: &'a ProviderRequest, _cancelled: &'a AtomicBool,
+      on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send)) -> ProviderFuture<'a> {
+      Box::pin(async move { self.calls.fetch_add(1,Ordering::SeqCst);
+        on_chunk(ProviderChunk {text:"parcial".into()})?;
+        Err::<ProviderResponse,ProviderError>(ProviderError::Unavailable) })
+    }
+  }
+  let (db,dir)=fixture();seed(&db);
+  let partial=Arc::new(Partial {calls:AtomicU32::new(0)});
+  let fallback=Arc::new(MockProvider::new(MockScenario::Normal));
+  let mut registry=ProviderRegistry::default();
+  registry.register(ProviderConfig {id:"primary".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},partial.clone()).unwrap();
+  entry("fallback",2,true,ProviderCapabilities::text_stream(),fallback.clone(),&mut registry);
+  let signal=AtomicBool::new(false);let mut chunks=Vec::new();
+  let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(3),&signal,&mut |event| {
+    if let SchedulerEvent::Chunk{text,..}=event {chunks.push(text)}Ok(()) }));
+  assert_eq!(result.unwrap_err(),SchedulerError::Provider(ProviderError::Unavailable));
+  assert_eq!(chunks,vec!["parcial"]);assert_eq!(partial.calls.load(Ordering::SeqCst),1);assert_eq!(fallback.calls(),0);
+  fs::remove_dir_all(dir).unwrap();
+}

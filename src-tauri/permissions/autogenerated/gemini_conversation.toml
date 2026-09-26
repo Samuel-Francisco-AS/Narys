@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-gemini-conversation"
+description = "Enables the gemini_conversation command without any pre-configured scope."
+commands.allow = ["gemini_conversation"]
+
+[[permission]]
+identifier = "deny-gemini-conversation"
+description = "Denies the gemini_conversation command without any pre-configured scope."
+commands.deny = ["gemini_conversation"]

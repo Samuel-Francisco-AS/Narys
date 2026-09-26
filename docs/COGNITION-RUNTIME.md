@@ -26,4 +26,4 @@ O callback de eventos do Scheduler é falível. Qualquer falha do Tauri Channel 
 
 O número da tentativa agora é recebido pelo provider na request da invocação. `Timeout` e `TransientThenSuccess` falham na tentativa 1 de cada tarefa e funcionam na tentativa 2, mesmo com o mesmo `CognitionRuntime`. Cooldown de rate limit permanece no Scheduler compartilhado entre tarefas. Testes exercitam falhas antes do provider, no segundo chunk e no evento de retry, além de duas tarefas consecutivas de timeout/transient e cooldown entre tarefas.
 
-LR-6 permanece uma etapa futura. Não foi implementado provider real, cliente HTTP ou chave de API.
+A LR-6 acrescentou `GeminiProvider` HTTP/SSE, chave tipada no Stronghold e chat local mínimo. O Context Builder ainda monta contexto local; uma política de saída permite somente nome, idioma e mensagem atual ao Gemini. O Scheduler real contém apenas Gemini, preservando os mocks de LR-5 para diagnóstico. Validação externa depende de chave manual. Consulte [GEMINI-PROVIDER.md](GEMINI-PROVIDER.md).

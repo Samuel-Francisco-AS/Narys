@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. LR-1 a LR-4 estabeleceram runtime visual, tarefas/eventos, segurança inicial e SQLite local. A LR-5 acrescentou Context Builder, Registry, Scheduler e MockProvider inteiramente locais, sem API real. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
+**Estado:** M0-A aprovado e encerrado. M0-B tem a candidata Luna integrada e interativa, mas **as animações Idle/Wave ainda não foram aprovadas artisticamente** após o refinamento M0-B1. LR-1 a LR-4 estabeleceram runtime visual, tarefas/eventos, segurança inicial e SQLite local. LR-5 acrescentou Context Builder, Registry, Scheduler e MockProvider locais. LR-6 implementou Gemini e chat mínimo, com validação externa pendente de chave manual. O trabalho artístico seguinte continua sendo a aula prática de poses no Blender. Consulte [status técnico](docs/M0-B-STATUS.md), [retomada e plano da aula](docs/RETOMADA-BLENDER-LUNA.md) e [validação M0-A](VALIDACAO.md).
 
 ## Direção arquitetural pós-M0
 
@@ -20,7 +20,7 @@ Documentos principais:
 - [Identidade e memória LR-4](docs/MEMORY-IDENTITY.md)
 - [Runtime cognitivo LR-5](docs/COGNITION-RUNTIME.md)
 
-**Importante:** esses documentos descrevem a direção e o plano; o estado implementado chega ao diagnóstico cognitivo mock da LR-5. Não há provider real nem chat funcional. O PRE-LR-6 hardening protege a chave de desbloqueio Stronghold no cofre do sistema e faz os eventos cognitivos interromperem o trabalho se o Channel fechar. LR-6 ainda não foi iniciada.
+**Estado LR-6:** o adapter Gemini e o chat local mínimo estão implementados. A validação com a API real depende de inserir manualmente uma chave no painel Tauri; até então o gate real permanece pendente. O PRE-LR-6 hardening protege a chave de desbloqueio Stronghold no cofre do sistema e interrompe o trabalho se o Channel fechar. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md).
 
 ## Requisitos no Fedora
 
@@ -65,7 +65,7 @@ O diagnóstico **MEMORY · LR-4** apresenta apenas metadados da persistência. E
 
 O painel **COGNITION · LR-5**, somente em `tauri dev`, executa cenários locais de streaming, retry, fallback, cooldown, budget e cancelamento. Ele mostra contagens e resultado mock sem expor identidade ou memórias. A tarefa requer identidade já importada no SQLite; sem ela, termina com `identity_unavailable`. No navegador comum, o painel apenas informa que requer Luna Core/Tauri.
 
-O diagnóstico **SECURITY · LR-3** mostra disponibilidade do SecretStore e presença de um segredo artificial sem devolver seu valor à UI. Em `tauri dev`, botões permitem gravar/verificar/remover esse teste; os comandos não são registrados no handler release. A CSP e a capability `main-window` limitam a WebView. A chave de unlock fica no credential store do sistema operacional; o arquivo legado é migrado e removido após verificação do snapshot. Nenhuma API key real foi cadastrada. Detalhes e limitações estão em [Segurança LR-3](docs/SECURITY.md).
+O diagnóstico **SECURITY · LR-3** mostra disponibilidade do SecretStore e presença de um segredo artificial sem devolver seu valor à UI. Em `tauri dev`, botões permitem gravar/verificar/remover esse teste; os comandos não são registrados no handler release. A CSP e a capability `main-window` limitam a WebView. A chave de unlock fica no credential store do sistema operacional; o arquivo legado é migrado e removido após verificação do snapshot. A chave Gemini é configurada apenas no painel específico LR-6. Detalhes e limitações estão em [Segurança LR-3](docs/SECURITY.md).
 
 Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com aceleração Intel HD 4000 apresentou canvas vazio/erro WebGL 1282, enquanto o modo de software exibiu e animou a personagem. Para repetir o diagnóstico com a GPU, execute `LIBGL_ALWAYS_SOFTWARE=0 npm run tauri dev`.
 
@@ -109,4 +109,4 @@ Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA
 
 O trabalho artístico não precisa bloquear a evolução estrutural: **LR-1** separou o runtime de avatar/animação sem mudar o asset atual; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
 
-Conversação funcional, provedores reais de IA, ferramentas operacionais, Android e mensageiros continuam **fora do estado implementado atual**. O hardening PRE-LR-6 exige também validação real do Secret Service no Fedora antes de liberar LR-6.
+O chat Gemini LR-6 funciona apenas na janela Tauri e requer chave inserida manualmente no painel. Ferramentas operacionais, Android, mensageiros e segundo provider continuam fora do estado implementado.

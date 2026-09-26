@@ -7,9 +7,11 @@ use std::{
 use tauri::ipc::Channel;
 use chrono::{SecondsFormat, Utc};
 use crate::persistence::{database::Database, task_history::{self, TaskRecord}};
-#[cfg(debug_assertions)]
-use crate::cognition::{CognitionRuntime, DiagnosticScenario, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
+use crate::persistence::conversation;
+use crate::cognition::{GeminiRuntime, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
   types::{ProviderCapabilities, ProviderRequest, TaskBudget, SchedulerError}};
+#[cfg(debug_assertions)]
+use crate::cognition::{CognitionRuntime, DiagnosticScenario};
 
 use super::task::{TaskEvent, TaskEventKind, TaskId, TaskState, TaskStep};
 
@@ -92,12 +94,88 @@ fn emit(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32, state: Tas
   channel.send(TaskEvent { task_id: id, sequence: *sequence, state, kind }).map_err(|error| error.to_string())
 }
 
-#[cfg(debug_assertions)]
 fn emit_cognitive(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32,
   kind: TaskEventKind, interrupted: &AtomicBool) -> Result<(), ()> {
   emit(channel, id, sequence, TaskState::Running, kind).map_err(|_| {
     interrupted.store(true, Ordering::Release);
   })
+}
+
+pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<GeminiRuntime>,
+  message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+  let (id, cancelled) = registry.register()?;
+  let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+  tauri::async_runtime::spawn(async move {
+    let _active = ActiveTask { registry: registry.clone(), id };
+    let mut sequence = 0;
+    registry.mark_running(id);
+    let result = async {
+      emit_cognitive(&channel,id,&mut sequence,TaskEventKind::TaskStarted,&cancelled).map_err(|_| "channel_closed")?;
+      let db_context = db.clone();
+      let context = tauri::async_runtime::spawn_blocking(move || {
+        let conn = db_context.open().map_err(|e| e.code())?;
+        ContextBuilder::build(&conn, ContextRequest { domain: None, kind: None, min_importance: 0,
+          memory_limit: 0, include_recent_conversation: false }).map_err(|e| e.code())
+      }).await.map_err(|_| "worker_failed")??;
+      emit_cognitive(&channel,id,&mut sequence,TaskEventKind::ContextBuilt { memory_count: 0, recent_message_count: 0 },&cancelled)
+        .map_err(|_| "channel_closed")?;
+      let budget = TaskBudget { max_provider_calls: 2, max_output_tokens: 512 };
+      let request = ProviderRequest { input: message.clone(), context: Arc::new(context), max_output_tokens: 512,
+        required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
+      let result = gemini.scheduler.run(request,budget,&cancelled,&mut |event| {
+        let kind = match event {
+          SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
+          SchedulerEvent::Chunk { provider_id, text } => TaskEventKind::ProviderChunk { provider_id, chunk: text },
+          SchedulerEvent::Retry { provider_id, reason_code } => TaskEventKind::ProviderRetry { provider_id, reason_code: reason_code.into() },
+          SchedulerEvent::Fallback { from, reason_code } => TaskEventKind::ProviderFallback { provider_id: from, reason_code: reason_code.into() },
+        };
+        emit_cognitive(&channel,id,&mut sequence,kind,&cancelled).map_err(|_| SchedulerError::EventSinkClosed)
+      }).await.map_err(|e| e.code())?;
+      // From this point the provider call is finished and the local exchange is
+      // entering its commit phase. A cancel accepted before this boundary wins;
+      // a later cancel is rejected instead of leaving a cancelled task with a
+      // persisted final assistant answer.
+      if registry.finish(id, TaskState::Completed) == TaskState::Cancelled { return Err("cancelled"); }
+      let db_write = db.clone();
+      let user = message.clone(); let answer = result.text.clone();
+      tauri::async_runtime::spawn_blocking(move || {
+        let mut conn = db_write.open().map_err(|e| e.code())?;
+        conversation::append_gemini_exchange(&mut conn,&user,&answer).map_err(|e| e.code())
+      }).await.map_err(|_| "worker_failed")??;
+      emit_cognitive(&channel,id,&mut sequence,TaskEventKind::TaskResultReady { result },&cancelled)
+        .map_err(|_| "channel_closed")?;
+      Ok::<(), &'static str>(())
+    }.await;
+    let (outcome, error_code) = match result {
+      Ok(()) => (TaskState::Completed,None), Err("cancelled") => (TaskState::Cancelled,None),
+      Err(code) => (TaskState::Failed,Some(code)),
+    };
+    let mut state = if error_code == Some("channel_closed") { registry.finish_channel_closed(id) } else { registry.finish(id,outcome) };
+    let mut error_code = error_code;
+    let record = TaskRecord { task_id:id.0, kind:"gemini_chat".into(),
+      state:match state {TaskState::Completed=>"completed",TaskState::Cancelled=>"cancelled",_=>"failed"}.into(),
+      started_at, finished_at:Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true), summary:Some("Conversa Gemini LR-6".into()),
+      error_code:error_code.map(str::to_owned) };
+    let db_record = db.clone();
+    let write = tauri::async_runtime::spawn_blocking(move || { let conn=db_record.open()?; task_history::insert(&conn,&record) }).await;
+    if !matches!(write,Ok(Ok(()))) {
+      eprintln!("[Luna Core] task_history code=write_failed task_id={}",id.0);
+      state = TaskState::Failed; error_code = Some("task_history_write_failed");
+    }
+    let terminal = match state { TaskState::Completed => TaskEventKind::TaskCompleted, TaskState::Cancelled => TaskEventKind::TaskCancelled,
+      _ => TaskEventKind::TaskFailed { detail: error_code.unwrap_or("task_failed").into() } };
+    if emit(&channel,id,&mut sequence,state,terminal).is_err() {
+      cancelled.store(true,Ordering::Release); error_code = Some("channel_closed");
+      let update = tauri::async_runtime::spawn_blocking(move || { let conn=db.open()?;
+        task_history::mark_failed(&conn,id.0,"channel_closed") }).await;
+      if !matches!(update,Ok(Ok(()))) { eprintln!("[Luna Core] task_history code=channel_update_failed task_id={}",id.0); }
+    }
+    if matches!(error_code,Some("gemini_auth_failed" | "channel_closed")) {
+      crate::security::audit::AuditEvent::new(crate::security::audit::Action::SecurityError,
+        crate::security::audit::Outcome::Failed).with_detail(error_code.unwrap()).with_task_id(id.0).emit();
+    }
+  });
+  Ok(id)
 }
 
 async fn wait_or_cancel(cancelled: &AtomicBool, duration: Duration) -> bool {

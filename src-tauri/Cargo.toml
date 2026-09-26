@@ -17,7 +17,9 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["time", "macros"] }
+reqwest = { version = "=0.11.27", default-features = false, features = ["json", "stream", "rustls-tls"] }
+httpdate = "=1.0.3"
 tauri-plugin-stronghold = { version = "2.3.2", default-features = false }
 getrandom = "0.3"
 keyring = { version = "=3.6.3", default-features = false, features = ["sync-secret-service", "crypto-rust", "apple-native", "windows-native"] }
