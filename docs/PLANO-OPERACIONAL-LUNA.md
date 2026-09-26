@@ -353,6 +353,8 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 **Auditoria de implementação (26/09/2026):** arquitetura, privacidade outbound, SecretStore, SSE incremental, cancelamento e persistência local foram aprovados, mas a validação com chave real permanece bloqueada por dois ajustes de protocolo: (1) `interaction.completed` precisa validar `interaction.status` e não tratar `incomplete`, `failed`, `cancelled` ou `requires_action` como sucesso; (2) erros da Interactions API devem usar o campo oficial `error.code` tanto em respostas HTTP quanto em eventos SSE, distinguindo pelo menos `quota_exceeded`, `rate_limit_exceeded`/`too_many_requests`, `authentication`/`permission_denied`, timeout/cancelamento e falhas transitórias. Nenhuma API key real deve ser inserida antes dessa correção.
 
+**LR-6 protocol FIX (26/09/2026):** os dois ajustes da auditoria estão implementados e cobertos por testes locais. Somente `status=completed` com usage válido alcança a resposta final; `error.code` tem prioridade em HTTP e SSE. Estado: **LR-6 implementation complete; protocol audit PASS; real API validation pending**. A validação real está liberada como próxima ação manual, sem ter sido executada nesta rodada. LR-6 ainda não é PASS completo e LR-7 não foi iniciada.
+
 ## 11. LR-7 — segundo provider real + distribuição
 
 **Candidatos preferidos:** Groq ou Mistral.

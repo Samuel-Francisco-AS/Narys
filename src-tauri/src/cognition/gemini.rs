@@ -52,11 +52,46 @@ impl GeminiProvider {
     match status.as_u16() {
       429 => ProviderError::RateLimited { retry_after_ms: retry_after_ms(headers) },
       401 | 403 => ProviderError::Authentication,
-      408 => ProviderError::Timeout,
+      408 | 504 => ProviderError::Timeout,
       500..=599 => ProviderError::Unavailable,
       _ => ProviderError::Fatal,
     }
   }
+}
+fn classify_error_code(code: &str, retry_after_ms: Option<u64>) -> ProviderError {
+  match code {
+    "authentication" | "permission_denied" => ProviderError::Authentication,
+    "rate_limit_exceeded" | "too_many_requests" => ProviderError::RateLimited { retry_after_ms },
+    "quota_exceeded" | "payment_required" => ProviderError::QuotaExceeded,
+    "deadline_exceeded" | "gateway_timeout" => ProviderError::Timeout,
+    "api_error" | "service_unavailable" => ProviderError::Unavailable,
+    "cancelled" => ProviderError::RemoteCancelled,
+    // All request, generation and unknown errors fail closed; no message is exposed.
+    _ => ProviderError::Fatal,
+  }
+}
+fn error_code(value: &Value) -> Option<&str> {
+  value.pointer("/error/code").and_then(Value::as_str).filter(|code| !code.is_empty())
+}
+async fn http_error(response: &mut reqwest::Response, cancelled: &AtomicBool) -> ProviderError {
+  const MAX_ERROR_BODY: usize = 64 * 1024;
+  let status = response.status();
+  let headers = response.headers().clone();
+  let fallback = || GeminiProvider::classify(status, &headers);
+  let mut body = Vec::new();
+  loop {
+    let next = tokio::select! {
+      _ = cancellation(cancelled) => return ProviderError::Cancelled,
+      result = response.chunk() => result,
+    };
+    match next {
+      Ok(Some(chunk)) if body.len().saturating_add(chunk.len()) <= MAX_ERROR_BODY => body.extend_from_slice(&chunk),
+      Ok(None) => break,
+      _ => return fallback(),
+    }
+  }
+  serde_json::from_slice::<Value>(&body).ok().and_then(|value| error_code(&value).map(|code|
+    classify_error_code(code, retry_after_ms(&headers)))).unwrap_or_else(fallback)
 }
 fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
   const MAX_RETRY_AFTER_MS: u64 = 7 * 24 * 60 * 60 * 1000;
@@ -90,7 +125,7 @@ impl Provider for GeminiProvider {
         _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
         result = send => result.map_err(|e| network_error(&e))?,
       };
-      if !response.status().is_success() { return Err(Self::classify(response.status(), response.headers())); }
+      if !response.status().is_success() { return Err(http_error(&mut response, cancelled).await); }
       let mut parser = SseParser::default();
       let mut text = String::new();
       let mut usage = None;
@@ -104,22 +139,22 @@ impl Provider for GeminiProvider {
         for event in parser.push(&bytes)? {
           match event {
             StreamEvent::Text(piece) => { text.push_str(&piece); on_chunk(ProviderChunk { text: piece })?; },
-            StreamEvent::Completed(final_usage) => usage = Some(final_usage),
+            StreamEvent::Completed(result) => usage = Some(result?),
             StreamEvent::Done => break 'stream,
-            StreamEvent::Error => return Err(ProviderError::Unavailable),
+            StreamEvent::Error(error) => return Err(error),
             StreamEvent::Ignore => {},
           }
         }
       }
       if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
-      let usage = usage.ok_or(ProviderError::Unavailable)?;
+      let usage = usage.ok_or(ProviderError::Protocol)?;
       if text.trim().is_empty() { return Err(ProviderError::Fatal); }
       Ok(ProviderResponse { text, usage })
     })
   }
 }
 
-enum StreamEvent { Text(String), Completed(ProviderUsage), Done, Error, Ignore }
+enum StreamEvent { Text(String), Completed(Result<ProviderUsage, ProviderError>), Done, Error(ProviderError), Ignore }
 #[derive(Default)]
 struct SseParser { pending: Vec<u8>, event: Option<String>, data: String, model_steps: HashSet<u64> }
 impl SseParser {
@@ -155,12 +190,26 @@ impl SseParser {
         && value.pointer("/delta/type").and_then(Value::as_str) == Some("text") =>
         StreamEvent::Text(value.pointer("/delta/text").and_then(Value::as_str).ok_or(ProviderError::Fatal)?.into()),
       "interaction.completed" => {
-        let raw = value.pointer("/interaction/usage").ok_or(ProviderError::Unavailable)?;
-        let count = |field| raw.get(field).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok());
-        StreamEvent::Completed(ProviderUsage { calls: 1, input_tokens: count("total_input_tokens").ok_or(ProviderError::Unavailable)?,
-          output_tokens: count("total_output_tokens").ok_or(ProviderError::Unavailable)?, total_tokens: Some(count("total_tokens").ok_or(ProviderError::Unavailable)?), thought_tokens: count("total_thought_tokens") })
+        let status = value.pointer("/interaction/status").and_then(Value::as_str);
+        let result = match status {
+          Some("completed") => {
+            let raw = value.pointer("/interaction/usage").ok_or(ProviderError::Protocol)?;
+            let count = |field| raw.get(field).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok());
+            Ok(ProviderUsage { calls: 1, input_tokens: count("total_input_tokens").ok_or(ProviderError::Protocol)?,
+              output_tokens: count("total_output_tokens").ok_or(ProviderError::Protocol)?,
+              total_tokens: Some(count("total_tokens").ok_or(ProviderError::Protocol)?), thought_tokens: count("total_thought_tokens") })
+          },
+          Some("incomplete") => Err(ProviderError::Incomplete),
+          Some("requires_action") => Err(ProviderError::RequiresAction),
+          Some("cancelled") => Err(ProviderError::RemoteCancelled),
+          Some("failed") => Err(value.pointer("/interaction/errors").and_then(Value::as_array)
+            .and_then(|errors| errors.iter().find_map(|error| error.get("code").and_then(Value::as_str).filter(|code| !code.is_empty())))
+            .map(|code| classify_error_code(code, None)).unwrap_or(ProviderError::Fatal)),
+          _ => Err(ProviderError::Protocol),
+        };
+        StreamEvent::Completed(result)
       },
-      "error" => StreamEvent::Error,
+      "error" => StreamEvent::Error(error_code(&value).map(|code| classify_error_code(code, None)).unwrap_or(ProviderError::Protocol)),
       _ => StreamEvent::Ignore,
     }))
   }
@@ -222,7 +271,7 @@ mod tests {
       String::from_utf8_lossy(&bytes).into_owned()
     });(url,handle)
   }
-  const SSE:&str="event: interaction.created\ndata: {\"event_type\":\"interaction.created\"}\n\nevent: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"}}\n\nevent: step.delta\ndata: {\"index\":0,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"private\"}}\n\nevent: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"model_output\"}}\n\nevent: step.delta\ndata: {\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\"Quatro\"}}\n\nevent: future.event\ndata: {\"anything\":true}\n\nevent: step.delta\ndata: {\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\".\"}}\n\nevent: interaction.completed\ndata: {\"interaction\":{\"usage\":{\"total_input_tokens\":20,\"total_output_tokens\":2,\"total_tokens\":30,\"total_thought_tokens\":8}}}\n\nevent: done\ndata: [DONE]\n\n";
+  const SSE:&str="event: interaction.created\ndata: {\"event_type\":\"interaction.created\"}\n\nevent: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"}}\n\nevent: step.delta\ndata: {\"index\":0,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"private\"}}\n\nevent: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"model_output\"}}\n\nevent: step.delta\ndata: {\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\"Quatro\"}}\n\nevent: future.event\ndata: {\"anything\":true}\n\nevent: step.delta\ndata: {\"index\":1,\"delta\":{\"type\":\"text\",\"text\":\".\"}}\n\nevent: interaction.completed\ndata: {\"interaction\":{\"status\":\"completed\",\"usage\":{\"total_input_tokens\":20,\"total_output_tokens\":2,\"total_tokens\":30,\"total_thought_tokens\":8}}}\n\nevent: done\ndata: [DONE]\n\n";
   #[test] fn request_privacy_stream_usage_and_secret_lifecycle() {
     let (store,dir)=fixture();assert!(store.get_secret(SecretKey::GeminiApiKey).unwrap().is_some());
     let (url,handle)=server("200 OK",SSE,"",true);
@@ -243,12 +292,122 @@ mod tests {
     let (store,dir)=fixture();
     for (status,extra,expected) in [("429 Too Many Requests","Retry-After: 3\r\n",ProviderError::RateLimited{retry_after_ms:Some(3000)}),
       ("401 Unauthorized","",ProviderError::Authentication),("403 Forbidden","",ProviderError::Authentication),
-      ("408 Request Timeout","",ProviderError::Timeout),("500 Internal Server Error","",ProviderError::Unavailable)] {
+      ("408 Request Timeout","",ProviderError::Timeout),("504 Gateway Timeout","",ProviderError::Timeout),
+      ("402 Payment Required","",ProviderError::Fatal),("500 Internal Server Error","",ProviderError::Unavailable)] {
       let (url,handle)=server(status,"",extra,false);let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
       let signal=AtomicBool::new(false);let result=tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(())));
       assert_eq!(result.unwrap_err(),expected);let raw=handle.join().unwrap();assert!(!raw.contains("relationship secret marker"));
     }
     fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn http_error_code_takes_priority_and_fallback_is_bounded() {
+    let (store,dir)=fixture();
+    for (status,code,header,expected) in [
+      ("429 Too Many Requests","rate_limit_exceeded","Retry-After: 3\r\n",ProviderError::RateLimited {retry_after_ms:Some(3000)}),
+      ("429 Too Many Requests","quota_exceeded","",ProviderError::QuotaExceeded),
+      ("429 Too Many Requests","too_many_requests","",ProviderError::RateLimited {retry_after_ms:None}),
+      ("401 Unauthorized","authentication","",ProviderError::Authentication),
+      ("403 Forbidden","permission_denied","",ProviderError::Authentication),
+      ("503 Service Unavailable","service_unavailable","",ProviderError::Unavailable),
+      ("504 Gateway Timeout","deadline_exceeded","",ProviderError::Timeout),
+      ("503 Service Unavailable","invalid_request","",ProviderError::Fatal),
+      ("500 Internal Server Error","unknown_future_code","",ProviderError::Fatal),
+    ] {
+      let body=json!({"error":{"code":code,"message":"private Google detail"}}).to_string();
+      let (url,handle)=server(status,&body,header,false);
+      let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
+      let signal=AtomicBool::new(false);
+      assert_eq!(tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(()))).unwrap_err(),expected);
+      handle.join().unwrap();
+    }
+    for body in ["not JSON".to_owned(),"x".repeat(65_537)] {
+      let (url,handle)=server("429 Too Many Requests",&body,"Retry-After: 2\r\n",false);
+      let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
+      let signal=AtomicBool::new(false);
+      assert_eq!(tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(()))).unwrap_err(),
+        ProviderError::RateLimited {retry_after_ms:Some(2000)});
+      handle.join().unwrap();
+    }
+    fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn official_error_codes_fail_closed_except_explicit_transients() {
+    for code in ["invalid_request","failed_precondition","out_of_range","parameter_unknown","not_found",
+      "model_not_found","already_exists","aborted","unimplemented","safety","recitation","language",
+      "prohibited_content","spii","blocklist","image_safety","image_prohibited_content","image_recitation",
+      "image_other","content_blocked","malformed_function_call","malformed_tool_call","unexpected_tool_call",
+      "no_image","too_many_tool_calls","missing_thought_signature","future_code"] {
+      assert_eq!(classify_error_code(code,None),ProviderError::Fatal,"{code}");
+    }
+    assert_eq!(classify_error_code("payment_required",None),ProviderError::QuotaExceeded);
+    assert_eq!(classify_error_code("api_error",None),ProviderError::Unavailable);
+    assert_eq!(classify_error_code("cancelled",None),ProviderError::RemoteCancelled);
+  }
+  #[test] fn sse_error_codes_share_http_mapper() {
+    let (store,dir)=fixture();
+    for (code,expected) in [
+      ("rate_limit_exceeded",ProviderError::RateLimited {retry_after_ms:None}),
+      ("too_many_requests",ProviderError::RateLimited {retry_after_ms:None}),
+      ("quota_exceeded",ProviderError::QuotaExceeded),
+      ("authentication",ProviderError::Authentication),
+      ("permission_denied",ProviderError::Authentication),
+      ("deadline_exceeded",ProviderError::Timeout),
+      ("gateway_timeout",ProviderError::Timeout),
+      ("service_unavailable",ProviderError::Unavailable),
+      ("invalid_request",ProviderError::Fatal),
+      ("cancelled",ProviderError::RemoteCancelled),
+      ("unknown_future_code",ProviderError::Fatal),
+    ] {
+      let body=format!("event: error\ndata: {}\n\n",json!({"event_type":"error","error":{"code":code,"message":"private Google detail"}}));
+      let (url,handle)=server("200 OK",&body,"",false);
+      let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
+      let signal=AtomicBool::new(false);
+      assert_eq!(tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(()))).unwrap_err(),expected);
+      handle.join().unwrap();
+    }
+    fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn completion_status_is_required_and_only_completed_succeeds() {
+    use crate::persistence::{database::Database,conversation};
+    let (store,dir)=fixture();
+    let db=Database::for_test(dir.join("terminal.sqlite3"));
+    let conn=db.open().unwrap();
+    let usage=json!({"total_input_tokens":20,"total_output_tokens":2,"total_tokens":30,"total_thought_tokens":8});
+    for (status,expected) in [
+      (Some("incomplete"),ProviderError::Incomplete),
+      (Some("failed"),ProviderError::Fatal),
+      (Some("cancelled"),ProviderError::RemoteCancelled),
+      (Some("requires_action"),ProviderError::RequiresAction),
+      (Some("in_progress"),ProviderError::Protocol),
+      (Some("future_status"),ProviderError::Protocol),
+      (None,ProviderError::Protocol),
+    ] {
+      let mut interaction=json!({"usage":usage});
+      if let Some(status)=status {interaction["status"]=json!(status)}
+      let body=format!("event: step.start\ndata: {{\"index\":0,\"step\":{{\"type\":\"model_output\"}}}}\n\nevent: step.delta\ndata: {{\"index\":0,\"delta\":{{\"type\":\"text\",\"text\":\"Resposta parcial\"}}}}\n\nevent: interaction.completed\ndata: {}\n\nevent: done\ndata: [DONE]\n\n",json!({"interaction":interaction}));
+      let (url,handle)=server("200 OK",&body,"",true);
+      let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
+      let signal=AtomicBool::new(false);let mut chunks=Vec::new();
+      let result=tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |chunk| {chunks.push(chunk.text);Ok(())}));
+      assert_eq!(result.unwrap_err(),expected,"status {status:?}");
+      assert_eq!(chunks,vec!["Resposta parcial"]);
+      assert!(conversation::gemini_session(&conn).unwrap().is_none());
+      handle.join().unwrap();
+    }
+    let failed=json!({"interaction":{"status":"failed","errors":[{"code":"quota_exceeded","message":"private"}]}});
+    let body=format!("event: interaction.completed\ndata: {failed}\n\nevent: done\ndata: [DONE]\n\n");
+    let (url,handle)=server("200 OK",&body,"",false);
+    let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
+    let signal=AtomicBool::new(false);
+    assert_eq!(tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(()))).unwrap_err(),ProviderError::QuotaExceeded);
+    handle.join().unwrap();
+    for body in ["event: done\ndata: [DONE]\n\n".to_owned(),
+      "event: interaction.completed\ndata: {\"interaction\":{\"status\":\"completed\"}}\n\n".to_owned()] {
+      let (url,handle)=server("200 OK",&body,"",false);
+      let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
+      assert_eq!(tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(()))).unwrap_err(),ProviderError::Protocol);
+      handle.join().unwrap();
+    }
+    drop(conn);fs::remove_dir_all(dir).unwrap();
   }
   #[test] fn rate_limit_http_date_enters_scheduler_cooldown() {
     let mut extreme=HeaderMap::new();extreme.insert(RETRY_AFTER,HeaderValue::from_static("18446744073709551615"));

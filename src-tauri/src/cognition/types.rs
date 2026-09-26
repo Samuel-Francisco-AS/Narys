@@ -54,12 +54,16 @@ pub struct ProviderResponse { pub text: String, pub usage: ProviderUsage }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderError {
-  RateLimited { retry_after_ms: Option<u64> }, Timeout, QuotaExceeded, Authentication, Fatal, Cancelled, Unavailable, EventSinkClosed,
+  RateLimited { retry_after_ms: Option<u64> }, Timeout, QuotaExceeded, Authentication, Fatal, Cancelled, RemoteCancelled,
+  Incomplete, RequiresAction, Protocol, Unavailable, EventSinkClosed,
 }
 impl ProviderError {
   pub fn code(&self) -> &'static str { match self {
     Self::RateLimited { .. } => "rate_limited", Self::Timeout => "timeout", Self::QuotaExceeded => "quota_exceeded",
-    Self::Authentication => "gemini_auth_failed", Self::Fatal => "fatal", Self::Cancelled => "cancelled", Self::Unavailable => "unavailable", Self::EventSinkClosed => "channel_closed",
+    Self::Authentication => "gemini_auth_failed", Self::Fatal => "fatal", Self::Cancelled => "cancelled",
+    Self::RemoteCancelled => "provider_cancelled", Self::Incomplete => "provider_incomplete",
+    Self::RequiresAction => "provider_requires_action", Self::Protocol => "provider_protocol_error",
+    Self::Unavailable => "unavailable", Self::EventSinkClosed => "channel_closed",
   }}
 }
 
