@@ -25,3 +25,13 @@ Após sucesso, uma transação SQLite grava a mensagem do usuário e a resposta 
 ## Validação e limites
 
 Os testes usam servidor HTTP local e credential store fake, sem quota externa. Cobrem payload e marcadores privados, header, SSE partido, ordem dos chunks, usage, errors, Retry-After, cancelamento e Channel fechado. O gate de API real requer inserir a chave no painel Tauri, enviar pergunta neutra, observar chunks/usage/TaskRecord, cancelar outra chamada e reabrir o aplicativo. Nenhuma request é feita ao iniciar. A toolchain Rust 1.77.2 exata ainda deve ser verificada; `cargo check` em toolchain mais nova não prova MSRV. O SQLite local não tem criptografia integral.
+
+
+## Auditoria de implementação — 26/09/2026
+
+A arquitetura local passou na revisão de privacidade, SecretStore, streaming, cancelamento e persistência, mas a validação com API key real deve esperar dois ajustes:
+
+1. O parser atual extrai `usage` de `interaction.completed`, porém ainda não valida `interaction.status`. A API pode terminar como `completed`, `incomplete`, `failed`, `cancelled` ou `requires_action`; somente sucesso completo deve seguir para persistência como resposta concluída. Em especial, `incomplete` pode ocorrer ao atingir `max_output_tokens`.
+2. Eventos SSE `error` hoje são achatados para `Unavailable`, e erros HTTP são classificados principalmente pelo status. A API oficial fornece `error.code`; o adapter deve usar esse código para distinguir `quota_exceeded`, `rate_limit_exceeded`/`too_many_requests`, `authentication`/`permission_denied`, cancelamento, timeout e falhas transitórias, preservando fallback por status HTTP apenas quando o corpo não puder ser interpretado.
+
+Até esses dois pontos serem corrigidos e cobertos por testes locais, não inserir a chave Gemini real no painel. O endpoint `v1beta/interactions` continua válido, embora a Interactions API também disponha de versão estável `v1`; a troca de versão não é necessária para fechar este gate.
