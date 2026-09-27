@@ -1,6 +1,6 @@
 # UIP-1 — Presence Shell
 
-Data inicial: **26/09/2026** (America/Fortaleza). Branch `main`. HEAD inicial da UIP-1 após `git pull --ff-only`: `d44762cbc6613f921b4ee1d96d4b088bbf64a10c`; árvore inicial limpa. A implementação inicial foi submetida ao gate humano; veja **FIX-1** abaixo. **UIP-1 ainda não tem PASS completo.**
+Data inicial: **26/09/2026** (America/Fortaleza). Branch `main`. HEAD inicial da UIP-1 após `git pull --ff-only`: `d44762cbc6613f921b4ee1d96d4b088bbf64a10c`; árvore inicial limpa. A implementação inicial foi submetida ao gate humano; veja **FIX-1** abaixo. **UIP-1 = PASS completo em 26/09/2026.**
 
 ## Implementação inicial
 
@@ -159,3 +159,14 @@ Checklist pendente de Sam para fechar a UIP-1:
 7. DEV continua abrindo normalmente?
 
 **UIP-1 ainda depende desse gate humano; não está marcada como PASS completo. UIP-2 e UIP-3 não foram iniciadas.**
+
+
+## Fechamento humano da FIX-2
+
+Em 26/09/2026, Sam aprovou visualmente a compactação final da Presence Shell. A janela transparente passou a parecer proporcional à personagem; não houve espaço morto excessivo percebido; a escala da Luna permaneceu equivalente à versão aprovada da FIX-1; Idle e greeting/aceno permaneceram sem recorte perceptível; a barra/chão continuou bem posicionada; e o shell DEV continuou abrindo normalmente, sem retornar o congelamento grosseiro nem o aviso de aplicativo sem resposta.
+
+A auditoria remota confirmou que a FIX-2 se limita ao redimensionamento da janela/stage, compensação de câmera e documentação: janela configurada em **320×420**, CharacterStage/drawing buffer em **300×360**, câmera em `position (0, 1.50, 4.65)` e `lookAt (0, 1.40, 0)`, preservando renderer, animações, modelo e correções DEV anteriores.
+
+Com os gates técnicos, a auditoria remota e o gate humano final, **UIP-1 — Presence Shell = PASS completo**.
+
+Próxima etapa: **UIP-2 — Render Budget**.
