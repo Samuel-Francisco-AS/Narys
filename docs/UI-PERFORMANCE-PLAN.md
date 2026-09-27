@@ -229,6 +229,8 @@ Não perseguir 60 FPS por princípio.
 
 ## 9. UIP-1 — Presence Shell
 
+**Estado:** **PASS completo em 26/09/2026.** A Presence Shell transparente e sem bordas foi validada no Fedora/Wayland; após FIX-1 e FIX-2, a escala da Luna, barra inferior, shell DEV responsivo e compactação da janela foram aprovados pelo usuário. A janela final ficou em 320×420 e o CharacterStage/drawing buffer em 300×360, preservando a escala visual da personagem. Consulte [UIP-1-PRESENCE.md](UIP-1-PRESENCE.md).
+
 **Objetivo:** substituir a casca M0-B pela presença desktop mínima.
 
 ### Trabalho
@@ -477,6 +479,6 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Iniciar **UIP-1 — Presence Shell**.
+Iniciar **UIP-2 — Render Budget**.
 
-A execução deve continuar pequena e auditável: transformar apenas a casca visual/janela principal em presença desktop mínima, preservando Luna Core, conversa LR-6, instrumentação UIP-0 e o comportamento do avatar. Não antecipar Render Budget/UIP-2 nem ergonomia/UIP-3.
+A próxima rodada deve partir do baseline final da UIP-1 (janela 320×420, stage/buffer 300×360, ~55 FPS e ~200,8% de CPU agregada na amostra curta) e medir separadamente o efeito do teto de 30 FPS e dos perfis de foco/visibilidade, sem antecipar ergonomia/UIP-3.
