@@ -1,6 +1,6 @@
 # UIP-2 — Render Budget
 
-Data: **26/09/2026** (America/Fortaleza). Branch `main`, árvore inicial limpa, `git pull --ff-only` sem alterações. HEAD inicial após sincronização: `1d17b33f55b88bf3d61a5d92f646d83029a3a9b7`. **Implementação candidata; gate humano pendente. Sem commit ou push.**
+Data: **26/09/2026** (America/Fortaleza). Branch `main`, árvore inicial limpa, `git pull --ff-only` sem alterações. HEAD inicial após sincronização: `1d17b33f55b88bf3d61a5d92f646d83029a3a9b7`. **UIP-2 = PASS completo em 26/09/2026.**
 
 ## Política implementada
 
@@ -60,7 +60,7 @@ Houve também uma condição visível sem foco em que o WebKit passou a entregar
 3. Tirar foco mantendo Luna visível; confirmar `background`, target 24 após FIX-1, movimento temporal normal; recuperar foco e confirmar `active`, target 30. Testar também um aceno iniciado antes de perder foco.
 4. Minimizar por 20–30 s; se possível observar CPU/RSS. Restaurar e verificar reaparecimento, continuidade do Idle/aceno sem salto ou aceleração, primeiro frame sem delta enorme, target 30, buffer 300×360, `gl.getError()=0` e ausência de context loss. Registrar `visibilityState`: se não virar `hidden`, informar essa limitação específica da plataforma.
 
-**UIP-2 ainda não é PASS completo.** UIP-3 não foi iniciada; nenhuma ergonomia de janela foi implementada. Para UIP-3, permanece o risco de a política receber poucos ou nenhum callback quando a janela visível fica atrás de outras superfícies no WebKitGTK/Wayland. A etapa futura deve respeitar a fronteira do Avatar Runtime e revalidar foco/visibilidade em novos modos de janela, sem presumir detecção de oclusão.
+**UIP-2 = PASS completo.** UIP-3 ainda não foi iniciada; nenhuma ergonomia de janela foi implementada. Para UIP-3, permanece o risco de a política receber poucos ou nenhum callback quando a janela visível fica atrás de outras superfícies no WebKitGTK/Wayland. A etapa futura deve respeitar a fronteira do Avatar Runtime e revalidar foco/visibilidade em novos modos de janela, sem presumir detecção de oclusão.
 
 ## FIX-1 — background de 15 para 24 FPS
 
@@ -93,4 +93,20 @@ Os seis FPS da FIX-1 foram `24,00 / 23,98 / 23,98 / 23,98 / 24,12 / 23,96`; `res
 
 ### Gate pendente
 
-Sam deve comparar visualmente 24 FPS sem foco com os 15 FPS rejeitados, confirmar se a fluidez agora serve ao uso cotidiano e se o aumento de CPU observado é aceitável. Confirmar também aceno iniciado antes de perder foco, retorno a 30 FPS ao recuperar foco e ausência de salto. O gate de minimizar/restaurar da UIP-2 continua pendente. **FIX-1 e UIP-2 ainda não são PASS completo; UIP-3 não foi iniciada.**
+Sam deve comparar visualmente 24 FPS sem foco com os 15 FPS rejeitados, confirmar se a fluidez agora serve ao uso cotidiano e se o aumento de CPU observado é aceitável. Confirmar também aceno iniciado antes de perder foco, retorno a 30 FPS ao recuperar foco e ausência de salto. O gate de minimizar/restaurar da UIP-2 continua pendente. **FIX-1 aprovada no gate humano; UIP-2 = PASS completo. UIP-3 não foi iniciada.**
+
+
+## Fechamento humano da UIP-2
+
+Em 26/09/2026, Sam aprovou o comportamento final da política de render após a FIX-1. O perfil visível sem foco em **24 FPS** foi considerado adequado para o uso cotidiano da Luna como companhia no desktop; o perfil anterior de 15 FPS havia sido rejeitado por parecer visualmente travado. O modo focado permanece em **30 FPS** e o modo oculto/suspenso permanece com **0 FPS de update/render** quando o sinal de visibilidade é emitido.
+
+Com os gates técnicos, as medições em Tauri real e o gate humano final, **UIP-2 — Render Budget = PASS completo**.
+
+Política final:
+- visible + focused: **30 FPS**;
+- visible + unfocused: **24 FPS**;
+- hidden/suspended: **0 FPS de update/render**.
+
+A limitação de WebKitGTK/Wayland quanto à entrega de poucos callbacks sem foco e à emissão de `visibilityState=hidden` ao minimizar continua documentada para revalidação durante a UIP-3 e UIP-7.
+
+Próxima etapa: **UIP-3 — ergonomia da janela**.
