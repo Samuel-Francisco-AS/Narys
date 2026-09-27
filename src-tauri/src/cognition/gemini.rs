@@ -53,7 +53,10 @@ pub struct GeminiProvider { config: GeminiConfig, client: Client, secrets: Arc<S
 impl GeminiProvider {
   pub fn new(config: GeminiConfig, secrets: Arc<SecretStore>) -> Result<Self, ProviderError> {
     let client = Client::builder().connect_timeout(config.connect_timeout).timeout(config.request_timeout)
-      .build().map_err(|_| ProviderError::Unavailable)?;
+      .build().map_err(|_| {
+        #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=client_init");
+        ProviderError::Unavailable
+      })?;
     Ok(Self { config, client, secrets })
   }
   fn classify(status: StatusCode, headers: &HeaderMap) -> ProviderError {
@@ -81,6 +84,25 @@ fn classify_error_code(code: &str, retry_after_ms: Option<u64>) -> ProviderError
 fn error_code(value: &Value) -> Option<&str> {
   value.pointer("/error/code").and_then(Value::as_str).filter(|code| !code.is_empty())
 }
+#[cfg(debug_assertions)]
+fn diag_http_unavailable(status: StatusCode, headers: &HeaderMap, code: Option<&str>, result: &ProviderError) {
+  if *result != ProviderError::Unavailable { return; }
+  // Only these known codes can produce Unavailable. Never print arbitrary response strings.
+  let code = match code { Some("api_error") => " code=api_error", Some("service_unavailable") => " code=service_unavailable", _ => "" };
+  if let Some(ms) = retry_after_ms(headers) {
+    eprintln!("[Gemini][diag] unavailable source=http status={}{} retry_after_ms={ms}", status.as_u16(), code);
+  } else {
+    eprintln!("[Gemini][diag] unavailable source=http status={}{}", status.as_u16(), code);
+  }
+}
+#[cfg(debug_assertions)]
+fn diag_stream_unavailable(code: &str, result: &ProviderError) {
+  if *result == ProviderError::Unavailable {
+    // Keep the diagnostic allowlisted even if the mapper gains new codes later.
+    let code = match code { "api_error" => "api_error", "service_unavailable" => "service_unavailable", _ => "other" };
+    eprintln!("[Gemini][diag] unavailable source=stream code={code}");
+  }
+}
 async fn http_error(response: &mut reqwest::Response, cancelled: &AtomicBool) -> ProviderError {
   const MAX_ERROR_BODY: usize = 64 * 1024;
   let status = response.status();
@@ -95,11 +117,18 @@ async fn http_error(response: &mut reqwest::Response, cancelled: &AtomicBool) ->
     match next {
       Ok(Some(chunk)) if body.len().saturating_add(chunk.len()) <= MAX_ERROR_BODY => body.extend_from_slice(&chunk),
       Ok(None) => break,
-      _ => return fallback(),
+      _ => {
+        let result = fallback();
+        #[cfg(debug_assertions)] diag_http_unavailable(status, &headers, None, &result);
+        return result;
+      },
     }
   }
-  serde_json::from_slice::<Value>(&body).ok().and_then(|value| error_code(&value).map(|code|
-    classify_error_code(code, retry_after_ms(&headers)))).unwrap_or_else(fallback)
+  let parsed = serde_json::from_slice::<Value>(&body).ok();
+  let code = parsed.as_ref().and_then(error_code);
+  let result = code.map(|code| classify_error_code(code, retry_after_ms(&headers))).unwrap_or_else(fallback);
+  #[cfg(debug_assertions)] diag_http_unavailable(status, &headers, code, &result);
+  result
 }
 fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
   const MAX_RETRY_AFTER_MS: u64 = 7 * 24 * 60 * 60 * 1000;
@@ -109,7 +138,11 @@ fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
     .map(|duration| duration.as_millis().min(MAX_RETRY_AFTER_MS as u128) as u64)
 }
 fn network_error(error: &reqwest::Error) -> ProviderError {
-  if error.is_timeout() { ProviderError::Timeout } else { ProviderError::Unavailable }
+  if error.is_timeout() { ProviderError::Timeout } else {
+    #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=network timeout={} connect={} request={}",
+      error.is_timeout(), error.is_connect(), error.is_request());
+    ProviderError::Unavailable
+  }
 }
 async fn cancellation(cancelled: &AtomicBool) {
   while !cancelled.load(Ordering::Acquire) { tokio::time::sleep(Duration::from_millis(20)).await; }
@@ -123,7 +156,14 @@ impl Provider for GeminiProvider {
       let key = tokio::select! {
         _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
         result = tauri::async_runtime::spawn_blocking(move || secrets.get_secret(SecretKey::GeminiApiKey)) =>
-          result.map_err(|_| ProviderError::Unavailable)?.map_err(|_| ProviderError::Unavailable)?.ok_or(ProviderError::Authentication)?,
+          result.map_err(|_| {
+            #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=secret_store code=task_join_failed");
+            ProviderError::Unavailable
+          })?.map_err(|error| {
+            #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=secret_store code={}", error.code());
+            #[cfg(not(debug_assertions))] let _ = error;
+            ProviderError::Unavailable
+          })?.ok_or(ProviderError::Authentication)?,
       };
       let key = HeaderValue::from_bytes(&key).map_err(|_| ProviderError::Authentication)?;
       let payload = MinimalOutboundContext::from_bundle(&request.context)?.payload(&self.config.model, &request.input, &request.history,
@@ -212,12 +252,20 @@ impl SseParser {
           Some("cancelled") => Err(ProviderError::RemoteCancelled),
           Some("failed") => Err(value.pointer("/interaction/errors").and_then(Value::as_array)
             .and_then(|errors| errors.iter().find_map(|error| error.get("code").and_then(Value::as_str).filter(|code| !code.is_empty())))
-            .map(|code| classify_error_code(code, None)).unwrap_or(ProviderError::Fatal)),
+            .map(|code| {
+              let result = classify_error_code(code, None);
+              #[cfg(debug_assertions)] diag_stream_unavailable(code, &result);
+              result
+            }).unwrap_or(ProviderError::Fatal)),
           _ => Err(ProviderError::Protocol),
         };
         StreamEvent::Completed(result)
       },
-      "error" => StreamEvent::Error(error_code(&value).map(|code| classify_error_code(code, None)).unwrap_or(ProviderError::Protocol)),
+      "error" => StreamEvent::Error(error_code(&value).map(|code| {
+        let result = classify_error_code(code, None);
+        #[cfg(debug_assertions)] diag_stream_unavailable(code, &result);
+        result
+      }).unwrap_or(ProviderError::Protocol)),
       _ => StreamEvent::Ignore,
     }))
   }
@@ -344,6 +392,38 @@ mod tests {
       assert_eq!(result.unwrap_err(),expected);let raw=handle.join().unwrap();assert!(!raw.contains("relationship secret marker"));
     }
     fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn unavailable_diagnostics_leave_public_and_persisted_error_sanitized() {
+    use crate::persistence::{database::Database, task_history};
+    let (store,dir)=fixture();
+    let private_message="private Google detail and fake-secret-token";
+    let body=json!({"error":{"code":"service_unavailable","message":private_message}}).to_string();
+    let (url,handle)=server("503 Service Unavailable",&body,"Retry-After: 2\r\n",false);
+    let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
+    let signal=AtomicBool::new(false);
+    let error=tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(()))).unwrap_err();
+    assert_eq!(error,ProviderError::Unavailable);
+    assert_eq!(error.code(),"unavailable");
+    handle.join().unwrap();
+    let db=Database::for_test(dir.join("diagnostic.sqlite3"));
+    let conn=db.open().unwrap();
+    task_history::insert(&conn,&task_history::TaskRecord {task_id:1,kind:"gemini_chat".into(),state:"failed".into(),
+      started_at:"2026-01-01T00:00:00Z".into(),finished_at:"2026-01-01T00:00:01Z".into(),
+      summary:None,error_code:Some(error.code().into())}).unwrap();
+    let persisted:String=conn.query_row("SELECT error_code FROM task_records WHERE task_id=1",[],|row|row.get(0)).unwrap();
+    assert_eq!(persisted,"unavailable");
+    assert!(!persisted.contains(private_message));
+    assert!(!persisted.contains(&body));
+    drop(conn);fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn network_failure_remains_unavailable() {
+    let listener=TcpListener::bind("127.0.0.1:0").unwrap();
+    let url=format!("http://{}/v1beta/interactions",listener.local_addr().unwrap());
+    drop(listener);
+    let error=tauri::async_runtime::block_on(Client::new().get(url).send()).unwrap_err();
+    assert!(error.is_connect());
+    assert_eq!(network_error(&error),ProviderError::Unavailable);
+    assert_eq!(network_error(&error).code(),"unavailable");
   }
   #[test] fn http_error_code_takes_priority_and_fallback_is_bounded() {
     let (store,dir)=fixture();
