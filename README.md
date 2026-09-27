@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. Antes da LR-7, o projeto percorre a trilha **UIP-0 → UIP-7**, dedicada à interface de presença desktop e performance; UIP-0 já está concluída. O trabalho artístico de Blender segue independente. Consulte [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
+**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. Antes da LR-7, o projeto percorre a trilha **UIP-0 → UIP-7**, dedicada à interface de presença desktop e performance; **UIP-0 e UIP-1 já estão concluídas**. O trabalho artístico de Blender segue independente. Consulte [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## Direção arquitetural pós-M0
 
@@ -21,7 +21,7 @@ Documentos principais:
 - [Identidade e memória LR-4](docs/MEMORY-IDENTITY.md)
 - [Runtime cognitivo LR-5](docs/COGNITION-RUNTIME.md)
 
-**Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. A **UIP-0 — contratos + baseline** está em PASS completo; a próxima etapa é **UIP-1 — Presence Shell**, antes de qualquer LR-7. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
+**Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. A **UIP-0 — contratos + baseline** e a **UIP-1 — Presence Shell** estão em PASS completo; a próxima etapa é **UIP-2 — Render Budget**, antes de qualquer LR-7. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
 
 ## Requisitos no Fedora
 
@@ -72,7 +72,7 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 
 ## Arquivos principais
 
-- `src/App.tsx`: composição da interface e botão de interação.
+- `src/App.tsx`: Presence Shell transparente, acionador inferior e acesso DEV aos diagnósticos.
 - `src/avatar/AvatarViewport.tsx`: liga o viewport React ao runtime e trata o clique na personagem.
 - `src/avatar/runtime/`: cena/WebGL, ciclo de vida do avatar, catálogo semântico e transições Idle/greeting.
 - `src/avatar/adapters/LegacyGlbAdapter.ts`: carrega e libera a Luna GLB atual, mapeando os clipes embutidos.
@@ -81,7 +81,7 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 - `src-tauri/src/security/`: validação de entrada, audit e SecretStore Stronghold acessível só ao Rust.
 - `src-tauri/src/persistence/` e `src-tauri/migrations/`: SQLite, identidade versionada, memória operacional, conversa, histórico de tarefas e migration.
 - `src-tauri/src/cognition/`: Context Builder, contrato Provider, Registry, Scheduler e MockProvider local.
-- `src/styles.css`: layout escuro e responsivo.
+- `src/styles.css`: Presence Shell transparente e estilos dos diagnósticos DEV.
 - `public/models/Luna.glb`: candidata local, sem dependência de rede durante a execução; licença em `public/models/Luna.LICENSE.json`.
 - `assets/luna/base.vrm` e `scripts/prepare_luna.py`: original e preparação reproduzível.
 - `public/models/RobotExpressive.glb`: modelo anterior preservado.
