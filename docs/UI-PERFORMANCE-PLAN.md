@@ -311,7 +311,7 @@ Não assumir que a API da plataforma permite click-through somente em pixels tra
 
 **Objetivo:** transformar o chat LR-6 em interface de produto.
 
-**Estado:** **CANDIDATA em 27/09/2026; gate funcional parcial e gate humano pendente.** A UIP-4-FIX refinou geometria, transições, lifecycle de layout, fechamento lógico de sessão e contexto multi-turn isolado/limitado. Build, testes fake HTTP e duas chamadas Gemini reais curtas passaram; a validação visual e física de Sam ainda é necessária. Consulte [UIP-4-COMPOSER-CONVERSATION.md](UIP-4-COMPOSER-CONVERSATION.md). UIP-5 não foi iniciada.
+**Estado:** **PASS funcional / FECHADA em 27/09/2026, com dívida Wayland documentada.** O gate humano confirmou Composer funcional, redução perceptível do atraso da telinha, conversa Gemini real com continuidade multi-turn, sessão explícita e fluxo de Nova conversa. O resize nativo da janela no GNOME/Wayland ainda provoca efeito de mola vertical no Composer e deslocamento lateral ao abrir/fechar Conversation, mascarando parte das transições CSS. O POC de múltiplas WebViews foi rejeitado por posicionamento imprevisível e custo de memória elevado; essa estabilidade espacial fica como dívida não bloqueante para UIP-7 ou investigação nativa dedicada. Consulte [UIP-4-COMPOSER-CONVERSATION.md](UIP-4-COMPOSER-CONVERSATION.md). **UIP-5 é a próxima etapa.**
 
 **Decisão após UIP-4-FIX-2A:** o POC de múltiplas WebViews foi **FAIL** por posicionamento Wayland imprevisível e custo de aproximadamente **+503 MiB de RSS agregado**. O código experimental foi removido; esta arquitetura não será usada. UIP-4 voltou ao single-WebView funcional da UIP-4-FIX. A estabilidade espacial durante o resize nativo da main permanece dívida explícita, a revisitar preferencialmente na UIP-7/consolidação ou em rodada nativa dedicada. O [registro do POC](UIP-4-AUXILIARY-WINDOWS-POC.md) permanece preservado.
 
@@ -489,4 +489,4 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Sam valida a candidata UIP-4 no Tauri real antes de marcar PASS. UIP-5 permanece fechada até esse gate.
+Com **UIP-4 fechada em PASS funcional**, iniciar **UIP-5 — histórico + resumo assíncrono**. A dívida de estabilidade espacial da janela no Wayland permanece registrada para UIP-7 ou investigação nativa dedicada e não bloqueia a continuidade da trilha.
