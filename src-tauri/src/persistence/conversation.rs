@@ -8,6 +8,12 @@ const GEMINI_TITLE: &str = "Luna · Gemini LR-6";
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationSession { pub id: i64, pub created_at: String, pub updated_at: String, pub title: Option<String>, pub status: Option<String>, pub messages: Vec<ConversationMessage> }
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationHistoryItem {
+  pub id: i64, pub created_at: String, pub updated_at: String, pub title: String,
+  pub status: String, pub summary_status: String, pub message_count: i64, pub preview: String,
+}
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationMessage { pub id: i64, pub session_id: i64, pub role: String, pub content: String, pub created_at: String }
@@ -16,17 +22,63 @@ pub enum SessionRole { User, Assistant }
 #[derive(Clone, Debug)]
 pub struct SessionTurn { pub role: SessionRole, pub content: String }
 pub fn create_session(conn: &Connection) -> Result<i64, PersistenceError> {
-  conn.execute("INSERT INTO conversation_sessions(status) VALUES ('active')", []).map_err(|_| PersistenceError::Write)?;
+  conn.execute("INSERT INTO conversation_sessions(status,kind) VALUES ('active','product')", []).map_err(|_| PersistenceError::Write)?;
   Ok(conn.last_insert_rowid())
 }
 pub fn is_active_session(conn: &Connection, id: i64) -> Result<bool, PersistenceError> {
   if id <= 0 { return Ok(false); }
-  conn.query_row("SELECT EXISTS(SELECT 1 FROM conversation_sessions WHERE id=?1 AND status='active')", [id], |r| r.get(0)).map_err(|_| PersistenceError::Read)
+  conn.query_row("SELECT EXISTS(SELECT 1 FROM conversation_sessions WHERE id=?1 AND kind='product' AND status='active')", [id], |r| r.get(0)).map_err(|_| PersistenceError::Read)
 }
 pub fn close_session(conn: &Connection, id: i64) -> Result<bool, PersistenceError> {
   if id <= 0 { return Ok(false); }
-  Ok(conn.execute("UPDATE conversation_sessions SET status='closed',updated_at=CURRENT_TIMESTAMP WHERE id=?1 AND status='active'", [id])
+  Ok(conn.execute("UPDATE conversation_sessions SET status='closed',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+      summary_status=CASE WHEN summary_status='none' AND
+        EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=?1 AND role='user') AND
+        EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=?1 AND role='assistant')
+        THEN 'pending' ELSE summary_status END
+      WHERE id=?1 AND kind='product' AND status='active'", [id])
     .map_err(|_| PersistenceError::Write)? == 1)
+}
+/// Called once in Tauri setup, while CurrentRunSessions is still empty.
+pub fn close_orphaned_product_sessions(conn: &Connection) -> Result<usize, PersistenceError> {
+  conn.execute("UPDATE conversation_sessions SET status='closed',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+    summary_status=CASE WHEN summary_status='none' AND
+      EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=conversation_sessions.id AND role='user') AND
+      EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=conversation_sessions.id AND role='assistant')
+      THEN 'pending' ELSE summary_status END
+    WHERE kind='product' AND status='active'", [])
+    .map_err(|_| PersistenceError::Write)
+}
+fn short_text(value: &str, max_chars: usize) -> String {
+  let trimmed = value.trim();
+  let mut chars = trimmed.chars();
+  let short: String = chars.by_ref().take(max_chars).collect();
+  if chars.next().is_some() { format!("{short}…") } else { short }
+}
+pub fn list_history(conn: &Connection, limit: usize) -> Result<Vec<ConversationHistoryItem>, PersistenceError> {
+  let mut stmt = conn.prepare("SELECT s.id,s.created_at,s.updated_at,substr(s.title,1,71),s.status,s.summary_status,
+    (SELECT COUNT(*) FROM conversation_messages m WHERE m.session_id=s.id) AS message_count,
+    (SELECT substr(m.content,1,121) FROM conversation_messages m WHERE m.session_id=s.id AND m.role='user' ORDER BY m.id LIMIT 1) AS first_user
+    FROM conversation_sessions s WHERE s.kind='product' AND EXISTS
+      (SELECT 1 FROM conversation_messages m WHERE m.session_id=s.id)
+    ORDER BY s.updated_at DESC,s.id DESC LIMIT ?1").map_err(|_| PersistenceError::Read)?;
+  let rows = stmt.query_map([limit.clamp(1, 100) as i64], |row| {
+    let stored_title: Option<String> = row.get(3)?;
+    let first_user: Option<String> = row.get(7)?;
+    let preview = first_user.as_deref().map(|text| short_text(text, 100)).unwrap_or_default();
+    let title = stored_title.as_deref().map(|text| short_text(text, 70)).filter(|text| !text.is_empty())
+      .unwrap_or_else(|| first_user.as_deref().map(|text| short_text(text, 60)).filter(|text| !text.is_empty()).unwrap_or_else(|| "Conversa sem mensagens".into()));
+    Ok(ConversationHistoryItem { id:row.get(0)?,created_at:row.get(1)?,updated_at:row.get(2)?,title,
+      status:row.get(4)?,summary_status:row.get(5)?,message_count:row.get(6)?,preview })
+  }).map_err(|_| PersistenceError::Read)?;
+  rows.collect::<Result<Vec<_>,_>>().map_err(|_| PersistenceError::Read)
+}
+pub fn history_session(conn: &Connection, id: i64) -> Result<Option<ConversationSession>, PersistenceError> {
+  if id <= 0 { return Ok(None); }
+  let is_product: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM conversation_sessions WHERE id=?1 AND kind='product')", [id], |row| row.get(0))
+    .map_err(|_| PersistenceError::Read)?;
+  if !is_product { return Ok(None); }
+  session(conn, id)
 }
 pub fn outbound_history(conn: &Connection, id: i64) -> Result<Vec<SessionTurn>, PersistenceError> {
   if !is_active_session(conn, id)? { return Err(PersistenceError::Read); }

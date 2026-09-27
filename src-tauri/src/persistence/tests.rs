@@ -23,8 +23,81 @@ fn write(path:&std::path::Path,value:&Value) { fs::write(path,serde_json::to_vec
 #[test]
 fn migration_empty_and_twice() {
   let (db,_) = fixture(); let conn=db.open().unwrap();
-  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,1);
+  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,2);
   drop(conn); assert!(db.open().is_ok());
+}
+
+#[test]
+fn migration_backfills_only_untitled_product_sessions() {
+  let conn=rusqlite::Connection::open_in_memory().unwrap();
+  conn.execute_batch(&format!("{} PRAGMA user_version=1;", include_str!("../../migrations/001_initial_persistence.sql"))).unwrap();
+  conn.execute_batch("INSERT INTO conversation_sessions(title,status) VALUES
+    (NULL,'active'),(NULL,'closed'),('Diagnóstico LR-4','diagnostic'),('Luna · Gemini LR-6','active'),('Named legacy','closed');").unwrap();
+  migrations::apply(&conn).unwrap();
+  let kinds:Vec<String>=conn.prepare("SELECT kind FROM conversation_sessions ORDER BY id").unwrap()
+    .query_map([],|row|row.get(0)).unwrap().map(Result::unwrap).collect();
+  assert_eq!(kinds,["product","product","legacy","legacy","legacy"]);
+  migrations::apply(&conn).unwrap();
+  let status:String=conn.query_row("SELECT summary_status FROM conversation_sessions WHERE id=1",[],|row|row.get(0)).unwrap();
+  assert_eq!(status,"none");
+}
+
+#[test]
+fn history_list_detail_and_orphan_normalization_are_isolated() {
+  let (db,_) = fixture(); let mut conn=db.open().unwrap();
+  let legacy=conversation::create_diagnostic(&mut conn).unwrap();
+  let legacy_active:i64={ conn.execute("INSERT INTO conversation_sessions(title,status,kind) VALUES ('Legacy active','active','legacy')",[]).unwrap();conn.last_insert_rowid() };
+  let a=conversation::create_session(&conn).unwrap();
+  let b=conversation::create_session(&conn).unwrap();
+  let empty=conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,a,"HISTORICO-SECRETO-55 😀 ","Resposta A").unwrap();
+  conversation::append_exchange_to_session(&mut conn,b,&"B".repeat(400),"Resposta B").unwrap();
+  conn.execute("UPDATE conversation_sessions SET updated_at='2026-01-01T00:00:00Z' WHERE id=?1",[a]).unwrap();
+  conn.execute("UPDATE conversation_sessions SET updated_at='2026-01-02T00:00:00Z' WHERE id=?1",[b]).unwrap();
+  let items=conversation::list_history(&conn,50).unwrap();
+  assert_eq!(items.iter().map(|item|item.id).collect::<Vec<_>>(),vec![b,a]);
+  assert_eq!(items[0].message_count,2);
+  assert!(items[0].preview.chars().count()<=101);
+  assert!(items[0].title.chars().count()<=61);
+  assert!(!items.iter().any(|item|item.id==legacy || item.id==empty));
+  assert_eq!(conversation::list_history(&conn,1).unwrap().len(),1);
+  conn.execute("UPDATE conversation_sessions SET updated_at='2026-01-01T00:00:00Z' WHERE id=?1",[b]).unwrap();
+  assert_eq!(conversation::list_history(&conn,50).unwrap().iter().map(|item|item.id).collect::<Vec<_>>(),vec![b,a]);
+  let a_detail=conversation::history_session(&conn,a).unwrap().unwrap();
+  assert_eq!(a_detail.messages.len(),2);
+  assert_eq!(a_detail.messages[0].content,"HISTORICO-SECRETO-55 😀 ");
+  assert!(!a_detail.messages.iter().any(|message|message.content.contains("Resposta B")));
+  assert!(conversation::history_session(&conn,legacy).unwrap().is_none());
+  assert!(conversation::history_session(&conn,i64::MAX).unwrap().is_none());
+  assert!(conversation::history_session(&conn,0).unwrap().is_none());
+  let before:(String,String,i64)=conn.query_row("SELECT status,summary_status,(SELECT COUNT(*) FROM conversation_messages WHERE session_id=?1) FROM conversation_sessions WHERE id=?1",[a],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap();
+  conversation::list_history(&conn,50).unwrap(); conversation::history_session(&conn,a).unwrap();
+  let after:(String,String,i64)=conn.query_row("SELECT status,summary_status,(SELECT COUNT(*) FROM conversation_messages WHERE session_id=?1) FROM conversation_sessions WHERE id=?1",[a],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap();
+  assert_eq!(before,after);
+  assert_eq!(conversation::close_orphaned_product_sessions(&conn).unwrap(),3);
+  assert_eq!(conversation::close_orphaned_product_sessions(&conn).unwrap(),0);
+  for id in [a,b] { let (status,summary):(String,String)=conn.query_row("SELECT status,summary_status FROM conversation_sessions WHERE id=?1",[id],|r|Ok((r.get(0)?,r.get(1)?))).unwrap(); assert_eq!((status.as_str(),summary.as_str()),("closed","pending")); }
+  let empty_summary:String=conn.query_row("SELECT summary_status FROM conversation_sessions WHERE id=?1",[empty],|r|r.get(0)).unwrap(); assert_eq!(empty_summary,"none");
+  let legacy_status:String=conn.query_row("SELECT status FROM conversation_sessions WHERE id=?1",[legacy],|r|r.get(0)).unwrap(); assert_eq!(legacy_status,"diagnostic");
+  let active_status:String=conn.query_row("SELECT status FROM conversation_sessions WHERE id=?1",[legacy_active],|r|r.get(0)).unwrap(); assert_eq!(active_status,"active");
+}
+
+#[test]
+fn restart_keeps_old_history_out_of_new_outbound_context() {
+  let (db,_) = fixture();
+  let mut conn=db.open().unwrap();
+  let old=conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,old,"HISTORICO-SECRETO-55","Resposta antiga").unwrap();
+  drop(conn);
+  let mut conn=db.open().unwrap();
+  assert_eq!(conversation::close_orphaned_product_sessions(&conn).unwrap(),1);
+  assert!(conversation::history_session(&conn,old).unwrap().is_some());
+  let current=conversation::create_session(&conn).unwrap();
+  assert_ne!(old,current);
+  conversation::append_exchange_to_session(&mut conn,current,"ATUAL-22","Resposta atual").unwrap();
+  let outbound=conversation::outbound_history(&conn,current).unwrap();
+  assert!(outbound.iter().any(|turn|turn.content=="ATUAL-22"));
+  assert!(!outbound.iter().any(|turn|turn.content.contains("HISTORICO-SECRETO-55")));
 }
 #[test]
 fn identity_versions_and_memory_import() {

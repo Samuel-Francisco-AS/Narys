@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-conversation-history-session"
+description = "Enables the get_conversation_history_session command without any pre-configured scope."
+commands.allow = ["get_conversation_history_session"]
+
+[[permission]]
+identifier = "deny-get-conversation-history-session"
+description = "Denies the get_conversation_history_session command without any pre-configured scope."
+commands.deny = ["get_conversation_history_session"]

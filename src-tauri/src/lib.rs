@@ -11,6 +11,9 @@ pub fn run() {
       let directory = app.path().app_local_data_dir()?;
       let db = persistence::database::Database::new(directory.clone());
       if let Ok(conn) = db.open() {
+        // Before any CurrentRunSessions ID can be registered in this process.
+        persistence::conversation::close_orphaned_product_sessions(&conn)
+          .map_err(|_| "orphan_session_normalization_failed")?;
         if let Ok(max_id) = persistence::task_history::max_id(&conn) {
           app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().seed_next_id(max_id);
         }
@@ -35,7 +38,9 @@ pub fn run() {
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
-    cognition::gemini_commands::close_conversation_session, luna::start_gemini_task,
+    cognition::gemini_commands::close_conversation_session,
+    cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
+    luna::start_gemini_task,
   ]);
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![
@@ -44,7 +49,9 @@ pub fn run() {
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
-    cognition::gemini_commands::close_conversation_session, luna::start_gemini_task,
+    cognition::gemini_commands::close_conversation_session,
+    cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
+    luna::start_gemini_task,
   ]);
   builder
     .run(tauri::generate_context!())

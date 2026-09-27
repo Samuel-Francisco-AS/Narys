@@ -10,6 +10,7 @@ import { WindowController, initialWindowErgonomicsState } from './window/WindowC
 import { useConversationController } from './conversation/ConversationController'
 import { Composer } from './conversation/Composer'
 import { ConversationPanel } from './conversation/ConversationPanel'
+import type { ConversationMode } from './conversation/types'
 
 type DebugSection = 'core' | 'memory' | 'gemini' | 'cognition' | 'security'
 
@@ -34,6 +35,8 @@ export default function App() {
   const [composerMounted, setComposerMounted] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelMounted, setPanelMounted] = useState(false)
+  const [conversationMode, setConversationMode] = useState<ConversationMode>('CURRENT')
+  const [historyId, setHistoryId] = useState<number | null>(null)
   const composerVisible = useRef(false)
   const panelVisible = useRef(false)
   const panelPresent = useRef(false)
@@ -139,8 +142,8 @@ export default function App() {
         />
       </section>
       <button type="button" className="presence-handle" aria-label={composerOpen ? 'Recolher compositor' : 'Abrir compositor'} aria-expanded={composerOpen} onClick={toggleComposer}><span>⌄</span></button>
-      {composerMounted && <Composer state={conversation.state} visible={composerOpen} onExited={onComposerExited} onDraft={conversation.setDraft} onSend={() => { sendStartedAt.current = panelVisible.current ? null : performance.now(); void conversation.send(); openPanel() }} onCancel={conversation.cancel} onClose={toggleComposer} onPanel={openPanel} panelOpen={panelOpen} />}
-      {panelMounted && <ConversationPanel state={conversation.state} visible={panelOpen} onExited={onPanelExited} onClose={() => closePanel()} onNew={() => { void conversation.newConversation().then((closed) => { if (closed) closePanel() }) }} />}
+      {composerMounted && <Composer state={conversation.state} visible={composerOpen} onExited={onComposerExited} onDraft={conversation.setDraft} onSend={() => { setConversationMode('CURRENT'); sendStartedAt.current = panelVisible.current ? null : performance.now(); void conversation.send(); openPanel() }} onCancel={conversation.cancel} onClose={toggleComposer} onPanel={openPanel} panelOpen={panelOpen} />}
+      {panelMounted && <ConversationPanel state={conversation.state} mode={conversationMode} historyId={historyId} onMode={setConversationMode} onHistoryId={setHistoryId} visible={panelOpen} onExited={onPanelExited} onClose={() => { setConversationMode('CURRENT'); setHistoryId(null); closePanel() }} onNew={() => { void conversation.newConversation().then((closed) => { if (closed) { setConversationMode('CURRENT'); closePanel() } }) }} />}
 
       {import.meta.env.DEV && (
         <>

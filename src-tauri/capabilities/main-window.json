@@ -30,6 +30,8 @@
     "allow-create-conversation-session",
     "allow-get-conversation-session",
     "allow-close-conversation-session",
+    "allow-list-conversation-history",
+    "allow-get-conversation-history-session",
     "allow-start-gemini-task"
   ]
 }

@@ -303,7 +303,10 @@ mod tests {
     let mut conn=db.open().unwrap();
     let a=conversation::create_session(&conn).unwrap();let b=conversation::create_session(&conn).unwrap();
     conversation::append_exchange_to_session(&mut conn,a,"O código desta sessão é LARANJA-42.","Entendido.").unwrap();
-    conversation::append_exchange_to_session(&mut conn,b,"SEGREDO-DA-SESSAO-B","Entendido.").unwrap();
+    conversation::append_exchange_to_session(&mut conn,b,"HISTORICO-SECRETO-55","Entendido.").unwrap();
+    conversation::close_session(&conn,b).unwrap();
+    assert!(conversation::list_history(&conn,50).unwrap().iter().any(|item|item.id==b));
+    assert_eq!(conversation::history_session(&conn,b).unwrap().unwrap().messages[0].content,"HISTORICO-SECRETO-55");
     conversation::append_gemini_exchange(&mut conn,"MARCADOR-LR-6","Entendido.").unwrap();
     conversation::create_diagnostic(&mut conn).unwrap();
     let history=conversation::outbound_history(&conn,a).unwrap();
@@ -324,7 +327,7 @@ mod tests {
     assert_eq!(steps[1],json!({"type":"model_output","content":[{"type":"text","text":"Entendido."}]}));
     assert_eq!(steps[2],json!({"type":"user_input","content":[{"type":"text","text":"Qual é o código desta sessão?"}]}));
     assert_eq!(body.matches("Qual é o código desta sessão?").count(),1);
-    for marker in ["SEGREDO-DA-SESSAO-B","memory secret marker","recent private marker","MARCADOR-LR-6","Mensagem de diagnóstico LR-4"] {
+    for marker in ["HISTORICO-SECRETO-55","memory secret marker","recent private marker","MARCADOR-LR-6","Mensagem de diagnóstico LR-4"] {
       assert!(!body.contains(marker),"unexpected outbound marker {marker}");
     }
     assert_eq!(payload["store"],false);
