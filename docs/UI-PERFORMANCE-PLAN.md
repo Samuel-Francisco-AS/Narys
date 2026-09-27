@@ -377,12 +377,25 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 ### Janela IA/modelos
 
-- providers;
+- providers e agentes especialistas;
 - credenciais;
 - modelos;
-- papéis cognitivos;
+- papéis cognitivos (`conversation`, `summary`, `voice`, `worker` e futuros);
+- seleção explícita de provider/modelo por papel;
+- reasoning/thinking quando suportado;
+- limite de saída configurável, incluindo opção **sem limite adicional da Luna / máximo do provider**;
+- orçamento de contexto/histórico;
+- timeouts;
+- retries e política de fallback;
+- streaming;
+- parâmetros de geração suportados pelo provider;
+- ferramentas, grounding/web e capacidades opcionais;
+- limites de custo/cota e avisos correspondentes;
 - login/SDKs quando existirem;
+- área avançada para parâmetros específicos de cada provider;
 - sem inventar funcionalidades ainda não sustentadas pelo Luna Core.
+
+**Regra de produto:** nenhuma configuração ajustável pelo provider que afete capacidade, qualidade, latência, custo ou comportamento cognitivo pode ficar escondida como hardcode permanente. Defaults são permitidos, mas precisam ser visíveis, documentados e substituíveis pelo usuário. Configuração explícita não pode ser silenciosamente trocada pelo Scheduler; incompatibilidades devem ser mostradas.
 
 ### Segurança
 
@@ -394,7 +407,12 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 - janelas abrem/fecham independentemente;
 - janela principal não carrega UI de configuração desnecessária;
-- permissões são revisadas por superfície.
+- permissões são revisadas por superfície;
+- usuário consegue inspecionar e alterar provider/modelo e parâmetros cognitivos relevantes;
+- opção de não impor teto adicional da Luna é representada sem prometer ultrapassar limites reais do provider;
+- parâmetros não suportados aparecem como indisponíveis, não são ignorados silenciosamente;
+- não restam hardcodes invisíveis de `thinking`, output budget ou seleção de modelo no caminho de produto;
+- escolhas explícitas e políticas de fallback ficam distinguíveis na UI.
 
 ## 15. UIP-7 — consolidação + segundo gate de performance
 
