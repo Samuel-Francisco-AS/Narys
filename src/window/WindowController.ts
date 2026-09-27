@@ -30,6 +30,7 @@ export class WindowController {
   private unlistenMoved: (() => void) | null = null
   private disposed = false
   private layout: 'presence' | 'composer' | 'conversation' | null = null
+  private layoutQueue: Promise<boolean> = Promise.resolve(true)
 
   constructor(private readonly onChange: (state: WindowErgonomicsState) => void) {}
 
@@ -39,7 +40,11 @@ export class WindowController {
 
   async initialize(): Promise<void> {
     if (!this.window) return
-    await this.setLayout('presence')
+    // A WebView reload retains the native window size. Avoid redundant resize
+    // when the Tauri config already opened Presence at the intended size.
+    if (Math.round(window.innerWidth * window.devicePixelRatio) === 310
+      && Math.round(window.innerHeight * window.devicePixelRatio) === 410) this.layout = 'presence'
+    else await this.setLayout('presence')
     try {
       const alwaysOnTop = await this.window.isAlwaysOnTop()
       const position = await this.window.outerPosition()
@@ -74,14 +79,26 @@ export class WindowController {
     }
   }
 
-  async setLayout(layout: 'presence' | 'composer' | 'conversation'): Promise<void> {
-    if (this.layout === layout) return
-    this.layout = layout
-    if (!this.window) return
-    const dimensions = { presence: [320, 420], composer: [320, 500], conversation: [660, 500] } as const
-    const [width, height] = dimensions[layout]
-    try { await this.window.setSize(new PhysicalSize(width, height)) }
-    catch (error) { this.publish({ error: `Tamanho da janela: ${this.message(error)}` }) }
+  setLayout(layout: 'presence' | 'composer' | 'conversation'): Promise<boolean> {
+    const next = this.layoutQueue.then(async () => {
+      if (this.layout === layout) return true
+      if (!this.window) { this.layout = layout; return true }
+      const dimensions = { presence: [310, 410], composer: [310, 490], conversation: [625, 490] } as const
+      const [width, height] = dimensions[layout]
+      try {
+        if (import.meta.env.DEV) console.debug(`[UIP-4-FIX] setSize request ${layout} ${width}×${height}`)
+        await this.window.setSize(new PhysicalSize(width, height))
+        if (import.meta.env.DEV) console.debug(`[UIP-4-FIX] setSize resolved ${layout}`)
+        this.layout = layout
+        this.publish({ error: null })
+        return true
+      } catch (error) {
+        this.publish({ error: `Tamanho da janela: ${this.message(error)}` })
+        return false
+      }
+    })
+    this.layoutQueue = next
+    return next
   }
 
   /** Reserved for a future externally verified recovery path. */

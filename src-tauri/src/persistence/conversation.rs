@@ -1,6 +1,8 @@
 use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 use super::database::PersistenceError;
+pub const OUTBOUND_HISTORY_MESSAGES: usize = 8;
+pub const OUTBOUND_HISTORY_BYTES: usize = 12 * 1024;
 const TITLE: &str = "Diagnóstico LR-4";
 const GEMINI_TITLE: &str = "Luna · Gemini LR-6";
 #[derive(Serialize)]
@@ -9,6 +11,10 @@ pub struct ConversationSession { pub id: i64, pub created_at: String, pub update
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationMessage { pub id: i64, pub session_id: i64, pub role: String, pub content: String, pub created_at: String }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SessionRole { User, Assistant }
+#[derive(Clone, Debug)]
+pub struct SessionTurn { pub role: SessionRole, pub content: String }
 pub fn create_session(conn: &Connection) -> Result<i64, PersistenceError> {
   conn.execute("INSERT INTO conversation_sessions(status) VALUES ('active')", []).map_err(|_| PersistenceError::Write)?;
   Ok(conn.last_insert_rowid())
@@ -16,6 +22,30 @@ pub fn create_session(conn: &Connection) -> Result<i64, PersistenceError> {
 pub fn is_active_session(conn: &Connection, id: i64) -> Result<bool, PersistenceError> {
   if id <= 0 { return Ok(false); }
   conn.query_row("SELECT EXISTS(SELECT 1 FROM conversation_sessions WHERE id=?1 AND status='active')", [id], |r| r.get(0)).map_err(|_| PersistenceError::Read)
+}
+pub fn close_session(conn: &Connection, id: i64) -> Result<bool, PersistenceError> {
+  if id <= 0 { return Ok(false); }
+  Ok(conn.execute("UPDATE conversation_sessions SET status='closed',updated_at=CURRENT_TIMESTAMP WHERE id=?1 AND status='active'", [id])
+    .map_err(|_| PersistenceError::Write)? == 1)
+}
+pub fn outbound_history(conn: &Connection, id: i64) -> Result<Vec<SessionTurn>, PersistenceError> {
+  if !is_active_session(conn, id)? { return Err(PersistenceError::Read); }
+  let mut stmt = conn.prepare("SELECT role,content FROM conversation_messages WHERE session_id=?1 ORDER BY id DESC LIMIT ?2")
+    .map_err(|_| PersistenceError::Read)?;
+  let rows = stmt.query_map(rusqlite::params![id, OUTBOUND_HISTORY_MESSAGES as i64], |row| {
+    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+  }).map_err(|_| PersistenceError::Read)?;
+  let mut newest = Vec::new();
+  let mut bytes = 0;
+  for row in rows {
+    let (role, content) = row.map_err(|_| PersistenceError::Read)?;
+    let role = match role.as_str() { "user" => SessionRole::User, "assistant" => SessionRole::Assistant, _ => return Err(PersistenceError::Read) };
+    if bytes + content.len() > OUTBOUND_HISTORY_BYTES { break; }
+    bytes += content.len();
+    newest.push(SessionTurn { role, content });
+  }
+  newest.reverse();
+  Ok(newest)
 }
 pub fn session(conn: &Connection, id: i64) -> Result<Option<ConversationSession>, PersistenceError> {
   if id <= 0 { return Ok(None); }

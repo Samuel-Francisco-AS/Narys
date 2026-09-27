@@ -311,7 +311,7 @@ Não assumir que a API da plataforma permite click-through somente em pixels tra
 
 **Objetivo:** transformar o chat LR-6 em interface de produto.
 
-**Estado:** **CANDIDATA em 27/09/2026; gate humano pendente.** Composer, telinha lateral, sessão explícita por execução e streaming pela infraestrutura LR-6 estão implementados. Testes de código e um fluxo Gemini real curto passaram; a validação visual e física de Sam ainda é necessária. Consulte [UIP-4-COMPOSER-CONVERSATION.md](UIP-4-COMPOSER-CONVERSATION.md). UIP-5 não foi iniciada.
+**Estado:** **CANDIDATA em 27/09/2026; gate humano pendente.** A UIP-4-FIX refinou geometria, transições, lifecycle de layout, fechamento lógico de sessão e contexto multi-turn isolado/limitado. Build, testes fake HTTP e duas chamadas Gemini reais curtas passaram; a validação visual e física de Sam ainda é necessária. Consulte [UIP-4-COMPOSER-CONVERSATION.md](UIP-4-COMPOSER-CONVERSATION.md). UIP-5 não foi iniciada.
 
 ### Trabalho
 

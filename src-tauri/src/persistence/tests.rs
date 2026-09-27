@@ -120,6 +120,34 @@ fn explicit_sessions_are_isolated_and_survive_restart_without_selection() {
 }
 
 #[test]
+fn outbound_history_is_bounded_and_close_preserves_messages() {
+  let (db, _) = fixture();
+  let mut conn=db.open().unwrap();
+  let a=conversation::create_session(&conn).unwrap();
+  let b=conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,b,"SEGREDO-DA-SESSAO-B","Entendido").unwrap();
+  for i in 0..6 { conversation::append_exchange_to_session(&mut conn,a,&format!("user-{i}"),&format!("assistant-{i}")).unwrap(); }
+  let history=conversation::outbound_history(&conn,a).unwrap();
+  assert_eq!(history.len(),conversation::OUTBOUND_HISTORY_MESSAGES);
+  assert_eq!(history.first().unwrap().content,"user-2");
+  assert_eq!(history.last().unwrap().content,"assistant-5");
+  assert!(!history.iter().any(|message|message.content.contains("SEGREDO-DA-SESSAO-B")));
+  assert!(history.iter().map(|message|message.content.len()).sum::<usize>()<=conversation::OUTBOUND_HISTORY_BYTES);
+  assert!(conversation::close_session(&conn,a).unwrap());
+  assert!(!conversation::close_session(&conn,a).unwrap());
+  assert!(!conversation::is_active_session(&conn,a).unwrap());
+  assert_eq!(conversation::session(&conn,a).unwrap().unwrap().messages.len(),12);
+  assert!(conversation::outbound_history(&conn,a).is_err());
+  assert!(conversation::append_exchange_to_session(&mut conn,a,"later","not allowed").is_err());
+  let c=conversation::create_session(&conn).unwrap();
+  for i in 0..4 { conversation::append_exchange_to_session(&mut conn,c,&format!("turn-{i}"),&"x".repeat(4096)).unwrap(); }
+  let bytes_limited=conversation::outbound_history(&conn,c).unwrap();
+  assert!(bytes_limited.len()<conversation::OUTBOUND_HISTORY_MESSAGES);
+  assert_eq!(bytes_limited.last().unwrap().content,"x".repeat(4096));
+  assert!(bytes_limited.iter().map(|message|message.content.len()).sum::<usize>()<=conversation::OUTBOUND_HISTORY_BYTES);
+}
+
+#[test]
 fn explicit_exchange_is_atomic_on_assistant_failure() {
   let (db, _) = fixture();
   let mut conn = db.open().unwrap();

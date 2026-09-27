@@ -2,7 +2,7 @@ use std::{collections::HashSet, sync::{atomic::{AtomicBool, Ordering}, Arc}, tim
 use reqwest::{header::{HeaderMap, HeaderValue, RETRY_AFTER}, Client, StatusCode};
 use serde_json::{json, Value};
 use crate::security::secrets::{SecretKey, SecretStore};
-use super::{provider::{Provider, ProviderFuture}, types::{ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage}};
+use super::{provider::{Provider, ProviderFuture}, types::{ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage, ProviderMessage, ProviderRole}};
 
 pub const MODEL: &str = "gemini-3.8-flash";
 pub const ENDPOINT: &str = "https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -22,7 +22,7 @@ impl Default for GeminiConfig {
 }
 
 // Explicit allowlist: the local bundle can contain intimate relationship, memories and history.
-// The cloud receives only these two identity fields and the current user message.
+// The cloud receives these identity fields, explicit-session text history, and the current message.
 pub struct MinimalOutboundContext { system_instruction: String }
 impl MinimalOutboundContext {
   pub fn from_bundle(bundle: &ContextBundle) -> Result<Self, ProviderError> {
@@ -35,7 +35,15 @@ impl MinimalOutboundContext {
     let language = if language == "pt-BR" { "português brasileiro".to_owned() } else { format!("idioma {language}") };
     Ok(Self { system_instruction: format!("Você é {name}, uma assistente virtual. Responda em {language}. Seja clara, natural e tecnicamente rigorosa. Avalie premissas e preserve a autonomia do usuário.") })
   }
-  fn payload(&self, model: &str, input: &str, max_output_tokens: u32) -> Value {
+  fn payload(&self, model: &str, input: &str, history: &[ProviderMessage], max_output_tokens: u32) -> Value {
+    let input = if history.is_empty() { json!(input) } else {
+      let mut steps: Vec<Value> = history.iter().map(|message| json!({
+        "type": match message.role { ProviderRole::User => "user_input", ProviderRole::Assistant => "model_output" },
+        "content": [{"type":"text","text":message.content}]
+      })).collect();
+      steps.push(json!({"type":"user_input","content":[{"type":"text","text":input}]}));
+      Value::Array(steps)
+    };
     json!({"model":model,"store":false,"stream":true,"system_instruction":self.system_instruction,
       "input":input,"generation_config":{"max_output_tokens":max_output_tokens,"thinking_level":"low","thinking_summaries":"none"}})
   }
@@ -118,7 +126,7 @@ impl Provider for GeminiProvider {
           result.map_err(|_| ProviderError::Unavailable)?.map_err(|_| ProviderError::Unavailable)?.ok_or(ProviderError::Authentication)?,
       };
       let key = HeaderValue::from_bytes(&key).map_err(|_| ProviderError::Authentication)?;
-      let payload = MinimalOutboundContext::from_bundle(&request.context)?.payload(&self.config.model, &request.input,
+      let payload = MinimalOutboundContext::from_bundle(&request.context)?.payload(&self.config.model, &request.input, &request.history,
         request.max_output_tokens.min(self.config.max_output_tokens));
       let send = self.client.post(&self.config.endpoint).header("x-goog-api-key", key).json(&payload).send();
       let mut response = tokio::select! {
@@ -250,7 +258,7 @@ mod tests {
       recent_messages:vec![ConversationMessage { id:1,session_id:1,role:"user".into(),content:"recent private marker".into(),created_at:"now".into() }],
       metadata:ContextMetadata { identity_version:"v1".into(),memory_count:1,recent_message_count:1 } })
   }
-  fn request() -> ProviderRequest { ProviderRequest { input:"Quanto é 2 + 2?".into(),context:bundle(),max_output_tokens:512,
+  fn request() -> ProviderRequest { ProviderRequest { input:"Quanto é 2 + 2?".into(),history:vec![],context:bundle(),max_output_tokens:512,
     required_capabilities:ProviderCapabilities::text_stream(),attempt:1 } }
   fn server(status:&str, body:&str, extra:&str, split:bool) -> (String,thread::JoinHandle<String>) {
     let listener=TcpListener::bind("127.0.0.1:0").unwrap(); let url=format!("http://{}/v1beta/interactions",listener.local_addr().unwrap());
@@ -284,9 +292,43 @@ mod tests {
     let raw=handle.join().unwrap();let (_,body)=raw.split_once("\r\n\r\n").unwrap();let payload:Value=serde_json::from_str(body).unwrap();
     assert_eq!(payload["store"],false);assert_eq!(payload["stream"],true);assert_eq!(payload["model"],MODEL);
     assert_eq!(payload["generation_config"]["max_output_tokens"],512);assert!(payload.get("previous_interaction_id").is_none());
+    assert_eq!(payload["input"], "Quanto é 2 + 2?");
     for marker in ["relationship secret marker","memory secret marker","recent private marker","fake-secret-token"] {assert!(!body.contains(marker));}
     assert!(raw.to_ascii_lowercase().contains("x-goog-api-key: fake-secret-token"));
     store.delete_secret(SecretKey::GeminiApiKey).unwrap();assert!(store.get_secret(SecretKey::GeminiApiKey).unwrap().is_none());fs::remove_dir_all(dir).unwrap();
+  }
+  #[test] fn explicit_session_history_reaches_http_without_other_sessions_or_private_context() {
+    use crate::persistence::{database::Database, conversation};
+    let (store,dir)=fixture();let db=Database::for_test(dir.join("multi-turn.sqlite3"));
+    let mut conn=db.open().unwrap();
+    let a=conversation::create_session(&conn).unwrap();let b=conversation::create_session(&conn).unwrap();
+    conversation::append_exchange_to_session(&mut conn,a,"O código desta sessão é LARANJA-42.","Entendido.").unwrap();
+    conversation::append_exchange_to_session(&mut conn,b,"SEGREDO-DA-SESSAO-B","Entendido.").unwrap();
+    conversation::append_gemini_exchange(&mut conn,"MARCADOR-LR-6","Entendido.").unwrap();
+    conversation::create_diagnostic(&mut conn).unwrap();
+    let history=conversation::outbound_history(&conn,a).unwrap();
+    assert_eq!(history.len(),2);
+    let (url,handle)=server("200 OK",SSE,"",false);
+    let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
+    let mut req=request();req.input="Qual é o código desta sessão?".into();
+    req.history=history.into_iter().map(|turn| ProviderMessage {
+      role: match turn.role { conversation::SessionRole::User => ProviderRole::User, conversation::SessionRole::Assistant => ProviderRole::Assistant },
+      content: turn.content,
+    }).collect();
+    let signal=AtomicBool::new(false);
+    assert!(tauri::async_runtime::block_on(provider.execute(&req,&signal,&mut |_|Ok(()))).is_ok());
+    let raw=handle.join().unwrap();let (_,body)=raw.split_once("\r\n\r\n").unwrap();
+    let payload:Value=serde_json::from_str(body).unwrap();let steps=payload["input"].as_array().unwrap();
+    assert_eq!(steps.len(),3);
+    assert_eq!(steps[0],json!({"type":"user_input","content":[{"type":"text","text":"O código desta sessão é LARANJA-42."}]}));
+    assert_eq!(steps[1],json!({"type":"model_output","content":[{"type":"text","text":"Entendido."}]}));
+    assert_eq!(steps[2],json!({"type":"user_input","content":[{"type":"text","text":"Qual é o código desta sessão?"}]}));
+    assert_eq!(body.matches("Qual é o código desta sessão?").count(),1);
+    for marker in ["SEGREDO-DA-SESSAO-B","memory secret marker","recent private marker","MARCADOR-LR-6","Mensagem de diagnóstico LR-4"] {
+      assert!(!body.contains(marker),"unexpected outbound marker {marker}");
+    }
+    assert_eq!(payload["store"],false);
+    drop(conn);fs::remove_dir_all(dir).unwrap();
   }
   #[test] fn http_error_classes_and_retry_after() {
     let (store,dir)=fixture();
@@ -476,7 +518,7 @@ mod tests {
     let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
     let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
     let signal=AtomicBool::new(false);
-    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(ProviderRequest {input:"Quanto é 2 + 2?".into(),context:Arc::new(context),max_output_tokens:512,
+    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(ProviderRequest {input:"Quanto é 2 + 2?".into(),history:vec![],context:Arc::new(context),max_output_tokens:512,
       required_capabilities:ProviderCapabilities::text_stream(),attempt:1},TaskBudget {max_provider_calls:1,max_output_tokens:512},&signal,&mut |_|Ok(()))).unwrap();
     assert_eq!(result.provider_id,"gemini");assert_eq!(result.text,"Quatro.");
     conversation::append_gemini_exchange(&mut conn,"Quanto é 2 + 2?",&result.text).unwrap();

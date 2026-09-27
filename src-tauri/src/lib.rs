@@ -34,7 +34,8 @@ pub fn run() {
     luna::start_mock_cognition_task, luna::cognition_provider_status,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
-    cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session, luna::start_gemini_task,
+    cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
+    cognition::gemini_commands::close_conversation_session, luna::start_gemini_task,
   ]);
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![
@@ -42,7 +43,8 @@ pub fn run() {
     security::security_status,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
-    cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session, luna::start_gemini_task,
+    cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
+    cognition::gemini_commands::close_conversation_session, luna::start_gemini_task,
   ]);
   builder
     .run(tauri::generate_context!())

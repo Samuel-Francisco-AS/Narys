@@ -13,9 +13,9 @@
     "windows": [
       {
         "title": "Luna",
-        "width": 320,
-        "height": 420,
-        "resizable": true,
+        "width": 310,
+        "height": 410,
+        "resizable": false,
         "transparent": true,
         "decorations": false,
         "shadow": false,

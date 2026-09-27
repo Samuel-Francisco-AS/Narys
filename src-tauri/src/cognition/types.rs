@@ -39,11 +39,16 @@ pub struct ContextMetadata { pub identity_version: String, pub memory_count: usi
 #[derive(Debug)]
 pub struct ProviderRequest {
   pub input: String,
+  pub history: Vec<ProviderMessage>,
   pub context: Arc<ContextBundle>,
   pub max_output_tokens: u32,
   pub required_capabilities: ProviderCapabilities,
   pub attempt: u32,
 }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProviderRole { User, Assistant }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderMessage { pub role: ProviderRole, pub content: String }
 #[derive(Clone, Debug)]
 pub struct ProviderChunk { pub text: String }
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]

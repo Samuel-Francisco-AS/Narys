@@ -51,7 +51,7 @@ impl Scheduler {
           on_event(SchedulerEvent::Chunk { provider_id: entry.config.id.clone(), text: chunk.text })
             .map_err(|_| { cancelled.store(true, Ordering::Release); ProviderError::EventSinkClosed })
         };
-        let attempt_request = ProviderRequest { input: request.input.clone(), context: request.context.clone(),
+        let attempt_request = ProviderRequest { input: request.input.clone(), history: request.history.clone(), context: request.context.clone(),
           max_output_tokens: output_limit - usage.output_tokens, required_capabilities: request.required_capabilities, attempt };
         // Keep the same structured context across retry/fallback; adapters decide serialization.
         let result = entry.provider.execute(&attempt_request, cancelled, &mut on_chunk).await;

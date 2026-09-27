@@ -10,7 +10,6 @@
     "core:window:allow-outer-position",
     "core:window:allow-start-dragging",
     "core:window:allow-set-size",
-    "core:window:allow-inner-size",
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "allow-start-mock-task",
@@ -30,6 +29,7 @@
     "allow-gemini-conversation",
     "allow-create-conversation-session",
     "allow-get-conversation-session",
+    "allow-close-conversation-session",
     "allow-start-gemini-task"
   ]
 }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-conversation-session"
+description = "Enables the close_conversation_session command without any pre-configured scope."
+commands.allow = ["close_conversation_session"]
+
+[[permission]]
+identifier = "deny-close-conversation-session"
+description = "Denies the close_conversation_session command without any pre-configured scope."
+commands.deny = ["close_conversation_session"]

@@ -31,6 +31,19 @@ pub async fn get_conversation_session(db: State<'_, Database>, sessions: State<'
   }).await.map_err(|_| "worker_failed".to_string())?.map_err(str::to_owned)
 }
 
+#[tauri::command]
+pub async fn close_conversation_session(db: State<'_, Database>, sessions: State<'_, CurrentRunSessions>, session_id: i64) -> Result<(), String> {
+  if session_id <= 0 || !sessions.0.lock().map_err(|_| "session_registry_failed")?.contains(&session_id) { return Err("session_invalid".into()); }
+  let db = db.inner().clone();
+  let closed = tauri::async_runtime::spawn_blocking(move || {
+    let conn = db.open().map_err(|e| e.code())?;
+    conversation::close_session(&conn, session_id).map_err(|e| e.code())
+  }).await.map_err(|_| "worker_failed")?.map_err(str::to_owned)?;
+  if !closed { return Err("session_invalid".into()); }
+  sessions.0.lock().map_err(|_| "session_registry_failed")?.remove(&session_id);
+  Ok(())
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeminiStatus { pub configured: bool, pub enabled: bool, pub model: &'static str, pub credential_store_available: bool }

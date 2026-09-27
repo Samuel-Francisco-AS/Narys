@@ -9,7 +9,7 @@ use chrono::{SecondsFormat, Utc};
 use crate::persistence::{database::Database, task_history::{self, TaskRecord}};
 use crate::persistence::conversation;
 use crate::cognition::{GeminiRuntime, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
-  types::{ProviderCapabilities, ProviderRequest, TaskBudget, SchedulerError}};
+  types::{ProviderCapabilities, ProviderMessage, ProviderRequest, ProviderRole, TaskBudget, SchedulerError}};
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario};
 
@@ -112,15 +112,21 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<Gemin
     let result = async {
       emit_cognitive(&channel,id,&mut sequence,TaskEventKind::TaskStarted,&cancelled).map_err(|_| "channel_closed")?;
       let db_context = db.clone();
-      let context = tauri::async_runtime::spawn_blocking(move || {
+      let (context, history) = tauri::async_runtime::spawn_blocking(move || {
         let conn = db_context.open().map_err(|e| e.code())?;
-        ContextBuilder::build(&conn, ContextRequest { domain: None, kind: None, min_importance: 0,
-          memory_limit: 0, include_recent_conversation: false }).map_err(|e| e.code())
+        let history = conversation::outbound_history(&conn, session_id).map_err(|e| e.code())?;
+        let context = ContextBuilder::build(&conn, ContextRequest { domain: None, kind: None, min_importance: 0,
+          memory_limit: 0, include_recent_conversation: false }).map_err(|e| e.code())?;
+        Ok::<_, &'static str>((context, history))
       }).await.map_err(|_| "worker_failed")??;
       emit_cognitive(&channel,id,&mut sequence,TaskEventKind::ContextBuilt { memory_count: 0, recent_message_count: 0 },&cancelled)
         .map_err(|_| "channel_closed")?;
       let budget = TaskBudget { max_provider_calls: 2, max_output_tokens: 512 };
-      let request = ProviderRequest { input: message.clone(), context: Arc::new(context), max_output_tokens: 512,
+      let history = history.into_iter().map(|turn| ProviderMessage {
+        role: match turn.role { conversation::SessionRole::User => ProviderRole::User, conversation::SessionRole::Assistant => ProviderRole::Assistant },
+        content: turn.content,
+      }).collect();
+      let request = ProviderRequest { input: message.clone(), history, context: Arc::new(context), max_output_tokens: 512,
         required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
       let result = gemini.scheduler.run(request,budget,&cancelled,&mut |event| {
         let kind = match event {
@@ -273,7 +279,7 @@ pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc
         let budget = if scenario == DiagnosticScenario::BudgetExhausted {
           TaskBudget { max_provider_calls: 1, max_output_tokens: 32 }
         } else { TaskBudget { max_provider_calls: 3, max_output_tokens: 32 } };
-        let request = ProviderRequest { input: "Execute o diagnóstico cognitivo LR-5.".into(), context: Arc::new(context),
+        let request = ProviderRequest { input: "Execute o diagnóstico cognitivo LR-5.".into(), history: vec![], context: Arc::new(context),
           max_output_tokens: budget.max_output_tokens, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
         if context_event.is_err() { Err("channel_closed") } else { cognition.scheduler(scenario).run(request, budget, &cancelled, &mut |event| {
           let kind = match event {

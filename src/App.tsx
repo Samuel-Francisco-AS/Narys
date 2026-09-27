@@ -31,32 +31,71 @@ export default function App() {
   const windowController = useRef<WindowController | null>(null)
   const conversation = useConversationController()
   const [composerOpen, setComposerOpen] = useState(false)
+  const [composerMounted, setComposerMounted] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelMounted, setPanelMounted] = useState(false)
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const composerVisible = useRef(false)
+  const panelVisible = useRef(false)
+  const panelPresent = useRef(false)
+  const layoutGeneration = useRef(0)
+  const sendStartedAt = useRef<number | null>(null)
 
   const openPanel = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
+    const generation = ++layoutGeneration.current
+    panelPresent.current = true
     setPanelMounted(true)
+    composerVisible.current = true
+    setComposerMounted(true)
     setComposerOpen(true)
-    void windowController.current?.setLayout('conversation')
-    requestAnimationFrame(() => setPanelOpen(true))
+    void windowController.current?.setLayout('conversation').then((ok) => {
+      if (generation !== layoutGeneration.current) return
+      if (!ok) { panelPresent.current = false; setPanelMounted(false); sendStartedAt.current = null; return }
+      if (import.meta.env.DEV && sendStartedAt.current !== null) console.debug(`[UIP-4-FIX] Enter→setSize ${Math.round(performance.now() - sendStartedAt.current)}ms`)
+      requestAnimationFrame(() => {
+        if (generation !== layoutGeneration.current) return
+        panelVisible.current = true
+        setPanelOpen(true)
+        if (import.meta.env.DEV && sendStartedAt.current !== null) {
+          console.debug(`[UIP-4-FIX] Enter→primeiro frame do painel ${Math.round(performance.now() - sendStartedAt.current)}ms`)
+          sendStartedAt.current = null
+        }
+      })
+    })
   }
-  const closePanel = (keepComposer = composerOpen) => {
+  const closePanel = (keepComposer = composerVisible.current) => {
+    ++layoutGeneration.current
+    panelVisible.current = false
     setPanelOpen(false)
-    closeTimer.current = setTimeout(() => {
-      setPanelMounted(false)
-      void windowController.current?.setLayout(keepComposer ? 'composer' : 'presence')
-    }, 230)
+    if (!keepComposer) { composerVisible.current = false; setComposerOpen(false) }
+    if (!panelPresent.current) void windowController.current?.setLayout(keepComposer ? 'composer' : 'presence')
+    else if (!panelVisible.current && !panelOpen) onPanelExited()
+  }
+  const onPanelExited = () => {
+    if (panelVisible.current) return
+    panelPresent.current = false
+    setPanelMounted(false)
+    void windowController.current?.setLayout(composerVisible.current ? 'composer' : 'presence')
+  }
+  const onComposerExited = () => {
+    if (composerVisible.current) return
+    setComposerMounted(false)
+    if (!panelPresent.current) void windowController.current?.setLayout('presence')
   }
   const toggleComposer = () => {
-    if (composerOpen) {
+    if (composerVisible.current) {
+      ++layoutGeneration.current
+      composerVisible.current = false
       setComposerOpen(false)
-      if (panelOpen) closePanel(false)
-      else void windowController.current?.setLayout('presence')
+      if (panelPresent.current) closePanel(false)
     } else {
-      setComposerOpen(true)
-      void windowController.current?.setLayout(panelOpen ? 'conversation' : 'composer')
+      const generation = ++layoutGeneration.current
+      composerVisible.current = true
+      setComposerMounted(true)
+      void windowController.current?.setLayout(panelPresent.current ? 'conversation' : 'composer').then((ok) => {
+        if (generation !== layoutGeneration.current) return
+        if (!ok) { composerVisible.current = false; setComposerMounted(false); return }
+        requestAnimationFrame(() => { if (generation === layoutGeneration.current) setComposerOpen(true) })
+      })
     }
   }
   useEffect(() => {
@@ -68,7 +107,6 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   })
-  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current) }, [])
 
   useEffect(() => {
     const controller = new WindowController(setWindowState)
@@ -101,8 +139,8 @@ export default function App() {
         />
       </section>
       <button type="button" className="presence-handle" aria-label={composerOpen ? 'Recolher compositor' : 'Abrir compositor'} aria-expanded={composerOpen} onClick={toggleComposer}><span>⌄</span></button>
-      {composerOpen && <Composer state={conversation.state} onDraft={conversation.setDraft} onSend={() => { openPanel(); void conversation.send() }} onCancel={conversation.cancel} onClose={toggleComposer} onPanel={openPanel} panelOpen={panelOpen} />}
-      {panelMounted && <ConversationPanel state={conversation.state} visible={panelOpen} onClose={() => closePanel()} onNew={() => { if (conversation.newConversation()) closePanel() }} />}
+      {composerMounted && <Composer state={conversation.state} visible={composerOpen} onExited={onComposerExited} onDraft={conversation.setDraft} onSend={() => { sendStartedAt.current = panelVisible.current ? null : performance.now(); void conversation.send(); openPanel() }} onCancel={conversation.cancel} onClose={toggleComposer} onPanel={openPanel} panelOpen={panelOpen} />}
+      {panelMounted && <ConversationPanel state={conversation.state} visible={panelOpen} onExited={onPanelExited} onClose={() => closePanel()} onNew={() => { void conversation.newConversation().then((closed) => { if (closed) closePanel() }) }} />}
 
       {import.meta.env.DEV && (
         <>

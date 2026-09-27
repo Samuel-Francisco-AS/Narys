@@ -39,7 +39,7 @@ fn context(db: &Database) -> super::types::ContextBundle {
   ContextBuilder::build(&db.open().unwrap(), ContextRequest { domain: Some("projects"), kind: None,
     min_importance: 0, memory_limit: 3, include_recent_conversation: false }).unwrap()
 }
-fn request(db: &Database) -> ProviderRequest { ProviderRequest { input: "synthetic".into(), context: Arc::new(context(db)),
+fn request(db: &Database) -> ProviderRequest { ProviderRequest { input: "synthetic".into(), history: vec![], context: Arc::new(context(db)),
   max_output_tokens: 30, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 } }
 fn entry(id: &str, priority: u16, enabled: bool, caps: ProviderCapabilities, mock: Arc<MockProvider>, registry: &mut ProviderRegistry) {
   registry.register(ProviderConfig { id:id.into(), enabled, priority, capabilities:caps }, mock).unwrap();
