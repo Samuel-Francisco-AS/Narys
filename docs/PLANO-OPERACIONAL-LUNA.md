@@ -698,6 +698,12 @@ Antes de Android:
 
 Mensageiros serão canais da Luna, não Luna separadas.
 
+### Decisão de configuração cognitiva — 27/09/2026
+
+O gate humano da UIP-5A revelou que o chat ainda carregava `max_output_tokens=512` e `thinking_level=low` como limites internos herdados da LR-6. A partir desta decisão, **parâmetros que afetem capacidade, qualidade, latência, custo ou comportamento cognitivo não podem permanecer invisíveis quando forem configuráveis pela integração**.
+
+Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáveis como defaults de protótipo claramente documentados. Na UIP-6, a janela IA/modelos deve permitir política persistida por papel cognitivo, incluindo provider/agente, modelo, reasoning/thinking, teto de saída ou máximo do provider, contexto, timeouts, retries/fallback, streaming, custo/cota e parâmetros específicos suportados. Escolhas explícitas do usuário têm precedência sobre heurísticas automáticas, salvo limites reais de segurança, permissão ou capacidade da integração.
+
 ## 24. Próxima ação recomendada
 
 Com **LR-6 = PASS completo** e **UIP-0 → UIP-4 fechadas**, a próxima etapa é **UIP-5 — histórico + resumo assíncrono**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando o fechamento da trilha UIP. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
