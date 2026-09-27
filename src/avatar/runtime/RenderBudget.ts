@@ -8,7 +8,7 @@ export type RenderBudgetState = {
 }
 
 const ACTIVE_FPS = 30
-const BACKGROUND_FPS = 15
+const BACKGROUND_FPS = 24
 // WebKitGTK can deliver only ~2 callbacks/s for a visible, unfocused window.
 // Hidden time is rebased separately; this cap only guards unexpected visible stalls.
 const MAX_DELTA_SECONDS = 0.6

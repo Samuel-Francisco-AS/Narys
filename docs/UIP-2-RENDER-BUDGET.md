@@ -9,12 +9,12 @@ Data: **26/09/2026** (America/Fortaleza). Branch `main`, árvore inicial limpa, 
 | Modo | Condição | Teto de trabalho do SceneRuntime | Motivo no diagnóstico |
 | --- | --- | ---: | --- |
 | `active` | Documento visível e janela focada | 30 FPS | `focused` |
-| `background` | Documento visível e janela sem foco | 15 FPS | `blurred` |
+| `background` | Documento visível e janela sem foco | 24 FPS após FIX-1; 15 FPS na medição inicial abaixo | `blurred` |
 | `suspended` | `document.visibilityState === 'hidden'` | 0 FPS de update/render | `hidden` |
 
 `SceneRuntime` mantém `renderer.setAnimationLoop()`. Cada callback consulta a política antes de chamar `onFrame()` ou `renderer.render()`. Callbacks adiantados ou ocultos não atualizam animação, skeleton nem WebGL. O agendamento mantém a cadência média sem executar uma rajada de frames para compensar atrasos. O target é um **teto**, condicionado aos callbacks que o WebKit entrega.
 
-O delta vem do último frame **processado**, não do último callback recebido. A 30 FPS fica perto de 33 ms; a 15 FPS, perto de 67 ms. O antigo clamp de 50 ms foi substituído por proteção de 600 ms para permitir também callbacks esparsos de uma janela visível sem foco. Ao entrar em `suspended`, o relógio de animação é descartado; ao sair, o primeiro frame usa delta **0**. Assim, Idle e um aceno em andamento ficam semanticamente congelados enquanto o documento está oculto e continuam da mesma região temporal ao retornar. Um atraso visível acima de 600 ms é limitado; se a plataforma não emitir `visibilitychange` ao minimizar, essa garantia de congelamento não pode ser comprovada pelo app.
+O delta vem do último frame **processado**, não do último callback recebido. A 30 FPS fica perto de 33 ms; a 24 FPS, perto de 42 ms (na medição inicial de 15 FPS, perto de 67 ms). O antigo clamp de 50 ms foi substituído por proteção de 600 ms para permitir também callbacks esparsos de uma janela visível sem foco. Ao entrar em `suspended`, o relógio de animação é descartado; ao sair, o primeiro frame usa delta **0**. Assim, Idle e um aceno em andamento ficam semanticamente congelados enquanto o documento está oculto e continuam da mesma região temporal ao retornar. Um atraso visível acima de 600 ms é limitado; se a plataforma não emitir `visibilitychange` ao minimizar, essa garantia de congelamento não pode ser comprovada pelo app.
 
 A política não recria `SceneRuntime`, renderer ou contexto WebGL, não altera câmera, escala, stage, DPR, pixel ratio, materiais ou luzes. O ajuste de DPR continua `Math.min(window.devicePixelRatio, 1.5)`; na máquina medida os dois valores observados foram 1.
 
@@ -57,7 +57,40 @@ Houve também uma condição visível sem foco em que o WebKit passou a entregar
 
 1. Com `LIBGL_ALWAYS_SOFTWARE=1 npm run tauri dev` e inspector/diagnóstico, observar Luna focada por 20–30 s: Idle fluido, `renderMode=active`, target 30, sem alteração visual de câmera/escala/barra.
 2. Acionar greeting por clique; confirmar duração e fluidez próximas do aceno anterior e retorno ao Idle. Abrir/fechar DEV e navegar seções com a janela focada; target deve permanecer 30.
-3. Tirar foco mantendo Luna visível; confirmar `background`, target 15, movimento temporal normal; recuperar foco e confirmar `active`, target 30. Testar também um aceno iniciado antes de perder foco.
+3. Tirar foco mantendo Luna visível; confirmar `background`, target 24 após FIX-1, movimento temporal normal; recuperar foco e confirmar `active`, target 30. Testar também um aceno iniciado antes de perder foco.
 4. Minimizar por 20–30 s; se possível observar CPU/RSS. Restaurar e verificar reaparecimento, continuidade do Idle/aceno sem salto ou aceleração, primeiro frame sem delta enorme, target 30, buffer 300×360, `gl.getError()=0` e ausência de context loss. Registrar `visibilityState`: se não virar `hidden`, informar essa limitação específica da plataforma.
 
 **UIP-2 ainda não é PASS completo.** UIP-3 não foi iniciada; nenhuma ergonomia de janela foi implementada. Para UIP-3, permanece o risco de a política receber poucos ou nenhum callback quando a janela visível fica atrás de outras superfícies no WebKitGTK/Wayland. A etapa futura deve respeitar a fronteira do Avatar Runtime e revalidar foco/visibilidade em novos modos de janela, sem presumir detecção de oclusão.
+
+## FIX-1 — background de 15 para 24 FPS
+
+Sam observou no gate humano que **15 FPS com a janela visível sem foco parecia travado demais** para a Luna como companhia desktop. Esta FIX altera apenas `BACKGROUND_FPS` de 15 para 24. `active` continua em 30; `suspended` continua com zero update/render. Política, relógio/delta, retomada, renderer, Presence Shell, stage, câmera e DPR não mudaram. Branch `main`, árvore inicial limpa, HEAD inicial `53953edb5391edcb56e650a71b4663410e084a3f`; sem commit/push nesta rodada.
+
+### Medição Tauri real
+
+Mesma metodologia curta descrita acima: Fedora/Wayland, Tauri dev com `LIBGL_ALWAYS_SOFTWARE=1` confirmado no `WebKitWebProcess`, janela `zenity` de apoio para manter a Luna `visible` e `hasFocus=false`, seis relatórios estáveis de ~5 s e CPU/RSS da árvore Tauri por 30 s. São execuções distintas; Vite, inspector, WebKit e carga do sistema podem variar. FPS significa frames efetivamente processados pelo SceneRuntime, não apresentação comprovada na tela.
+
+| Idle visível sem foco | Background 15 anterior | FIX-1 background 24 |
+| --- | ---: | ---: |
+| Target | 15 FPS | **24 FPS** |
+| FPS processados, média | 15,02 | **24,00** |
+| Intervalo médio entre frames, faixa | 66,60–66,72 ms | **41,57–41,74 ms** |
+| `update+render` médio, faixa | 15,73–16,13 ms | **20,81–21,23 ms** |
+| CPU agregada média | 81,4% | **141,7%** |
+| RSS agregado médio | 642,8 MiB | **628,4 MiB** |
+| Frames processados em seis relatórios | 451 | **721** |
+| Callbacks recebidos | 1.860 | **1.554** |
+| Callbacks descartados pelo orçamento | 1.409 | **833** |
+| Buffer; DPR/pixel ratio | 300×360; 1/1 | **300×360; 1/1** |
+
+Os seis FPS da FIX-1 foram `24,00 / 23,98 / 23,98 / 23,98 / 24,12 / 23,96`; `resizeCount=0` em todos. A CPU da amostra subiu **60,3 pontos percentuais**, cerca de **74%** frente à amostra de 15 FPS, e ficou próxima dos 155,4% medidos no `active` da UIP-2 original. É uma troca material entre fluidez e custo; a medição curta não prova que somente os nove FPS adicionais causaram toda a diferença. O RSS menor nesta execução também não é evidência de uma economia causada pelo target.
+
+### Animação e transições
+
+- O Idle permaneceu em andamento nos ~30 s sem foco, com target 24. O raycast por `pointerdown` no centro do canvas acionou o greeting nesse modo e o status voltou ao Idle em **~3,31 s**. `gl.getError()=0`; buffer 300×360.
+- Um teste no mesmo Tauri controlou os sinais `hasFocus`/`focus`/`blur` temporariamente pelo inspector: o greeting começou em `active`, entrou em `background` aos ~1,05 s, voltou a `active` aos ~2,43 s e retornou ao Idle aos **~3,29 s**. Após a recuperação sintética, um relatório estável marcou **29,98 FPS**, target 30, buffer 300×360 e nenhum erro de console. A substituição temporária de `hasFocus` foi removida ao final. Isso verifica a política e a continuidade do aceno, **não** equivale a recuperar fisicamente o foco pelo compositor.
+- O GNOME/Wayland recusou `org.gnome.Shell.FocusApp` com `AccessDenied`; esta execução não conseguiu controlar a recuperação de foco físico. A transição real já tinha funcionado na implementação UIP-2 anterior, mas precisa de nova observação humana para esta FIX. A limitação anterior de poucos ou nenhum callback visível sem foco continua possível; target 24 é teto, não garantia nessas condições.
+
+### Gate pendente
+
+Sam deve comparar visualmente 24 FPS sem foco com os 15 FPS rejeitados, confirmar se a fluidez agora serve ao uso cotidiano e se o aumento de CPU observado é aceitável. Confirmar também aceno iniciado antes de perder foco, retorno a 30 FPS ao recuperar foco e ausência de salto. O gate de minimizar/restaurar da UIP-2 continua pendente. **FIX-1 e UIP-2 ainda não são PASS completo; UIP-3 não foi iniciada.**
