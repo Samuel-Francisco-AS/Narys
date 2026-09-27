@@ -1,6 +1,6 @@
-# UIP-3 — Ergonomia da janela (candidata)
+# UIP-3 — Ergonomia da janela
 
-Data: **27/09/2026** (America/Fortaleza). Branch `main`, árvore inicial limpa, `git pull --ff-only` sem alterações. HEAD inicial após o pull: `7afb843ed0ced7c1f045046911f5fc527d605288`. Sem commit/push. **UIP-3 não é PASS completo:** faltam gates humanos de empilhamento, Alt+arrastar e fluidez, e o click-through permanece bloqueado por segurança.
+Data: **27/09/2026** (America/Fortaleza). Branch `main`, árvore inicial limpa, `git pull --ff-only` sem alterações. HEAD inicial após o pull: `7afb843ed0ced7c1f045046911f5fc527d605288`. **UIP-3 = PASS funcional no ambiente alvo, com limitações de plataforma explicitamente adiadas.**
 
 ## Baseline pré-UIP-3 — Idle manual
 
@@ -78,4 +78,24 @@ Em XWayland, com always-on-top solicitado e outra janela focada, cinco relatóri
 11. Idle manual e aceno continuam normais?
 12. Reiniciar o app continua seguro e interativo?
 
-**Estado:** candidata técnica com always-on-top funcional como pedido de API e comprovado no XWayland; drag nativo implementado com gesto físico pendente; click-through bloqueado até recuperação externa comprovada. Sem gate humano, **UIP-3 não é PASS completo**. UIP-4 não foi iniciada.
+## Fechamento humano
+
+Sam validou no Fedora/GNOME/Wayland:
+
+- `Alt + botão esquerdo + arrastar` move a janela com facilidade;
+- clique normal continua acionando o Wave após os drags;
+- não houve queda perceptível de fluidez com a Luna focada ou sem foco;
+- transparência, Presence Shell e comportamento visual permaneceram utilizáveis.
+
+O teste humano confirmou que **always-on-top não é efetivado no backend Wayland nativo**: ao focar navegador ou terminal, essas janelas cobrem a Luna mesmo após o pedido de always-on-top. Como a mesma implementação foi comprovada em XWayland e não há evidência de falha estrutural do `WindowController`, esse recurso fica **adiado como limitação de plataforma/backend**, sem bloquear a trilha UIP.
+
+O **click-through** também fica adiado: não existe recuperação externa suficientemente confiável no ambiente atual. A ativação continua bloqueada e não é persistida.
+
+Decisão de fechamento: **UIP-3 = PASS funcional em 27/09/2026**, com duas capacidades adiadas para revisão ao final da trilha UIP ou em rodada específica de compatibilidade Wayland:
+
+1. always-on-top efetivo no Wayland nativo;
+2. click-through com recuperação externa segura.
+
+A implementação aprovada para uso atual é o modo normal + reposicionamento nativo por Alt+arrastar, preservando a política 30/24/0, interação do avatar e segurança da janela.
+
+**UIP-4 não foi iniciada durante a implementação da UIP-3.**
