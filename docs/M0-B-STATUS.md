@@ -1,5 +1,17 @@
 # M0-B — Luna: status central
 
+## Idle manual integrada — 26/09/2026
+
+**Estado atual:** M0-B segue aberto, mas a Idle manual criada por Sam no Blender 3.3.21 já substituiu a Idle procedural no asset usado pelo aplicativo. A integração entrou em `main` no commit `862b445`, **depois do fechamento da UIP-2/FIX-1 e antes do início da UIP-3**.
+
+Validação humana no Tauri: aparência preservada, nova Idle em loop e melhora visual clara em relação ao repouso anterior; o `Wave` legado continua funcional e retorna para a nova Idle. O runtime permanece no caminho `LegacyGlbAdapter`/GLB, sem migração VRM/VRMA nesta etapa.
+
+A exportação Blender alterou materialmente o asset: 4.206.852 bytes (~+68,9% sobre M0-B1) e 462 canais por clipe, contra 17 no GLB anterior. Isso pode afetar custo do AnimationMixer, parse, memória e `update+render`. **As medições de UIP-0/UIP-1/UIP-2 foram feitas com o asset anterior e não devem ser usadas como comparação causal direta com UIP-3+ sem nova baseline.** Ver [integração da Idle manual](MANUAL-IDLE-INTEGRATION.md).
+
+`scripts/prepare_luna.py` deixa de publicar o asset final; agora gera somente `assets/luna/generated/Luna-bootstrap.glb`. O GLB distribuído passa a ser exportação Blender e deve ser checado com `python scripts/validate_luna_glb.py`.
+
+A Idle atual é uma primeira candidata manual, não acabamento final. O principal débito artístico de M0-B agora é refazer o `Wave` manualmente e, depois, avançar o experimento VRM/VRMA.
+
 ## Parecer humano e decisão de retomada — 24/09/2026
 
 **M0-B segue aberto: integração funcional, animações não aprovadas artisticamente.** O usuário observou que o Idle do M0-B1 continua semelhante a manequim; no Wave a mão se move, mas o corpo permanece rígido e a palma fica orientada para baixo. O usuário relatou boa fluidez aparente no Tauri, sem atribuir esses defeitos a travamento. O ajuste de enquadramento do M0-B1 foi implementado, mas não resolve a linguagem corporal.
@@ -49,7 +61,7 @@ Um único caminho: adaptar base feminina rigada da pixiv, converter para GLB pad
 - Base: 36.470 triângulos, 3 meshes/skins, 13 materiais, nenhum clipe. Candidata: 36.494 triângulos considerando as três instâncias dos detalhes, 3 skins, texturas até 512 px e materiais unlit baratos. Removidos morph targets e extensões/dinâmica VRM; nenhum processamento de cabelo/colisão em runtime.
 - **Idle (6 s) e Wave (3,6 s) são clipes criados localmente**, não animações fornecidas pela pixiv. Idle coordena respiração, pequena inclinação do tronco/cabeça e acompanhamento dos braços, sem deslocar quadril e pés. Wave envolve ombro, elevação do braço direito, flexão do cotovelo, saudação discreta do punho e retorno suave. Não é captura de movimento nem retargeting do robô.
 - Auxiliares paralelos do ombro/braço seguem o movimento. Não há suporte genérico às constraints VRM; movimentos arbitrários futuros exigem rever esses auxiliares.
-- Geração: `python scripts/prepare_luna.py` (Python 3 + Pillow). O script verifica o hash original antes de exportar.
+- Geração histórica M0-B1: `python scripts/prepare_luna.py` (Python 3 + Pillow). Após a integração manual de 26/09, esse script gera apenas um **bootstrap legado** em `assets/luna/generated/` e não pode mais sobrescrever o GLB distribuído.
 - Prévia: `blender -b -t 2 --python scripts/preview_luna.py` (verificado com Blender 3.3.21).
 
 ## Verificações executadas
@@ -82,11 +94,12 @@ Teste desktop usou Vite já aberto, por isso o comando foi `. "$HOME/.cargo/env"
 - Mesa por software continua necessário no Tauri. Não medidos FPS, CPU, memória ou estabilidade prolongada; não alegar desempenho sustentado.
 - Base usa licença própria VRM, com condições acima; preservar os avisos e revisar usos futuros contra essas condições.
 
-## Próximo passo exato para retomada (revisado após parecer humano)
+## Próximo passo exato para retomada — após Idle manual
 
-1. Ler `docs/RETOMADA-BLENDER-LUNA.md` e este status; conferir `git status --short --branch` e HEAD sem descartar trabalho local.
-2. Iniciar a **aula guiada de Blender 3.3.21**, primeiro com importação segura de cópia experimental da Luna, identificação do armature e Pose Mode. Salvar `.blend` de teste separado, sem sobrescrever assets integrados.
-3. Criar e avaliar visualmente a **pose de Idle estática** (prioridade). Só depois criar **pose de saudação** com braço/cotovelo articulados e palma visivelmente voltada para a câmera. Se houver tempo e rig adequado, ensinar keyframes básicos; não exigir animação completa nesta sessão.
-4. Registrar resultados reais e bloqueios. Somente planejar substituição do pipeline/GLB quando houver pose aprovada e teste de exportação/integração. Preservar licença, M0-A e workaround Mesa. M0-B continua aberto; não iniciar agente/chat/Android aqui.
+1. Preservar `public/models/Luna.glb` atual como candidata visual da Idle e executar `python scripts/validate_luna_glb.py` em novas exportações.
+2. Antes de comparar números de UIP-3+ com UIP-2, capturar uma nova baseline curta com a Idle manual sob a política 30/24/0 FPS; não misturar mudança de asset com mudança de janela.
+3. Retomar o Blender para criar o **Wave manual**, corrigindo palma/orientação, ombro, cotovelo, overlap e retorno à Idle.
+4. Manter a direção de migração VRM 1.0 + VRMA como trilha separada; não bloquear UIP-3 por essa migração.
+5. A fonte `.blend` da animação manual ainda é local. Até versioná-la ou migrar para VRMA, não declarar o GLB final como totalmente reproduzível apenas a partir do repositório.
 
-**Referência integrada atual:** `main` contém M0-B1 funcional, mas sem aprovação artística; não é necessário repetir busca de asset ou desenvolvimento do app para a aula.
+**Referência integrada atual:** `main` contém a Idle manual funcional e o Wave legado. M0-B permanece aberto até revisão do gesto e fechamento artístico/técnico correspondente.

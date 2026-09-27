@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. Antes da LR-7, o projeto percorre a trilha **UIP-0 → UIP-7**, dedicada à interface de presença desktop e performance; **UIP-0, UIP-1 e UIP-2 já estão concluídas**. O trabalho artístico de Blender segue independente. Consulte [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
+**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. Antes da LR-7, o projeto percorre a trilha **UIP-0 → UIP-7**, dedicada à interface de presença desktop e performance; **UIP-0, UIP-1 e UIP-2 já estão concluídas**. O trabalho artístico de Blender segue independente. **Após o fechamento da UIP-2 e antes da UIP-3, a Idle procedural foi substituída por uma Idle manual exportada do Blender; isso cria uma nova baseline de asset/performance para as medições seguintes.** Consulte [integração da Idle manual](docs/MANUAL-IDLE-INTEGRATION.md), [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## Direção arquitetural pós-M0
 
@@ -15,6 +15,7 @@ Documentos principais:
 - [Arquitetura-alvo da Luna](docs/ARCHITECTURE-LUNA.md)
 - [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
 - [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
+- [Integração da Idle manual e quebra de baseline](docs/MANUAL-IDLE-INTEGRATION.md)
 - [Plano operacional paralelo](docs/PLANO-OPERACIONAL-LUNA.md)
 - [Plano de UI e performance](docs/UI-PERFORMANCE-PLAN.md)
 - [Segurança LR-3](docs/SECURITY.md)
@@ -83,7 +84,8 @@ Nesta máquina, a janela Tauri usa Mesa em software por padrão. O WebKitGTK com
 - `src-tauri/src/cognition/`: Context Builder, contrato Provider, Registry, Scheduler e MockProvider local.
 - `src/styles.css`: Presence Shell transparente e estilos dos diagnósticos DEV.
 - `public/models/Luna.glb`: candidata local, sem dependência de rede durante a execução; licença em `public/models/Luna.LICENSE.json`.
-- `assets/luna/base.vrm` e `scripts/prepare_luna.py`: original e preparação reproduzível.
+- `assets/luna/base.vrm` e `scripts/prepare_luna.py`: fonte original e gerador de **bootstrap legado**; o script não publica mais `public/models/Luna.glb`.
+- `scripts/validate_luna_glb.py`: valida o contrato legado `Idle`/`Wave` e sinaliza expansão material do asset.
 - `public/models/RobotExpressive.glb`: modelo anterior preservado.
 - `assets/app-icon.svg`: ícone original do protótipo; `src-tauri/icons/` contém versões geradas pelo CLI.
 - `src-tauri/`: configuração e inicialização da janela Tauri.
@@ -104,7 +106,7 @@ A candidata Luna adapta `VRM1_Constraint_Twist_Sample` v1.0.1 da pixiv Inc., sob
 
 ## Continuidade
 
-A Luna atual é uma candidata técnica funcional, **não uma animação aprovada**: o usuário relatou Idle muito rígido e aceno pouco natural, com a palma voltada para baixo. A apresentação ficou cerca de 12% menor no M0-B1. O próximo passo é aprender no Blender a ajustar primeiro a pose de repouso e depois a pose de saudação, trabalhando numa cópia e preservando o GLB utilizado pelo aplicativo.
+A Luna atual continua sendo uma candidata em evolução. A **Idle manual criada no Blender foi integrada e aprovada pelo usuário como melhora visual clara** em relação ao repouso procedural quase estático do M0-B1. O `Wave` permanece legado e ainda precisa de revisão manual. A troca de `Luna.glb` ocorreu após UIP-2 e antes de UIP-3 e deve ser tratada como quebra de baseline em comparações de performance.
 
 Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA.md](docs/RETOMADA-BLENDER-LUNA.md). O progresso e os riscos técnicos do protótipo permanecem em [M0-B-STATUS.md](docs/M0-B-STATUS.md).
 

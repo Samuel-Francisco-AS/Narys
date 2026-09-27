@@ -1,6 +1,12 @@
-"""Rebuild Luna GLB from the pinned VRM. Requires Python 3 + Pillow.
+"""Build the legacy Luna bootstrap GLB from the pinned VRM.
+
+This script is no longer authoritative for public/models/Luna.glb. It preserves
+the historical visual adaptation and procedural Idle/Wave only as a bootstrap
+and reference for Blender. The distributed runtime asset is exported from
+Blender and validated with scripts/validate_luna_glb.py.
+
 Run from any directory: python scripts/prepare_luna.py
-No VRM runtime: planar arm motions also animate the matching aim helpers.
+Requires Python 3 + Pillow.
 """
 import copy
 import hashlib
@@ -12,6 +18,7 @@ import struct
 from PIL import Image, ImageOps
 
 ROOT = Path(__file__).resolve().parents[1]
+BOOTSTRAP_DIR = ROOT / 'assets/luna/generated'
 source = ROOT / 'assets/luna/base.vrm'
 raw = source.read_bytes()
 SOURCE_SHA = '12c2b97e95e700783a6a550dc0eee2d7880aeedccef9ae67bc4c5a2f0f2631a2'
@@ -30,7 +37,7 @@ notice = {
     'originalLicenseSettings': meta,
     'adapterLicense': 'VRM Public License 1.0 with the same settings as the original',
     'licenseUrl': meta['licenseUrl'],
-    'modifications': 'Luna M0-B: cool palette, reduced textures, chest/ear accents, smaller head and dark leggings, standard glTF materials, Idle/Wave clips, no morph targets or VRM dynamics.',
+    'modifications': 'Luna M0-B legacy bootstrap: cool palette, reduced textures, chest/ear accents, smaller head and dark leggings, standard glTF materials, legacy procedural Idle/Wave placeholders, no morph targets or VRM dynamics.',
     'disclaimer': 'Provided without warranties; no endorsement by pixiv Inc.',
 }
 g['asset']['copyright'] = '(c) 2022 pixiv Inc.; adapted for Assistente-3D (Luna M0-B)'
@@ -138,7 +145,10 @@ node=len(g['nodes']);g['nodes'].append({'name':'Luna_Core','mesh':mesh,'translat
 for side in [-1,1]:
     ear=len(g['nodes']);g['nodes'].append({'name':f'Luna_Ear_{side}','mesh':mesh,'translation':[side*.083,.108,-.003],'scale':[.45,.5,.6]});g['nodes'][24]['children'].append(ear)
 
-# Local clips. Rotations are relative to the source rest transforms.
+# Legacy bootstrap clips. They remain only so the generated base is easy to
+# preview/import in Blender. They are NOT the authoritative animations shipped
+# in public/models/Luna.glb.
+# Rotations are relative to the source rest transforms.
 def mul(a,b):
     x,y,z,w=a;X,Y,Z,W=b
     return [w*X+x*W+y*Z-z*Y,w*Y-x*Z+y*W+z*X,w*Z+x*Y-y*X+z*W,w*W-x*X-y*Y-z*Z]
@@ -215,6 +225,9 @@ g['buffers']=[{'byteLength':len(binary)}]
 js=json.dumps(g,separators=(',',':')).encode();js+=b' '*(-len(js)%4)
 binary.extend(b'\0'*(-len(binary)%4))
 result=struct.pack('<III',0x46546c67,2,28+len(js)+len(binary))+struct.pack('<II',len(js),0x4e4f534a)+js+struct.pack('<II',len(binary),0x004e4942)+binary
-output=ROOT/'public/models/Luna.glb';output.write_bytes(result)
-(ROOT/'public/models/Luna.LICENSE.json').write_text(json.dumps(notice,indent=2)+'\n')
+BOOTSTRAP_DIR.mkdir(parents=True, exist_ok=True)
+output=BOOTSTRAP_DIR/'Luna-bootstrap.glb';output.write_bytes(result)
+license_output=BOOTSTRAP_DIR/'Luna-bootstrap.LICENSE.json'
+license_output.write_text(json.dumps(notice,indent=2)+'\n')
 print(f'{output}: {len(result)} bytes; SHA256 {hashlib.sha256(result).hexdigest()}')
+print('NOTE: bootstrap only; do not copy it over public/models/Luna.glb. Export the final runtime asset from Blender and validate it with scripts/validate_luna_glb.py.')

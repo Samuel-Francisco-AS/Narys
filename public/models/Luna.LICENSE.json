@@ -22,6 +22,6 @@
   },
   "adapterLicense": "VRM Public License 1.0 with the same settings as the original",
   "licenseUrl": "https://vrm.dev/licenses/1.0/",
-  "modifications": "Luna M0-B: cool palette, reduced textures, chest/ear accents, smaller head and dark leggings, standard glTF materials, Idle/Wave clips, no morph targets or VRM dynamics.",
+  "modifications": "Luna M0-B: cool palette, reduced textures, chest/ear accents, smaller head and dark leggings, standard glTF materials; current distributed GLB includes a manually-authored Blender Idle integrated on 2026-09-26 plus the legacy Wave clip; no VRM runtime dynamics.",
   "disclaimer": "Provided without warranties; no endorsement by pixiv Inc."
 }

@@ -110,3 +110,19 @@ Política final:
 A limitação de WebKitGTK/Wayland quanto à entrega de poucos callbacks sem foco e à emissão de `visibilityState=hidden` ao minimizar continua documentada para revalidação durante a UIP-3 e UIP-7.
 
 Próxima etapa: **UIP-3 — ergonomia da janela**.
+
+
+## Mudança de baseline após o PASS da UIP-2 — Idle manual
+
+Em **26/09/2026**, depois do fechamento humano da UIP-2/FIX-1 e **antes da UIP-3**, o commit `862b445` substituiu `public/models/Luna.glb` pela exportação Blender contendo a nova Idle manual.
+
+Essa alteração não muda a decisão da UIP-2 nem sua política 30/24/0 FPS, mas muda a carga animada que o runtime processa. O GLB passou de 2.490.812 para **4.206.852 bytes** (~+68,9%) e os clipes exportados passaram de 17 para **462 canais por clipe**. A Idle atual dura ~10,04 s; o Wave legado reexportado dura ~3,58 s.
+
+Consequência metodológica:
+
+- os números de CPU, RSS, FPS e `update+render` acima pertencem ao **asset anterior**;
+- UIP-3 e etapas posteriores devem registrar uma **nova baseline pós-asset** antes de atribuir diferenças ao trabalho de janela/UI;
+- se houver regressão, separar primeiro custo da exportação Blender/canais de animação de custo da ergonomia da janela;
+- otimização do GLB (por exemplo, redução de canais constantes) deve ser medida como rodada própria para não misturar variáveis.
+
+Detalhes: [MANUAL-IDLE-INTEGRATION.md](MANUAL-IDLE-INTEGRATION.md).

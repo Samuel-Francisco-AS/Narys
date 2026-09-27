@@ -12,3 +12,7 @@ src-tauri/target/
 *.sqlite3-wal
 *.sqlite3-shm
 src-tauri/private/
+
+
+# Saída local do bootstrap legado do avatar
+assets/luna/generated/
