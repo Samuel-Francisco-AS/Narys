@@ -361,7 +361,7 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 ## Interlúdio UIP — interface de presença + performance
 
-**Estado:** em andamento desde 26/09/2026 após **LR-6 = PASS completo**. **UIP-0 = PASS completo**, **UIP-1 = PASS completo** e **UIP-2 = PASS completo**; a próxima etapa é **UIP-3 — ergonomia da janela**. A trilha **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7.
+**Estado:** em andamento desde 26/09/2026 após **LR-6 = PASS completo**. **UIP-0, UIP-1, UIP-2 e UIP-3 estão fechadas**; a próxima etapa é **UIP-4 — Composer + painel de conversa + sessão atual**. Na UIP-3, Alt+arrastar foi aprovado; always-on-top no Wayland nativo e click-through seguro ficaram como limitações de compatibilidade adiadas. A trilha **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7.
 
 Princípios fechados:
 
@@ -700,7 +700,7 @@ Mensageiros serão canais da Luna, não Luna separadas.
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 = PASS completo**, **UIP-1 = PASS completo** e **UIP-2 = PASS completo**, a próxima etapa é **UIP-3 — ergonomia da janela**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando o fechamento da trilha UIP. O trabalho de Blender segue independente.
+Com **LR-6 = PASS completo** e **UIP-0 → UIP-3 fechadas**, a próxima etapa é **UIP-4 — Composer + painel de conversa + sessão atual**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando o fechamento da trilha UIP. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
