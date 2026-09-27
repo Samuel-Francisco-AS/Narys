@@ -24,6 +24,30 @@ A ordem de prioridade definida para o runtime é:
 
 Guardrail complementar: **proporcionalidade**. O sistema não deve criar planejamento multiagente para uma operação que pode ser executada diretamente.
 
+### Autonomia do usuário sobre política cognitiva
+
+Configurações que alterem capacidade, qualidade, latência, custo ou comportamento cognitivo **não podem permanecer como limites invisíveis hardcoded do runtime** quando o provider/modelo permitir escolha.
+
+O usuário deve poder configurar, por papel cognitivo e por integração:
+
+- provider ou agente especialista;
+- modelo;
+- nível de reasoning/thinking, quando suportado;
+- teto de saída;
+- orçamento/contexto;
+- timeouts;
+- retries e fallback;
+- streaming;
+- parâmetros de geração expostos pelo provider;
+- uso de ferramentas, grounding/web e capacidades opcionais;
+- políticas de custo/cota.
+
+Os defaults da Luna podem ser conservadores, mas devem ser **visíveis e substituíveis**. Um modo automático pode recomendar ou escolher valores, porém não deve substituir silenciosamente uma seleção explícita do usuário.
+
+Escolher “sem limite adicional da Luna” significa não impor um teto artificial abaixo do máximo efetivamente aceito pelo provider/modelo. Permanecem válidos limites físicos da API, janela de contexto, quotas, segurança, permissões e restrições técnicas reais.
+
+O Scheduler pode alertar sobre custo, latência, quota ou incompatibilidade, mas uma preferência explícita — por exemplo usar um agente especialista como Codex em `conversation`, se a integração suportar esse papel — não deve ser trocada silenciosamente por outra política. Fallback só ocorre segundo configuração conhecida do usuário.
+
 Exemplo:
 
 ~~~text
