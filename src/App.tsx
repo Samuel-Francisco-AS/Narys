@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { invoke, isTauri } from '@tauri-apps/api/core'
 import AvatarViewport from './avatar/AvatarViewport'
 import type { AnimationIntent, AnimationRequest } from './avatar/runtime/types'
 import CognitionPanel from './luna/CognitionPanel'
@@ -8,6 +7,9 @@ import LunaCorePanel from './luna/LunaCorePanel'
 import MemoryPanel from './luna/MemoryPanel'
 import SecurityPanel from './security/SecurityPanel'
 import { WindowController, initialWindowErgonomicsState } from './window/WindowController'
+import { useConversationController } from './conversation/ConversationController'
+import { Composer } from './conversation/Composer'
+import { ConversationPanel } from './conversation/ConversationPanel'
 
 type DebugSection = 'core' | 'memory' | 'gemini' | 'cognition' | 'security'
 
@@ -27,22 +29,84 @@ export default function App() {
   const [debugSection, setDebugSection] = useState<DebugSection | null>(null)
   const [windowState, setWindowState] = useState(initialWindowErgonomicsState)
   const windowController = useRef<WindowController | null>(null)
-  const [pocError, setPocError] = useState<string | null>(null)
-  const [pocGraphics, setPocGraphics] = useState('aguardando primeira amostra')
-  const canvasBeforePoc = useRef<HTMLCanvasElement | null>(null)
-  const setPocVisible = async (surface: 'composer' | 'conversation', visible: boolean) => {
-    if (!isTauri()) return
-    if (!canvasBeforePoc.current) canvasBeforePoc.current = document.querySelector('.scene-canvas canvas')
-    try {
-      await invoke('set_auxiliary_poc_visible', { surface, visible })
-      setPocError(null)
-      const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas canvas')
-      const gl = canvas?.getContext('webgl2')
-      setPocGraphics(`main ${window.innerWidth}×${window.innerHeight} · canvas ${canvas?.width ?? '?'}×${canvas?.height ?? '?'} · mesmo canvas ${canvas === canvasBeforePoc.current ? 'sim' : 'não'} · glError ${gl?.getError() ?? '?'}`)
-    } catch (error) {
-      setPocError(String(error))
+  const conversation = useConversationController()
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [composerMounted, setComposerMounted] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [panelMounted, setPanelMounted] = useState(false)
+  const composerVisible = useRef(false)
+  const panelVisible = useRef(false)
+  const panelPresent = useRef(false)
+  const layoutGeneration = useRef(0)
+  const sendStartedAt = useRef<number | null>(null)
+
+  const openPanel = () => {
+    const generation = ++layoutGeneration.current
+    panelPresent.current = true
+    setPanelMounted(true)
+    composerVisible.current = true
+    setComposerMounted(true)
+    setComposerOpen(true)
+    void windowController.current?.setLayout('conversation').then((ok) => {
+      if (generation !== layoutGeneration.current) return
+      if (!ok) { panelPresent.current = false; setPanelMounted(false); sendStartedAt.current = null; return }
+      if (import.meta.env.DEV && sendStartedAt.current !== null) console.debug(`[UIP-4-FIX] Enter→setSize ${Math.round(performance.now() - sendStartedAt.current)}ms`)
+      requestAnimationFrame(() => {
+        if (generation !== layoutGeneration.current) return
+        panelVisible.current = true
+        setPanelOpen(true)
+        if (import.meta.env.DEV && sendStartedAt.current !== null) {
+          console.debug(`[UIP-4-FIX] Enter→primeiro frame do painel ${Math.round(performance.now() - sendStartedAt.current)}ms`)
+          sendStartedAt.current = null
+        }
+      })
+    })
+  }
+  const closePanel = (keepComposer = composerVisible.current) => {
+    ++layoutGeneration.current
+    panelVisible.current = false
+    setPanelOpen(false)
+    if (!keepComposer) { composerVisible.current = false; setComposerOpen(false) }
+    if (!panelPresent.current) void windowController.current?.setLayout(keepComposer ? 'composer' : 'presence')
+    else if (!panelVisible.current && !panelOpen) onPanelExited()
+  }
+  const onPanelExited = () => {
+    if (panelVisible.current) return
+    panelPresent.current = false
+    setPanelMounted(false)
+    void windowController.current?.setLayout(composerVisible.current ? 'composer' : 'presence')
+  }
+  const onComposerExited = () => {
+    if (composerVisible.current) return
+    setComposerMounted(false)
+    if (!panelPresent.current) void windowController.current?.setLayout('presence')
+  }
+  const toggleComposer = () => {
+    if (composerVisible.current) {
+      ++layoutGeneration.current
+      composerVisible.current = false
+      setComposerOpen(false)
+      if (panelPresent.current) closePanel(false)
+    } else {
+      const generation = ++layoutGeneration.current
+      composerVisible.current = true
+      setComposerMounted(true)
+      void windowController.current?.setLayout(panelPresent.current ? 'conversation' : 'composer').then((ok) => {
+        if (generation !== layoutGeneration.current) return
+        if (!ok) { composerVisible.current = false; setComposerMounted(false); return }
+        requestAnimationFrame(() => { if (generation === layoutGeneration.current) setComposerOpen(true) })
+      })
     }
   }
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.code === 'Space') {
+        event.preventDefault(); toggleComposer()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
 
   useEffect(() => {
     const controller = new WindowController(setWindowState)
@@ -74,6 +138,10 @@ export default function App() {
           onReadyChange={setReady}
         />
       </section>
+      <button type="button" className="presence-handle" aria-label={composerOpen ? 'Recolher compositor' : 'Abrir compositor'} aria-expanded={composerOpen} onClick={toggleComposer}><span>⌄</span></button>
+      {composerMounted && <Composer state={conversation.state} visible={composerOpen} onExited={onComposerExited} onDraft={conversation.setDraft} onSend={() => { sendStartedAt.current = panelVisible.current ? null : performance.now(); void conversation.send(); openPanel() }} onCancel={conversation.cancel} onClose={toggleComposer} onPanel={openPanel} panelOpen={panelOpen} />}
+      {panelMounted && <ConversationPanel state={conversation.state} visible={panelOpen} onExited={onPanelExited} onClose={() => closePanel()} onNew={() => { void conversation.newConversation().then((closed) => { if (closed) closePanel() }) }} />}
+
       {import.meta.env.DEV && (
         <>
           <button
@@ -106,18 +174,6 @@ export default function App() {
                     Click-through
                   </button>
                 </div>
-              </section>
-              <section className="debug-window-ergonomics" aria-label="Superfícies auxiliares POC">
-                <strong>UIP-4-FIX-2A · janelas auxiliares</strong>
-                <p role="status">{pocGraphics}</p>
-                <div className="debug-poc-actions">
-                  <button type="button" onClick={() => void setPocVisible('composer', true)}>Show Composer POC</button>
-                  <button type="button" onClick={() => void setPocVisible('composer', false)}>Hide Composer POC</button>
-                  <button type="button" onClick={() => void setPocVisible('conversation', true)}>Show Conversation POC</button>
-                  <button type="button" onClick={() => void setPocVisible('conversation', false)}>Hide Conversation POC</button>
-                  <button type="button" onClick={() => void (async () => { await setPocVisible('composer', true); await setPocVisible('conversation', true) })()}>Show both</button>
-                </div>
-                {pocError && <p role="alert">{pocError}</p>}
               </section>
               <nav className="debug-navigation" aria-label="Seções de diagnóstico">
                 {debugSections.map(({ id, label }) => (

@@ -311,7 +311,9 @@ Não assumir que a API da plataforma permite click-through somente em pixels tra
 
 **Objetivo:** transformar o chat LR-6 em interface de produto.
 
-**Estado:** **CANDIDATA em 27/09/2026; gate humano pendente.** A UIP-4-FIX refinou geometria, transições, lifecycle de layout, fechamento lógico de sessão e contexto multi-turn isolado/limitado. Build, testes fake HTTP e duas chamadas Gemini reais curtas passaram; a validação visual e física de Sam ainda é necessária. Consulte [UIP-4-COMPOSER-CONVERSATION.md](UIP-4-COMPOSER-CONVERSATION.md). UIP-5 não foi iniciada.
+**Estado:** **CANDIDATA em 27/09/2026; gate funcional parcial e gate humano pendente.** A UIP-4-FIX refinou geometria, transições, lifecycle de layout, fechamento lógico de sessão e contexto multi-turn isolado/limitado. Build, testes fake HTTP e duas chamadas Gemini reais curtas passaram; a validação visual e física de Sam ainda é necessária. Consulte [UIP-4-COMPOSER-CONVERSATION.md](UIP-4-COMPOSER-CONVERSATION.md). UIP-5 não foi iniciada.
+
+**Decisão após UIP-4-FIX-2A:** o POC de múltiplas WebViews foi **FAIL** por posicionamento Wayland imprevisível e custo de aproximadamente **+503 MiB de RSS agregado**. O código experimental foi removido; esta arquitetura não será usada. UIP-4 voltou ao single-WebView funcional da UIP-4-FIX. A estabilidade espacial durante o resize nativo da main permanece dívida explícita, a revisitar preferencialmente na UIP-7/consolidação ou em rodada nativa dedicada. O [registro do POC](UIP-4-AUXILIARY-WINDOWS-POC.md) permanece preservado.
 
 ### Trabalho
 
@@ -395,6 +397,8 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 ## 15. UIP-7 — consolidação + segundo gate de performance
 
 **Objetivo:** fechar a trilha com a interface funcional e custo conhecido.
+
+Revisitar a dívida de estabilidade espacial da UIP-4 no Wayland se houver evidência e orçamento de memória para uma abordagem viável; uma rodada nativa dedicada também pode tratá-la. O POC de múltiplas WebViews da FIX-2A foi rejeitado.
 
 ### Cenários curtos
 

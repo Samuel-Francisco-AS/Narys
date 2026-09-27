@@ -49,7 +49,7 @@
         "base-uri": "'none'",
         "form-action": "'none'"
       },
-      "capabilities": ["main-window", "auxiliary-poc"]
+      "capabilities": ["main-window"]
     }
   },
   "bundle": {

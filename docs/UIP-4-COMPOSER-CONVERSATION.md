@@ -2,6 +2,8 @@
 
 **UIP-4-FIX-2A:** a POC de janelas auxiliares e o gate Wayland estão registrados em [UIP-4-AUXILIARY-WINDOWS-POC.md](UIP-4-AUXILIARY-WINDOWS-POC.md). UIP-4 permanece **CANDIDATA**.
 
+**UIP-4-FIX-2B-CLEANUP:** a FIX-2A testou WebViews auxiliares e terminou em **FAIL**. O código experimental foi removido; a aplicação retornou ao modelo funcional de **uma única WebView da UIP-4-FIX**, com Presence 310×410, Composer 310×490 e Conversation 625×490. O resize da janela main segue como limitação conhecida no Wayland: há efeito de mola vertical ao abrir o Composer, salto lateral ao abrir/fechar a Conversation, e a animação CSS fica parcialmente mascarada pelo resize nativo. Esta estabilidade espacial não será perseguida nesta rodada da UIP-4; a investigação fica adiada, preferencialmente para UIP-7 ou uma rodada nativa dedicada. O gate funcional continua parcial e UIP-4 permanece **CANDIDATA**, sem PASS automático.
+
 As seções até “Limitações e gate” registram a candidata original. A seção **UIP-4-FIX** ao final descreve o estado atual quando houver diferenças.
 
 **Estado: CANDIDATA.** Gate humano de Sam pendente. Branch `main`; HEAD inicial `670e096a3481010d5479a9a5aa47692e4556b169`. Sem commit ou push.

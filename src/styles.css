@@ -41,7 +41,7 @@ h2, h3, p { margin: 0; }
 /* Temporary development access. The overlay never participates in stage layout. */
 .debug-toggle { position: absolute; z-index: 3; top: 6px; right: 6px; border: 1px solid #59627b; border-radius: 8px; background: #182136e8; color: #eff2fb; min-width: 38px; height: 30px; cursor: pointer; font-size: 11px; font-weight: 800; }
 .debug-toggle:focus-visible, .debug-overlay button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-.debug-overlay { position: absolute; z-index: 2; inset: 0; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 42px 10px 10px; background: #0b0e18f2; }
+.debug-overlay { position: absolute; z-index: 2; inset: 0; overflow-y: auto; overscroll-behavior: contain; padding: 42px 10px 10px; background: #0b0e18f2; }
 .debug-scene-status { margin: 0 0 10px; color: #c8d0e3; font-size: 12px; line-height: 1.4; }
 .debug-window-ergonomics { border: 1px solid #59627b; border-radius: 8px; padding: 8px; margin-bottom: 10px; color: #c8d0e3; font-size: 11px; line-height: 1.4; }
 .debug-window-ergonomics p { margin-top: 4px; }
@@ -49,15 +49,6 @@ h2, h3, p { margin: 0; }
 .debug-window-actions { display: flex; gap: 5px; margin-top: 7px; }
 .debug-window-actions button { flex: 1; border: 1px solid #59627b; border-radius: 6px; background: #242f49; color: #eff2fb; padding: 5px; cursor: pointer; font-size: 10px; }
 .debug-window-actions button:disabled { cursor: not-allowed; opacity: .45; }
-.debug-poc-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 7px; }
-.debug-poc-actions button { min-width: 0; white-space: normal; overflow-wrap: anywhere; border: 1px solid #59627b; border-radius: 6px; background: #242f49; color: #eff2fb; padding: 5px; cursor: pointer; font-size: 10px; }
-.debug-window-ergonomics [role="status"] { overflow-wrap: anywhere; }
-.aux-poc { width: 100%; height: 100%; padding: 8px; border: 1px solid #68748d; border-radius: 9px; background: #151d2df2; color: #eef0fa; font-size: 12px; }
-.aux-poc-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
-.aux-poc-heading button { border: 1px solid #69718a; border-radius: 5px; background: #28334c; color: #f2f3fa; cursor: pointer; }
-.aux-poc input { width: 100%; padding: 7px; border: 1px solid #69718a; border-radius: 5px; outline: none; background: #202c42; color: #f2f3fa; }
-.aux-poc input:focus { border-color: #c9c4fa; }
-.aux-poc p { line-height: 1.4; color: #abb6ca; }
 .debug-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
 .debug-navigation button { border: 1px solid #59627b; border-radius: 8px; background: #1c2538; color: #eff2fb; padding: 8px; cursor: pointer; }
 .debug-navigation button[aria-pressed="true"] { background: #465377; border-color: #a3afd1; }
