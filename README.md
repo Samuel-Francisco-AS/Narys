@@ -57,6 +57,7 @@ Verificações de código:
 ```bash
 npm run typecheck
 npm run build
+cargo fmt --check --manifest-path src-tauri/Cargo.toml
 ```
 
 Clique na personagem ou no botão **Acenar**. O modelo deve voltar ao repouso após o gesto.
