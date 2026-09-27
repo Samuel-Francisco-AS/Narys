@@ -44,3 +44,10 @@ RSS bruto da árvore Tauri, incluindo processo GTK principal, WebKitNetworkProce
 `npm run typecheck`, `npm run build`, `CARGO_BUILD_JOBS=1 cargo check`, `CARGO_BUILD_JOBS=1 cargo test` (**42 testes**) e `git diff --check` passaram. `cargo fmt --check` não pôde executar porque `cargo-fmt` não está instalado no toolchain. Nenhum commit ou push.
 
 **FAIL de aceitação**, por falta da prova física mais importante (placement e Alt+drag), altura inesperada do Composer e custo de RAM significativo. Isto não afirma que `transient_for` falhou em posicionar as janelas; afirma que não há evidência para construir UIP-4 sobre ele. A investigação futura deve obter observação visual direta no GNOME e considerar o orçamento de memória antes de propor outra abordagem. O código desta POC foi retirado do produto; a variante de múltiplas WebViews não prossegue para FIX-2B.
+
+
+## Encerramento do experimento
+
+Após o FAIL, a **UIP-4-FIX-2B-CLEANUP** removeu todo o código ativo das WebViews auxiliares e restaurou o produto ao modelo single-WebView da UIP-4-FIX. Este arquivo permanece apenas como registro técnico para evitar que a mesma arquitetura seja reintroduzida sem novas evidências.
+
+A UIP-4 foi posteriormente fechada em **PASS funcional em 27/09/2026**, aceitando a instabilidade espacial do resize nativo no GNOME/Wayland como dívida não bloqueante. Uma eventual solução futura deve ser investigada na UIP-7 ou em rodada nativa dedicada; este POC não deve ser retomado como FIX-2B de produção.
