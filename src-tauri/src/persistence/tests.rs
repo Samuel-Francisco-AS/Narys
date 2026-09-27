@@ -95,3 +95,36 @@ fn gemini_exchange_rolls_back_if_final_answer_cannot_be_saved() {
   let (state,code):(String,String)=conn.query_row("SELECT state,error_code FROM task_records WHERE task_id=17",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
   assert_eq!((state.as_str(),code.as_str()),("failed","channel_closed"));
 }
+
+#[test]
+fn explicit_sessions_are_isolated_and_survive_restart_without_selection() {
+  let (db, _) = fixture();
+  let mut conn = db.open().unwrap();
+  let a = conversation::create_session(&conn).unwrap();
+  let b = conversation::create_session(&conn).unwrap();
+  assert_ne!(a, b);
+  conversation::append_exchange_to_session(&mut conn, a, "A pergunta", "A resposta").unwrap();
+  conversation::append_exchange_to_session(&mut conn, b, "B pergunta", "B resposta").unwrap();
+  assert_eq!(conversation::session(&conn, a).unwrap().unwrap().messages[0].content, "A pergunta");
+  assert_eq!(conversation::session(&conn, b).unwrap().unwrap().messages[0].content, "B pergunta");
+  let serialized = serde_json::to_value(conversation::session(&conn, a).unwrap().unwrap()).unwrap();
+  assert_eq!(serialized["messages"][0]["sessionId"], json!(a));
+  assert!(conversation::session(&conn, 0).unwrap().is_none());
+  assert!(!conversation::is_active_session(&conn, i64::MAX).unwrap());
+  assert!(conversation::append_exchange_to_session(&mut conn, i64::MAX, "x", "y").is_err());
+  drop(conn);
+  let conn = db.open().unwrap();
+  assert_eq!(conversation::session(&conn, a).unwrap().unwrap().messages.len(), 2);
+  assert_eq!(conversation::session(&conn, b).unwrap().unwrap().messages.len(), 2);
+  // The database retains both sessions. The runtime starts without choosing either ID.
+}
+
+#[test]
+fn explicit_exchange_is_atomic_on_assistant_failure() {
+  let (db, _) = fixture();
+  let mut conn = db.open().unwrap();
+  let id = conversation::create_session(&conn).unwrap();
+  conn.execute_batch("CREATE TRIGGER reject_answer BEFORE INSERT ON conversation_messages WHEN NEW.role='assistant' BEGIN SELECT RAISE(ABORT, 'synthetic'); END;").unwrap();
+  assert!(conversation::append_exchange_to_session(&mut conn, id, "user", "assistant").is_err());
+  assert!(conversation::session(&conn, id).unwrap().unwrap().messages.is_empty());
+}

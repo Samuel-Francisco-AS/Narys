@@ -311,6 +311,8 @@ Não assumir que a API da plataforma permite click-through somente em pixels tra
 
 **Objetivo:** transformar o chat LR-6 em interface de produto.
 
+**Estado:** **CANDIDATA em 27/09/2026; gate humano pendente.** Composer, telinha lateral, sessão explícita por execução e streaming pela infraestrutura LR-6 estão implementados. Testes de código e um fluxo Gemini real curto passaram; a validação visual e física de Sam ainda é necessária. Consulte [UIP-4-COMPOSER-CONVERSATION.md](UIP-4-COMPOSER-CONVERSATION.md). UIP-5 não foi iniciada.
+
 ### Trabalho
 
 - compositor recolhível;
@@ -483,4 +485,4 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Iniciar **UIP-4 — Composer + painel de conversa + sessão atual**. Preservar a Presence Shell, o CharacterStage 300×360, a política 30/24/0 e o `WindowController`. Always-on-top no Wayland nativo e click-through permanecem dívidas explícitas de compatibilidade e não devem ser reabertos dentro da UIP-4.
+Sam valida a candidata UIP-4 no Tauri real antes de marcar PASS. UIP-5 permanece fechada até esse gate.

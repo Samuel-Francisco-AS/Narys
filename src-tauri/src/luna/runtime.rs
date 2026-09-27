@@ -102,7 +102,7 @@ fn emit_cognitive(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32,
 }
 
 pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<GeminiRuntime>,
-  message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+  session_id: i64, message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   let (id, cancelled) = registry.register()?;
   let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
   tauri::async_runtime::spawn(async move {
@@ -140,7 +140,7 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<Gemin
       let user = message.clone(); let answer = result.text.clone();
       tauri::async_runtime::spawn_blocking(move || {
         let mut conn = db_write.open().map_err(|e| e.code())?;
-        conversation::append_gemini_exchange(&mut conn,&user,&answer).map_err(|e| e.code())
+        conversation::append_exchange_to_session(&mut conn,session_id,&user,&answer).map_err(|e| e.code())
       }).await.map_err(|_| "worker_failed")??;
       emit_cognitive(&channel,id,&mut sequence,TaskEventKind::TaskResultReady { result },&cancelled)
         .map_err(|_| "channel_closed")?;

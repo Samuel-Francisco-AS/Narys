@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-conversation-session"
+description = "Enables the create_conversation_session command without any pre-configured scope."
+commands.allow = ["create_conversation_session"]
+
+[[permission]]
+identifier = "deny-create-conversation-session"
+description = "Denies the create_conversation_session command without any pre-configured scope."
+commands.deny = ["create_conversation_session"]

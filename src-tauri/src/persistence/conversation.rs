@@ -9,6 +9,33 @@ pub struct ConversationSession { pub id: i64, pub created_at: String, pub update
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationMessage { pub id: i64, pub session_id: i64, pub role: String, pub content: String, pub created_at: String }
+pub fn create_session(conn: &Connection) -> Result<i64, PersistenceError> {
+  conn.execute("INSERT INTO conversation_sessions(status) VALUES ('active')", []).map_err(|_| PersistenceError::Write)?;
+  Ok(conn.last_insert_rowid())
+}
+pub fn is_active_session(conn: &Connection, id: i64) -> Result<bool, PersistenceError> {
+  if id <= 0 { return Ok(false); }
+  conn.query_row("SELECT EXISTS(SELECT 1 FROM conversation_sessions WHERE id=?1 AND status='active')", [id], |r| r.get(0)).map_err(|_| PersistenceError::Read)
+}
+pub fn session(conn: &Connection, id: i64) -> Result<Option<ConversationSession>, PersistenceError> {
+  if id <= 0 { return Ok(None); }
+  let row = conn.query_row("SELECT created_at,updated_at,title,status FROM conversation_sessions WHERE id=?1", [id],
+    |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(|_| PersistenceError::Read)?;
+  let Some((created_at,updated_at,title,status)) = row else { return Ok(None) };
+  let mut stmt = conn.prepare("SELECT id,session_id,role,content,created_at FROM conversation_messages WHERE session_id=?1 ORDER BY id").map_err(|_| PersistenceError::Read)?;
+  let messages = stmt.query_map([id], |r| Ok(ConversationMessage { id:r.get(0)?,session_id:r.get(1)?,role:r.get(2)?,content:r.get(3)?,created_at:r.get(4)? }))
+    .map_err(|_| PersistenceError::Read)?.collect::<Result<Vec<_>,_>>().map_err(|_| PersistenceError::Read)?;
+  Ok(Some(ConversationSession { id,created_at,updated_at,title,status,messages }))
+}
+pub fn append_exchange_to_session(conn: &mut Connection, id: i64, user: &str, assistant: &str) -> Result<(), PersistenceError> {
+  let tx = conn.transaction().map_err(|_| PersistenceError::Write)?;
+  let exists = is_active_session(&tx, id)?;
+  if !exists { return Err(PersistenceError::Read); }
+  tx.execute("INSERT INTO conversation_messages(session_id,role,content) VALUES (?1,'user',?2)", rusqlite::params![id,user]).map_err(|_| PersistenceError::Write)?;
+  tx.execute("INSERT INTO conversation_messages(session_id,role,content) VALUES (?1,'assistant',?2)", rusqlite::params![id,assistant]).map_err(|_| PersistenceError::Write)?;
+  tx.execute("UPDATE conversation_sessions SET updated_at=CURRENT_TIMESTAMP WHERE id=?1", [id]).map_err(|_| PersistenceError::Write)?;
+  tx.commit().map_err(|_| PersistenceError::Write)
+}
 pub fn create_diagnostic(conn: &mut Connection) -> Result<i64, PersistenceError> {
   if let Some(id) = conn.query_row("SELECT id FROM conversation_sessions WHERE title=?1 LIMIT 1", [TITLE], |r| r.get(0)).optional().map_err(|_| PersistenceError::Read)? { return Ok(id); }
   let tx = conn.transaction().map_err(|_| PersistenceError::Write)?;

@@ -1,0 +1,40 @@
+# UIP-4 — Composer, telinha e sessão atual
+
+**Estado: CANDIDATA.** Gate humano de Sam pendente. Branch `main`; HEAD inicial `670e096a3481010d5479a9a5aa47692e4556b169`. Sem commit ou push.
+
+## Arquitetura e estados
+
+`App.tsx` compõe Presence, Composer, painel, WindowController e AvatarViewport. `src/conversation/ConversationController.ts` mantém `sessionId`, mensagens, draft, preview, `assistantStreaming`, TaskId e erro. `conversationClient.ts` reúne chamadas de sessão; `geminiTaskClient.ts` é compartilhado com o painel DEV e usa o mesmo `start_gemini_task`/TaskRegistry. React não chama Gemini diretamente. Nenhuma ligação de streaming com bones ou AnimationMixer foi criada.
+
+- **Presence:** 320×420; personagem e acionador mínimo.
+- **Composer:** 320×500; textarea focada ao abrir, Enter envia, Shift+Enter quebra linha, Escape recolhe, Ctrl+Shift+Space alterna localmente. Cancelar só aparece durante tarefa. O fechamento não cancela nem troca a sessão.
+- **Conversation:** 660×500; telinha de 316×460 à esquerda, Luna ancorada à direita na área de 320 px, Composer junto à Luna. Envio abre o painel. Fechá-lo não cancela a tarefa; reabrir mostra a sessão atual. “Nova conversa” limpa o estado atual e deixa `sessionId=null`; a próxima mensagem cria outra sessão. O botão fica indisponível enquanto há resposta em andamento.
+
+A telinha entra da região próxima à Luna com `translateX(42px)` para zero e `opacity` de zero a um, em 220 ms. A saída é inversa, com redução da janela após 230 ms. `prefers-reduced-motion` reduz a transição a 1 ms. Não há blur, partículas, animação por chunk ou resize do canvas. No Wayland nativo a posição global reporta 0,0; o controller muda o tamanho da janela sem algoritmo de ancoragem absoluta.
+
+`WindowController` centraliza `setSize`; a janela foi configurada como redimensionável para permitir a mudança de tamanho. Capabilities acrescentadas: `core:window:allow-set-size`, `core:window:allow-inner-size`, `allow-create-conversation-session`, `allow-get-conversation-session`. O gate de Alt+drag exclui inputs, textarea, botões, links, áreas scrolláveis e `data-no-window-drag`; a área livre da Luna continua elegível. Click normal no canvas continua com o raycast de Wave. Avatar, Idle e RenderBudget não foram alterados.
+
+## Sessão e persistência
+
+O schema de `conversation_sessions`/`conversation_messages` foi reutilizado, sem migration. O Rust cria sessão com título nulo e status `active`, consulta por ID e grava o par user/assistant por ID numa transação. `start_gemini_task` agora recebe `sessionId`, validado como positivo, ativo no banco e pertencente ao conjunto de IDs criados nesta execução. IDs antigos persistem no SQLite e não são selecionados automaticamente. O singleton LR-6 e seus dados ficam preservados para compatibilidade diagnóstica, mas o fluxo de produto não o usa.
+
+A execução começa com `sessionId=null` e não cria sessão vazia ao abrir a UI. A primeira mensagem válida cria a sessão. Fechar Composer/painel conserva o ID. “Nova conversa” descarta o ID atual da UI, sem apagar registros; a próxima mensagem cria outro. Uma nova execução inicializa um novo registro de IDs no Rust e um novo estado vazio no frontend. A consulta de uma sessão exige ID explícito criado durante aquela execução; não há procura pela mais recente.
+
+O fluxo outbound permanece o da LR-6: contexto mínimo, `memory_limit=0`, `include_recent_conversation=false` e mensagem atual. O Gemini **não recebe turnos anteriores da telinha**, sessões antigas ou memórias privadas. Continuidade nesta fase significa continuidade local de UI e persistência. Não há título inteligente, resumo, histórico visual ou retomada.
+
+## Streaming e cancelamento
+
+Ao enviar, a UI mostra o usuário imediatamente e recebe chunks pelo `Channel<TaskEvent>`. `assistantStreaming` é um estado semântico para futura integração com Behavior; o texto parcial é efêmero. Na conclusão válida, o frontend consulta a sessão persistida e substitui a prévia. Erro/cancelamento remove a prévia final e mostra estado compacto. O Rust mantém TaskRegistry, a fronteira de cancelamento antes do commit, o registro de task history e o append atômico de exchange completo. Não há persistência de resposta parcial. A superfície de produto informa que o Gemini precisa ser configurado, sem pedir nem exibir segredo.
+
+## Verificação técnica
+
+- `npm run typecheck`, `npm run build`, `cargo check`, `cargo test` e `git diff --check`: passaram. Cargo test: 40 testes, incluindo isolamento e rollback de sessões explícitas. `cargo fmt --check` não executou: `cargo-fmt`/rustfmt não está instalado no toolchain atual; nenhum componente foi instalado.
+- Tauri dev real com `LIBGL_ALWAYS_SOFTWARE=1` no Fedora/Wayland: Presence 320×420, Composer 320×500, Conversation 660×500. Uma chamada Gemini real curta (“Responda apenas: oi”) concluiu com “oi”; a amostragem de 1,5 s observou o indicador de escrita, mas a resposta curta terminou entre amostras, sem capturar um prefixo não vazio. O código acrescenta cada `provider_chunk` ao preview; a percepção de streaming incremental permanece no gate humano. Nenhum segredo foi lido ou mostrado. DB real contém uma nova sessão com duas mensagens, além da sessão LR-6 e da sessão diagnóstica antigas. Nenhuma chamada real adicional foi feita.
+- Cinco ciclos Presence→Composer→Presence alternaram 320×420/320×500; cinco ciclos Composer→Conversation→Composer e cinco fechamentos/reaberturas de painel conservaram as duas mensagens e alternaram 320×500/660×500. “Nova conversa” limpou a UI. Após encerrar e reiniciar o processo Tauri, a UI começou em Presence vazia 320×420; o SQLite ainda tinha três sessões, incluindo a antiga LR-6 e a nova sessão UIP-4, sem sessão vazia adicional. Stage e drawing buffer permaneceram 300×360 nos ciclos estáveis; DPR 1; `gl.getError()=0`. O último relatório observado mostrou `resizeCount=1`, associado à inicialização do renderer; não foi detectado crescimento do buffer ao alternar a UI.
+- Pointer events sintéticos com Alt confirmaram que textarea e botão não chamam o gate de drag (`defaultPrevented=false`), enquanto o canvas na área da Luna o chama (`true`). Um pointerdown normal no centro do canvas mudou o status para `Luna está acenando.`. Não substitui o teste físico de arrastar e observar Wave/Idle.
+- Amostra grosseira de RSS agregado da árvore Tauri: 743,2 MiB antes e 756,8 MiB após ciclos e reload; o segundo período variou 749,2–767,3 MiB. A amostra inclui cache/variação do WebKit e não demonstra vazamento nem estabilidade prolongada. CPU média das mesmas janelas: 157,1% e 163,1%, com WebView sem foco; comparação causal não é possível.
+- O inspector remoto retirou o foco da WebView; os relatórios observaram `callbacks=0`, portanto não servem para afirmar FPS focada ou sem foco. Não houve medição visual humana do slide, Alt+drag físico, teclado físico, Wave/Idle ou memória em ciclos. Esses pontos integram o gate de Sam. O buffer temporário de 300×150 apareceu durante a inicialização do WebGL após reload, antes do renderer completar a configuração; as amostras estáveis ficaram 300×360.
+
+## Limitações e gate
+
+O painel precisa da validação visual humana para confirmar a impressão de “telinha acionada pela Luna”. No Wayland, o compositor pode deslocar a posição absoluta da personagem ao redimensionar; não se usa a posição global 0,0 como âncora. A política de contexto outbound não oferece continuidade multi-turn ao modelo. A UX de cancelamento foi coberta pelos testes existentes de scheduler/TaskRegistry e pelo fluxo de código, sem uma segunda chamada real devido ao limite de uma chamada nesta rodada.

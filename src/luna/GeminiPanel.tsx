@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Channel, invoke } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core'
+import { startGeminiTask } from './geminiTaskClient'
+import { createSession, getSession } from '../conversation/conversationClient'
 import { cancelTask, lunaCoreAvailable } from './taskClient'
 import type { CognitiveResult, TaskEvent, TaskId, TaskState } from './types'
 import type { AnimationIntent } from '../avatar/runtime/types'
@@ -7,7 +9,6 @@ import { taskEventToAnimationIntent } from './taskAnimation'
 
 type Status = { configured: boolean; enabled: boolean; model: string; credentialStoreAvailable: boolean }
 type Message = { id: number; role: string; content: string }
-type Conversation = { messages: Message[] }
 
 export default function GeminiPanel({ onAnimationIntent }: { onAnimationIntent: (intent: AnimationIntent) => void }) {
   const [status, setStatus] = useState<Status | null>(null)
@@ -23,13 +24,13 @@ export default function GeminiPanel({ onAnimationIntent }: { onAnimationIntent: 
   const active = useRef<TaskId | null>(null)
   const busyRef = useRef(false)
   const generation = useRef(0)
+  const sessionId = useRef<number | null>(null)
 
   async function refresh() {
     if (!lunaCoreAvailable) return
     try {
       setStatus(await invoke<Status>('gemini_status'))
-      const conversation = await invoke<Conversation | null>('gemini_conversation')
-      setHistory(conversation?.messages ?? [])
+      if (sessionId.current !== null) setHistory((await getSession(sessionId.current)).messages)
     } catch { setError('Não foi possível consultar Gemini ou o cofre de credenciais.') }
   }
   useEffect(() => {
@@ -57,7 +58,8 @@ export default function GeminiPanel({ onAnimationIntent }: { onAnimationIntent: 
     let terminalSeen = false
     setBusy(true); setError(''); setStream(''); setResult(null); setEvents([]); setState('pending')
     try {
-      const channel = new Channel<TaskEvent>((event) => {
+      if (sessionId.current === null) sessionId.current = await createSession()
+      const id = await startGeminiTask(sessionId.current, message, (event: TaskEvent) => {
         if (run !== generation.current) return
         if (event.state === 'pending' || event.state === 'running') active.current = event.taskId
         setState(event.state)
@@ -74,7 +76,6 @@ export default function GeminiPanel({ onAnimationIntent }: { onAnimationIntent: 
           if (event.type === 'task_completed') { setMessage(''); void refresh() }
         }
       })
-      const id = await invoke<TaskId>('start_gemini_task', { message, channel })
       if (run !== generation.current) { await cancelTask(id); return }
       if (!terminalSeen) active.current = id
     } catch {

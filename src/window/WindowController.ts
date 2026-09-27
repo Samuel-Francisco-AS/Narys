@@ -1,5 +1,5 @@
 import { isTauri } from '@tauri-apps/api/core'
-import { getCurrentWindow, type PhysicalPosition } from '@tauri-apps/api/window'
+import { getCurrentWindow, PhysicalSize, type PhysicalPosition } from '@tauri-apps/api/window'
 
 const ALWAYS_ON_TOP_KEY = 'luna.window.alwaysOnTop'
 
@@ -29,6 +29,7 @@ export class WindowController {
   private state = initialWindowErgonomicsState
   private unlistenMoved: (() => void) | null = null
   private disposed = false
+  private layout: 'presence' | 'composer' | 'conversation' | null = null
 
   constructor(private readonly onChange: (state: WindowErgonomicsState) => void) {}
 
@@ -38,6 +39,7 @@ export class WindowController {
 
   async initialize(): Promise<void> {
     if (!this.window) return
+    await this.setLayout('presence')
     try {
       const alwaysOnTop = await this.window.isAlwaysOnTop()
       const position = await this.window.outerPosition()
@@ -70,6 +72,16 @@ export class WindowController {
     } catch (error) {
       this.publish({ error: `Movimentação: ${this.message(error)}` })
     }
+  }
+
+  async setLayout(layout: 'presence' | 'composer' | 'conversation'): Promise<void> {
+    if (this.layout === layout) return
+    this.layout = layout
+    if (!this.window) return
+    const dimensions = { presence: [320, 420], composer: [320, 500], conversation: [660, 500] } as const
+    const [width, height] = dimensions[layout]
+    try { await this.window.setSize(new PhysicalSize(width, height)) }
+    catch (error) { this.publish({ error: `Tamanho da janela: ${this.message(error)}` }) }
   }
 
   /** Reserved for a future externally verified recovery path. */

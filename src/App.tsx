@@ -7,6 +7,9 @@ import LunaCorePanel from './luna/LunaCorePanel'
 import MemoryPanel from './luna/MemoryPanel'
 import SecurityPanel from './security/SecurityPanel'
 import { WindowController, initialWindowErgonomicsState } from './window/WindowController'
+import { useConversationController } from './conversation/ConversationController'
+import { Composer } from './conversation/Composer'
+import { ConversationPanel } from './conversation/ConversationPanel'
 
 type DebugSection = 'core' | 'memory' | 'gemini' | 'cognition' | 'security'
 
@@ -26,6 +29,46 @@ export default function App() {
   const [debugSection, setDebugSection] = useState<DebugSection | null>(null)
   const [windowState, setWindowState] = useState(initialWindowErgonomicsState)
   const windowController = useRef<WindowController | null>(null)
+  const conversation = useConversationController()
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [panelMounted, setPanelMounted] = useState(false)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const openPanel = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    setPanelMounted(true)
+    setComposerOpen(true)
+    void windowController.current?.setLayout('conversation')
+    requestAnimationFrame(() => setPanelOpen(true))
+  }
+  const closePanel = (keepComposer = composerOpen) => {
+    setPanelOpen(false)
+    closeTimer.current = setTimeout(() => {
+      setPanelMounted(false)
+      void windowController.current?.setLayout(keepComposer ? 'composer' : 'presence')
+    }, 230)
+  }
+  const toggleComposer = () => {
+    if (composerOpen) {
+      setComposerOpen(false)
+      if (panelOpen) closePanel(false)
+      else void windowController.current?.setLayout('presence')
+    } else {
+      setComposerOpen(true)
+      void windowController.current?.setLayout(panelOpen ? 'conversation' : 'composer')
+    }
+  }
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.shiftKey && event.code === 'Space') {
+        event.preventDefault(); toggleComposer()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current) }, [])
 
   useEffect(() => {
     const controller = new WindowController(setWindowState)
@@ -39,7 +82,7 @@ export default function App() {
 
   const onShellPointerDownCapture = (event: ReactPointerEvent<HTMLElement>) => {
     if (!event.altKey || event.button !== 0 || !windowController.current?.canDrag) return
-    if (event.target instanceof Element && event.target.closest('.debug-overlay, .debug-toggle')) return
+    if (event.target instanceof Element && event.target.closest('.debug-overlay, .debug-toggle, input, textarea, button, a, [data-no-window-drag], [contenteditable="true"]')) return
     event.preventDefault()
     event.stopPropagation()
     void windowController.current.startDragging()
@@ -57,7 +100,9 @@ export default function App() {
           onReadyChange={setReady}
         />
       </section>
-      <div className="presence-handle" aria-hidden="true"><span>⌄</span></div>
+      <button type="button" className="presence-handle" aria-label={composerOpen ? 'Recolher compositor' : 'Abrir compositor'} aria-expanded={composerOpen} onClick={toggleComposer}><span>⌄</span></button>
+      {composerOpen && <Composer state={conversation.state} onDraft={conversation.setDraft} onSend={() => { openPanel(); void conversation.send() }} onCancel={conversation.cancel} onClose={toggleComposer} onPanel={openPanel} panelOpen={panelOpen} />}
+      {panelMounted && <ConversationPanel state={conversation.state} visible={panelOpen} onClose={() => closePanel()} onNew={() => { if (conversation.newConversation()) closePanel() }} />}
 
       {import.meta.env.DEV && (
         <>

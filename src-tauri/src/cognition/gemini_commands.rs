@@ -4,6 +4,32 @@ use tauri::State;
 use crate::security::{audit::{Action, AuditEvent, Outcome}, secrets::{SecretKey, SecretStore}};
 use super::gemini::MODEL;
 use crate::persistence::{conversation::{self, ConversationSession}, database::Database};
+use std::collections::HashSet;
+use std::sync::Mutex;
+
+#[derive(Default)]
+pub struct CurrentRunSessions(pub Mutex<HashSet<i64>>);
+
+#[tauri::command]
+pub async fn create_conversation_session(db: State<'_, Database>, sessions: State<'_, CurrentRunSessions>) -> Result<i64, String> {
+  let db = db.inner().clone();
+  let id = tauri::async_runtime::spawn_blocking(move || {
+    let conn = db.open().map_err(|e| e.code())?;
+    conversation::create_session(&conn).map_err(|e| e.code())
+  }).await.map_err(|_| "worker_failed")?.map_err(str::to_owned)?;
+  sessions.0.lock().map_err(|_| "session_registry_failed")?.insert(id);
+  Ok(id)
+}
+
+#[tauri::command]
+pub async fn get_conversation_session(db: State<'_, Database>, sessions: State<'_, CurrentRunSessions>, session_id: i64) -> Result<ConversationSession, String> {
+  if session_id <= 0 || !sessions.0.lock().map_err(|_| "session_registry_failed")?.contains(&session_id) { return Err("session_invalid".into()); }
+  let db = db.inner().clone();
+  tauri::async_runtime::spawn_blocking(move || {
+    let conn = db.open().map_err(|e| e.code())?;
+    conversation::session(&conn, session_id).map_err(|e| e.code())?.ok_or("session_invalid")
+  }).await.map_err(|_| "worker_failed".to_string())?.map_err(str::to_owned)
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

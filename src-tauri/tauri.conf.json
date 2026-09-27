@@ -15,7 +15,7 @@
         "title": "Luna",
         "width": 320,
         "height": 420,
-        "resizable": false,
+        "resizable": true,
         "transparent": true,
         "decorations": false,
         "shadow": false,

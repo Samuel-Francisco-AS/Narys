@@ -24,7 +24,7 @@ pub fn run() {
     })
     .manage(std::sync::Arc::new(luna::runtime::TaskRegistry::default()));
   let builder = builder.manage(std::sync::Arc::new(cognition::CognitionRuntime::new()));
-  let builder = builder;
+  let builder = builder.manage(cognition::gemini_commands::CurrentRunSessions::default());
   #[cfg(debug_assertions)]
   let builder = builder.invoke_handler(tauri::generate_handler![
     luna::start_mock_task, luna::cancel_task,
@@ -33,14 +33,16 @@ pub fn run() {
     persistence::lr4_create_diagnostic_conversation, persistence::lr4_get_recent_conversation,
     luna::start_mock_cognition_task, luna::cognition_provider_status,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
-    cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation, luna::start_gemini_task,
+    cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
+    cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session, luna::start_gemini_task,
   ]);
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![
     luna::start_mock_task, luna::cancel_task,
     security::security_status,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
-    cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation, luna::start_gemini_task,
+    cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
+    cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session, luna::start_gemini_task,
   ]);
   builder
     .run(tauri::generate_context!())
