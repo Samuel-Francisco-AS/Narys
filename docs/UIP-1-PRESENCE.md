@@ -1,8 +1,8 @@
 # UIP-1 — Presence Shell
 
-Data: **26/09/2026** (America/Fortaleza). Branch `main`. HEAD inicial após `git pull --ff-only`: `d44762cbc6613f921b4ee1d96d4b088bbf64a10c`; árvore inicial limpa. Nenhum commit ou push foi feito nesta rodada. **Estado: candidata a PASS técnico; gate visual pendente de Sam.**
+Data inicial: **26/09/2026** (America/Fortaleza). Branch `main`. HEAD inicial da UIP-1 após `git pull --ff-only`: `d44762cbc6613f921b4ee1d96d4b088bbf64a10c`; árvore inicial limpa. A implementação inicial foi submetida ao gate humano; veja **FIX-1** abaixo. **UIP-1 ainda não tem PASS completo.**
 
-## Implementação
+## Implementação inicial
 
 - Janela Tauri: de **1120×760**, decorada e opaca, para **440×660 px configurados**, transparente, sem decoração/sombra, não redimensionável e não fullscreen. Não há posicionamento especial. No Fedora/Wayland desta medição, a WebView reportou `innerWidth=492` e `innerHeight=712`, ou seja, **52 px a mais em cada dimensão** que os valores configurados. A causa dessa diferença não foi determinada; o layout foi centralizado dentro da área efetiva sem mudar a resolução do stage.
 - `html`, `body`, `#root`, `.presence-shell`, `.character-stage` e `.scene-canvas` têm fundo transparente. Foram removidos o gradiente global, painel e borda da personagem, linha decorativa, topbar, badges, caption, toolbar, botão de aceno e status visíveis no estado Presence. O título HTML passou a `Luna` e a meta de tema escuro foi removida. O renderer já usava `alpha: true`; nenhuma configuração de iluminação, material, câmera, modelo ou animação mudou.
@@ -57,3 +57,54 @@ Abrir a aplicação no desktop com `npm run tauri dev` e verificar:
 - O overlay DEV cobre a janela pequena quando aberto por design. O gate técnico verificou que não muda o stage; a legibilidade e a convivência visual permanecem para validação humana.
 
 **UIP-2 (Render Budget) e UIP-3 (ergonomia da janela) não foram iniciadas.**
+
+## FIX-1 — gate humano
+
+Sam confirmou transparência real sobre o desktop, ausência de borda perceptível, corpo inteiro visível, Idle, clique/greeting e retorno ao Idle. O botão DEV é aceitável nesta fase. O gate identificou três ajustes: Luna ainda grande demais; chevron solto sem aparência de base; abertura de DEV congelando a animação por segundos e, ao menos uma vez, gerando o aviso do GNOME/Fedora de aplicativo sem resposta. **Os ajustes técnicos abaixo ainda dependem da aprovação visual e de uso de Sam.**
+
+### Escala e base inferior
+
+- `SceneRuntime.camera.position`: **`(0, 1.40, 4.7)` → `(0, 2.60, 7.8)`**. `camera.lookAt`: **`(0, 1.30, 0)` → `(0, 2.50, 0)`**. O avatar, rig, mixer, clipes, materiais, luzes e geometria permaneceram intactos.
+- Projetando apenas os extremos aproximados do avatar normalizado (`y=0` a `y=2,55`) na câmera de 38° e no stage 420×604, a altura calculada passou de aproximadamente **476 px para 286 px**, cerca de **60% da altura anterior**. Os pés calculados ficam em `y≈582` dentro do stage; isso não é medição visual da silhueta animada. Sam precisa julgar escala, margem e enquadramento no desktop.
+- O `CharacterStage`, canvas CSS e drawing buffer continuam em **420×604**. O raycast no centro do canvas continuou acionando greeting e retornando ao Idle em Tauri real após a mudança de câmera.
+- O antigo `⌄` solto virou uma base visual de **112×16 px**, com duas linhas finas de 2 px e chevron central. As linhas usam tons claro/escuro para contraste em fundos distintos. O elemento fica **6 px abaixo do limite do stage**; pelos pontos projetados acima, cerca de 28 px abaixo dos pés. É não interativo, com `pointer-events: none`, sem compositor ou ação falsa.
+
+### Investigação do travamento DEV — antes
+
+O overlay antigo montava `LunaCorePanel` e seus quatro filhos diagnósticos ao mesmo tempo. Em desenvolvimento, `React.StrictMode` executa os efeitos de montagem duas vezes. A instrumentação temporária registrou, numa abertura: **2× `lr4_status`, 2× `lr4_get_recent_conversation`, 2× `gemini_status`, 2× `cognition_provider_status` e 2× `security_status`**. `gemini_conversation` inicia depois de `gemini_status`; uma chamada apareceu na janela de 12 s, com a outra sujeita ao atraso da consulta anterior. A tarefa Core não faz invoke inicial. Não foi observado loop de remontagem; a duplicação corresponde aos efeitos DEV do StrictMode.
+
+`security_status` era um comando Rust **síncrono** que chamava `SecretStore::get_secret`, incluindo cofre do sistema/Stronghold e mutex interno. Uma invocação isolada, sem abrir painel, levou cerca de **3,0 s** e coincidiu com um gap de frame de **3.004 ms**. Na abertura completa, as duas chamadas levaram cerca de **11,9 s** para resolver, com gap máximo de **11.942–11.961 ms** em `SceneDiagnostics`; um relatório de 5 s teve **0 frames**. O DOM do overlay apareceu cerca de 15 ms após o clique, mas o frame seguinte ficou retido por quase 12 s. Isso identifica a consulta síncrona ao SecretStore como causa comprovada de bloqueio; a competição com outras consultas ao mesmo cofre é plausível, mas seu peso exato não foi isolado. O aviso gráfico “não está respondendo” foi relatado por Sam e não foi reproduzido automaticamente.
+
+### Correção DEV — depois
+
+- O clique DEV monta apenas o shell, status e navegação **Core / Memory / Gemini / Cognition / Security**. A seção inicial é vazia. Somente a seção escolhida monta seu componente; trocar de seção desmonta a anterior. Todos os diagnósticos LR-2 a LR-6 continuam acessíveis.
+- `security_status` agora retorna por comando Tauri assíncrono e executa a leitura bloqueante em `spawn_blocking`. O painel Security compartilha apenas a leitura **em andamento** entre os dois efeitos de montagem DEV, evitando uma segunda consulta cara; após a conclusão, uma nova montagem pode consultar novamente. Nenhum polling novo foi introduzido.
+- No shell vazio, **zero invokes** são disparados. Ao escolher Core, nenhum invoke inicial. Memory inicia `lr4_status` e `lr4_get_recent_conversation`; Gemini inicia `gemini_status` e depois `gemini_conversation`; Cognition inicia `cognition_provider_status`; Security inicia `security_status` **uma vez** (confirmado por linha de audit Rust no ciclo medido). Os efeitos não coalescidos de Memory/Gemini/Cognition ainda são executados duas vezes no StrictMode, mas suas operações são assíncronas ou rápidas e não bloquearam frames na amostra.
+- No teste do shell, a inserção no DOM ocorreu cerca de **12 ms** após o clique, o primeiro `requestAnimationFrame` cerca de **39 ms** após o clique, e o maior gap foi **70 ms**. Em cinco ciclos focados, um por seção, os maiores gaps por ciclo foram **96 / 51 / 56 / 34 / 25 ms** (Core/Memory/Gemini/Cognition/Security); nenhum erro de console foi capturado. A seção Security exibiu seu status após cerca de **3,0 s** em uma medição separada, sem bloquear o loop. Nessa medição separada, `hasFocus=false` e o WebKit reduziu o ritmo para ~2 FPS com intervalos de 500 ms; esses intervalos por falta de foco não são comparáveis aos cinco ciclos focados.
+- Nos cinco ciclos focados, abrir, selecionar e fechar funcionou em todas as seções; stage e drawing buffer ficaram **420×604** antes, durante e depois, na mesma posição; `gl.getError()=0`. `SceneDiagnostics` continuou reportando e registrou `resizeCount=0`. Não foi visto aviso “não está respondendo” no teste automatizado; Sam deve confirmar isso na interação real.
+- Um segundo conjunto curto de cinco ciclos, executado com a janela sem foco e sem callbacks de render, amostrou RSS agregado de aproximadamente **624,7 MiB no início e 626,8 MiB ao fim**, com pico transitório de **1.141,9 MiB** no processo Rust durante consultas ao cofre. Isso não demonstra crescimento persistente, mas o pico merece acompanhamento; cinco ciclos não constituem teste de vazamento. A variação de foco/oclusão também explica por que esta segunda amostra não serve para comparar frame gaps.
+
+Instrumentação temporária de console foi removida do código final. O renderer, `SceneDiagnostics`, `ResizeObserver`, DPR, `setAnimationLoop`, `powerPreference` e workaround Mesa não foram alterados. A janela Tauri continua configurada em 440×660, transparente e sem decoração. No reinício final, a WebView reportou 440×660; a medição inicial da UIP-1 havia reportado 492×712, uma diferença de plataforma ainda sem explicação.
+
+### Testes e gate pendente
+
+`npm run typecheck`, `npm run build`, `git diff --check`, `cargo check` e `cargo test` passaram; **38 testes Rust** passaram. Tauri real com `LIBGL_ALWAYS_SOFTWARE=1` validou Luna carregada, Idle, greeting e retorno ao Idle, WebGL 2.0, ausência de erro GL, cinco seções DEV, cinco ciclos e buffer controlado. Um reinício posterior abriu a janela atrás de outra superfície no GNOME (`hasFocus=false`, sem callbacks de `requestAnimationFrame`); por isso os dados de frame da segunda execução não foram usados para o gate de responsividade. O teste focado anterior já exercitou a mesma câmera final e a correção DEV.
+
+Checklist para Sam:
+
+1. Luna agora está suficientemente menor?
+2. A proporção parece adequada para companhia no desktop?
+3. Corpo inteiro continua visível?
+4. Há espaço agradável ao redor?
+5. Pés estão posicionados próximos da barra?
+6. A barrinha parece um pequeno “chão”?
+7. O chevron está integrado nela?
+8. Está discreta sem ficar apagada?
+9. Está perto o suficiente dos pés?
+10. Clicar DEV abre sem congelar a Luna?
+11. Fedora deixou de mostrar “não está respondendo”?
+12. Navegar entre Core/Memory/Gemini/Cognition/Security é responsivo?
+13. Fechar DEV devolve a Presence normalmente?
+14. Luna não muda de posição ou escala ao abrir DEV?
+
+**UIP-1 permanece aguardando esse gate humano. UIP-2 e UIP-3 não foram iniciadas.**

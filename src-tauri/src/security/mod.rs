@@ -20,8 +20,19 @@ pub struct SecurityStatus {
 }
 
 #[tauri::command]
-pub fn security_status(store: State<'_, Arc<SecretStore>>) -> SecurityStatus {
+pub async fn security_status(store: State<'_, Arc<SecretStore>>) -> Result<SecurityStatus, String> {
   AuditEvent::new(Action::CommandInvoked, Outcome::Allowed).with_detail("security_status").emit();
+  let store = store.inner().clone();
+  Ok(tauri::async_runtime::spawn_blocking(move || security_status_value(&store)).await.unwrap_or(SecurityStatus {
+    store_available: false,
+    test_secret_configured: false,
+    error_code: Some("worker_failed"),
+    unlock_protection: "unavailable",
+    legacy_key_present: false,
+  }))
+}
+
+fn security_status_value(store: &SecretStore) -> SecurityStatus {
   match store.get_secret(SecretKey::Lr3Test) {
     Ok(secret) => SecurityStatus {
       store_available: true,

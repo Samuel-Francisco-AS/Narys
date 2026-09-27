@@ -9,6 +9,15 @@ type SecurityStatus = {
   legacyKeyPresent: boolean
 }
 
+// React StrictMode mounts DEV effects twice; share only the concurrent read.
+let statusInFlight: Promise<SecurityStatus> | null = null
+function readSecurityStatus(): Promise<SecurityStatus> {
+  if (!statusInFlight) {
+    statusInFlight = invoke<SecurityStatus>('security_status').finally(() => { statusInFlight = null })
+  }
+  return statusInFlight
+}
+
 export default function SecurityPanel() {
   const [status, setStatus] = useState<SecurityStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -18,7 +27,7 @@ export default function SecurityPanel() {
   useEffect(() => {
     if (!available) return
     let active = true
-    invoke<SecurityStatus>('security_status').then(
+    readSecurityStatus().then(
       (result) => { if (active) setStatus(result) },
       () => { if (active) setError('Status de segurança indisponível') },
     )

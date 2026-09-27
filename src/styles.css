@@ -9,13 +9,19 @@ h2, h3, p { margin: 0; }
 .character-stage { position: absolute; top: calc(50% - 320px); left: 50%; transform: translateX(-50%); width: 420px; height: 604px; overflow: hidden; background: transparent; }
 .scene-canvas { position: absolute; inset: 0; }
 .scene-canvas canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
-.presence-handle { position: absolute; top: calc(50% + 294px); left: 50%; transform: translateX(-50%); color: #c3c9d8; font-size: 25px; line-height: 1; pointer-events: none; user-select: none; }
+.presence-handle { position: absolute; top: calc(50% + 290px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 5px; width: 112px; height: 16px; pointer-events: none; user-select: none; }
+.presence-handle::before, .presence-handle::after { content: ''; flex: 1; height: 2px; border-radius: 2px; background: linear-gradient(#e7ecf4 0 50%, #364153 50% 100%); }
+.presence-handle span { color: #e7ecf4; font-size: 18px; line-height: 1; text-shadow: 0 1px #364153; transform: translateY(-3px); }
 
 /* Temporary development access. The overlay never participates in stage layout. */
 .debug-toggle { position: absolute; z-index: 3; top: 6px; right: 6px; border: 1px solid #59627b; border-radius: 8px; background: #182136e8; color: #eff2fb; min-width: 38px; height: 30px; cursor: pointer; font-size: 11px; font-weight: 800; }
 .debug-toggle:focus-visible, .debug-overlay button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .debug-overlay { position: absolute; z-index: 2; inset: 0; overflow-y: auto; overscroll-behavior: contain; padding: 42px 10px 10px; background: #0b0e18f2; }
 .debug-scene-status { margin: 0 0 10px; color: #c8d0e3; font-size: 12px; line-height: 1.4; }
+.debug-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+.debug-navigation button { border: 1px solid #59627b; border-radius: 8px; background: #1c2538; color: #eff2fb; padding: 8px; cursor: pointer; }
+.debug-navigation button[aria-pressed="true"] { background: #465377; border-color: #a3afd1; }
+.debug-placeholder { color: #aab4ca; font-size: 12px; }
 
 .conversation-panel { border: 1px solid #273047; border-radius: 14px; background: #101522; overflow: hidden; }
 .panel-heading { padding: 18px 20px; }
