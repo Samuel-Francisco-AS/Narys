@@ -14,6 +14,30 @@ A política global prioriza:
 2. timing;
 3. distribuição.
 
+Essas prioridades são **defaults operacionais**, não autorização para esconder limites de capacidade. Parâmetros que afetem qualidade, latência, custo ou comportamento do modelo devem ser configuráveis e observáveis quando o provider os expuser.
+
+### Política de configuração controlada pelo usuário
+
+O Luna Core deve representar uma política persistida por papel cognitivo (`conversation`, `summary`, `voice`, `worker`, especialistas e futuros papéis), em vez de espalhar constantes de produto dentro dos adapters.
+
+Por papel/provider, a configuração deve poder expressar, quando suportado:
+
+- provider/agente e modelo;
+- reasoning/thinking;
+- máximo de output ou `provider_max`/sem teto adicional da Luna;
+- orçamento de contexto e histórico;
+- temperatura/top-p e equivalentes;
+- streaming;
+- timeouts;
+- retries;
+- fallback/overflow;
+- ferramentas, grounding/web e outras capacidades;
+- limites de custo/cota definidos pelo usuário.
+
+Adapters traduzem essa política para a API específica. Eles não devem inventar restrições de produto próprias. Valores não suportados devem ser recusados ou apresentados como indisponíveis; clamps inevitáveis de provider devem ser observáveis, nunca silenciosos.
+
+Uma seleção explícita do usuário tem precedência sobre a heurística do Scheduler. O Scheduler pode advertir e aplicar apenas guardrails de segurança/integridade e limites reais da integração. Se o usuário fixar, por exemplo, um agente Codex compatível como papel `conversation`, o runtime deve respeitar essa escolha enquanto a integração sustentar esse modo.
+
 ## 2. Tipos de integração
 
 ### Cognitive Provider
