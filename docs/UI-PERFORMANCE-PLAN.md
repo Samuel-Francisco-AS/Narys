@@ -285,6 +285,8 @@ Sem perda de contexto WebGL e sem regressão visual relevante.
 
 **Objetivo:** permitir convivência real com outras aplicações.
 
+**Estado:** **candidata técnica em 27/09/2026; gate humano pendente.** Always-on-top e Alt+arrastar foram integrados ao `WindowController` e à UI DEV. Click-through permanece desabilitado: ainda não foi comprovada recuperação externa segura no Fedora/GNOME/Wayland. A baseline pós-Idle manual e os limites de Wayland/XWayland estão em [UIP-3-WINDOW-ERGONOMICS.md](UIP-3-WINDOW-ERGONOMICS.md). UIP-3 não é PASS completo; UIP-4 não foi iniciada.
+
 ### Trabalho
 
 - alternar `always-on-top`;
@@ -481,4 +483,4 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Iniciar **UIP-3 — ergonomia da janela**. A etapa deve validar convivência real da Presence Shell com outras aplicações: modo normal versus always-on-top, reposicionamento seguro, recuperação antes de click-through e revalidação da política de render sob foco/visibilidade no Fedora/Wayland. Não antecipar UIP-4.
+Concluir o **gate humano da UIP-3 — ergonomia da janela**: empilhamento real, Alt+arrastar, fluidez e aparência da Presence Shell no Fedora/GNOME/Wayland. Click-through segue bloqueado até haver recuperação externa comprovada. Não antecipar UIP-4.
