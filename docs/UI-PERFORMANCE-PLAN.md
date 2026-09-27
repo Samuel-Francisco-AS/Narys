@@ -257,7 +257,7 @@ Ao abrir a aplicação, a Luna deve parecer estar diretamente sobre o desktop, e
 
 ## 10. UIP-2 — Render Budget + primeiro gate de performance
 
-**Estado:** implementação candidata em 26/09/2026. O gate humano considerou 15 FPS sem foco visualmente travado; a FIX-1 elevou apenas esse perfil para 24 FPS e mediu o novo custo no Tauri. `active` permanece em 30 FPS e `suspended` em zero update/render. Fluidez da FIX-1 e minimizar/restaurar ainda aguardam Sam. Consulte [UIP-2-RENDER-BUDGET.md](UIP-2-RENDER-BUDGET.md). O DPR foi preservado porque o valor observado já é 1; não houve experimento high-DPI nesta fase.
+**Estado:** **PASS completo em 26/09/2026.** O gate humano rejeitou 15 FPS sem foco por parecer travado; a FIX-1 elevou esse perfil para **24 FPS**, aprovado para uso cotidiano. `active` permanece em **30 FPS** e `suspended` em **0 FPS de update/render** quando o sinal de visibilidade é emitido. Consulte [UIP-2-RENDER-BUDGET.md](UIP-2-RENDER-BUDGET.md). O DPR foi preservado porque o valor observado já é 1; não houve experimento high-DPI nesta fase.
 
 **Objetivo:** limitar o custo do avatar antes de expandir a UI.
 
@@ -481,4 +481,4 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Concluir o **gate humano da UIP-2 — Render Budget**: fluidez em 30/24 FPS após FIX-1, transição de foco e minimizar/restaurar. A implementação e as medições curtas estão registradas em [UIP-2-RENDER-BUDGET.md](UIP-2-RENDER-BUDGET.md). Não iniciar UIP-3 antes do fechamento desta etapa.
+Iniciar **UIP-3 — ergonomia da janela**. A etapa deve validar convivência real da Presence Shell com outras aplicações: modo normal versus always-on-top, reposicionamento seguro, recuperação antes de click-through e revalidação da política de render sob foco/visibilidade no Fedora/Wayland. Não antecipar UIP-4.
