@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RenderBudget } from './RenderBudget'
 import { SceneDiagnostics } from './SceneDiagnostics'
 
 type SceneCallbacks = {
@@ -13,7 +14,7 @@ export class SceneRuntime {
   private readonly renderer: THREE.WebGLRenderer
   private readonly resizeObserver: ResizeObserver
   private readonly diagnostics: SceneDiagnostics | null
-  private lastFrame = performance.now()
+  private readonly renderBudget: RenderBudget
   private frames = 0
   private reportedGlError = false
 
@@ -53,8 +54,9 @@ export class SceneRuntime {
       const webglVersion = gl.getParameter(gl.VERSION) as string
       const webglRenderer = gl.getParameter(gl.RENDERER) as string
       console.info('[M0-B] WebGL:', webglVersion, '| Renderer:', webglRenderer)
+      this.renderBudget = new RenderBudget(() => this.diagnostics?.reportTransition())
       this.diagnostics = import.meta.env.DEV
-        ? new SceneDiagnostics(this.container, this.renderer, webglVersion, webglRenderer)
+        ? new SceneDiagnostics(this.container, this.renderer, webglVersion, webglRenderer, () => this.renderBudget.current)
         : null
     } catch (error) {
       this.canvas.removeEventListener('webglcontextlost', this.onContextLost)
@@ -76,13 +78,15 @@ export class SceneRuntime {
 
   start(onFrame: (delta: number) => void): void {
     const gl = this.renderer.getContext()
+    this.renderBudget.resetClock()
     this.renderer.setAnimationLoop(() => {
       const now = performance.now()
+      const delta = this.renderBudget.sample(now)
+      this.diagnostics?.recordCallback(delta === null, this.renderBudget.current.mode === 'suspended')
+      if (delta === null) return
       const workStartedAt = this.diagnostics ? now : 0
-      const delta = Math.min((now - this.lastFrame) / 1000, 0.05)
-      this.lastFrame = now
-      onFrame(delta)
       try {
+        onFrame(delta)
         this.renderer.render(this.scene, this.camera)
         this.diagnostics?.recordFrame(workStartedAt, performance.now())
         if (++this.frames % 60 === 0 && !this.reportedGlError) {
@@ -108,6 +112,7 @@ export class SceneRuntime {
 
   dispose(): void {
     this.stop()
+    this.renderBudget.dispose()
     this.diagnostics?.dispose()
     this.resizeObserver.disconnect()
     this.canvas.removeEventListener('webglcontextlost', this.onContextLost)

@@ -257,16 +257,18 @@ Ao abrir a aplicação, a Luna deve parecer estar diretamente sobre o desktop, e
 
 ## 10. UIP-2 — Render Budget + primeiro gate de performance
 
+**Estado:** implementação candidata em 26/09/2026, com medições Tauri de 30 FPS focado e 15 FPS visível sem foco; gate humano de fluidez e minimizar/restaurar pendente. Consulte [UIP-2-RENDER-BUDGET.md](UIP-2-RENDER-BUDGET.md). O DPR foi preservado porque o valor observado já é 1; não houve experimento high-DPI nesta fase.
+
 **Objetivo:** limitar o custo do avatar antes de expandir a UI.
 
 ### Trabalho
 
 - substituir render irrestrito pelo teto de 30 FPS;
-- avaliar `devicePixelRatio=1.0` versus valores maiores no hardware real;
+- preservar a configuração de DPR nesta etapa; o valor observado na máquina é 1;
 - implementar perfis de render de acordo com foco/visibilidade onde confiável;
 - impedir trabalho de render desnecessário quando minimizada/oculta;
 - medir impacto de idle e animações;
-- registrar comparação com UIP-0.
+- registrar comparação principal com o baseline final da UIP-1.
 
 ### Gate
 
@@ -479,6 +481,4 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Iniciar **UIP-2 — Render Budget**.
-
-A próxima rodada deve partir do baseline final da UIP-1 (janela 320×420, stage/buffer 300×360, ~55 FPS e ~200,8% de CPU agregada na amostra curta) e medir separadamente o efeito do teto de 30 FPS e dos perfis de foco/visibilidade, sem antecipar ergonomia/UIP-3.
+Concluir o **gate humano da UIP-2 — Render Budget**: fluidez em 30/15 FPS, transição de foco e minimizar/restaurar. A implementação e as medições curtas estão registradas em [UIP-2-RENDER-BUDGET.md](UIP-2-RENDER-BUDGET.md). Não iniciar UIP-3 antes do fechamento desta etapa.
