@@ -111,3 +111,24 @@ Próximos passos artísticos:
 2. criar/refinar o `Wave` manual no Blender;
 3. experimentar o Gate VRM/VRMA sem bloquear a trilha UIP;
 4. depois avaliar redução de canais/otimização de export em rodada própria.
+
+
+## Dívida conhecida — brincos após exportação Blender
+
+A micro-investigação de 27/09/2026 demonstrou que o deslocamento visual dos brincos já existe no **GLB exportado**, antes do runtime Three.js.
+
+No GLB histórico, as posições locais dos dois brincos eram aproximadamente:
+
+- `Luna_Ear_-1`: X = **-0,083**;
+- `Luna_Ear_1`: X = **+0,083**.
+
+No GLB atual exportado do Blender:
+
+- `Luna_Ear_-1`: X = **-0,138665**;
+- `Luna_Ear_1`: X = **+0,025288**.
+
+Ambos continuam filhos de `J_Bip_C_Neck`, usam a mesma pequena mesh rígida, não possuem skin e não têm canais próprios em `Idle` ou `Wave`. Portanto não há evidência de dupla animação, tratamento especial do Three.js ou defeito no `LegacyGlbAdapter`. O par recebeu transformação local diferente durante a exportação; parent inverse/conversão de parenting no Blender permanece como causa plausível a verificar na fonte artística.
+
+Decisão: **não bloquear UIP nem editar o GLB binário de forma ad hoc**. O defeito entra como dívida do pipeline Blender/exportação e pode ser corrigido em futura reexportação, preferencialmente junto de novas animações ou revisão do asset.
+
+Também permanece dívida de otimização a exportação de **462 canais por clipe**. Isso não implica reduzir a riqueza das animações manuais; a meta futura é preservar os movimentos desejados e eliminar tracks/bakes desnecessários quando possível.
