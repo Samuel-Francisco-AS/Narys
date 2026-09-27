@@ -2,6 +2,7 @@ mod luna;
 mod cognition;
 mod persistence;
 mod security;
+mod auxiliary_poc;
 
 use tauri::Manager;
 
@@ -20,6 +21,18 @@ pub fn run() {
       let gemini = cognition::GeminiRuntime::new(secrets.clone()).map_err(|_| "gemini_http_client_unavailable")?;
       app.manage(secrets);
       app.manage(std::sync::Arc::new(gemini));
+      #[cfg(debug_assertions)]
+      if let Some(main) = app.get_webview_window("main") {
+        eprintln!("[UIP-4-FIX-2A] main startup inner={:?} outer={:?} scale={:?}", main.inner_size(), main.outer_size(), main.scale_factor());
+        let app_handle = app.handle().clone();
+        main.on_window_event(move |event| match event {
+          tauri::WindowEvent::Resized(size) => eprintln!("[UIP-4-FIX-2A] main size={size:?}"),
+          tauri::WindowEvent::Moved(position) => eprintln!("[UIP-4-FIX-2A] main move={position:?}"),
+          tauri::WindowEvent::Focused(focused) => eprintln!("[UIP-4-FIX-2A] main focus={focused}"),
+          tauri::WindowEvent::Destroyed => { eprintln!("[UIP-4-FIX-2A] main destroyed; exiting POC"); app_handle.exit(0); },
+          _ => {}
+        });
+      }
       Ok(())
     })
     .manage(std::sync::Arc::new(luna::runtime::TaskRegistry::default()));
@@ -27,6 +40,7 @@ pub fn run() {
   let builder = builder.manage(cognition::gemini_commands::CurrentRunSessions::default());
   #[cfg(debug_assertions)]
   let builder = builder.invoke_handler(tauri::generate_handler![
+    auxiliary_poc::set_auxiliary_poc_visible,
     luna::start_mock_task, luna::cancel_task,
     security::security_status, security::security_test_store_secret, security::security_test_delete_secret,
     persistence::lr4_status, persistence::lr4_import_private_bootstrap,
@@ -39,6 +53,7 @@ pub fn run() {
   ]);
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![
+    auxiliary_poc::set_auxiliary_poc_visible,
     luna::start_mock_task, luna::cancel_task,
     security::security_status,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,

@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "auxiliary-poc",
+  "description": "Only the temporary POC close control; no conversation or provider access.",
+  "windows": ["composer", "conversation"],
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": ["allow-set-auxiliary-poc-visible"]
+}

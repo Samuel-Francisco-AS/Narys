@@ -1,5 +1,7 @@
 # UIP-4 — Composer, telinha e sessão atual
 
+**UIP-4-FIX-2A:** a POC de janelas auxiliares e o gate Wayland estão registrados em [UIP-4-AUXILIARY-WINDOWS-POC.md](UIP-4-AUXILIARY-WINDOWS-POC.md). UIP-4 permanece **CANDIDATA**.
+
 As seções até “Limitações e gate” registram a candidata original. A seção **UIP-4-FIX** ao final descreve o estado atual quando houver diferenças.
 
 **Estado: CANDIDATA.** Gate humano de Sam pendente. Branch `main`; HEAD inicial `670e096a3481010d5479a9a5aa47692e4556b169`. Sem commit ou push.
