@@ -4,7 +4,7 @@
 
 ## Contrato e estado
 
-O adapter Rust usa `POST https://generativelanguage.googleapis.com/v1beta/interactions`, modelo fixado por padrão em `gemini-3.8-flash` e autenticação exclusivamente no header `x-goog-api-key`. O `GeminiConfig` guarda modelo, endpoint e timeouts; nunca a chave. Toda request inclui `store:false`, `stream:true`, `max_output_tokens:512`, `thinking_level:low` e `thinking_summaries:none`. Não há `previous_interaction_id`, tools, grounding ou execução em background. O estado da Luna permanece no SQLite local. A [visão oficial da Interactions API](https://ai.google.dev/gemini-api/docs/interactions-overview), a [referência](https://ai.google.dev/api/interactions-api-v1), o [guia de streaming](https://ai.google.dev/gemini-api/docs/streaming) e a [página do modelo](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash/) embasam este contrato.
+O adapter Rust usa `POST https://generativelanguage.googleapis.com/v1beta/interactions`, modelo fixado por padrão em `gemini-3.8-flash` e autenticação exclusivamente no header `x-goog-api-key`. O `GeminiConfig` guarda modelo, endpoint e timeouts; nunca a chave. Toda request inclui atualmente `store:false`, `stream:true`, `max_output_tokens:512`, `thinking_level:low` e `thinking_summaries:none`. **Os valores 512/low são defaults hardcoded de protótipo herdados da LR-6, não uma política de produto aprovada.** O teto de 512 já produziu falhas `provider_incomplete` em conversa real e será elevado temporariamente enquanto a configuração persistida da UIP-6 não existe. A direção aprovada é tornar output budget e thinking configuráveis por papel/modelo, inclusive com opção de não aplicar teto adicional da Luna quando o provider permitir. Não há `previous_interaction_id`, tools, grounding ou execução em background. O estado da Luna permanece no SQLite local. A [visão oficial da Interactions API](https://ai.google.dev/gemini-api/docs/interactions-overview), a [referência](https://ai.google.dev/api/interactions-api-v1), o [guia de streaming](https://ai.google.dev/gemini-api/docs/streaming) e a [página do modelo](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash/) embasam este contrato.
 
 ## Privacidade de saída
 
@@ -51,3 +51,20 @@ Com isso, o gate de protocolo está encerrado e a validação real com API key n
 Os testes manuais posteriores também exercitaram os caminhos de falha reais: uma tentativa terminou `unavailable`, outra terminou `provider_incomplete` com resposta parcial mantida apenas como preview, e uma terceira foi cancelada manualmente após receber chunks. O cancelamento terminou em `cancelled` antes da persistência da resposta final. Após fechar e reabrir a aplicação, Gemini permaneceu configurado e a conversa bem-sucedida anterior continuou disponível.
 
 Com chamada real, SSE/usage, persistência, cancelamento e reinício comprovados, o gate LR-6 está encerrado. A próxima rodada planejada é de UI/performance antes de LR-7.
+
+
+## Decisão pós-LR-6 — transparência de capacidade
+
+Em 27/09/2026, durante o gate humano da UIP-5A, foi identificado que o chat de produto ainda herdava `max_output_tokens=512` e `thinking_level=low` como constantes internas da LR-6. O limite era invisível ao usuário e podia encerrar respostas como `provider_incomplete`.
+
+Decisão arquitetural:
+
+- esses valores passam a ser tratados apenas como defaults temporários de protótipo;
+- a correção imediata pode elevar o teto de output para manter o chat utilizável;
+- a UIP-6 deve substituir hardcodes de produto por política persistida e editável;
+- o usuário poderá escolher provider/agente, modelo, thinking/reasoning, teto de output ou “sem limite adicional da Luna”, timeouts, retries, fallback, streaming e demais parâmetros suportados;
+- limites reais do provider/modelo, quotas, segurança e permissões continuam válidos;
+- Scheduler/adapters podem avisar ou rejeitar configuração incompatível, mas não degradar silenciosamente uma escolha explícita;
+- erros causados por limites configurados devem apontar essa causa de forma inteligível, em vez de expor somente códigos genéricos.
+
+O adapter permanece responsável por traduzir a política para a API do Gemini; não deve ser a origem permanente da política de capacidade.
