@@ -108,3 +108,54 @@ Checklist para Sam:
 14. Luna não muda de posição ou escala ao abrir DEV?
 
 **UIP-1 permanece aguardando esse gate humano. UIP-2 e UIP-3 não foram iniciadas.**
+
+## FIX-2 — compactação da Presence
+
+Sam aprovou a escala da Luna, a barra/chão e o shell DEV da FIX-1, e confirmou que o congelamento grosseiro ao abrir DEV desapareceu no uso humano. Restou o excesso de área transparente em torno da personagem. Esta FIX-2 reduz os bounds da janela e do `CharacterStage` sem alterar o modelo nem diminuir novamente a altura projetada da Luna. Branch `main`, árvore inicial limpa após `git pull --ff-only`, HEAD inicial `982e17075a479d7234a5629f6db42fbc55fcdaa9`.
+
+| Apresentação | FIX-1 aprovada | FIX-2 candidata |
+| --- | ---: | ---: |
+| Janela Tauri configurada | 440×660 | **320×420** |
+| CharacterStage / canvas CSS | 420×604 | **300×360** |
+| Drawing buffer, DPR 1 | 420×604 | **300×360** |
+| `camera.position` | `(0, 2.60, 7.8)` | **`(0, 1.50, 4.65)`** |
+| `camera.lookAt` | `(0, 2.50, 0)` | **`(0, 1.40, 0)`** |
+| FOV | 38° | 38° |
+| Altura projetada aproximada de `y=0…2,55` | 285,54 px | **286,22 px** |
+
+A diferença projetada é **+0,68 px (+0,24%)**. Foi compensada com distância e alvo da câmera, mantendo FOV, escala estrutural, GLB, rig, animações e renderer. A área configurada da janela caiu aproximadamente 54%; a quantidade de pixels do stage/buffer caiu aproximadamente 57%. O cálculo de projeção usa os extremos verticais do avatar normalizado, não é uma medição da silhueta em movimento. No stage de 300×360, os extremos calculados ficam em `y≈50` (cabeça) e `y≈336` (pés), com margens verticais de aproximadamente **50 px e 24 px**. Para conferir o aceno completo, uma sonda temporária avançou o `AnimationDirector` em 85 passos de 50 ms (4,25 s, incluindo retorno ao Idle) e projetou o `Box3.setFromObject(root, true)` de cada pose. Os limites conservadores foram `x≈35…212` e `y≈42…347` dentro do canvas 300×360: margem mínima aproximada de **35 px à esquerda, 88 px à direita, 42 px acima e 13 px abaixo**. A sonda foi removida da versão final. Isso verifica o enquadramento geométrico; a inspeção visual de mãos, cabelo e bordas continua com Sam.
+
+A barra aprovada continua **112×16 px**, sem clique, e manteve seu desenho. Ela foi movida junto com o stage: o topo fica **6 px abaixo do canvas** e cerca de **20–30 px abaixo dos pés estimados**, sem invadir o render. O stage está centralizado por posição absoluta; o DEV também é absoluto, tem scroll próprio e não participa de suas dimensões. Nesta execução, a WebView reportou `372×472` apesar dos `320×420` configurados, novamente **+52 px em cada eixo**; em outro reinício de desenvolvimento da mesma FIX reportou `320×420`. A causa no Tauri/WebKitGTK/Wayland não foi identificada. O stage e o buffer ficaram 300×360 em ambos os casos, mas a margem externa percebida pode variar conforme essa diferença da plataforma.
+
+### Tauri real e amostra curta de Idle
+
+Mesma metodologia de amostra da UIP-0: Fedora/Wayland, Tauri dev real, inspector WebKit, `LIBGL_ALWAYS_SOFTWARE=1` confirmado em `/proc/<WebKitWebProcess>/environ`, seis relatórios `SceneDiagnostics` de ~5 s em 30 s de Idle com `visibilityState=visible` e `hasFocus=true`; árvore do processo Tauri amostrada a cada ~1 s por 30 s para CPU e `VmRSS`. CPU de 100% equivale a um núcleo lógico; RSS é soma aproximada que pode incluir páginas compartilhadas repetidas.
+
+| Idle | UIP-1 inicial | FIX-2 |
+| --- | ---: | ---: |
+| Drawing buffer | 420×604 | **300×360** |
+| FPS médio dos seis relatórios | 51,86 | **55,06** |
+| Intervalo médio entre frames | 19,10–19,44 ms | **18,03–18,25 ms** |
+| `update+render` médio | 11,59–11,78 ms | **10,94–11,12 ms** |
+| CPU agregada média | 279,0% | **200,8%** |
+| RSS agregado médio | 652,6 MiB | **647,2 MiB** |
+
+Na FIX-2, os FPS por relatório foram `54,77 / 54,56 / 54,96 / 55,56 / 54,96 / 55,53`; p50 dos intervalos foi 18 ms e p95 20–21 ms. O maior intervalo da amostra foi 29 ms. O p95 de `update+render` foi 12–13 ms. `resizeCount=0`, DPR e renderer pixel ratio 1/1, WebGL 2.0 (`WebKit WebGL`) e nenhum erro de console. O RSS observado ficou em 644,4–651,9 MiB. São amostras curtas em execuções distintas; as diferenças acompanham o stage menor, mas **não isolam causalidade** nem medem a taxa efetiva de apresentação ou RAM física exclusiva.
+
+### Gates técnicos e gate humano
+
+- Em Tauri real, Luna carregou, o status informou Idle, `pointerdown` no centro do canvas acionou greeting e o status voltou ao Idle. O raycast permaneceu funcional; `gl.getError()=0` antes e depois. Fundos calculados de `html`, `body`, `#root`, shell, stage e container do canvas permaneceram totalmente transparentes. A aparência final e o recorte durante a animação precisam de inspeção de Sam.
+- Cinco ciclos DEV (Core, Memory, Gemini, Cognition, Security) abriram, selecionaram seção e fecharam sem erro de console. Antes/durante/depois, stage e drawing buffer ficaram em **300×360** na mesma posição; `resizeCount=0` nos relatórios coletados. Os maiores gaps de `requestAnimationFrame` por ciclo foram **103 / 52 / 56 / 32 / 32 ms**; não houve pausa de segundos. O overlay manteve scroll próprio e a janela não foi redimensionada. A correção `security_status` em `spawn_blocking` permaneceu intacta.
+- `npm run typecheck`, `npm run build` e `git diff --check` passaram. O build manteve o aviso conhecido de chunk acima de 500 kB. Nenhum código Rust foi modificado; não houve motivo para repetir `cargo check/test` nesta FIX.
+
+Checklist pendente de Sam para fechar a UIP-1:
+
+1. A janela invisível agora parece proporcional à Luna?
+2. Existe espaço morto demais em alguma direção?
+3. A escala da Luna continua igual à versão aprovada?
+4. Idle cabe sem recorte?
+5. Aceno cabe sem recorte, inclusive mãos e cabeça?
+6. Barra continua bem posicionada?
+7. DEV continua abrindo normalmente?
+
+**UIP-1 ainda depende desse gate humano; não está marcada como PASS completo. UIP-2 e UIP-3 não foram iniciadas.**

@@ -30,8 +30,8 @@ export class SceneRuntime {
   }
 
   constructor(private readonly container: HTMLDivElement, private readonly callbacks: SceneCallbacks) {
-    this.camera.position.set(0, 2.60, 7.8)
-    this.camera.lookAt(0, 2.50, 0)
+    this.camera.position.set(0, 1.50, 4.65)
+    this.camera.lookAt(0, 1.40, 0)
 
     this.scene.add(new THREE.HemisphereLight(0xe9f3ff, 0x38435e, 2.1))
     const keyLight = new THREE.DirectionalLight(0xffffff, 2.4)
