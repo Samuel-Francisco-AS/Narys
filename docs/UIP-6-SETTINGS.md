@@ -1,6 +1,6 @@
 # UIP-6A — janelas de configurações e política cognitiva v1
 
-**Estado: CANDIDATA.** UIP-6 completa continua aberta. A UIP-6A entrega escolhas efetivas para `conversation` e `summary`; UIP-6B tratará configurações gerais e parâmetros avançados, e UIP-6C consolidará o gate. LR-7 não foi iniciada.
+**Estado: UIP-6A = PASS funcional / FECHADA em 28/09/2026.** UIP-6 completa continua aberta. A UIP-6A entrega escolhas efetivas para `conversation` e `summary`; UIP-6B tratará configurações gerais e parâmetros avançados, e UIP-6C consolidará o gate. LR-7 não foi iniciada.
 
 ## Autonomia e execução
 
@@ -28,11 +28,20 @@ RSS aproximado (KiB, processo Tauri + WebKitNetworkProcess + WebKitWebProcess): 
 
 Na janela IA real, a policy inicial apareceu como `low/4096` para conversa e `low/1024` para resumo. Ações AT-SPI alteraram conversa `low/4096 → high/provider default → low/4096`; consultas SQLite após salvar confirmaram as transições. A Geral acionou abertura de IA sem duplicá-la. Após reinício com o mesmo banco isolado, a UI e SQLite mostraram `low/4096` e `low/1024`, `user_version=3`. Nenhuma chamada Gemini real foi feita. O fluxo de chave real e percepção visual/espacial completa permanecem para o checklist humano.
 
-A UIP-6A permanece **CANDIDATA** até revisão humana de abertura pelo botão da main, legibilidade, movimento/fechamento independente das janelas e ausência de regressão de animação/Composer. `cargo fmt --check` global ainda acusa drift pré-existente; os arquivos Rust novos foram formatados isoladamente.
+O gate humano foi concluído por Sam: abertura pela main, legibilidade, movimento/fechamento independente das janelas e ausência de regressão observável na Luna/Composer foram aprovados. `cargo fmt --check` global ainda acusa drift pré-existente; os arquivos Rust novos foram formatados isoladamente.
 
 
 Verificações automatizadas da candidata: `npm run typecheck` e `npm run build` passaram; `cargo check` passou; `cargo test` passou com 71 testes; `git diff --check` passou. `cargo fmt --check` global falhou pelo drift conhecido; `rustfmt --check` dos dois módulos Rust novos passou. O build Vite ainda informa chunk principal acima de 500 kB.
 
 ### Correção visual do gate humano — WebKitGTK
 
-Sam encontrou os `<select>` fechados de Provider e Thinking com fundo nativo claro e texto selecionado pouco legível no Fedora. A superfície Settings agora declara `color-scheme: dark`; os selects usam cores explícitas, `appearance: none` e uma seta CSS, preservando o `<select>` HTML, foco e teclado. No Tauri real, a árvore AT-SPI confirmou os dois controles em `conversation` e `summary`, suas opções e foco; seleção e salvamento continuaram funcionando, com as policies originais preservadas. A cor renderizada ainda requer confirmação visual de Sam. **UIP-6A permanece CANDIDATA.**
+Sam encontrou os `<select>` fechados de Provider e Thinking com fundo nativo claro e texto selecionado pouco legível no Fedora. A superfície Settings agora declara `color-scheme: dark`; os selects usam cores explícitas, `appearance: none` e uma seta CSS, preservando o `<select>` HTML, foco e teclado. No Tauri real, a árvore AT-SPI confirmou os dois controles em `conversation` e `summary`, suas opções e foco; seleção e salvamento continuaram funcionando, com as policies originais preservadas. Sam confirmou visualmente a correção: fundo, texto, opções abertas e foco ficaram legíveis.
+
+
+## Fechamento da UIP-6A
+
+Em 28/09/2026, a UIP-6A foi fechada em **PASS funcional** após gate humano. As duas janelas independentes abriram pelo fluxo de produto, puderam ser movidas/fechadas sem afetar a Luna, e a janela de IA mostrou e persistiu policies reais para `conversation` e `summary`. A correção visual dos `<select>` no WebKitGTK foi aprovada por Sam.
+
+O custo de memória das Settings permanece registrado: cada WebView independente adicionou aproximadamente 300 MiB no ambiente `tauri dev`, mas os processos e o RSS correspondente foram liberados ao fechar as janelas. Isso não bloqueia a UIP-6, mas deve ser reavaliado em build de release e na UIP-7.
+
+**Próxima etapa: UIP-6B — configurações gerais editáveis + avaliação dos parâmetros avançados restantes.**
