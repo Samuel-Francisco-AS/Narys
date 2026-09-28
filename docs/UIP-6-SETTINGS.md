@@ -45,3 +45,37 @@ Em 28/09/2026, a UIP-6A foi fechada em **PASS funcional** após gate humano. As 
 O custo de memória das Settings permanece registrado: cada WebView independente adicionou aproximadamente 300 MiB no ambiente `tauri dev`, mas os processos e o RSS correspondente foram liberados ao fechar as janelas. Isso não bloqueia a UIP-6, mas deve ser reavaliado em build de release e na UIP-7.
 
 **Próxima etapa: UIP-6B — configurações gerais editáveis + avaliação dos parâmetros avançados restantes.**
+
+# UIP-6B — Geral editável + retry/capacidade
+
+**Estado: CANDIDATA, aguardando gate humano.** UIP-6A permanece PASS. UIP-6C e LR-7/LR-8 não foram iniciadas.
+
+## Evidência e política de retry
+
+No gate Gemini real, Sam viu respostas `rate_limited` com `max_provider_calls` 2 e 4, enquanto uma mensagem com 1 passou. Isso sugere investigar o retry anterior de 80 ms, mas **não prova causalidade**: o resultado também pode depender da cota ou do estado do provider. A migration 004 muda deliberadamente o backoff inicial de 80 para 1500 ms para conversa, porque 80 ms é operacionalmente agressivo. Os diagnósticos DEV registram apenas provider, tentativa, motivo e espera, sem conteúdo ou segredo.
+
+`max_provider_calls` é o **orçamento total de requests ao provider por tarefa**, incluindo request inicial, retries e eventuais fallbacks autorizados. Um stream HTTP pode produzir muitos chunks e continua sendo uma única chamada. `max_retries` conta somente tentativas extras. O Scheduler respeita o menor limite: calls=1/retries=10 faz uma chamada; calls=4/retries=1 faz até duas; calls=4/retries=3 faz até quatro. A UI alerta quando o orçamento total restringe os retries, mas preserva os valores escolhidos.
+
+`RetryPolicy` é separada de `TaskBudget`. Retry automático exige `retry_enabled`, erro `Timeout`/`Unavailable`, nenhum chunk emitido, limite de retries e call budget disponíveis, e tarefa ativa. O backoff de cada retry é `initial_backoff_ms × 2^(N−1)`, com saturação aritmética e espera cancelável. `RateLimited` registra cooldown e `Retry-After` quando presente, encerra a tarefa e não usa o backoff para insistir na mesma task. Summary começa com retry desligado: o worker devolve falhas transitórias para pending e tenta em kick futuro. LR-8 ainda tratará jitter, quotas, token bucket, fila e circuit breaker.
+
+## Persistência e parâmetros
+
+A migration 004 preserva a policy v3 e acrescenta retry, `history_max_messages`, `history_max_bytes`, `summary_input_max_bytes` e preferências Gerais. A migration 005 acrescenta a configuração global Gemini de timeouts HTTP. Ela foi necessária porque o banco local já havia aplicado a versão inicial da 004 durante o gate da candidata; a atualização v4→v5 preserva as preferências existentes. Defaults conversation: Gemini, `gemini-3.8-flash`, low, output 4096, calls 2, retry ligado, 1 tentativa extra, 1500 ms, histórico 8 mensagens/12288 bytes. Defaults summary: mesmo provider/modelo/thinking, output 1024, calls 1, retry desligado, 0 tentativas extras, 1500 ms, input 32768 bytes. `max_output_tokens=NULL` continua sem teto adicional da Luna. O histórico é limitado à sessão atual; zero mensagens ou zero bytes não envia histórico anterior. O resumo preserva primeira fala do usuário, recentes e ordem cronológica quando cabem no orçamento.
+
+A tabela singleton `gemini_provider_settings` (migration 005) persiste timeouts globais Gemini de 45000/15000 ms. A tabela singleton `general_settings` persiste `always_on_top=false`, `active_fps=30`, `background_fps=24`; FPS aceita inteiros de 1 a 60, e background acima de active é permitido com aviso. Suspenso/oculto continua 0. A janela Geral salva e envia `general-settings-changed` somente à main; o `RenderBudget` recebe a configuração sem remontar canvas. A solicitação always-on-top é feita na main imediatamente após salvar e no startup. O compositor Wayland pode ignorá-la; a UI relata solicitação, não sucesso visual. Click-through segue indisponível por falta de recuperação externa segura. Ctrl+Shift+Space é informativo e depende de foco da janela.
+
+## Auditoria de parâmetros avançados
+
+Configuráveis nesta 6B: retry por role, orçamento de histórico de conversa, input de resumo, timeouts HTTP total/idle do Gemini, AOT e FPS. Invariantes técnicos: streaming ativo exigido pelo adapter; `store:false`, isolamento e segurança; connect timeout Gemini 8 s continua propriedade do client e aparece read-only. Request timeout (default 45000 ms) e stream idle timeout (default 15000 ms) são globais, persistidos e editáveis; o adapter captura um snapshot por chamada e aplica o total via `RequestBuilder::timeout`, sem recriar o client. A configuração alterada passa a valer nas chamadas seguintes. Não suportados: thinking summaries, temperature/top-p expostos, tools, grounding/web e fallback multi-provider para seleção fixa de Gemini. A UI identifica esses estados sem oferecer campos falsos.
+
+Na preparação do resumo, o banco lê até 256 mensagens recentes e a primeira fala do usuário, com no máximo 8193 caracteres por mensagem. São limites técnicos de leitura/localidade, mostrados read-only na seção avançada; título (70 caracteres) e resumo (1200) são limites do parser de metadados. A conversa real não injeta memórias no outbound nesta fase (`memory_limit=0`); o Context Builder mantém limites próprios de cinco memórias/seis mensagens para outros caminhos e não altera essa política. O corpo de erro HTTP (64 KiB) e o `Retry-After` limitado a sete dias são guardrails de protocolo, não controles de capacidade do modelo.
+
+As capabilities continuam por janela: Geral recebe apenas leitura/gravação de preferências e abertura de IA; main lê preferências e escuta o evento; IA mantém sua policy e credencial. Nenhuma Settings monta Avatar/Three.js. O custo de WebKitGTK visto na 6A permanece dívida de avaliação em release/UIP-7; fechar as janelas deve liberar seus processos.
+
+## Gate técnico da candidata UIP-6B
+
+`npm run typecheck`, `npm run build`, `cargo check`, `cargo test` (78 testes), `git diff --check` e o teste Node puro de `RenderBudget` passaram. `cargo fmt --check` global segue com o drift anterior; os módulos Rust novos/estruturados da 6B passaram em `rustfmt --check` isolado. O build Vite ainda avisa sobre chunk da main acima de 500 kB.
+
+Em Tauri real com `LIBGL_ALWAYS_SOFTWARE=1`, a árvore AT-SPI mostrou um canvas na main, zero em Geral e IA, e os campos de retry, budgets e timeouts. O banco local migrou v4→v5 e a IA carregou com timeouts 45000/15000. Abrir as três janelas apresentou aproximadamente 1.355.428 KiB de RSS somado (Tauri + WebKitNetworkProcess + três WebKitWebProcess); após fechar as duas Settings, restaram aproximadamente 679.956 KiB e só o WebKitWebProcess da main. São snapshots de processos, não memória exclusiva. Um processo separado por Settings desapareceu ao fechar; nenhuma janela foi escondida permanentemente.
+
+Não houve teste controlado de conversa Gemini nesta rodada. Na segunda inicialização, o log de um trabalho de fundo mostrou `rate_limited` HTTP 429 com Retry-After de 48000 ms; isso não estabelece causalidade entre retry e rate limit. A edição física de FPS/AOT, percepção visual de Wayland e uma conversa Gemini moderada permanecem no gate humano. A candidata não promove UIP-6B a PASS nem inicia UIP-6C.

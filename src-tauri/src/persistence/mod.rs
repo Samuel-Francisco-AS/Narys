@@ -4,6 +4,8 @@ pub mod identity;
 pub mod memory;
 pub mod conversation;
 pub mod task_history;
+pub mod general_settings;
+pub mod gemini_settings;
 
 use std::{collections::HashSet, fs, path::PathBuf};
 use serde::{Deserialize, Serialize};

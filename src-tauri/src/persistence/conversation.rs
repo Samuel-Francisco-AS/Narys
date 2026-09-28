@@ -1,7 +1,9 @@
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior};
 use serde::Serialize;
 use super::database::PersistenceError;
+#[cfg(test)]
 pub const OUTBOUND_HISTORY_MESSAGES: usize = 8;
+#[cfg(test)]
 pub const OUTBOUND_HISTORY_BYTES: usize = 12 * 1024;
 const SUMMARY_CANDIDATE_MESSAGES: i64 = 256;
 const TITLE: &str = "Diagnóstico LR-4";
@@ -146,19 +148,19 @@ pub fn history_session(conn: &Connection, id: i64) -> Result<Option<Conversation
   if !is_product { return Ok(None); }
   session(conn, id)
 }
-pub fn outbound_history(conn: &Connection, id: i64) -> Result<Vec<SessionTurn>, PersistenceError> {
+pub fn outbound_history(conn: &Connection, id: i64, max_messages: usize, max_bytes: usize) -> Result<Vec<SessionTurn>, PersistenceError> {
   if !is_active_session(conn, id)? { return Err(PersistenceError::Read); }
   let mut stmt = conn.prepare("SELECT role,content FROM conversation_messages WHERE session_id=?1 ORDER BY id DESC LIMIT ?2")
     .map_err(|_| PersistenceError::Read)?;
-  let rows = stmt.query_map(rusqlite::params![id, OUTBOUND_HISTORY_MESSAGES as i64], |row| {
+  let rows = stmt.query_map(rusqlite::params![id, max_messages as i64], |row| {
     Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
   }).map_err(|_| PersistenceError::Read)?;
   let mut newest = Vec::new();
-  let mut bytes = 0;
+  let mut bytes: usize = 0;
   for row in rows {
     let (role, content) = row.map_err(|_| PersistenceError::Read)?;
     let role = match role.as_str() { "user" => SessionRole::User, "assistant" => SessionRole::Assistant, _ => return Err(PersistenceError::Read) };
-    if bytes + content.len() > OUTBOUND_HISTORY_BYTES { break; }
+    if bytes.saturating_add(content.len()) > max_bytes { break; }
     bytes += content.len();
     newest.push(SessionTurn { role, content });
   }

@@ -5,16 +5,19 @@ import { AnimationDirector } from './runtime/AnimationDirector'
 import { AvatarManager } from './runtime/AvatarManager'
 import { SceneRuntime } from './runtime/SceneRuntime'
 import type { AnimationRequest } from './runtime/types'
+import type { RenderBudgetConfig } from './runtime/RenderBudget'
 
 type Props = {
   animationRequest: AnimationRequest | null
   onStatusChange: (message: string) => void
   onReadyChange: (ready: boolean) => void
+  renderConfig: RenderBudgetConfig
 }
 
-export default function AvatarViewport({ animationRequest, onStatusChange, onReadyChange }: Props) {
+export default function AvatarViewport({ animationRequest, onStatusChange, onReadyChange, renderConfig }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const directorRef = useRef<AnimationDirector | null>(null)
+  const runtimeRef = useRef<SceneRuntime | null>(null)
 
   useEffect(() => {
     const container = containerRef.current
@@ -23,6 +26,8 @@ export default function AvatarViewport({ animationRequest, onStatusChange, onRea
     let runtime: SceneRuntime
     try {
       runtime = new SceneRuntime(container, { onStatusChange, onReadyChange })
+      runtimeRef.current = runtime
+      runtime.updateRenderConfig(renderConfig)
     } catch (error) {
       console.error('[M0-B] Falha ao iniciar WebGL:', error)
       onStatusChange('WebGL indisponível neste ambiente. Veja o console.')
@@ -65,6 +70,7 @@ export default function AvatarViewport({ animationRequest, onStatusChange, onRea
 
     return () => {
       runtime.stop()
+      runtimeRef.current = null
       runtime.canvas.removeEventListener('pointerdown', onPointerDown)
       directorRef.current?.dispose()
       directorRef.current = null
@@ -72,6 +78,8 @@ export default function AvatarViewport({ animationRequest, onStatusChange, onRea
       runtime.dispose()
     }
   }, [onReadyChange, onStatusChange])
+
+  useEffect(() => { runtimeRef.current?.updateRenderConfig(renderConfig) }, [renderConfig])
 
   useEffect(() => {
     if (animationRequest) directorRef.current?.request(animationRequest.intent)

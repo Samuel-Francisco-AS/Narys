@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{atomic::{AtomicBool, Ordering}, Mutex}, time::{Duration, Instant}};
 use serde::Serialize;
-use super::{registry::ProviderRegistry, types::{ProviderChunk, ProviderError, ProviderRequest, SchedulerError, SchedulerUsage, TaskBudget, TaskResult}};
+use super::{registry::ProviderRegistry, types::{ProviderChunk, ProviderError, ProviderRequest, RetryPolicy, SchedulerError, SchedulerUsage, TaskBudget, TaskResult}};
 
 #[derive(Clone, Debug)]
 pub enum SchedulerEvent {
@@ -26,6 +26,10 @@ impl Scheduler {
   }
   pub async fn run(&self, request: ProviderRequest, budget: TaskBudget, cancelled: &AtomicBool,
     on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send)) -> Result<TaskResult, SchedulerError> {
+    self.run_with_retry(request, budget, RetryPolicy { enabled: true, max_retries: 1, initial_backoff_ms: 0 }, cancelled, on_event).await
+  }
+  pub async fn run_with_retry(&self, request: ProviderRequest, budget: TaskBudget, retry_policy: RetryPolicy, cancelled: &AtomicBool,
+    on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send)) -> Result<TaskResult, SchedulerError> {
     let output_limit = match (budget.max_output_tokens, request.max_output_tokens) {
       (Some(a), Some(b)) => Some(a.min(b)), (Some(a), None) | (None, Some(a)) => Some(a), (None, None) => None,
     };
@@ -48,8 +52,10 @@ impl Scheduler {
         if !usage.providers_used.contains(&entry.config.id) { usage.providers_used.push(entry.config.id.clone()); }
         on_event(SchedulerEvent::Selected { provider_id: entry.config.id.clone(), attempt }).map_err(|_| { cancelled.store(true, Ordering::Release); SchedulerError::EventSinkClosed })?;
         let mut chunks = String::new();
+        let mut emitted_chunk = false;
         let mut on_chunk = |chunk: ProviderChunk| -> Result<(), ProviderError> {
           if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
+          emitted_chunk = true;
           chunks.push_str(&chunk.text);
           on_event(SchedulerEvent::Chunk { provider_id: entry.config.id.clone(), text: chunk.text })
             .map_err(|_| { cancelled.store(true, Ordering::Release); ProviderError::EventSinkClosed })
@@ -77,19 +83,35 @@ impl Scheduler {
             if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
             if let ProviderError::RateLimited { retry_after_ms } = error {
               self.cooldowns.lock().unwrap_or_else(|p| p.into_inner()).insert(entry.config.id.clone(), Instant::now() + Duration::from_millis(retry_after_ms.unwrap_or(3_000).max(1)));
+              return Err(SchedulerError::Provider(error));
             }
             // Once text has reached the UI, another attempt would concatenate
             // incompatible partial answers and could double provider cost.
-            if !chunks.is_empty() { return Err(SchedulerError::Provider(error)); }
-            let retry = matches!(error, ProviderError::Timeout | ProviderError::Unavailable) && attempt == 1;
-            if retry && usage.provider_calls < budget.max_provider_calls {
+            if emitted_chunk { return Err(SchedulerError::Provider(error)); }
+            let eligible_error = matches!(error, ProviderError::Timeout | ProviderError::Unavailable);
+            let retries_used = attempt - 1;
+            let can_retry = retry_policy.enabled && eligible_error && retries_used < retry_policy.max_retries
+              && usage.provider_calls < budget.max_provider_calls;
+            #[cfg(debug_assertions)]
+            if retry_policy.enabled && eligible_error && !can_retry {
+              let reason = if usage.provider_calls >= budget.max_provider_calls { "call_budget" } else { "retry_limit" };
+              eprintln!("[Scheduler][diag] retry_skipped reason={reason}");
+            }
+            if can_retry {
+              let backoff_ms = retry_policy.backoff_ms(attempt);
+              #[cfg(debug_assertions)] {
+                let provider = if entry.config.id == "gemini" { "gemini" } else { "other" };
+                eprintln!("[Scheduler][diag] retry provider={provider} attempt={} reason={} backoff_ms={backoff_ms}", attempt + 1, error.code());
+              }
               on_event(SchedulerEvent::Retry { provider_id: entry.config.id.clone(), reason_code: error.code() })
                 .map_err(|_| { cancelled.store(true, Ordering::Release); SchedulerError::EventSinkClosed })?;
               // Cancellable asynchronous backoff.
-              let until = tokio::time::Instant::now() + Duration::from_millis(80);
+              let now = tokio::time::Instant::now();
+              let until = now.checked_add(Duration::from_millis(backoff_ms))
+                .unwrap_or_else(|| now + Duration::from_secs(86_400));
               while tokio::time::Instant::now() < until {
                 if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
-                tokio::time::sleep(Duration::from_millis(15)).await;
+                tokio::time::sleep((until - tokio::time::Instant::now()).min(Duration::from_millis(25))).await;
               }
               continue;
             }

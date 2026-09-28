@@ -36,3 +36,5 @@ body:has(.settings-page) { overflow: auto; }
 .settings-page .radio { display: flex; align-items: start; gap: 8px; margin: 0 0 8px; font-weight: 400; }
 .settings-page .radio input { width: auto; margin-top: 4px; }
 .settings-page fieldset > small { display: block; margin-top: 8px; }
+
+.settings-page .settings-warning { color: #f5d58c; }

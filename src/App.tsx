@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import AvatarViewport from './avatar/AvatarViewport'
+import { defaultRenderBudgetConfig, type RenderBudgetConfig } from './avatar/runtime/RenderBudget'
 import type { AnimationIntent, AnimationRequest } from './avatar/runtime/types'
 import CognitionPanel from './luna/CognitionPanel'
 import GeminiPanel from './luna/GeminiPanel'
@@ -24,6 +26,18 @@ const debugSections: { id: DebugSection; label: string }[] = [
 ]
 
 export default function App() {
+  const [renderConfig, setRenderConfig] = useState<RenderBudgetConfig>(defaultRenderBudgetConfig)
+  useEffect(() => {
+    let disposed = false
+    const apply = (settings: { activeFps: number; backgroundFps: number }) => {
+      if (!disposed) setRenderConfig({ activeFps: settings.activeFps, backgroundFps: settings.backgroundFps })
+      if (!disposed && 'alwaysOnTop' in settings) windowController.current?.applyAlwaysOnTopPreference(Boolean(settings.alwaysOnTop))
+    }
+    void invoke<{ activeFps: number; backgroundFps: number; alwaysOnTop: boolean }>('get_general_settings').then(apply).catch(() => {})
+    let unlisten: (() => void) | undefined
+    void listen<{ activeFps: number; backgroundFps: number; alwaysOnTop: boolean }>('general-settings-changed', event => apply(event.payload)).then(fn => { if (disposed) fn(); else unlisten = fn })
+    return () => { disposed = true; unlisten?.() }
+  }, [])
   const [animationRequest, setAnimationRequest] = useState<AnimationRequest | null>(null)
   const [sceneStatus, setSceneStatus] = useState('Preparando cena 3D…')
   const [ready, setReady] = useState(false)
@@ -137,6 +151,7 @@ export default function App() {
     <main className="presence-shell" onPointerDownCapture={onShellPointerDownCapture}>
       <section className="character-stage" aria-label="Personagem 3D Luna">
         <AvatarViewport
+          renderConfig={renderConfig}
           animationRequest={animationRequest}
           onStatusChange={setSceneStatus}
           onReadyChange={setReady}
@@ -171,8 +186,8 @@ export default function App() {
                 <p>Posição: {windowState.position ? `${windowState.position.x}, ${windowState.position.y}` : 'indisponível'}</p>
                 {windowState.error && <p role="alert">{windowState.error}</p>}
                 <div className="debug-window-actions">
-                  <button type="button" disabled={!windowState.available || windowState.busy} onClick={() => void windowController.current?.toggleAlwaysOnTop()}>
-                    {windowState.alwaysOnTop ? 'Desligar always-on-top' : 'Ligar always-on-top'}
+                  <button type="button" disabled={!windowState.available || windowState.busy} onClick={() => void invoke('open_general_settings_window')}>
+                    Configurar always-on-top
                   </button>
                   <button type="button" disabled={windowState.recovery !== 'ready'} title="Exige recuperação externa comprovada">
                     Click-through

@@ -1,16 +1,53 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import './settings.css'
 
+type GeneralSettings = { alwaysOnTop: boolean; activeFps: number; backgroundFps: number }
+type Update = { settings: GeneralSettings; alwaysOnTopRequested: boolean }
+const numberValue = (value: string) => value === '' ? NaN : Number(value)
+
 export default function GeneralSettingsApp() {
+  const [settings, setSettings] = useState<GeneralSettings | null>(null)
+  const [active, setActive] = useState('30')
+  const [background, setBackground] = useState('24')
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { void invoke<GeneralSettings>('get_general_settings').then(value => {
+    setSettings(value); setActive(String(value.activeFps)); setBackground(String(value.backgroundFps))
+  }).catch(() => setError('Não foi possível carregar as configurações gerais.')) }, [])
+  async function save() {
+    if (!settings) return
+    const activeFps = numberValue(active), backgroundFps = numberValue(background)
+    if (![activeFps, backgroundFps].every(value => Number.isInteger(value) && value >= 1 && value <= 60)) {
+      setError('FPS deve ser um inteiro de 1 a 60.'); return
+    }
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const result = await invoke<Update>('update_general_settings', { settings: { ...settings, activeFps, backgroundFps } })
+      setSettings(result.settings)
+      setNotice(result.alwaysOnTopRequested ? 'Salvo. Always-on-top solicitado à janela principal; o compositor pode ignorar.' : 'Salvo. A janela principal aplicará o FPS; não foi possível solicitar always-on-top agora.')
+    } catch (cause) { setError(`Não foi possível salvar: ${String(cause)}`) }
+    finally { setBusy(false) }
+  }
   return <main className="settings-page">
     <header><p className="settings-kicker">LUNA · CONFIGURAÇÕES</p><h1>Configurações da Luna</h1><p>Preferências do aplicativo em janelas independentes.</p></header>
-    <section className="settings-card"><h2>Geral</h2>
-      <p>Janela, performance, atalhos, click-through e always-on-top.</p>
-      <p>Os controles gerais editáveis chegam na UIP-6B. Os controles atuais continuam na janela principal.</p>
-    </section>
-    <section className="settings-card"><h2>IA e modelos</h2><p>Escolha provider, modelo e limites de cada papel cognitivo.</p>
+    {settings ? <>
+      <section className="settings-card"><h2>Janela</h2>
+        <label className="radio"><input type="checkbox" checked={settings.alwaysOnTop} onChange={event => setSettings({ ...settings, alwaysOnTop: event.target.checked })} />Sempre visível sobre outras janelas</label>
+        <small>O compositor do sistema pode ignorar esta preferência.</small>
+        <p>Click-through: indisponível. Requer mecanismo externo de recuperação seguro.</p>
+      </section>
+      <section className="settings-card settings-fields"><h2>Performance</h2>
+        <label>FPS com janela em foco <small>Inteiro de 1 a 60.</small><input type="number" min="1" max="60" value={active} onChange={event => setActive(event.target.value)} /></label>
+        <label>FPS sem foco <small>Inteiro de 1 a 60.</small><input type="number" min="1" max="60" value={background} onChange={event => setBackground(event.target.value)} /></label>
+        {numberValue(background) > numberValue(active) && <p className="settings-warning">O FPS sem foco está acima do FPS em foco.</p>}
+        <p>Suspenso/oculto: 0 FPS.</p>
+      </section>
+      <section className="settings-card"><h2>Atalhos</h2><p>Composer: Ctrl+Shift+Space. Funciona enquanto a janela recebe eventos de teclado.</p></section>
+      <div className="settings-actions"><button type="button" disabled={busy} onClick={() => void save()}>Salvar configurações gerais</button>{notice && <span role="status">{notice}</span>}</div>
+    </> : <p>Carregando…</p>}
+    <section className="settings-card"><h2>IA e modelos</h2><p>Provider, modelo e limites de cada papel cognitivo.</p>
       <button type="button" onClick={() => void invoke('open_ai_settings_window').catch(() => setError('Não foi possível abrir IA e modelos.'))}>Abrir IA e modelos</button>
     </section>
     {error && <p role="alert" className="settings-error">{error}</p>}

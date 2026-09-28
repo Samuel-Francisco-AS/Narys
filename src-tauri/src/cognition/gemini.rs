@@ -1,7 +1,8 @@
-use std::{collections::HashSet, sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, SystemTime}};
+use std::{collections::HashSet, sync::{atomic::{AtomicBool, Ordering}, Arc, RwLock}, time::{Duration, SystemTime}};
 use reqwest::{header::{HeaderMap, HeaderValue, RETRY_AFTER}, Client, StatusCode};
 use serde_json::{json, Value};
 use crate::security::secrets::{SecretKey, SecretStore};
+use crate::persistence::gemini_settings::GeminiTimeouts;
 use super::{policy::ThinkingLevel, provider::{Provider, ProviderFuture}, types::{ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage, ProviderMessage, ProviderRole}};
 
 #[cfg(test)]
@@ -53,16 +54,19 @@ impl MinimalOutboundContext {
   }
 }
 
-pub struct GeminiProvider { config: GeminiConfig, client: Client, secrets: Arc<SecretStore> }
+pub struct GeminiProvider { config: GeminiConfig, client: Client, secrets: Arc<SecretStore>, timeouts: Arc<RwLock<GeminiTimeouts>> }
 impl GeminiProvider {
   pub fn new(config: GeminiConfig, secrets: Arc<SecretStore>) -> Result<Self, ProviderError> {
-    let client = Client::builder().connect_timeout(config.connect_timeout).timeout(config.request_timeout)
+    let client = Client::builder().connect_timeout(config.connect_timeout)
       .build().map_err(|_| {
         #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=client_init");
         ProviderError::Unavailable
       })?;
-    Ok(Self { config, client, secrets })
+    let timeouts = GeminiTimeouts { request_timeout_ms: config.request_timeout.as_millis().try_into().map_err(|_| ProviderError::Fatal)?,
+      stream_idle_timeout_ms: config.idle_timeout.as_millis().try_into().map_err(|_| ProviderError::Fatal)? };
+    Ok(Self { config, client, secrets, timeouts: Arc::new(RwLock::new(timeouts)) })
   }
+  pub fn timeout_handle(&self) -> Arc<RwLock<GeminiTimeouts>> { self.timeouts.clone() }
   fn classify(status: StatusCode, headers: &HeaderMap) -> ProviderError {
     match status.as_u16() {
       429 => ProviderError::RateLimited { retry_after_ms: retry_after_ms(headers) },
@@ -189,7 +193,9 @@ impl Provider for GeminiProvider {
       let key = HeaderValue::from_bytes(&key).map_err(|_| ProviderError::Authentication)?;
       let payload = MinimalOutboundContext::from_bundle(&request.context)?.payload(&request.model, &request.input, &request.history,
         request.max_output_tokens, request.thinking_level);
-      let send = self.client.post(&self.config.endpoint).header("x-goog-api-key", key).json(&payload).send();
+      let timeouts = *self.timeouts.read().unwrap_or_else(|p| p.into_inner());
+      let send = self.client.post(&self.config.endpoint).timeout(Duration::from_millis(timeouts.request_timeout_ms as u64))
+        .header("x-goog-api-key", key).json(&payload).send();
       let mut response = tokio::select! {
         _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
         result = send => result.map_err(|e| network_error(&e))?,
@@ -201,7 +207,7 @@ impl Provider for GeminiProvider {
       'stream: loop {
         let next = tokio::select! {
           _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
-          result = tokio::time::timeout(self.config.idle_timeout, response.chunk()) =>
+          result = tokio::time::timeout(Duration::from_millis(timeouts.stream_idle_timeout_ms as u64), response.chunk()) =>
             result.map_err(|_| ProviderError::Timeout)?.map_err(|e| network_error(&e))?,
         };
         let Some(bytes) = next else { break };
@@ -411,7 +417,7 @@ mod tests {
     assert_eq!(conversation::history_session(&conn,b).unwrap().unwrap().messages[0].content,"HISTORICO-SECRETO-55");
     conversation::append_gemini_exchange(&mut conn,"MARCADOR-LR-6","Entendido.").unwrap();
     conversation::create_diagnostic(&mut conn).unwrap();
-    let history=conversation::outbound_history(&conn,a).unwrap();
+    let history=conversation::outbound_history(&conn, a, conversation::OUTBOUND_HISTORY_MESSAGES, conversation::OUTBOUND_HISTORY_BYTES).unwrap();
     assert_eq!(history.len(),2);
     let (url,handle)=server("200 OK",SSE,"",false);
     let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
@@ -453,7 +459,7 @@ mod tests {
     let sessions=CurrentRunSessions::default();
     gemini_commands::resume_registered_session(&db,&sessions,&TaskRegistry::default(),b,None).unwrap();
     assert_eq!(*sessions.0.lock().unwrap(),std::collections::HashSet::from([b]));
-    let history=conversation::outbound_history(&conn,b).unwrap();
+    let history=conversation::outbound_history(&conn, b, conversation::OUTBOUND_HISTORY_MESSAGES, conversation::OUTBOUND_HISTORY_BYTES).unwrap();
     assert_eq!(history.len(),2);
     let (url,handle)=server("200 OK",SSE,"",false);
     let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();

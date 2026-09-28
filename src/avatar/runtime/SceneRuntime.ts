@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { RenderBudget } from './RenderBudget'
+import { RenderBudget, type RenderBudgetConfig } from './RenderBudget'
 import { SceneDiagnostics } from './SceneDiagnostics'
 
 type SceneCallbacks = {
@@ -17,6 +17,7 @@ export class SceneRuntime {
   private readonly renderBudget: RenderBudget
   private frames = 0
   private reportedGlError = false
+  updateRenderConfig(config: RenderBudgetConfig): void { this.renderBudget.updateConfig(config) }
 
   private readonly onContextLost = (event: Event) => {
     event.preventDefault()

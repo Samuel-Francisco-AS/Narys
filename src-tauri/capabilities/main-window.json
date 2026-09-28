@@ -6,7 +6,6 @@
   "platforms": ["linux", "macOS", "windows"],
   "permissions": [
     "core:window:allow-is-always-on-top",
-    "core:window:allow-set-always-on-top",
     "core:window:allow-outer-position",
     "core:window:allow-start-dragging",
     "core:window:allow-set-size",
@@ -24,6 +23,7 @@
     "allow-start-mock-cognition-task",
     "allow-cognition-provider-status",
     "allow-open-general-settings-window",
+    "allow-get-general-settings",
     "allow-gemini-status",
     "allow-gemini-conversation",
     "allow-create-conversation-session",

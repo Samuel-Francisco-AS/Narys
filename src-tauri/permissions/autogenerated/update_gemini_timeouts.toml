@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-gemini-timeouts"
+description = "Enables the update_gemini_timeouts command without any pre-configured scope."
+commands.allow = ["update_gemini_timeouts"]
+
+[[permission]]
+identifier = "deny-update-gemini-timeouts"
+description = "Denies the update_gemini_timeouts command without any pre-configured scope."
+commands.deny = ["update_gemini_timeouts"]

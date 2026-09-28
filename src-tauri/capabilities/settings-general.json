@@ -4,5 +4,5 @@
   "description": "Janela geral independente: apenas navegação para IA.",
   "windows": ["settings-general"],
   "platforms": ["linux", "macOS", "windows"],
-  "permissions": ["allow-open-ai-settings-window"]
+  "permissions": ["allow-open-ai-settings-window", "allow-get-general-settings", "allow-update-general-settings"]
 }

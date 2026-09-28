@@ -11,6 +11,9 @@ pub fn run() {
       let directory = app.path().app_local_data_dir()?;
       let db = persistence::database::Database::new(directory.clone());
       if let Ok(conn) = db.open() {
+        if let Ok(settings) = persistence::general_settings::load(&conn) {
+          if let Some(window) = app.get_webview_window("main") { let _ = window.set_always_on_top(settings.always_on_top); }
+        }
         // Before any CurrentRunSessions ID can be registered in this process.
         persistence::conversation::close_orphaned_product_sessions(&conn)
           .map_err(|_| "orphan_session_normalization_failed")?;
@@ -22,7 +25,8 @@ pub fn run() {
       }
       app.manage(db.clone());
       let secrets = std::sync::Arc::new(security::secrets::SecretStore::new(directory));
-      let gemini = cognition::GeminiRuntime::new(secrets.clone()).map_err(|_| "gemini_http_client_unavailable")?;
+      let timeouts = db.open().ok().and_then(|conn| persistence::gemini_settings::load(&conn).ok()).unwrap_or_default();
+      let gemini = cognition::GeminiRuntime::new(secrets.clone(), timeouts).map_err(|_| "gemini_http_client_unavailable")?;
       let scheduler = gemini.scheduler.clone();
       let available_secrets = secrets.clone();
       let available = std::sync::Arc::new(move || available_secrets.get_secret(security::secrets::SecretKey::GeminiApiKey)
@@ -48,6 +52,8 @@ pub fn run() {
     luna::start_mock_cognition_task, luna::cognition_provider_status,
     cognition::settings::open_general_settings_window, cognition::settings::open_ai_settings_window,
     cognition::settings::get_ai_settings, cognition::settings::update_cognitive_role_policy,
+    cognition::settings::update_gemini_timeouts,
+    cognition::settings::get_general_settings, cognition::settings::update_general_settings,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
@@ -61,6 +67,8 @@ pub fn run() {
     security::security_status,
     cognition::settings::open_general_settings_window, cognition::settings::open_ai_settings_window,
     cognition::settings::get_ai_settings, cognition::settings::update_cognitive_role_policy,
+    cognition::settings::update_gemini_timeouts,
+    cognition::settings::get_general_settings, cognition::settings::update_general_settings,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,

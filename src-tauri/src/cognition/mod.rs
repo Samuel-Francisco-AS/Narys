@@ -18,14 +18,17 @@ use scheduler::{ProviderStatus, Scheduler};
 use types::{ProviderCapabilities, ProviderConfig};
 use crate::security::secrets::SecretStore;
 
-pub struct GeminiRuntime { pub scheduler: Arc<Scheduler> }
+pub struct GeminiRuntime { pub scheduler: Arc<Scheduler>, pub timeouts: Arc<std::sync::RwLock<crate::persistence::gemini_settings::GeminiTimeouts>> }
 impl GeminiRuntime {
-  pub fn new(secrets: Arc<SecretStore>) -> Result<Self, types::ProviderError> {
+  pub fn new(secrets: Arc<SecretStore>, initial_timeouts: crate::persistence::gemini_settings::GeminiTimeouts) -> Result<Self, types::ProviderError> {
     let mut registry = ProviderRegistry::default();
+    let provider = Arc::new(gemini::GeminiProvider::new(gemini::GeminiConfig::default(), secrets)?);
+    let timeouts = provider.timeout_handle();
+    *timeouts.write().unwrap_or_else(|p| p.into_inner()) = initial_timeouts;
     registry.register(ProviderConfig { id: "gemini".into(), enabled: true, priority: 1,
       capabilities: ProviderCapabilities::text_stream() },
-      Arc::new(gemini::GeminiProvider::new(gemini::GeminiConfig::default(), secrets)?)).expect("unique Gemini ID");
-    Ok(Self { scheduler: Arc::new(Scheduler::new(registry)) })
+      provider).expect("unique Gemini ID");
+    Ok(Self { scheduler: Arc::new(Scheduler::new(registry)), timeouts })
   }
 }
 

@@ -23,7 +23,7 @@ fn write(path:&std::path::Path,value:&Value) { fs::write(path,serde_json::to_vec
 #[test]
 fn migration_empty_and_twice() {
   let (db,_) = fixture(); let conn=db.open().unwrap();
-  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,3);
+  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,5);
   drop(conn); assert!(db.open().is_ok());
 }
 
@@ -34,7 +34,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
   conn.execute("INSERT INTO conversation_sessions(kind,status,title) VALUES ('product','closed','Antes da policy')", []).unwrap();
   migrations::apply(&conn).unwrap();
   let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-  assert_eq!(version, 3);
+  assert_eq!(version, 5);
   let title: String = conn.query_row("SELECT title FROM conversation_sessions WHERE id=1", [], |r| r.get(0)).unwrap();
   assert_eq!(title, "Antes da policy");
   let rows: Vec<(String, String, Option<String>, Option<i64>, i64)> = conn.prepare(
@@ -114,7 +114,7 @@ fn restart_keeps_old_history_out_of_new_outbound_context() {
   let current=conversation::create_session(&conn).unwrap();
   assert_ne!(old,current);
   conversation::append_exchange_to_session(&mut conn,current,"ATUAL-22","Resposta atual").unwrap();
-  let outbound=conversation::outbound_history(&conn,current).unwrap();
+  let outbound=conversation::outbound_history(&conn, current, conversation::OUTBOUND_HISTORY_MESSAGES, conversation::OUTBOUND_HISTORY_BYTES).unwrap();
   assert!(outbound.iter().any(|turn|turn.content=="ATUAL-22"));
   assert!(!outbound.iter().any(|turn|turn.content.contains("HISTORICO-SECRETO-55")));
 }
@@ -319,7 +319,7 @@ fn outbound_history_is_bounded_and_close_preserves_messages() {
   let b=conversation::create_session(&conn).unwrap();
   conversation::append_exchange_to_session(&mut conn,b,"SEGREDO-DA-SESSAO-B","Entendido").unwrap();
   for i in 0..6 { conversation::append_exchange_to_session(&mut conn,a,&format!("user-{i}"),&format!("assistant-{i}")).unwrap(); }
-  let history=conversation::outbound_history(&conn,a).unwrap();
+  let history=conversation::outbound_history(&conn, a, conversation::OUTBOUND_HISTORY_MESSAGES, conversation::OUTBOUND_HISTORY_BYTES).unwrap();
   assert_eq!(history.len(),conversation::OUTBOUND_HISTORY_MESSAGES);
   assert_eq!(history.first().unwrap().content,"user-2");
   assert_eq!(history.last().unwrap().content,"assistant-5");
@@ -329,11 +329,11 @@ fn outbound_history_is_bounded_and_close_preserves_messages() {
   assert!(!conversation::close_session(&conn,a).unwrap());
   assert!(!conversation::is_active_session(&conn,a).unwrap());
   assert_eq!(conversation::session(&conn,a).unwrap().unwrap().messages.len(),12);
-  assert!(conversation::outbound_history(&conn,a).is_err());
+  assert!(conversation::outbound_history(&conn, a, conversation::OUTBOUND_HISTORY_MESSAGES, conversation::OUTBOUND_HISTORY_BYTES).is_err());
   assert!(conversation::append_exchange_to_session(&mut conn,a,"later","not allowed").is_err());
   let c=conversation::create_session(&conn).unwrap();
   for i in 0..4 { conversation::append_exchange_to_session(&mut conn,c,&format!("turn-{i}"),&"x".repeat(4096)).unwrap(); }
-  let bytes_limited=conversation::outbound_history(&conn,c).unwrap();
+  let bytes_limited=conversation::outbound_history(&conn, c, conversation::OUTBOUND_HISTORY_MESSAGES, conversation::OUTBOUND_HISTORY_BYTES).unwrap();
   assert!(bytes_limited.len()<conversation::OUTBOUND_HISTORY_MESSAGES);
   assert_eq!(bytes_limited.last().unwrap().content,"x".repeat(4096));
   assert!(bytes_limited.iter().map(|message|message.content.len()).sum::<usize>()<=conversation::OUTBOUND_HISTORY_BYTES);
@@ -385,8 +385,8 @@ fn resume_swap_is_atomic_and_preserves_both_sessions() {
   let a_state:(String,String)=conn.query_row("SELECT status,summary_status FROM conversation_sessions WHERE id=?1",[a],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
   assert_eq!(a_state,("closed".into(),"pending".into()));
   assert_eq!(conversation::session(&conn,a).unwrap().unwrap().messages[0].content,"ATUAL-A-11");
-  assert_eq!(conversation::outbound_history(&conn,b).unwrap()[0].content,"ORQUIDEA-71");
-  assert!(conversation::outbound_history(&conn,a).is_err());
+  assert_eq!(conversation::outbound_history(&conn, b, conversation::OUTBOUND_HISTORY_MESSAGES, conversation::OUTBOUND_HISTORY_BYTES).unwrap()[0].content,"ORQUIDEA-71");
+  assert!(conversation::outbound_history(&conn, a, conversation::OUTBOUND_HISTORY_MESSAGES, conversation::OUTBOUND_HISTORY_BYTES).is_err());
   let empty=conversation::create_session(&conn).unwrap();
   conversation::close_session(&conn,b).unwrap();
   conversation::resume_session(&mut conn,b,Some(empty)).unwrap();
@@ -428,4 +428,107 @@ fn restart_requires_explicit_resume_again() {
   assert_eq!(conversation::session(&conn,a).unwrap().unwrap().messages.len(),4);
   conversation::resume_session(&mut conn,a,None).unwrap();
   assert!(conversation::is_active_session(&conn,a).unwrap());
+}
+
+#[test]
+fn migration_004_preserves_v3_policy_and_seeds_advanced_defaults() {
+  use crate::cognition::policy::{self, CognitiveRole};
+  use super::general_settings;
+  use super::gemini_settings;
+  let conn = rusqlite::Connection::open_in_memory().unwrap();
+  conn.execute_batch(&format!("{} {} {} PRAGMA user_version=3;",
+    include_str!("../../migrations/001_initial_persistence.sql"),
+    include_str!("../../migrations/002_conversation_history.sql"),
+    include_str!("../../migrations/003_cognitive_role_policy.sql"))).unwrap();
+  conn.execute("UPDATE cognitive_role_policies SET model='gemini-custom',max_provider_calls=4,max_output_tokens=NULL WHERE role='conversation'", []).unwrap();
+  migrations::apply(&conn).unwrap();
+  let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+  assert_eq!(version, 5);
+  let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
+  let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
+  assert_eq!(conversation.model, "gemini-custom");
+  assert_eq!(conversation.max_provider_calls, 4);
+  assert_eq!(conversation.max_output_tokens, None);
+  assert_eq!((conversation.retry_enabled,conversation.max_retries,conversation.retry_backoff_ms,conversation.history_max_messages,conversation.history_max_bytes), (true,1,1500,8,12288));
+  assert_eq!((summary.retry_enabled,summary.max_retries,summary.retry_backoff_ms,summary.summary_input_max_bytes), (false,0,1500,32768));
+  assert_eq!(general_settings::load(&conn).unwrap(), general_settings::GeneralSettings { always_on_top:false,active_fps:30,background_fps:24 });
+  assert_eq!(gemini_settings::load(&conn).unwrap(), gemini_settings::GeminiTimeouts { request_timeout_ms:45_000,stream_idle_timeout_ms:15_000 });
+  let columns: Vec<String> = conn.prepare("PRAGMA table_info(cognitive_role_policies)").unwrap().query_map([], |r| r.get(1)).unwrap().map(Result::unwrap).collect();
+  assert!(!columns.iter().any(|column| column.contains("key") || column.contains("secret")));
+  let schema: String = conn.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL").unwrap()
+    .query_map([], |r| r.get::<_, String>(0)).unwrap().map(Result::unwrap).collect::<Vec<_>>().join(" ").to_lowercase();
+  assert!(!schema.contains("api_key") && !schema.contains("gemini_key"));
+}
+
+#[test]
+fn gemini_timeouts_persist_independently() {
+  use super::gemini_settings::{self, GeminiTimeouts};
+  let (db, _) = fixture();
+  let conn = db.open().unwrap();
+  let changed = GeminiTimeouts { request_timeout_ms:60_000, stream_idle_timeout_ms:20_000 };
+  gemini_settings::save(&conn, &changed).unwrap();
+  assert!(gemini_settings::save(&conn, &GeminiTimeouts { request_timeout_ms:0, ..changed }).is_err());
+  drop(conn);
+  assert_eq!(gemini_settings::load(&db.open().unwrap()).unwrap(), changed);
+}
+
+#[test]
+fn migration_005_repairs_existing_v4_without_changing_preferences() {
+  let conn = rusqlite::Connection::open_in_memory().unwrap();
+  conn.execute_batch(&format!("{} {} {} {} PRAGMA user_version=4;",
+    include_str!("../../migrations/001_initial_persistence.sql"),
+    include_str!("../../migrations/002_conversation_history.sql"),
+    include_str!("../../migrations/003_cognitive_role_policy.sql"),
+    include_str!("../../migrations/004_cognitive_retry_and_general_settings.sql"))).unwrap();
+  conn.execute("UPDATE general_settings SET always_on_top=1,active_fps=45,background_fps=20", []).unwrap();
+  conn.execute("UPDATE cognitive_role_policies SET model='gemini-custom' WHERE role='conversation'", []).unwrap();
+  migrations::apply(&conn).unwrap();
+  let version: i64 = conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap();
+  assert_eq!(version,5);
+  assert_eq!(super::general_settings::load(&conn).unwrap().active_fps,45);
+  assert_eq!(crate::cognition::policy::load(&conn,crate::cognition::policy::CognitiveRole::Conversation).unwrap().model,"gemini-custom");
+  assert_eq!(super::gemini_settings::load(&conn).unwrap().request_timeout_ms,45_000);
+}
+
+#[test]
+fn general_settings_persist_validate_and_stay_independent_of_policy() {
+  use crate::cognition::policy::{self, CognitiveRole};
+  use super::general_settings::{self, GeneralSettings};
+  let (db, _) = fixture();
+  let conn = db.open().unwrap();
+  let original_policy = policy::load(&conn, CognitiveRole::Conversation).unwrap();
+  let changed = GeneralSettings { always_on_top:true, active_fps:45, background_fps:20 };
+  general_settings::save(&conn, &changed).unwrap();
+  assert_eq!(policy::load(&conn, CognitiveRole::Conversation).unwrap(), original_policy);
+  assert!(general_settings::save(&conn, &GeneralSettings { active_fps:0, ..changed.clone() }).is_err());
+  assert!(general_settings::save(&conn, &GeneralSettings { background_fps:61, ..changed.clone() }).is_err());
+  drop(conn);
+  let mut conn = db.open().unwrap();
+  assert_eq!(general_settings::load(&conn).unwrap(), changed);
+  let mut policy = original_policy;
+  policy.max_provider_calls = 3;
+  policy::save(&mut conn, &policy).unwrap();
+  assert_eq!(general_settings::load(&conn).unwrap(), changed);
+}
+
+#[test]
+fn outbound_history_limits_are_explicit_utf8_safe_and_session_scoped() {
+  let (db, _) = fixture();
+  let mut conn = db.open().unwrap();
+  let session = conversation::create_session(&conn).unwrap();
+  let other = conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn, session, "olá 😀", "resposta A").unwrap();
+  conversation::append_exchange_to_session(&mut conn, session, "segunda 😀", "resposta B").unwrap();
+  conversation::append_exchange_to_session(&mut conn, other, "SEGREDO OUTRA SESSÃO", "isolado").unwrap();
+  assert!(conversation::outbound_history(&conn, session, 0, 1000).unwrap().is_empty());
+  assert!(conversation::outbound_history(&conn, session, 10, 0).unwrap().is_empty());
+  let two = conversation::outbound_history(&conn, session, 2, 1000).unwrap();
+  assert_eq!(two.len(), 2);
+  let tiny = conversation::outbound_history(&conn, session, 10, "resposta B".len()).unwrap();
+  assert_eq!(tiny.len(), 1);
+  assert_eq!(tiny[0].content, "resposta B");
+  let all = conversation::outbound_history(&conn, session, 10, 1000).unwrap();
+  assert_eq!(all.len(), 4);
+  assert!(all.iter().all(|turn| !turn.content.contains("SEGREDO")));
+  assert!(all.iter().any(|turn| turn.content.contains('😀')));
 }

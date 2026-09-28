@@ -7,8 +7,8 @@ export type RenderBudgetState = {
   targetFps: number
 }
 
-const ACTIVE_FPS = 30
-const BACKGROUND_FPS = 24
+export type RenderBudgetConfig = { activeFps: number; backgroundFps: number }
+export const defaultRenderBudgetConfig: RenderBudgetConfig = { activeFps: 30, backgroundFps: 24 }
 // WebKitGTK can deliver only ~2 callbacks/s for a visible, unfocused window.
 // Hidden time is rebased separately; this cap only guards unexpected visible stalls.
 const MAX_DELTA_SECONDS = 0.6
@@ -16,11 +16,16 @@ const SCHEDULER_TOLERANCE_MS = 1
 
 /** Owns frame cadence and animation time for the Avatar Runtime. */
 export class RenderBudget {
-  private state: RenderBudgetState = this.readState()
+  private state: RenderBudgetState
+  private readonly onTransition: (state: RenderBudgetState) => void
+  private config: RenderBudgetConfig
   private nextFrameAt = 0
   private lastProcessedAt: number | null = null
 
-  constructor(private readonly onTransition: (state: RenderBudgetState) => void) {
+  constructor(onTransition: (state: RenderBudgetState) => void, config: RenderBudgetConfig = defaultRenderBudgetConfig) {
+    this.onTransition = onTransition
+    this.config = config
+    this.state = this.readState()
     document.addEventListener('visibilitychange', this.onEnvironmentChange)
     window.addEventListener('focus', this.onEnvironmentChange)
     window.addEventListener('blur', this.onEnvironmentChange)
@@ -28,6 +33,13 @@ export class RenderBudget {
 
   get current(): RenderBudgetState {
     return this.state
+  }
+
+  updateConfig(config: RenderBudgetConfig): void {
+    this.config = config
+    this.state = this.readState()
+    this.resetClock()
+    this.onTransition(this.state)
   }
 
   /** null means no animation update or render is due for this callback. */
@@ -63,9 +75,9 @@ export class RenderBudget {
       return { mode: 'suspended', reason: 'hidden', targetFps: 0 }
     }
     if (!document.hasFocus()) {
-      return { mode: 'background', reason: 'blurred', targetFps: BACKGROUND_FPS }
+      return { mode: 'background', reason: 'blurred', targetFps: this.config.backgroundFps }
     }
-    return { mode: 'active', reason: 'focused', targetFps: ACTIVE_FPS }
+    return { mode: 'active', reason: 'focused', targetFps: this.config.activeFps }
   }
 
   private readonly onEnvironmentChange = () => {

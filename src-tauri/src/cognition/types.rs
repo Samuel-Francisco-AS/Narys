@@ -79,6 +79,13 @@ impl ProviderError {
 
 #[derive(Clone, Copy, Debug)]
 pub struct TaskBudget { pub max_provider_calls: u32, pub max_output_tokens: Option<u32> }
+#[derive(Clone, Copy, Debug)]
+pub struct RetryPolicy { pub enabled: bool, pub max_retries: u32, pub initial_backoff_ms: u64 }
+impl RetryPolicy {
+  pub fn backoff_ms(self, retry: u32) -> u64 {
+    self.initial_backoff_ms.saturating_mul(1_u64.checked_shl(retry.saturating_sub(1)).unwrap_or(u64::MAX))
+  }
+}
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerUsage {

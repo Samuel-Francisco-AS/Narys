@@ -151,7 +151,7 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<Gemin
       let db_context = db.clone();
       let (context, history) = tauri::async_runtime::spawn_blocking(move || {
         let conn = db_context.open().map_err(|e| e.code())?;
-        let history = conversation::outbound_history(&conn, session_id).map_err(|e| e.code())?;
+        let history = conversation::outbound_history(&conn, session_id, policy.history_max_messages as usize, policy.history_max_bytes as usize).map_err(|e| e.code())?;
         let context = ContextBuilder::build(&conn, ContextRequest { domain: None, kind: None, min_importance: 0,
           memory_limit: 0, include_recent_conversation: false }).map_err(|e| e.code())?;
         Ok::<_, &'static str>((context, history))
@@ -163,7 +163,7 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<Gemin
         content: turn.content,
       }).collect();
       let (budget, request) = chat_budget_and_request(message.clone(), history, context, &policy);
-      let result = gemini.scheduler.run(request,budget,&cancelled,&mut |event| {
+      let result = gemini.scheduler.run_with_retry(request,budget,policy.retry_policy(),&cancelled,&mut |event| {
         let kind = match event {
           SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
           SchedulerEvent::Chunk { provider_id, text } => TaskEventKind::ProviderChunk { provider_id, chunk: text },
@@ -390,7 +390,7 @@ mod tests {
     let context = || ContextBundle { identity: identity.clone(), relevant_memories: vec![], recent_messages: vec![],
       metadata: ContextMetadata { identity_version: "test".into(), memory_count: 0, recent_message_count: 0 } };
     let mut policy = CognitiveRolePolicy { role: CognitiveRole::Conversation, provider_id: "gemini".into(),
-      model: "gemini-custom".into(), thinking_level: Some(ThinkingLevel::High), max_output_tokens: Some(8192), max_provider_calls: 3 };
+      model: "gemini-custom".into(), thinking_level: Some(ThinkingLevel::High), max_output_tokens: Some(8192), max_provider_calls: 3, retry_enabled: true, max_retries: 1, retry_backoff_ms: 1500, history_max_messages: 8, history_max_bytes: 12288, summary_input_max_bytes: 32768 };
     let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy);
     policy.model = "gemini-new".into(); policy.thinking_level = None; policy.max_output_tokens = None; policy.max_provider_calls = 1;
     let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy);

@@ -1,8 +1,6 @@
 import { isTauri } from '@tauri-apps/api/core'
 import { getCurrentWindow, PhysicalSize, type PhysicalPosition } from '@tauri-apps/api/window'
 
-const ALWAYS_ON_TOP_KEY = 'luna.window.alwaysOnTop'
-
 export type WindowErgonomicsState = {
   available: boolean
   alwaysOnTop: boolean
@@ -51,9 +49,6 @@ export class WindowController {
       if (this.disposed) return
       this.publish({ available: true, alwaysOnTop, position: this.coordinates(position) })
 
-      const saved = window.localStorage.getItem(ALWAYS_ON_TOP_KEY)
-      if (saved === 'true' && !alwaysOnTop) await this.setAlwaysOnTop(true)
-
       const unlisten = await this.window.onMoved(({ payload }) => {
         this.publish({ position: this.coordinates(payload) })
       })
@@ -64,9 +59,8 @@ export class WindowController {
     }
   }
 
-  async toggleAlwaysOnTop(): Promise<void> {
-    if (!this.window || this.state.busy) return
-    await this.setAlwaysOnTop(!this.state.alwaysOnTop)
+  applyAlwaysOnTopPreference(enabled: boolean): void {
+    this.publish({ alwaysOnTop: enabled })
   }
 
   async startDragging(): Promise<void> {
@@ -115,22 +109,6 @@ export class WindowController {
     this.disposed = true
     this.unlistenMoved?.()
     this.unlistenMoved = null
-  }
-
-  private async setAlwaysOnTop(enabled: boolean): Promise<void> {
-    if (!this.window) return
-    this.publish({ busy: true, error: null })
-    try {
-      await this.window.setAlwaysOnTop(enabled)
-      // GTK may report the previous state immediately after the request.
-      // Track the requested mode; the compositor decides whether it can honor it.
-      this.publish({ alwaysOnTop: enabled })
-      window.localStorage.setItem(ALWAYS_ON_TOP_KEY, String(enabled))
-    } catch (error) {
-      this.publish({ error: `Always-on-top: ${this.message(error)}` })
-    } finally {
-      this.publish({ busy: false })
-    }
   }
 
   private coordinates(position: PhysicalPosition): { x: number; y: number } {

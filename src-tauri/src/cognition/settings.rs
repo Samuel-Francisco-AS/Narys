@@ -3,12 +3,63 @@ use super::{
     summary::SummaryWorker,
 };
 use crate::{
-    persistence::database::Database,
+    persistence::{
+        database::Database,
+        gemini_settings::{self, GeminiTimeouts},
+        general_settings::{self, GeneralSettings},
+    },
     security::secrets::{SecretKey, SecretStore},
 };
 use serde::Serialize;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneralSettingsUpdate {
+    pub settings: GeneralSettings,
+    pub always_on_top_requested: bool,
+}
+
+#[tauri::command]
+pub async fn get_general_settings(db: State<'_, Database>) -> Result<GeneralSettings, String> {
+    let db = db.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let conn = db.open().map_err(|e| e.code())?;
+        general_settings::load(&conn).map_err(|e| e.code())
+    })
+    .await
+    .map_err(|_| "worker_failed".to_string())?
+    .map_err(str::to_owned)
+}
+
+#[tauri::command]
+pub async fn update_general_settings(
+    db: State<'_, Database>,
+    app: AppHandle,
+    settings: GeneralSettings,
+) -> Result<GeneralSettingsUpdate, String> {
+    settings.validate().map_err(str::to_owned)?;
+    let db = db.inner().clone();
+    let saved = tauri::async_runtime::spawn_blocking(move || {
+        let conn = db.open().map_err(|e| e.code())?;
+        general_settings::save(&conn, &settings).map_err(|e| e.code())?;
+        Ok::<_, &'static str>(settings)
+    })
+    .await
+    .map_err(|_| "worker_failed".to_string())?
+    .map_err(str::to_owned)?;
+    let main = app.get_webview_window("main");
+    let always_on_top_requested = main
+        .as_ref()
+        .is_some_and(|window| window.set_always_on_top(saved.always_on_top).is_ok());
+    app.emit_to("main", "general-settings-changed", &saved)
+        .map_err(|_| "settings_event_failed")?;
+    Ok(GeneralSettingsUpdate {
+        settings: saved,
+        always_on_top_requested,
+    })
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +75,7 @@ pub struct AiSettings {
     providers: Vec<AiProviderInfo>,
     roles: Vec<CognitiveRolePolicy>,
     credential_store_available: bool,
+    provider_timeouts: GeminiTimeouts,
 }
 
 #[tauri::command]
@@ -39,6 +91,7 @@ pub async fn get_ai_settings(
             policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?,
             policy::load(&conn, CognitiveRole::Summary).map_err(|e| e.code())?,
         ];
+        let provider_timeouts = gemini_settings::load(&conn).map_err(|e| e.code())?;
         let credential = store.get_secret(SecretKey::GeminiApiKey);
         Ok::<_, &'static str>(AiSettings {
             providers: vec![AiProviderInfo {
@@ -49,11 +102,32 @@ pub async fn get_ai_settings(
             }],
             roles,
             credential_store_available: credential.is_ok(),
+            provider_timeouts,
         })
     })
     .await
     .map_err(|_| "worker_failed".to_string())?
     .map_err(str::to_owned)
+}
+
+#[tauri::command]
+pub async fn update_gemini_timeouts(
+    db: State<'_, Database>,
+    runtime: State<'_, Arc<super::GeminiRuntime>>,
+    timeouts: GeminiTimeouts,
+) -> Result<GeminiTimeouts, String> {
+    timeouts.validate().map_err(str::to_owned)?;
+    let db = db.inner().clone();
+    let saved = tauri::async_runtime::spawn_blocking(move || {
+        let conn = db.open().map_err(|e| e.code())?;
+        gemini_settings::save(&conn, &timeouts).map_err(|e| e.code())?;
+        Ok::<_, &'static str>(timeouts)
+    })
+    .await
+    .map_err(|_| "worker_failed".to_string())?
+    .map_err(str::to_owned)?;
+    *runtime.timeouts.write().unwrap_or_else(|p| p.into_inner()) = saved;
+    Ok(saved)
 }
 
 #[tauri::command]

@@ -98,20 +98,19 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
   let scheduler=Scheduler::new(registry);
   let cancelled=AtomicBool::new(false);
   let mut events=vec![];
-  let result=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |e| { events.push(e); Ok(()) })).unwrap();
-  assert_eq!(result.provider_id,"mock-fallback"); assert_eq!(result.usage.provider_calls,2);
-  assert_eq!(result.usage.providers_used,vec!["mock-primary","mock-fallback"]);
-  assert_eq!(result.usage.fallbacks,1); assert!(result.usage.input_tokens > 0); assert!(result.usage.output_tokens > 0);
-  assert!(events.iter().any(|e|matches!(e,SchedulerEvent::Fallback { reason_code:"rate_limited",.. })));
+  let result=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |e| { events.push(e); Ok(()) }));
+  assert_eq!(result.unwrap_err(),SchedulerError::Provider(ProviderError::RateLimited { retry_after_ms:Some(3_000) }));
+  assert_eq!(primary.calls(),1); assert_eq!(fallback.calls(),0);
+  assert!(!events.iter().any(|e|matches!(e,SchedulerEvent::Fallback { .. })));
   assert!(scheduler.status().iter().any(|s|s.id=="mock-primary" && s.cooldown_ms>0));
   let next=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |_| Ok(()))).unwrap();
-  assert_eq!(next.usage.provider_calls,1); assert_eq!(primary.calls(),1); assert_eq!(fallback.calls(),2);
+  assert_eq!(next.usage.provider_calls,1); assert_eq!(primary.calls(),1); assert_eq!(fallback.calls(),1);
   let mut registry=ProviderRegistry::default();
   let limited=Arc::new(MockProvider::new(MockScenario::RateLimited));
   let untouched=Arc::new(MockProvider::new(MockScenario::Normal));
   entry("a",1,true,ProviderCapabilities::text_stream(),limited.clone(),&mut registry);
   entry("b",2,true,ProviderCapabilities::text_stream(),untouched.clone(),&mut registry);
-  assert_eq!(tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(1),&cancelled,&mut |_| Ok(()))).unwrap_err(),SchedulerError::BudgetExceeded);
+  assert_eq!(tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(1),&cancelled,&mut |_| Ok(()))).unwrap_err(),SchedulerError::Provider(ProviderError::RateLimited { retry_after_ms:Some(3_000) }));
   assert_eq!(untouched.calls(),0);
   let mut registry=ProviderRegistry::default();
   let timeout=Arc::new(MockProvider::new(MockScenario::Timeout));
@@ -242,10 +241,10 @@ fn transient_mocks_repeat_per_task_with_same_runtime_and_cooldown_persists() {
     assert_eq!(result.usage.retries, 1);
   }
   let a = tauri::async_runtime::block_on(runtime.scheduler(super::DiagnosticScenario::RateLimitFallback)
-    .run(request(&db), budget(3), &signal, &mut |_| Ok(()))).unwrap();
+    .run(request(&db), budget(3), &signal, &mut |_| Ok(()))).unwrap_err();
   let b = tauri::async_runtime::block_on(runtime.scheduler(super::DiagnosticScenario::RateLimitFallback)
     .run(request(&db), budget(3), &signal, &mut |_| Ok(()))).unwrap();
-  assert_eq!(a.usage.provider_calls, 2);
+  assert!(matches!(a, SchedulerError::Provider(ProviderError::RateLimited { .. })));
   assert_eq!(b.usage.provider_calls, 1);
   fs::remove_dir_all(dir).unwrap();
 }
@@ -341,5 +340,59 @@ fn explicit_provider_and_unbounded_output() {
   assert_eq!(unwanted.calls(), 0); assert_eq!(selected.calls(), 1);
   let mut missing = request(&db); missing.preferred_provider_id = Some("missing".into());
   assert_eq!(tauri::async_runtime::block_on(scheduler.run(missing, budget(1), &signal, &mut |_| Ok(()))).unwrap_err(), SchedulerError::NoProvider);
+  fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
+  use super::provider::{Provider, ProviderFuture};
+  use super::types::{ProviderChunk, ProviderResponse, ProviderUsage, RetryPolicy};
+  struct SequenceProvider { errors: Vec<Option<ProviderError>>, emit_before_error: bool, calls: std::sync::atomic::AtomicU32 }
+  impl Provider for SequenceProvider {
+    fn execute<'a>(&'a self, _request: &'a ProviderRequest, _cancelled: &'a AtomicBool,
+      on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send)) -> ProviderFuture<'a> {
+      Box::pin(async move {
+        let index = self.calls.fetch_add(1, Ordering::SeqCst) as usize;
+        if self.emit_before_error { on_chunk(ProviderChunk { text: "partial".into() })?; }
+        if let Some(error) = self.errors.get(index).cloned().flatten() { return Err(error); }
+        Ok(ProviderResponse { text: "ok".into(), usage: ProviderUsage { calls: 1, ..Default::default() } })
+      })
+    }
+  }
+  let (db, dir) = fixture(); seed(&db);
+  let cases = [
+    (2, 1, vec![Some(ProviderError::Unavailable), None], false, 2, true),
+    (1, 10, vec![Some(ProviderError::Unavailable)], false, 1, false),
+    (4, 1, vec![Some(ProviderError::Unavailable), Some(ProviderError::RateLimited { retry_after_ms: Some(500) })], false, 2, false),
+    (4, 1, vec![Some(ProviderError::Unavailable), Some(ProviderError::Unavailable)], false, 2, false),
+    (4, 3, vec![Some(ProviderError::RateLimited { retry_after_ms: Some(500) })], false, 1, false),
+    (4, 3, vec![Some(ProviderError::Unavailable)], true, 1, false),
+    (4, 1, vec![Some(ProviderError::Unavailable), None], false, 2, true),
+  ];
+  for (calls, retries, errors, chunk, expected_calls, success) in cases {
+    let provider = Arc::new(SequenceProvider { errors, emit_before_error: chunk, calls: std::sync::atomic::AtomicU32::new(0) });
+    let mut registry = ProviderRegistry::default();
+    registry.register(ProviderConfig { id: "gemini".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() }, provider.clone()).unwrap();
+    let scheduler = Scheduler::new(registry);
+    let signal = AtomicBool::new(false);
+    let result = tauri::async_runtime::block_on(scheduler.run_with_retry(request(&db), budget(calls),
+      RetryPolicy { enabled: true, max_retries: retries, initial_backoff_ms: 1 }, &signal, &mut |_| Ok(())));
+    assert_eq!(result.is_ok(), success);
+    assert_eq!(provider.calls.load(Ordering::SeqCst), expected_calls);
+    if expected_calls == 1 && matches!(result, Err(SchedulerError::Provider(ProviderError::RateLimited { .. }))) {
+      assert!(scheduler.status()[0].cooldown_ms > 0);
+    }
+  }
+  assert_eq!(RetryPolicy { enabled: true, max_retries: 3, initial_backoff_ms: 1500 }.backoff_ms(1), 1500);
+  assert_eq!(RetryPolicy { enabled: true, max_retries: 3, initial_backoff_ms: 1500 }.backoff_ms(2), 3000);
+  assert_eq!(RetryPolicy { enabled: true, max_retries: 3, initial_backoff_ms: 1500 }.backoff_ms(3), 6000);
+  let provider = Arc::new(SequenceProvider { errors: vec![Some(ProviderError::Unavailable), None], emit_before_error: false, calls: std::sync::atomic::AtomicU32::new(0) });
+  let mut registry = ProviderRegistry::default();
+  registry.register(ProviderConfig { id: "gemini".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() }, provider.clone()).unwrap();
+  let signal = AtomicBool::new(false);
+  let disabled = tauri::async_runtime::block_on(Scheduler::new(registry).run_with_retry(request(&db), budget(4),
+    RetryPolicy { enabled: false, max_retries: 3, initial_backoff_ms: 1 }, &signal, &mut |_| Ok(())));
+  assert_eq!(disabled.unwrap_err(), SchedulerError::Provider(ProviderError::Unavailable));
+  assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
   fs::remove_dir_all(dir).unwrap();
 }
