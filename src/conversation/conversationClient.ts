@@ -8,4 +8,4 @@ export const getHistorySession = (sessionId: number) => invoke<ConversationSessi
 export const closeSession = (sessionId: number) => invoke<void>('close_conversation_session', { sessionId })
 export const resumeConversationSession = (targetSessionId: number, currentSessionId: number | null) =>
   invoke<ConversationSession>('resume_conversation_session', { targetSessionId, currentSessionId })
-export const geminiStatus = () => invoke<{ configured: boolean; credentialStoreAvailable: boolean }>('gemini_status')
+export const geminiStatus = () => invoke<{ configured: boolean; credentialStoreAvailable: boolean; cooldownMs: number }>('gemini_status')
