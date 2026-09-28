@@ -32,3 +32,7 @@ A UIP-6A permanece **CANDIDATA** até revisão humana de abertura pelo botão da
 
 
 Verificações automatizadas da candidata: `npm run typecheck` e `npm run build` passaram; `cargo check` passou; `cargo test` passou com 71 testes; `git diff --check` passou. `cargo fmt --check` global falhou pelo drift conhecido; `rustfmt --check` dos dois módulos Rust novos passou. O build Vite ainda informa chunk principal acima de 500 kB.
+
+### Correção visual do gate humano — WebKitGTK
+
+Sam encontrou os `<select>` fechados de Provider e Thinking com fundo nativo claro e texto selecionado pouco legível no Fedora. A superfície Settings agora declara `color-scheme: dark`; os selects usam cores explícitas, `appearance: none` e uma seta CSS, preservando o `<select>` HTML, foco e teclado. No Tauri real, a árvore AT-SPI confirmou os dois controles em `conversation` e `summary`, suas opções e foco; seleção e salvamento continuaram funcionando, com as policies originais preservadas. A cor renderizada ainda requer confirmação visual de Sam. **UIP-6A permanece CANDIDATA.**

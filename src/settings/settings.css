@@ -1,6 +1,6 @@
-html:has(.settings-page), body:has(.settings-page), #root:has(.settings-page) { background: #101522; height: 100%; }
+html:has(.settings-page), body:has(.settings-page), #root:has(.settings-page) { background: #101522; color-scheme: dark; height: 100%; }
 body:has(.settings-page) { overflow: auto; }
-.settings-page { max-width: 980px; margin: auto; min-height: 100%; padding: 28px; color: #edf0fa; background: #101522; font: 14px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+.settings-page { max-width: 980px; margin: auto; min-height: 100%; padding: 28px; color: #edf0fa; background: #101522; color-scheme: dark; font: 14px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
 .settings-page header { margin-bottom: 24px; }
 .settings-page h1 { margin: 3px 0 6px; font-size: 28px; }
 .settings-page h2 { margin: 0 0 10px; font-size: 18px; }
@@ -9,7 +9,18 @@ body:has(.settings-page) { overflow: auto; }
 .settings-card { margin: 0 0 16px; padding: 20px; border: 1px solid #3c4761; border-radius: 14px; background: #1a2335; }
 .settings-page label { display: grid; gap: 5px; font-weight: 650; }
 .settings-page small { color: #acb9ce; font-size: 11px; font-weight: 400; }
-.settings-page input, .settings-page select { width: 100%; padding: 9px; border: 1px solid #63708d; border-radius: 7px; background: #101a2b; color: #f3f4fb; font: inherit; }
+.settings-page input, .settings-page select { width: 100%; padding: 9px; border: 1px solid #63708d; border-radius: 7px; background-color: #101a2b; color: #f3f4fb; font: inherit; }
+.settings-page select {
+  color-scheme: dark;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  background-color: #101a2b;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23cbd5e1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+}
+.settings-page select option { background-color: #101a2b; color: #f3f4fb; }
 .settings-page button { padding: 9px 12px; border: 1px solid #938bca; border-radius: 8px; background: #59558e; color: white; cursor: pointer; font: inherit; }
 .settings-page button:disabled { opacity: .45; cursor: default; }
 .settings-page button:focus-visible, .settings-page input:focus-visible, .settings-page select:focus-visible { outline: 2px solid #c7bbff; outline-offset: 2px; }
