@@ -48,6 +48,7 @@ pub struct ProviderRequest {
   pub thinking_level: Option<ThinkingLevel>,
   pub required_capabilities: ProviderCapabilities,
   pub attempt: u32,
+  pub provider_timeouts: Option<crate::persistence::gemini_settings::GeminiTimeouts>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderRole { User, Assistant }
@@ -64,7 +65,7 @@ pub struct ProviderResponse { pub text: String, pub usage: ProviderUsage }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderError {
   RateLimited { retry_after_ms: Option<u64> }, Timeout, QuotaExceeded, Authentication, Fatal, Cancelled, RemoteCancelled,
-  Incomplete, RequiresAction, Protocol, InvalidRequest, Unavailable, EventSinkClosed,
+  Incomplete, RequiresAction, Protocol, InvalidRequest, Unavailable { retry_after_ms: Option<u64> }, EventSinkClosed,
 }
 impl ProviderError {
   pub fn code(&self) -> &'static str { match self {
@@ -73,7 +74,7 @@ impl ProviderError {
     Self::RemoteCancelled => "provider_cancelled", Self::Incomplete => "provider_incomplete",
     Self::RequiresAction => "provider_requires_action", Self::Protocol => "provider_protocol_error",
     Self::InvalidRequest => "model_or_request_rejected",
-    Self::Unavailable => "unavailable", Self::EventSinkClosed => "channel_closed",
+    Self::Unavailable { .. } => "unavailable", Self::EventSinkClosed => "channel_closed",
   }}
 }
 

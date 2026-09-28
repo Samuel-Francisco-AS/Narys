@@ -20,11 +20,18 @@ fn data(version: &str) -> Value { json!({
     {"importKey":"synthetic-b","type":"decision","domains":["other"],"state":"active","title":"B","summary":"Synthetic B","importance":4,"confidence":"medium","eventDate":"2026-01-01"}
   ]}) }
 fn write(path:&std::path::Path,value:&Value) { fs::write(path,serde_json::to_vec(value).unwrap()).unwrap(); }
+fn assert_sqlite_integrity(conn: &rusqlite::Connection) {
+  let integrity: String = conn.pragma_query_value(None, "integrity_check", |row| row.get(0)).unwrap();
+  let foreign_keys: i64 = conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |row| row.get(0)).unwrap();
+  assert_eq!(integrity, "ok");
+  assert_eq!(foreign_keys, 0);
+}
 #[test]
 fn migration_empty_and_twice() {
   let (db,_) = fixture(); let conn=db.open().unwrap();
   let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,5);
-  drop(conn); assert!(db.open().is_ok());
+  assert_sqlite_integrity(&conn);
+  drop(conn); assert_sqlite_integrity(&db.open().unwrap());
 }
 
 #[test]
@@ -44,6 +51,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
     ("summary".into(),"gemini-3.8-flash".into(),Some("low".into()),Some(1024),1)]);
   migrations::apply(&conn).unwrap();
   assert_eq!(conn.query_row("SELECT COUNT(*) FROM cognitive_role_policies", [], |r| r.get::<_,i64>(0)).unwrap(), 2);
+  assert_sqlite_integrity(&conn);
 }
 
 #[test]
@@ -458,6 +466,7 @@ fn migration_004_preserves_v3_policy_and_seeds_advanced_defaults() {
   let schema: String = conn.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL").unwrap()
     .query_map([], |r| r.get::<_, String>(0)).unwrap().map(Result::unwrap).collect::<Vec<_>>().join(" ").to_lowercase();
   assert!(!schema.contains("api_key") && !schema.contains("gemini_key"));
+  assert_sqlite_integrity(&conn);
 }
 
 #[test]
@@ -488,6 +497,7 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
   assert_eq!(super::general_settings::load(&conn).unwrap().active_fps,45);
   assert_eq!(crate::cognition::policy::load(&conn,crate::cognition::policy::CognitiveRole::Conversation).unwrap().model,"gemini-custom");
   assert_eq!(super::gemini_settings::load(&conn).unwrap().request_timeout_ms,45_000);
+  assert_sqlite_integrity(&conn);
 }
 
 #[test]

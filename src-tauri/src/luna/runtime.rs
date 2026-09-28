@@ -1,6 +1,6 @@
 use std::{
   collections::HashMap,
-  sync::{atomic::{AtomicBool, AtomicU64, Ordering}, Arc, Mutex},
+  sync::{atomic::{AtomicBool, AtomicU64, Ordering}, Arc, Mutex, Weak},
   time::Duration,
 };
 
@@ -25,20 +25,33 @@ struct TaskControl {
 pub struct TaskRegistry {
   next_id: AtomicU64,
   active: Mutex<HashMap<TaskId, TaskControl>>,
-  in_flight_gemini: Mutex<HashMap<i64, usize>>,
+  foreground_provider_tasks: Mutex<HashMap<i64, usize>>,
+  summary_worker: Mutex<Weak<crate::cognition::summary::SummaryWorker>>,
 }
 
 impl TaskRegistry {
-  pub fn has_in_flight_gemini(&self, session_id: i64) -> bool {
-    self.in_flight_gemini.lock().unwrap_or_else(|poison| poison.into_inner()).contains_key(&session_id)
+  pub fn has_foreground_provider_work_for_session(&self, session_id: i64) -> bool {
+    self.foreground_provider_tasks.lock().unwrap_or_else(|poison| poison.into_inner()).contains_key(&session_id)
+  }
+  pub fn has_foreground_provider_work(&self) -> bool {
+    !self.foreground_provider_tasks.lock().unwrap_or_else(|poison| poison.into_inner()).is_empty()
+  }
+  pub fn attach_summary_worker(&self, worker: &Arc<crate::cognition::summary::SummaryWorker>) {
+    *self.summary_worker.lock().unwrap_or_else(|poison| poison.into_inner()) = Arc::downgrade(worker);
   }
   #[cfg(test)]
-  pub fn mark_in_flight_gemini_for_test(&self, session_id: i64) {
-    self.in_flight_gemini.lock().unwrap().insert(session_id, 1);
+  pub fn mark_foreground_provider_work_for_test(&self, session_id: i64) {
+    self.foreground_provider_tasks.lock().unwrap().insert(session_id, 1);
   }
   #[cfg(test)]
-  pub fn in_flight_gemini_for_test_clear(&self, session_id: i64) {
-    self.in_flight_gemini.lock().unwrap().remove(&session_id);
+  pub fn foreground_provider_work_for_test_clear(&self, session_id: i64) {
+    self.foreground_provider_tasks.lock().unwrap().remove(&session_id);
+  }
+  #[cfg(test)]
+  pub fn foreground_guard_for_test(self: &Arc<Self>, session_id: i64) -> impl Drop {
+    let (id, _) = self.register().unwrap();
+    *self.foreground_provider_tasks.lock().unwrap().entry(session_id).or_default() += 1;
+    ActiveTask { registry: self.clone(), id, session_id: Some(session_id) }
   }
   pub fn seed_next_id(&self, last: u64) { self.next_id.store(last, Ordering::Relaxed); }
   /// Reserve a monotonic ID for background work without making it cancelable in the conversation UI.
@@ -107,10 +120,17 @@ impl Drop for ActiveTask {
   fn drop(&mut self) {
     self.registry.remove(self.id);
     if let Some(session_id) = self.session_id {
-      let mut in_flight = self.registry.in_flight_gemini.lock().unwrap_or_else(|poison| poison.into_inner());
+      let mut in_flight = self.registry.foreground_provider_tasks.lock().unwrap_or_else(|poison| poison.into_inner());
       if let Some(count) = in_flight.get_mut(&session_id) {
         *count -= 1;
         if *count == 0 { in_flight.remove(&session_id); }
+      }
+      let foreground_finished = in_flight.is_empty();
+      drop(in_flight);
+      if foreground_finished {
+        if let Some(worker) = self.registry.summary_worker.lock().unwrap_or_else(|poison| poison.into_inner()).upgrade() {
+          worker.kick();
+        }
       }
     }
   }
@@ -129,18 +149,19 @@ fn emit_cognitive(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32,
 }
 
 fn chat_budget_and_request(message: String, history: Vec<ProviderMessage>, context: ContextBundle,
-  policy: &CognitiveRolePolicy) -> (TaskBudget, ProviderRequest) {
+  policy: &CognitiveRolePolicy, timeouts: crate::persistence::gemini_settings::GeminiTimeouts) -> (TaskBudget, ProviderRequest) {
   let budget = TaskBudget { max_provider_calls: policy.max_provider_calls, max_output_tokens: policy.max_output_tokens };
   let request = ProviderRequest { input: message, history, context: Arc::new(context), max_output_tokens: policy.max_output_tokens,
     preferred_provider_id: Some(policy.provider_id.clone()), model: policy.model.clone(), thinking_level: policy.thinking_level,
-    required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
+    required_capabilities: ProviderCapabilities::text_stream(), attempt: 1, provider_timeouts: Some(timeouts) };
   (budget, request)
 }
 
 pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<GeminiRuntime>,
   session_id: i64, message: String, policy: CognitiveRolePolicy, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   let (id, cancelled) = registry.register()?;
-  *registry.in_flight_gemini.lock().unwrap_or_else(|poison| poison.into_inner()).entry(session_id).or_default() += 1;
+  *registry.foreground_provider_tasks.lock().unwrap_or_else(|poison| poison.into_inner()).entry(session_id).or_default() += 1;
+  let timeouts = *gemini.timeouts.read().unwrap_or_else(|poison| poison.into_inner());
   let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
   tauri::async_runtime::spawn(async move {
     let _active = ActiveTask { registry: registry.clone(), id, session_id: Some(session_id) };
@@ -162,7 +183,7 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<Gemin
         role: match turn.role { conversation::SessionRole::User => ProviderRole::User, conversation::SessionRole::Assistant => ProviderRole::Assistant },
         content: turn.content,
       }).collect();
-      let (budget, request) = chat_budget_and_request(message.clone(), history, context, &policy);
+      let (budget, request) = chat_budget_and_request(message.clone(), history, context, &policy, timeouts);
       let result = gemini.scheduler.run_with_retry(request,budget,policy.retry_policy(),&cancelled,&mut |event| {
         let kind = match event {
           SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
@@ -315,7 +336,7 @@ pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc
           TaskBudget { max_provider_calls: 1, max_output_tokens: Some(32) }
         } else { TaskBudget { max_provider_calls: 3, max_output_tokens: Some(32) } };
         let request = ProviderRequest { input: "Execute o diagnóstico cognitivo LR-5.".into(), history: vec![], context: Arc::new(context),
-          max_output_tokens: budget.max_output_tokens, preferred_provider_id: None, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
+          max_output_tokens: budget.max_output_tokens, preferred_provider_id: None, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1, provider_timeouts: None };
         if context_event.is_err() { Err("channel_closed") } else { cognition.scheduler(scenario).run(request, budget, &cancelled, &mut |event| {
           let kind = match event {
             SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
@@ -391,14 +412,18 @@ mod tests {
       metadata: ContextMetadata { identity_version: "test".into(), memory_count: 0, recent_message_count: 0 } };
     let mut policy = CognitiveRolePolicy { role: CognitiveRole::Conversation, provider_id: "gemini".into(),
       model: "gemini-custom".into(), thinking_level: Some(ThinkingLevel::High), max_output_tokens: Some(8192), max_provider_calls: 3, retry_enabled: true, max_retries: 1, retry_backoff_ms: 1500, history_max_messages: 8, history_max_bytes: 12288, summary_input_max_bytes: 32768 };
-    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy);
+    let first_timeouts = crate::persistence::gemini_settings::GeminiTimeouts::default();
+    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, first_timeouts);
     policy.model = "gemini-new".into(); policy.thinking_level = None; policy.max_output_tokens = None; policy.max_provider_calls = 1;
-    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy);
+    let next_timeouts = crate::persistence::gemini_settings::GeminiTimeouts { request_timeout_ms: 60_000, stream_idle_timeout_ms: 20_000 };
+    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, next_timeouts);
     assert_eq!(first.preferred_provider_id.as_deref(), Some("gemini"));
     assert_eq!((first.model.as_str(), first.thinking_level, first.max_output_tokens, first_budget.max_provider_calls),
       ("gemini-custom", Some(ThinkingLevel::High), Some(8192), 3));
     assert_eq!((next.model.as_str(), next.thinking_level, next.max_output_tokens, next_budget.max_provider_calls),
       ("gemini-new", None, None, 1));
+    assert_eq!(first.provider_timeouts, Some(first_timeouts));
+    assert_eq!(next.provider_timeouts, Some(next_timeouts));
   }
 
   #[test]
@@ -425,6 +450,32 @@ mod tests {
     assert!(!registry.cancel(summary));
     assert!(registry.cancel(chat));
     assert!(registry.cancel(mock));
+  }
+
+  #[test]
+  fn foreground_counter_is_raii_for_parallel_cancel_channel_close_and_panic() {
+    let registry = Arc::new(TaskRegistry::default());
+    let first = registry.foreground_guard_for_test(1);
+    let first_id = TaskId(registry.next_id.load(Ordering::Relaxed));
+    let second = registry.foreground_guard_for_test(1);
+    let second_id = TaskId(registry.next_id.load(Ordering::Relaxed));
+    let third = registry.foreground_guard_for_test(2);
+    assert!(registry.has_foreground_provider_work());
+    assert!(registry.cancel(first_id));
+    drop(first);
+    assert!(registry.has_foreground_provider_work_for_session(1));
+    assert_eq!(registry.finish_channel_closed(second_id), TaskState::Failed);
+    drop(second);
+    assert!(!registry.has_foreground_provider_work_for_session(1));
+    assert!(registry.has_foreground_provider_work());
+    drop(third);
+    assert!(!registry.has_foreground_provider_work());
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+      let _guard = registry.foreground_guard_for_test(3);
+      panic!("synthetic task panic");
+    }));
+    assert!(result.is_err());
+    assert!(!registry.has_foreground_provider_work());
   }
 
   #[test]

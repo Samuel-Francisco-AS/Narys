@@ -62,7 +62,8 @@ impl Scheduler {
         };
         let attempt_request = ProviderRequest { input: request.input.clone(), history: request.history.clone(), context: request.context.clone(),
           max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens), preferred_provider_id: request.preferred_provider_id.clone(),
-          model: request.model.clone(), thinking_level: request.thinking_level, required_capabilities: request.required_capabilities, attempt };
+          model: request.model.clone(), thinking_level: request.thinking_level, required_capabilities: request.required_capabilities, attempt,
+          provider_timeouts: request.provider_timeouts };
         // Keep the same structured context across retry/fallback; adapters decide serialization.
         let result = entry.provider.execute(&attempt_request, cancelled, &mut on_chunk).await;
         if matches!(result, Err(ProviderError::EventSinkClosed)) { return Err(SchedulerError::EventSinkClosed); }
@@ -81,14 +82,21 @@ impl Scheduler {
           Err(ProviderError::EventSinkClosed) => return Err(SchedulerError::EventSinkClosed),
           Err(error) => {
             if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
-            if let ProviderError::RateLimited { retry_after_ms } = error {
-              self.cooldowns.lock().unwrap_or_else(|p| p.into_inner()).insert(entry.config.id.clone(), Instant::now() + Duration::from_millis(retry_after_ms.unwrap_or(3_000).max(1)));
+            let cooldown_ms = match error {
+              ProviderError::RateLimited { retry_after_ms } => Some(retry_after_ms.unwrap_or(3_000).max(1)),
+              ProviderError::Unavailable { retry_after_ms: Some(ms) } => Some(ms.max(1)),
+              _ => None,
+            };
+            if let Some(ms) = cooldown_ms {
+              self.cooldowns.lock().unwrap_or_else(|p| p.into_inner()).insert(entry.config.id.clone(), Instant::now() + Duration::from_millis(ms));
+              #[cfg(debug_assertions)] eprintln!("[Scheduler][diag] cooldown provider={} reason={} cooldown_ms={ms}",
+                if entry.config.id == "gemini" { "gemini" } else { "other" }, error.code());
               return Err(SchedulerError::Provider(error));
             }
             // Once text has reached the UI, another attempt would concatenate
             // incompatible partial answers and could double provider cost.
             if emitted_chunk { return Err(SchedulerError::Provider(error)); }
-            let eligible_error = matches!(error, ProviderError::Timeout | ProviderError::Unavailable);
+            let eligible_error = matches!(error, ProviderError::Timeout | ProviderError::Unavailable { retry_after_ms: None });
             let retries_used = attempt - 1;
             let can_retry = retry_policy.enabled && eligible_error && retries_used < retry_policy.max_retries
               && usage.provider_calls < budget.max_provider_calls;
@@ -144,6 +152,6 @@ impl Scheduler {
         }
       }
       Err(SchedulerError::NoProvider)
-    } else { Err(SchedulerError::Provider(last_error.unwrap_or(ProviderError::Unavailable))) }
+    } else { Err(SchedulerError::Provider(last_error.unwrap_or(ProviderError::Unavailable { retry_after_ms: None }))) }
   }
 }

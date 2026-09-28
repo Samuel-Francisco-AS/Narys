@@ -27,6 +27,13 @@ pub const PROTOTYPE_SUMMARY_INPUT_BYTES: usize = 32 * 1024;
 const TITLE_CHARS: usize = 70;
 const SUMMARY_CHARS: usize = 1200;
 
+#[derive(Debug, Eq, PartialEq)]
+enum ProcessOutcome {
+    Continue,
+    Transient,
+    Foreground,
+}
+
 pub struct SummaryWorker {
     db: Database,
     scheduler: Arc<Scheduler>,
@@ -52,6 +59,7 @@ impl SummaryWorker {
             kicks: AtomicU64::new(0),
             role: CognitiveRole::Summary,
         });
+        worker.registry.attach_summary_worker(&worker);
         let running = worker.clone();
         tauri::async_runtime::spawn(async move {
             let mut ignored_through = 0;
@@ -74,9 +82,24 @@ impl SummaryWorker {
         self.kicks.fetch_add(1, Ordering::Release);
         self.notify.notify_one();
     }
+    fn defer_claim(&self, id: i64) {
+        if !matches!(
+            self.db
+                .open()
+                .and_then(|conn| conversation::fail_summary(&conn, id, true)),
+            Ok(true)
+        ) {
+            eprintln!("[Summary] defer code=write_failed");
+        }
+    }
     /// Returns true when a transient provider error deferred the queue.
     async fn drain(&self) -> bool {
         loop {
+            // Conversation is interactive; leave summary pending until the final
+            // foreground task drops its RAII guard and kicks us again.
+            if self.registry.has_foreground_provider_work() {
+                return false;
+            }
             // Missing credentials are a temporary configuration state. Leave pending
             // untouched and wait for a future kick, without creating a failure record.
             let available = self.available.clone();
@@ -97,27 +120,63 @@ impl SummaryWorker {
                 Ok(Ok(None)) => return false,
                 _ => return false,
             };
-            if !self.process(claimed).await {
-                return true;
+            match self.process(claimed).await {
+                ProcessOutcome::Continue => {}
+                ProcessOutcome::Transient => return true,
+                ProcessOutcome::Foreground => return false,
             }
         }
     }
-    async fn process(&self, claimed: ClaimedSummary) -> bool {
+    async fn process(&self, claimed: ClaimedSummary) -> ProcessOutcome {
         debug_assert_eq!(self.role, CognitiveRole::Summary);
+        if self.registry.has_foreground_provider_work() {
+            self.defer_claim(claimed.id);
+            return ProcessOutcome::Foreground;
+        }
         let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-        let policy = match self.db.open().and_then(|conn| policy::load(&conn, CognitiveRole::Summary)) {
+        let policy = match self
+            .db
+            .open()
+            .and_then(|conn| policy::load(&conn, CognitiveRole::Summary))
+        {
             Ok(policy) => policy,
-            Err(_) => { eprintln!("[Summary] policy code=read_failed"); return false; }
+            Err(_) => {
+                eprintln!("[Summary] policy code=read_failed");
+                self.defer_claim(claimed.id);
+                return ProcessOutcome::Transient;
+            }
         };
-        let request = summary_request(&claimed.messages, claimed.truncated, &policy);
+        let timeouts = match self
+            .db
+            .open()
+            .and_then(|conn| crate::persistence::gemini_settings::load(&conn))
+        {
+            Ok(timeouts) => timeouts,
+            Err(_) => {
+                eprintln!("[Summary] timeouts code=read_failed");
+                self.defer_claim(claimed.id);
+                return ProcessOutcome::Transient;
+            }
+        };
+        let request = summary_request(&claimed.messages, claimed.truncated, &policy, timeouts);
         let cancelled = AtomicBool::new(false);
         let budget = TaskBudget {
             max_provider_calls: policy.max_provider_calls,
             max_output_tokens: policy.max_output_tokens,
         };
+        if self.registry.has_foreground_provider_work() {
+            self.defer_claim(claimed.id);
+            return ProcessOutcome::Foreground;
+        }
         let result = self
             .scheduler
-            .run_with_retry(request, budget, policy.retry_policy(), &cancelled, &mut |_| Ok(()))
+            .run_with_retry(
+                request,
+                budget,
+                policy.retry_policy(),
+                &cancelled,
+                &mut |_| Ok(()),
+            )
             .await;
         let (metadata, error_code, transient) = match result {
             Ok(result) => match parse_output(&result.text) {
@@ -167,9 +226,13 @@ impl SummaryWorker {
         .await;
         if !matches!(write, Ok(Ok(()))) {
             eprintln!("[Summary] persistence code=write_failed");
-            return false;
+            return ProcessOutcome::Transient;
         }
-        !transient
+        if transient {
+            ProcessOutcome::Transient
+        } else {
+            ProcessOutcome::Continue
+        }
     }
 }
 fn is_transient(error: &SchedulerError) -> bool {
@@ -178,7 +241,7 @@ fn is_transient(error: &SchedulerError) -> bool {
         SchedulerError::NoProvider
             | SchedulerError::Provider(
                 super::types::ProviderError::RateLimited { .. }
-                    | super::types::ProviderError::Unavailable
+                    | super::types::ProviderError::Unavailable { .. }
                     | super::types::ProviderError::Timeout
             )
     )
@@ -195,8 +258,14 @@ struct SummaryInput<'a> {
     truncated: bool,
     messages: Vec<SummaryMessage<'a>>,
 }
-fn summary_input(messages: &[ConversationMessage], already_truncated: bool, max_bytes: usize) -> String {
-    if max_bytes == 0 { return String::new(); }
+fn summary_input(
+    messages: &[ConversationMessage],
+    already_truncated: bool,
+    max_bytes: usize,
+) -> String {
+    if max_bytes == 0 {
+        return String::new();
+    }
     let first_user = messages.iter().position(|m| m.role == "user");
     let mut chosen: Vec<(usize, SummaryMessage<'_>)> = Vec::new();
     let mut truncated = already_truncated;
@@ -274,9 +343,18 @@ fn summary_input(messages: &[ConversationMessage], already_truncated: bool, max_
         messages: chosen.into_iter().map(|(_, m)| m).collect(),
     })
     .expect("serializable summary input");
-    if output.len() > max_bytes { String::new() } else { output }
+    if output.len() > max_bytes {
+        String::new()
+    } else {
+        output
+    }
 }
-fn summary_request(messages: &[ConversationMessage], already_truncated: bool, policy: &CognitiveRolePolicy) -> ProviderRequest {
+fn summary_request(
+    messages: &[ConversationMessage],
+    already_truncated: bool,
+    policy: &CognitiveRolePolicy,
+    timeouts: crate::persistence::gemini_settings::GeminiTimeouts,
+) -> ProviderRequest {
     // Static synthetic identity satisfies the current provider contract without
     // loading private identity, memories or any global recent conversation.
     let identity = serde_json::from_value(serde_json::json!({
@@ -308,6 +386,7 @@ fn summary_request(messages: &[ConversationMessage], already_truncated: bool, po
         thinking_level: policy.thinking_level,
         required_capabilities: ProviderCapabilities::text_stream(),
         attempt: 1,
+        provider_timeouts: Some(timeouts),
     }
 }
 #[derive(Deserialize)]
@@ -361,10 +440,7 @@ mod tests {
         ) -> ProviderFuture<'a> {
             Box::pin(async move {
                 assert!(request.history.is_empty());
-                assert_eq!(
-                    request.max_output_tokens,
-                    Some(1024)
-                );
+                assert_eq!(request.max_output_tokens, Some(1024));
                 assert_eq!(request.context.metadata.memory_count, 0);
                 assert!(request.context.relevant_memories.is_empty());
                 assert!(request.context.recent_messages.is_empty());
@@ -454,13 +530,32 @@ mod tests {
     }
     #[test]
     fn summary_request_uses_its_own_role_policy() {
-        let policy = CognitiveRolePolicy { role: CognitiveRole::Summary, provider_id: "gemini".into(),
-            model: "gemini-summary".into(), thinking_level: Some(super::super::policy::ThinkingLevel::Low),
-            max_output_tokens: Some(512), max_provider_calls: 1, retry_enabled: false, max_retries: 0, retry_backoff_ms: 1500, history_max_messages: 8, history_max_bytes: 12288, summary_input_max_bytes: 32768 };
-        let request = summary_request(&[], false, &policy);
+        let policy = CognitiveRolePolicy {
+            role: CognitiveRole::Summary,
+            provider_id: "gemini".into(),
+            model: "gemini-summary".into(),
+            thinking_level: Some(super::super::policy::ThinkingLevel::Low),
+            max_output_tokens: Some(512),
+            max_provider_calls: 1,
+            retry_enabled: false,
+            max_retries: 0,
+            retry_backoff_ms: 1500,
+            history_max_messages: 8,
+            history_max_bytes: 12288,
+            summary_input_max_bytes: 32768,
+        };
+        let request = summary_request(
+            &[],
+            false,
+            &policy,
+            crate::persistence::gemini_settings::GeminiTimeouts::default(),
+        );
         assert_eq!(request.preferred_provider_id.as_deref(), Some("gemini"));
         assert_eq!(request.model, "gemini-summary");
-        assert_eq!(request.thinking_level, Some(super::super::policy::ThinkingLevel::Low));
+        assert_eq!(
+            request.thinking_level,
+            Some(super::super::policy::ThinkingLevel::Low)
+        );
         assert_eq!(request.max_output_tokens, Some(512));
         assert!(request.history.is_empty());
     }
@@ -528,7 +623,20 @@ mod tests {
                 "completed",
                 true,
             ),
-            (Err(ProviderError::Unavailable), "pending", false),
+            (
+                Err(ProviderError::Unavailable {
+                    retry_after_ms: None,
+                }),
+                "pending",
+                false,
+            ),
+            (
+                Err(ProviderError::Unavailable {
+                    retry_after_ms: Some(30_000),
+                }),
+                "pending",
+                false,
+            ),
             (
                 Err(ProviderError::RateLimited {
                     retry_after_ms: Some(20),
@@ -554,7 +662,10 @@ mod tests {
             drop(conn);
             fake.responses.lock().unwrap().push_back(answer);
             let worker = worker(db.clone(), scheduler, registry);
-            assert_eq!(worker.process(claim).await, continue_drain);
+            assert_eq!(
+                worker.process(claim).await == ProcessOutcome::Continue,
+                continue_drain
+            );
             let conn = db.open().unwrap();
             let detail = conversation::history_session(&conn, id).unwrap().unwrap();
             assert_eq!(detail.summary_status, expected);
@@ -599,6 +710,52 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn foreground_defers_pending_summary_until_last_task_finishes() {
+        let (db, fake, scheduler, registry) = fixture();
+        let id = add_session(&db, "SUMMARY-PENDING-91");
+        fake.responses.lock().unwrap().push_back(Ok(
+            "{\"title\":\"Prioridade\",\"summary\":\"Resumo.\"}".into(),
+        ));
+        let first = registry.foreground_guard_for_test(10);
+        let second = registry.foreground_guard_for_test(11);
+        let worker =
+            SummaryWorker::start(db.clone(), scheduler, registry.clone(), Arc::new(|| true));
+        worker.kick();
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        assert!(registry.has_foreground_provider_work());
+        assert!(fake.requests.lock().unwrap().is_empty());
+        assert_eq!(
+            conversation::history_session(&db.open().unwrap(), id)
+                .unwrap()
+                .unwrap()
+                .summary_status,
+            "pending"
+        );
+        drop(first);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        assert!(fake.requests.lock().unwrap().is_empty());
+        drop(second);
+        tokio::time::timeout(std::time::Duration::from_secs(2), fake.entered.notified())
+            .await
+            .unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                if conversation::history_session(&db.open().unwrap(), id)
+                    .unwrap()
+                    .unwrap()
+                    .summary_status
+                    == "completed"
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(fake.requests.lock().unwrap().len(), 1);
+    }
+    #[tokio::test]
     async fn delayed_provider_does_not_block_close_and_worker_sleeps_without_pending() {
         let (db, base, scheduler, registry) = fixture();
         let release = Arc::new(Notify::new());
@@ -636,12 +793,14 @@ mod tests {
         let worker = SummaryWorker::start(
             db.clone(),
             Arc::new(Scheduler::new(providers)),
-            registry,
+            registry.clone(),
             Arc::new(|| true),
         );
         tokio::time::timeout(std::time::Duration::from_secs(2), fake.entered.notified())
             .await
             .unwrap();
+        let foreground = registry.foreground_guard_for_test(900);
+        assert!(registry.has_foreground_provider_work());
         assert_eq!(
             conversation::history_session(&conn, id)
                 .unwrap()
@@ -668,6 +827,7 @@ mod tests {
         .unwrap();
         assert_eq!(fake.requests.lock().unwrap().len(), 1);
         release.notify_one();
+        drop(foreground);
         tokio::time::timeout(std::time::Duration::from_secs(2), async {
             loop {
                 if conversation::history_session(&conn, id)
@@ -698,10 +858,15 @@ mod uip6b_budget_tests {
     use super::*;
     #[test]
     fn summary_budget_changes_transcript_and_preserves_first_user_when_possible() {
-        let messages: Vec<ConversationMessage> = (0..10).map(|i| ConversationMessage {
-            id: i + 1, session_id: 7, role: if i % 2 == 0 { "user" } else { "assistant" }.into(),
-            content: format!("fala {i} 😀 {}", "conteúdo ".repeat(100)), created_at: "now".into(),
-        }).collect();
+        let messages: Vec<ConversationMessage> = (0..10)
+            .map(|i| ConversationMessage {
+                id: i + 1,
+                session_id: 7,
+                role: if i % 2 == 0 { "user" } else { "assistant" }.into(),
+                content: format!("fala {i} 😀 {}", "conteúdo ".repeat(100)),
+                created_at: "now".into(),
+            })
+            .collect();
         let small = summary_input(&messages, false, 600);
         let large = summary_input(&messages, false, 5000);
         assert!(small.len() <= 600 && large.len() <= 5000);

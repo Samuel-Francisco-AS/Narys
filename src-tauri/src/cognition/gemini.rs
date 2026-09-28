@@ -60,7 +60,7 @@ impl GeminiProvider {
     let client = Client::builder().connect_timeout(config.connect_timeout)
       .build().map_err(|_| {
         #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=client_init");
-        ProviderError::Unavailable
+        ProviderError::Unavailable { retry_after_ms: None }
       })?;
     let timeouts = GeminiTimeouts { request_timeout_ms: config.request_timeout.as_millis().try_into().map_err(|_| ProviderError::Fatal)?,
       stream_idle_timeout_ms: config.idle_timeout.as_millis().try_into().map_err(|_| ProviderError::Fatal)? };
@@ -73,7 +73,7 @@ impl GeminiProvider {
       400 | 404 => ProviderError::InvalidRequest,
       401 | 403 => ProviderError::Authentication,
       408 | 504 => ProviderError::Timeout,
-      500..=599 => ProviderError::Unavailable,
+      500..=599 => ProviderError::Unavailable { retry_after_ms: retry_after_ms(headers) },
       _ => ProviderError::Fatal,
     }
   }
@@ -85,7 +85,7 @@ fn classify_error_code(code: &str, retry_after_ms: Option<u64>) -> ProviderError
     "quota_exceeded" | "payment_required" => ProviderError::QuotaExceeded,
     "deadline_exceeded" | "gateway_timeout" => ProviderError::Timeout,
     "invalid_argument" | "invalid_request" | "not_found" | "model_not_found" => ProviderError::InvalidRequest,
-    "api_error" | "service_unavailable" => ProviderError::Unavailable,
+    "api_error" | "service_unavailable" => ProviderError::Unavailable { retry_after_ms },
     "cancelled" => ProviderError::RemoteCancelled,
     // All request, generation and unknown errors fail closed; no message is exposed.
     _ => ProviderError::Fatal,
@@ -96,7 +96,7 @@ fn error_code(value: &Value) -> Option<&str> {
 }
 #[cfg(debug_assertions)]
 fn diag_http_unavailable(status: StatusCode, headers: &HeaderMap, code: Option<&str>, result: &ProviderError) {
-  if *result != ProviderError::Unavailable { return; }
+  if !matches!(result, ProviderError::Unavailable { .. }) { return; }
   // Only these known codes can produce Unavailable. Never print arbitrary response strings.
   let code = match code { Some("api_error") => " code=api_error", Some("service_unavailable") => " code=service_unavailable", _ => "" };
   if let Some(ms) = retry_after_ms(headers) {
@@ -120,7 +120,7 @@ fn diag_http_rate_limited(status: StatusCode, code: Option<&str>, result: &Provi
 }
 #[cfg(debug_assertions)]
 fn diag_stream_unavailable(code: &str, result: &ProviderError) {
-  if *result == ProviderError::Unavailable {
+  if matches!(result, ProviderError::Unavailable { .. }) {
     // Keep the diagnostic allowlisted even if the mapper gains new codes later.
     let code = match code { "api_error" => "api_error", "service_unavailable" => "service_unavailable", _ => "other" };
     eprintln!("[Gemini][diag] unavailable source=stream code={code}");
@@ -151,6 +151,11 @@ async fn http_error(response: &mut reqwest::Response, cancelled: &AtomicBool) ->
   let parsed = serde_json::from_slice::<Value>(&body).ok();
   let code = parsed.as_ref().and_then(error_code);
   let result = code.map(|code| classify_error_code(code, retry_after_ms(&headers))).unwrap_or_else(fallback);
+  // A structured timeout on a 5xx still carries the server's retry window.
+  let result = if status.is_server_error() && retry_after_ms(&headers).is_some()
+    && matches!(result, ProviderError::Timeout | ProviderError::Unavailable { .. }) {
+    ProviderError::Unavailable { retry_after_ms: retry_after_ms(&headers) }
+  } else { result };
   #[cfg(debug_assertions)] diag_http_unavailable(status, &headers, code, &result);
   #[cfg(debug_assertions)] diag_http_rate_limited(status, code, &result);
   result
@@ -166,7 +171,7 @@ fn network_error(error: &reqwest::Error) -> ProviderError {
   if error.is_timeout() { ProviderError::Timeout } else {
     #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=network timeout={} connect={} request={}",
       error.is_timeout(), error.is_connect(), error.is_request());
-    ProviderError::Unavailable
+    ProviderError::Unavailable { retry_after_ms: None }
   }
 }
 async fn cancellation(cancelled: &AtomicBool) {
@@ -183,17 +188,17 @@ impl Provider for GeminiProvider {
         result = tauri::async_runtime::spawn_blocking(move || secrets.get_secret(SecretKey::GeminiApiKey)) =>
           result.map_err(|_| {
             #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=secret_store code=task_join_failed");
-            ProviderError::Unavailable
+            ProviderError::Unavailable { retry_after_ms: None }
           })?.map_err(|error| {
             #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=secret_store code={}", error.code());
             #[cfg(not(debug_assertions))] let _ = error;
-            ProviderError::Unavailable
+            ProviderError::Unavailable { retry_after_ms: None }
           })?.ok_or(ProviderError::Authentication)?,
       };
       let key = HeaderValue::from_bytes(&key).map_err(|_| ProviderError::Authentication)?;
       let payload = MinimalOutboundContext::from_bundle(&request.context)?.payload(&request.model, &request.input, &request.history,
         request.max_output_tokens, request.thinking_level);
-      let timeouts = *self.timeouts.read().unwrap_or_else(|p| p.into_inner());
+      let timeouts = request.provider_timeouts.unwrap_or_else(|| *self.timeouts.read().unwrap_or_else(|p| p.into_inner()));
       let send = self.client.post(&self.config.endpoint).timeout(Duration::from_millis(timeouts.request_timeout_ms as u64))
         .header("x-goog-api-key", key).json(&payload).send();
       let mut response = tokio::select! {
@@ -337,7 +342,7 @@ mod tests {
       metadata:ContextMetadata { identity_version:"v1".into(),memory_count:1,recent_message_count:1 } })
   }
   fn request() -> ProviderRequest { ProviderRequest { input:"Quanto é 2 + 2?".into(),history:vec![],context:bundle(),max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS),
-    preferred_provider_id:Some("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1 } }
+    preferred_provider_id:Some("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1,provider_timeouts:None } }
   fn server(status:&str, body:&str, extra:&str, split:bool) -> (String,thread::JoinHandle<String>) {
     let listener=TcpListener::bind("127.0.0.1:0").unwrap(); let url=format!("http://{}/v1beta/interactions",listener.local_addr().unwrap());
     let status=status.to_owned();let body=body.to_owned();let extra=extra.to_owned();
@@ -484,7 +489,9 @@ mod tests {
     for (status,extra,expected) in [("429 Too Many Requests","Retry-After: 3\r\n",ProviderError::RateLimited{retry_after_ms:Some(3000)}),
       ("401 Unauthorized","",ProviderError::Authentication),("403 Forbidden","",ProviderError::Authentication),
       ("408 Request Timeout","",ProviderError::Timeout),("504 Gateway Timeout","",ProviderError::Timeout),
-      ("402 Payment Required","",ProviderError::Fatal),("500 Internal Server Error","",ProviderError::Unavailable)] {
+      ("402 Payment Required","",ProviderError::Fatal),("500 Internal Server Error","",ProviderError::Unavailable { retry_after_ms: None }),
+      ("503 Service Unavailable","Retry-After: 30\r\n",ProviderError::Unavailable { retry_after_ms: Some(30_000) }),
+      ("503 Service Unavailable","",ProviderError::Unavailable { retry_after_ms: None })] {
       let (url,handle)=server(status,"",extra,false);let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
       let signal=AtomicBool::new(false);let result=tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(())));
       assert_eq!(result.unwrap_err(),expected);let raw=handle.join().unwrap();assert!(!raw.contains("relationship secret marker"));
@@ -511,7 +518,7 @@ mod tests {
     let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
     let signal=AtomicBool::new(false);
     let error=tauri::async_runtime::block_on(provider.execute(&request(),&signal,&mut |_|Ok(()))).unwrap_err();
-    assert_eq!(error,ProviderError::Unavailable);
+    assert_eq!(error,ProviderError::Unavailable { retry_after_ms: Some(2_000) });
     assert_eq!(error.code(),"unavailable");
     handle.join().unwrap();
     let db=Database::for_test(dir.join("diagnostic.sqlite3"));
@@ -531,7 +538,7 @@ mod tests {
     drop(listener);
     let error=tauri::async_runtime::block_on(Client::new().get(url).send()).unwrap_err();
     assert!(error.is_connect());
-    assert_eq!(network_error(&error),ProviderError::Unavailable);
+    assert_eq!(network_error(&error),ProviderError::Unavailable { retry_after_ms: None });
     assert_eq!(network_error(&error).code(),"unavailable");
   }
   #[test] fn http_error_code_takes_priority_and_fallback_is_bounded() {
@@ -542,7 +549,7 @@ mod tests {
       ("429 Too Many Requests","too_many_requests","",ProviderError::RateLimited {retry_after_ms:None}),
       ("401 Unauthorized","authentication","",ProviderError::Authentication),
       ("403 Forbidden","permission_denied","",ProviderError::Authentication),
-      ("503 Service Unavailable","service_unavailable","",ProviderError::Unavailable),
+      ("503 Service Unavailable","service_unavailable","",ProviderError::Unavailable { retry_after_ms: None }),
       ("504 Gateway Timeout","deadline_exceeded","",ProviderError::Timeout),
       ("503 Service Unavailable","invalid_request","",ProviderError::InvalidRequest),
       ("500 Internal Server Error","unknown_future_code","",ProviderError::Fatal),
@@ -576,7 +583,7 @@ mod tests {
       assert_eq!(classify_error_code(code,None),ProviderError::InvalidRequest);
     }
     assert_eq!(classify_error_code("payment_required",None),ProviderError::QuotaExceeded);
-    assert_eq!(classify_error_code("api_error",None),ProviderError::Unavailable);
+    assert_eq!(classify_error_code("api_error",None),ProviderError::Unavailable { retry_after_ms: None });
     assert_eq!(classify_error_code("cancelled",None),ProviderError::RemoteCancelled);
   }
   #[test] fn sse_error_codes_share_http_mapper() {
@@ -589,7 +596,7 @@ mod tests {
       ("permission_denied",ProviderError::Authentication),
       ("deadline_exceeded",ProviderError::Timeout),
       ("gateway_timeout",ProviderError::Timeout),
-      ("service_unavailable",ProviderError::Unavailable),
+      ("service_unavailable",ProviderError::Unavailable { retry_after_ms: None }),
       ("invalid_request",ProviderError::InvalidRequest),
       ("cancelled",ProviderError::RemoteCancelled),
       ("unknown_future_code",ProviderError::Fatal),
@@ -719,7 +726,7 @@ mod tests {
     let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
     let signal=AtomicBool::new(false);
     let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(ProviderRequest {input:"Quanto é 2 + 2?".into(),history:vec![],context:Arc::new(context),max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS),
-      preferred_provider_id:Some("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1},TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,&mut |_|Ok(()))).unwrap();
+      preferred_provider_id:Some("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1,provider_timeouts:None},TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,&mut |_|Ok(()))).unwrap();
     assert_eq!(result.provider_id,"gemini");assert_eq!(result.text,"Quatro.");
     conversation::append_gemini_exchange(&mut conn,"Quanto é 2 + 2?",&result.text).unwrap();
     drop(conn);let reopened=db.open().unwrap();let session=conversation::gemini_session(&reopened).unwrap().unwrap();

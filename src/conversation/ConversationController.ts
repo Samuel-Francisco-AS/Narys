@@ -4,9 +4,16 @@ import { startGeminiTask } from '../luna/geminiTaskClient'
 import { closeSession, createSession, geminiStatus, getSession, resumeConversationSession } from './conversationClient'
 import type { ConversationSession, ConversationState } from './types'
 
-const taskFailure = (detail: string) => detail === 'model_or_request_rejected'
-  ? 'Modelo ou parâmetros rejeitados pelo Gemini. Revise IA e modelos. Mensagem não enviada.'
-  : `Falha na resposta (${detail}). Mensagem não enviada.`
+const taskFailure = (detail: string) => {
+  const known: Record<string, string> = {
+    model_or_request_rejected: 'Modelo ou parâmetros rejeitados pelo Gemini. Revise IA e modelos.',
+    rate_limited: 'O Gemini limitou as chamadas. Aguarde antes de tentar novamente.',
+    provider_unavailable: 'O Gemini está em cooldown. Aguarde antes de tentar novamente.',
+    unavailable: 'O Gemini está temporariamente indisponível. Aguarde antes de tentar novamente.',
+    timeout: 'A chamada ao Gemini excedeu o tempo configurado em IA e modelos.',
+  }
+  return `${known[detail] ?? `Falha na resposta (${detail}).`} Mensagem não enviada.`
+}
 
 const initial: ConversationState = { sessionId: null, messages: [], draft: '', preview: '', assistantStreaming: false, activeTaskId: null, error: null }
 

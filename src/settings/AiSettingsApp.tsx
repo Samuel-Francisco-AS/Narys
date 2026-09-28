@@ -58,7 +58,7 @@ function RoleForm({ initial, onSaved }: { initial: Policy; onSaved: (policy: Pol
         <label className="radio"><input type="checkbox" checked={policy.retryEnabled} onChange={event => setPolicy({ ...policy, retryEnabled: event.target.checked })} />Retry automático para falhas transitórias</label>
         <label>Tentativas extras<input type="number" min="0" value={retries} onChange={event => setRetries(event.target.value)} /></label>
         <label>Backoff inicial (ms)<input type="number" min="0" value={backoff} onChange={event => setBackoff(event.target.value)} /></label>
-        <small>O retry só ocorre antes do primeiro trecho e para Timeout/Unavailable. Rate limit usa cooldown/Retry-After e encerra a tarefa.</small>
+        <small>O retry só ocorre antes do primeiro trecho e para Timeout/Unavailable sem Retry-After. Rate limit e Unavailable com Retry-After usam cooldown e encerram a tarefa.</small>
         {numberValue(retries) + 1 > numberValue(calls) && <p className="settings-warning">Seu orçamento total permite menos tentativas do que o número de retries configurado.</p>}
       </fieldset>
       {initial.role === 'conversation' && <fieldset><legend>Histórico enviado</legend>
@@ -99,7 +99,7 @@ function TimeoutForm({ initial, onSaved }: { initial: Timeouts; onSaved: (timeou
     <div className="settings-fields">
       <label>Timeout HTTP total (ms)<input type="number" min="1" value={request} onChange={event => setRequest(event.target.value)} /></label>
       <label>Timeout sem dados no stream (ms)<input type="number" min="1" value={idle} onChange={event => setIdle(event.target.value)} /></label>
-      <small>Conexão: 8 s — configuração técnica do adapter. As duas opções acima usam snapshot por chamada.</small>
+      <small>Conexão: 8 s — configuração técnica do adapter. As duas opções acima usam snapshot por tarefa.</small>
     </div>
     <div className="settings-actions"><button type="button" disabled={busy} onClick={() => void save()}>Salvar timeouts</button>{message && <span role="status">{message}</span>}</div>
     {error && <p className="settings-error" role="alert">{error}</p>}

@@ -40,7 +40,7 @@ fn context(db: &Database) -> super::types::ContextBundle {
     min_importance: 0, memory_limit: 3, include_recent_conversation: false }).unwrap()
 }
 fn request(db: &Database) -> ProviderRequest { ProviderRequest { input: "synthetic".into(), history: vec![], context: Arc::new(context(db)),
-  max_output_tokens: Some(30), preferred_provider_id: None, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 } }
+  max_output_tokens: Some(30), preferred_provider_id: None, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1, provider_timeouts: None } }
 fn entry(id: &str, priority: u16, enabled: bool, caps: ProviderCapabilities, mock: Arc<MockProvider>, registry: &mut ProviderRegistry) {
   registry.register(ProviderConfig { id:id.into(), enabled, priority, capabilities:caps }, mock).unwrap();
 }
@@ -263,7 +263,7 @@ fn partial_stream_failure_does_not_retry_or_fallback() {
     }
   }
   let (db,dir)=fixture();seed(&db);
-  for error in [ProviderError::Unavailable,ProviderError::Timeout,ProviderError::RateLimited {retry_after_ms:None},
+  for error in [ProviderError::Unavailable { retry_after_ms: None },ProviderError::Timeout,ProviderError::RateLimited {retry_after_ms:None},
     ProviderError::QuotaExceeded,ProviderError::Authentication,ProviderError::Incomplete] {
     let partial=Arc::new(Partial {calls:AtomicU32::new(0),error:error.clone()});
     let fallback=Arc::new(MockProvider::new(MockScenario::Normal));
@@ -300,7 +300,7 @@ fn scheduler_retries_only_transient_errors_before_a_chunk() {
     (ProviderError::QuotaExceeded,false),
     (ProviderError::Authentication,false),
     (ProviderError::Fatal,false),
-    (ProviderError::Unavailable,true),
+    (ProviderError::Unavailable { retry_after_ms: None },true),
     (ProviderError::Timeout,true),
   ] {
     let provider=Arc::new(Synthetic {error:error.clone(),calls:AtomicU32::new(0)});
@@ -361,13 +361,14 @@ fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
   }
   let (db, dir) = fixture(); seed(&db);
   let cases = [
-    (2, 1, vec![Some(ProviderError::Unavailable), None], false, 2, true),
-    (1, 10, vec![Some(ProviderError::Unavailable)], false, 1, false),
-    (4, 1, vec![Some(ProviderError::Unavailable), Some(ProviderError::RateLimited { retry_after_ms: Some(500) })], false, 2, false),
-    (4, 1, vec![Some(ProviderError::Unavailable), Some(ProviderError::Unavailable)], false, 2, false),
+    (2, 1, vec![Some(ProviderError::Unavailable { retry_after_ms: None }), None], false, 2, true),
+    (1, 10, vec![Some(ProviderError::Unavailable { retry_after_ms: None })], false, 1, false),
+    (4, 1, vec![Some(ProviderError::Unavailable { retry_after_ms: None }), Some(ProviderError::RateLimited { retry_after_ms: Some(500) })], false, 2, false),
+    (4, 1, vec![Some(ProviderError::Unavailable { retry_after_ms: None }), Some(ProviderError::Unavailable { retry_after_ms: None })], false, 2, false),
     (4, 3, vec![Some(ProviderError::RateLimited { retry_after_ms: Some(500) })], false, 1, false),
-    (4, 3, vec![Some(ProviderError::Unavailable)], true, 1, false),
-    (4, 1, vec![Some(ProviderError::Unavailable), None], false, 2, true),
+    (4, 3, vec![Some(ProviderError::Unavailable { retry_after_ms: Some(30_000) }), None], false, 1, false),
+    (4, 3, vec![Some(ProviderError::Unavailable { retry_after_ms: None })], true, 1, false),
+    (4, 1, vec![Some(ProviderError::Unavailable { retry_after_ms: None }), None], false, 2, true),
   ];
   for (calls, retries, errors, chunk, expected_calls, success) in cases {
     let provider = Arc::new(SequenceProvider { errors, emit_before_error: chunk, calls: std::sync::atomic::AtomicU32::new(0) });
@@ -379,20 +380,23 @@ fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
       RetryPolicy { enabled: true, max_retries: retries, initial_backoff_ms: 1 }, &signal, &mut |_| Ok(())));
     assert_eq!(result.is_ok(), success);
     assert_eq!(provider.calls.load(Ordering::SeqCst), expected_calls);
-    if expected_calls == 1 && matches!(result, Err(SchedulerError::Provider(ProviderError::RateLimited { .. }))) {
+    if expected_calls == 1 && matches!(result, Err(SchedulerError::Provider(ProviderError::RateLimited { .. } | ProviderError::Unavailable { retry_after_ms: Some(_) }))) {
       assert!(scheduler.status()[0].cooldown_ms > 0);
+      assert_eq!(tauri::async_runtime::block_on(scheduler.run_with_retry(request(&db), budget(4),
+        RetryPolicy { enabled: true, max_retries: 3, initial_backoff_ms: 1 }, &signal, &mut |_| Ok(()))).unwrap_err(), SchedulerError::NoProvider);
+      assert_eq!(provider.calls.load(Ordering::SeqCst), expected_calls);
     }
   }
   assert_eq!(RetryPolicy { enabled: true, max_retries: 3, initial_backoff_ms: 1500 }.backoff_ms(1), 1500);
   assert_eq!(RetryPolicy { enabled: true, max_retries: 3, initial_backoff_ms: 1500 }.backoff_ms(2), 3000);
   assert_eq!(RetryPolicy { enabled: true, max_retries: 3, initial_backoff_ms: 1500 }.backoff_ms(3), 6000);
-  let provider = Arc::new(SequenceProvider { errors: vec![Some(ProviderError::Unavailable), None], emit_before_error: false, calls: std::sync::atomic::AtomicU32::new(0) });
+  let provider = Arc::new(SequenceProvider { errors: vec![Some(ProviderError::Unavailable { retry_after_ms: None }), None], emit_before_error: false, calls: std::sync::atomic::AtomicU32::new(0) });
   let mut registry = ProviderRegistry::default();
   registry.register(ProviderConfig { id: "gemini".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() }, provider.clone()).unwrap();
   let signal = AtomicBool::new(false);
   let disabled = tauri::async_runtime::block_on(Scheduler::new(registry).run_with_retry(request(&db), budget(4),
     RetryPolicy { enabled: false, max_retries: 3, initial_backoff_ms: 1 }, &signal, &mut |_| Ok(())));
-  assert_eq!(disabled.unwrap_err(), SchedulerError::Provider(ProviderError::Unavailable));
+  assert_eq!(disabled.unwrap_err(), SchedulerError::Provider(ProviderError::Unavailable { retry_after_ms: None }));
   assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
   fs::remove_dir_all(dir).unwrap();
 }

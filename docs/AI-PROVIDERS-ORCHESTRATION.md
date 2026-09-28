@@ -22,7 +22,7 @@ O Luna Core deve representar uma política persistida por papel cognitivo (`conv
 
 **Atualização UIP-6A:** `conversation` e `summary` agora têm policy persistida por role na migration 003, com provider/modelo/thinking/output/calls editáveis. Somente Gemini está integrado; nenhum agente especialista foi promovido a Cognitive Provider. Consulte [UIP-6-SETTINGS.md](UIP-6-SETTINGS.md).
 
-O registro histórico da UIP-5C: `summary` foi o primeiro papel usado concretamente em um worker de fundo. Seu scheduler é selecionado no composition root e usa temporariamente o provider real disponível, com 1024 tokens de output e uma chamada por sessão. Esta é uma política provisória, sem configuração persistida; provider, modelo, output e thinking por papel permanecem trabalho da UIP-6.
+Registro histórico da UIP-5C (substituído pela UIP-6A): `summary` foi o primeiro papel usado concretamente em um worker de fundo. Seu scheduler é selecionado no composition root e usa temporariamente o provider real disponível, com 1024 tokens de output e uma chamada por sessão. Esta é uma política provisória, sem configuração persistida; provider, modelo, output e thinking por papel permanecem trabalho da UIP-6.
 
 Por papel/provider, a configuração deve poder expressar, quando suportado:
 
@@ -432,7 +432,7 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 
 **Estado LR-5 (26/09/2026):** o contrato `Provider` Rust, Registry, Context Builder e Scheduler inicial estão implementados com dois IDs mock locais. Há seleção por enabled/capability/prioridade, retry básico, cooldown por `retry_after`, fallback, budget de chamadas/output e uso artificial. Chunks passam por Tauri Channel. Consulte [runtime cognitivo LR-5](COGNITION-RUNTIME.md). Nenhum provider real, segredo ou quota comercial foi integrado. A etapa 2 abaixo depende primeiro do gate da chave de desbloqueio Stronghold em [SECURITY.md](SECURITY.md).
 
-**Extensão LR-6 (26/09/2026):** `GeminiProvider` implementa Interactions API em um Scheduler separado com somente `gemini`; não há fallback mock para chat real. `ProviderRequest` mantém o `ContextBundle` local, mas `MinimalOutboundContext` só autoriza nome e idioma da identidade e a mensagem atual. `store:false` é explícito. SSE fornece texto e usage real; 429 usa o cooldown do Scheduler. O gate com a API real aguarda chave manual. Contrato e limites: [GEMINI-PROVIDER.md](GEMINI-PROVIDER.md).
+**Extensão LR-6 (26/09/2026):** `GeminiProvider` implementa Interactions API em um Scheduler separado com somente `gemini`; não há fallback mock para chat real. `ProviderRequest` mantém o `ContextBundle` local, mas `MinimalOutboundContext` só autoriza nome e idioma da identidade e a mensagem atual. `store:false` é explícito. SSE fornece texto e usage real; 429 usa o cooldown do Scheduler. Naquele checkpoint, o gate com a API real ainda aguardava chave manual; a LR-6 foi depois fechada em PASS. Contrato e limites: [GEMINI-PROVIDER.md](GEMINI-PROVIDER.md).
 
 1. MockProvider local para testar Scheduler sem gastar cota.
 2. Gemini como primeiro provider geral.
@@ -445,3 +445,5 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 9. OpenAI API paga somente depois de orçamento/limites estarem consolidados.
 
 Essa ordem pode mudar por bloqueio técnico, mas a primeira prova de arquitetura precisa usar pelo menos **dois providers independentes** para evitar uma abstração falsa.
+
+**Atualização UIP-6C (28/09/2026):** `conversation` é foreground; `summary` é background oportunista e não inicia provider enquanto há conversa em andamento. O Scheduler mantém cooldown compartilhado para 429 e 503/Unavailable com Retry-After. Summary já iniciado não é interrompido; preemption e Rate Limit Manager completo seguem planejados para LR-8. UIP-6C permanece CANDIDATA ao gate humano.

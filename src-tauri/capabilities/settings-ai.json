@@ -8,7 +8,6 @@
     "allow-get-ai-settings",
     "allow-update-cognitive-role-policy",
     "allow-update-gemini-timeouts",
-    "allow-gemini-status",
     "allow-gemini-set-api-key",
     "allow-gemini-delete-api-key"
   ]

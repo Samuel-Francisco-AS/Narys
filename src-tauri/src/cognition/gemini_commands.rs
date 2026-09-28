@@ -17,7 +17,7 @@ pub fn resume_registered_session(db: &Database, sessions: &CurrentRunSessions, r
   let mut current_run = sessions.0.lock().map_err(|_| "session_registry_failed")?;
   if current_session_id.is_none() && !current_run.is_empty() { return Err("session_invalid".into()); }
   if current_session_id.is_some_and(|id| !current_run.contains(&id)) { return Err("session_invalid".into()); }
-  if current_session_id.is_some_and(|id| registry.has_in_flight_gemini(id)) { return Err("session_busy".into()); }
+  if current_session_id.is_some_and(|id| registry.has_foreground_provider_work_for_session(id)) { return Err("session_busy".into()); }
   let mut conn = db.open().map_err(|e| e.code())?;
   let resumed = conversation::resume_session(&mut conn, target_session_id, current_session_id).map_err(str::to_owned)?;
   if let Some(id) = current_session_id { current_run.remove(&id); }
@@ -154,10 +154,10 @@ mod tests {
     assert!(resume_registered_session(&db,&sessions,&registry,b,Some(legacy)).is_err());
     assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([a]));
     assert!(resume_registered_session(&db,&sessions,&registry,b,None).is_err());
-    registry.mark_in_flight_gemini_for_test(a);
+    registry.mark_foreground_provider_work_for_test(a);
     assert_eq!(resume_registered_session(&db,&sessions,&registry,b,Some(a)).err().as_deref(),Some("session_busy"));
     assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([a]));
-    registry.in_flight_gemini_for_test_clear(a);
+    registry.foreground_provider_work_for_test_clear(a);
     conn.execute_batch("CREATE TRIGGER reject_resume_registry BEFORE UPDATE ON conversation_sessions WHEN NEW.status='active' AND OLD.status='closed' BEGIN SELECT RAISE(ABORT, 'synthetic'); END;").unwrap();
     assert_eq!(resume_registered_session(&db,&sessions,&registry,b,Some(a)).err().as_deref(),Some("write_failed"));
     assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([a]));
