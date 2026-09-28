@@ -340,7 +340,7 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 ## 13. UIP-5 — histórico + resumo assíncrono
 
-**Estado:** UIP-5A, UIP-5B e **UIP-5C = PASS funcional / FECHADAS**; **UIP-5D = CANDIDATA**, aguardando gate humano curto. UIP-5 completa ainda não está concluída. Consulte [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
+**Estado:** **UIP-5A/B/C/D = PASS funcional / FECHADAS; UIP-5 = PASS funcional / FECHADA em 28/09/2026.** A consolidação não encontrou vazamento/corrupção; revalidações físicas residuais ficam para UIP-7. A etapa corrente passa a ser **UIP-6 — janelas independentes de configuração**. Consulte [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
 
 **Objetivo:** organizar continuidade sem criar prompt infinito.
 
