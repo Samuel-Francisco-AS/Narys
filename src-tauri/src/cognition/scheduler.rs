@@ -26,10 +26,13 @@ impl Scheduler {
   }
   pub async fn run(&self, request: ProviderRequest, budget: TaskBudget, cancelled: &AtomicBool,
     on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send)) -> Result<TaskResult, SchedulerError> {
-    let output_limit = budget.max_output_tokens.min(request.max_output_tokens);
+    let output_limit = match (budget.max_output_tokens, request.max_output_tokens) {
+      (Some(a), Some(b)) => Some(a.min(b)), (Some(a), None) | (None, Some(a)) => Some(a), (None, None) => None,
+    };
     let mut usage = SchedulerUsage::default();
     let mut last_error = None;
-    let eligible = self.registry.eligible(&request.required_capabilities);
+    let eligible: Vec<_> = self.registry.eligible(&request.required_capabilities).into_iter()
+      .filter(|entry| request.preferred_provider_id.as_ref().is_none_or(|id| entry.config.id == *id)).collect();
     let candidates: Vec<_> = eligible.iter().copied().filter(|entry| !self.cooling(&entry.config.id)).collect();
     let mut used_any = false;
     for (index, entry) in candidates.iter().enumerate() {
@@ -38,7 +41,7 @@ impl Scheduler {
       let mut attempt = 0;
       loop {
         if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
-        if usage.provider_calls >= budget.max_provider_calls || usage.output_tokens >= output_limit { return Err(SchedulerError::BudgetExceeded); }
+        if usage.provider_calls >= budget.max_provider_calls || output_limit.is_some_and(|limit| usage.output_tokens >= limit) { return Err(SchedulerError::BudgetExceeded); }
         attempt += 1;
         usage.provider_calls += 1;
         if attempt > 1 { usage.retries += 1; }
@@ -52,14 +55,15 @@ impl Scheduler {
             .map_err(|_| { cancelled.store(true, Ordering::Release); ProviderError::EventSinkClosed })
         };
         let attempt_request = ProviderRequest { input: request.input.clone(), history: request.history.clone(), context: request.context.clone(),
-          max_output_tokens: output_limit - usage.output_tokens, required_capabilities: request.required_capabilities, attempt };
+          max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens), preferred_provider_id: request.preferred_provider_id.clone(),
+          model: request.model.clone(), thinking_level: request.thinking_level, required_capabilities: request.required_capabilities, attempt };
         // Keep the same structured context across retry/fallback; adapters decide serialization.
         let result = entry.provider.execute(&attempt_request, cancelled, &mut on_chunk).await;
         if matches!(result, Err(ProviderError::EventSinkClosed)) { return Err(SchedulerError::EventSinkClosed); }
         match result {
           Ok(response) => {
             if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
-            if response.usage.output_tokens > output_limit - usage.output_tokens { return Err(SchedulerError::BudgetExceeded); }
+            if output_limit.is_some_and(|limit| response.usage.output_tokens > limit - usage.output_tokens) { return Err(SchedulerError::BudgetExceeded); }
             usage.input_tokens += response.usage.input_tokens;
             usage.output_tokens += response.usage.output_tokens;
             usage.total_tokens = response.usage.total_tokens;

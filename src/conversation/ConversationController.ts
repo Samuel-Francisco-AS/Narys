@@ -4,6 +4,10 @@ import { startGeminiTask } from '../luna/geminiTaskClient'
 import { closeSession, createSession, geminiStatus, getSession, resumeConversationSession } from './conversationClient'
 import type { ConversationSession, ConversationState } from './types'
 
+const taskFailure = (detail: string) => detail === 'model_or_request_rejected'
+  ? 'Modelo ou parâmetros rejeitados pelo Gemini. Revise IA e modelos. Mensagem não enviada.'
+  : `Falha na resposta (${detail}). Mensagem não enviada.`
+
 const initial: ConversationState = { sessionId: null, messages: [], draft: '', preview: '', assistantStreaming: false, activeTaskId: null, error: null }
 
 export function useConversationController() {
@@ -34,7 +38,7 @@ export function useConversationController() {
       messages: current.current.messages.filter((item) => item.id !== -run), error })
     try {
       const status = await geminiStatus()
-      if (!status.configured) throw new Error('Configure o Gemini no painel DEV antes de conversar.')
+      if (!status.configured) throw new Error('Configure a chave Gemini em Configurações → IA e modelos antes de conversar.')
       if (id === null) id = await createSession()
       if (run !== generation.current) return false
       const sessionId = id
@@ -53,7 +57,7 @@ export function useConversationController() {
               .catch(() => { if (run === generation.current) { busy.current = false; change({ assistantStreaming: false, preview: '', error: 'Resposta concluída; não foi possível atualizar a conversa local.' }) } })
           } else {
             busy.current = false
-            rollback(event.type === 'task_failed' ? `Falha na resposta (${event.detail}). Mensagem não enviada.` : 'Resposta cancelada. Mensagem não enviada.')
+            rollback(event.type === 'task_failed' ? taskFailure(event.detail) : 'Resposta cancelada. Mensagem não enviada.')
           }
         }
       })

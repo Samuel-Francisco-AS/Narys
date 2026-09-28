@@ -1,4 +1,5 @@
 use super::{
+    policy::{self, CognitiveRole, CognitiveRolePolicy},
     scheduler::Scheduler,
     types::{
         ContextBundle, ContextMetadata, ProviderCapabilities, ProviderRequest, SchedulerError,
@@ -21,18 +22,9 @@ use std::sync::{
 };
 use tokio::sync::Notify;
 
-// UIP-6 will persist provider, model, output and thinking policy per cognitive role.
-// These independent summary defaults are temporary; chat remains at 4096 tokens.
-pub const PROTOTYPE_SUMMARY_MAX_OUTPUT_TOKENS: u32 = 1024;
 pub const PROTOTYPE_SUMMARY_INPUT_BYTES: usize = 32 * 1024;
 const TITLE_CHARS: usize = 70;
 const SUMMARY_CHARS: usize = 1200;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CognitiveRole {
-    Conversation,
-    Summary,
-}
 
 pub struct SummaryWorker {
     db: Database,
@@ -112,11 +104,15 @@ impl SummaryWorker {
     async fn process(&self, claimed: ClaimedSummary) -> bool {
         debug_assert_eq!(self.role, CognitiveRole::Summary);
         let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
-        let request = summary_request(&claimed.messages, claimed.truncated);
+        let policy = match self.db.open().and_then(|conn| policy::load(&conn, CognitiveRole::Summary)) {
+            Ok(policy) => policy,
+            Err(_) => { eprintln!("[Summary] policy code=read_failed"); return false; }
+        };
+        let request = summary_request(&claimed.messages, claimed.truncated, &policy);
         let cancelled = AtomicBool::new(false);
         let budget = TaskBudget {
-            max_provider_calls: 1,
-            max_output_tokens: PROTOTYPE_SUMMARY_MAX_OUTPUT_TOKENS,
+            max_provider_calls: policy.max_provider_calls,
+            max_output_tokens: policy.max_output_tokens,
         };
         let result = self
             .scheduler
@@ -277,7 +273,7 @@ fn summary_input(messages: &[ConversationMessage], already_truncated: bool) -> S
     })
     .expect("serializable summary input")
 }
-fn summary_request(messages: &[ConversationMessage], already_truncated: bool) -> ProviderRequest {
+fn summary_request(messages: &[ConversationMessage], already_truncated: bool, policy: &CognitiveRolePolicy) -> ProviderRequest {
     // Static synthetic identity satisfies the current provider contract without
     // loading private identity, memories or any global recent conversation.
     let identity = serde_json::from_value(serde_json::json!({
@@ -303,7 +299,10 @@ fn summary_request(messages: &[ConversationMessage], already_truncated: bool) ->
         input,
         history: vec![],
         context: Arc::new(context),
-        max_output_tokens: PROTOTYPE_SUMMARY_MAX_OUTPUT_TOKENS,
+        max_output_tokens: policy.max_output_tokens,
+        preferred_provider_id: Some(policy.provider_id.clone()),
+        model: policy.model.clone(),
+        thinking_level: policy.thinking_level,
         required_capabilities: ProviderCapabilities::text_stream(),
         attempt: 1,
     }
@@ -361,7 +360,7 @@ mod tests {
                 assert!(request.history.is_empty());
                 assert_eq!(
                     request.max_output_tokens,
-                    PROTOTYPE_SUMMARY_MAX_OUTPUT_TOKENS
+                    Some(1024)
                 );
                 assert_eq!(request.context.metadata.memory_count, 0);
                 assert!(request.context.relevant_memories.is_empty());
@@ -413,7 +412,7 @@ mod tests {
         providers
             .register(
                 ProviderConfig {
-                    id: "fake".into(),
+                    id: "gemini".into(),
                     enabled: true,
                     priority: 1,
                     capabilities: ProviderCapabilities::text_stream(),
@@ -450,6 +449,19 @@ mod tests {
             role: CognitiveRole::Summary,
         }
     }
+    #[test]
+    fn summary_request_uses_its_own_role_policy() {
+        let policy = CognitiveRolePolicy { role: CognitiveRole::Summary, provider_id: "gemini".into(),
+            model: "gemini-summary".into(), thinking_level: Some(super::super::policy::ThinkingLevel::Low),
+            max_output_tokens: Some(512), max_provider_calls: 1 };
+        let request = summary_request(&[], false, &policy);
+        assert_eq!(request.preferred_provider_id.as_deref(), Some("gemini"));
+        assert_eq!(request.model, "gemini-summary");
+        assert_eq!(request.thinking_level, Some(super::super::policy::ThinkingLevel::Low));
+        assert_eq!(request.max_output_tokens, Some(512));
+        assert!(request.history.is_empty());
+    }
+
     #[test]
     fn bounded_input_preserves_first_recent_order_and_utf8() {
         let messages: Vec<_> = (0..10)
@@ -600,7 +612,7 @@ mod tests {
         providers
             .register(
                 ProviderConfig {
-                    id: "fake-slow".into(),
+                    id: "gemini".into(),
                     enabled: true,
                     priority: 1,
                     capabilities: ProviderCapabilities::text_stream(),

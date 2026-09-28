@@ -7,12 +7,11 @@ import type { CognitiveResult, TaskEvent, TaskId, TaskState } from './types'
 import type { AnimationIntent } from '../avatar/runtime/types'
 import { taskEventToAnimationIntent } from './taskAnimation'
 
-type Status = { configured: boolean; enabled: boolean; model: string; credentialStoreAvailable: boolean }
+type Status = { configured: boolean; enabled: boolean; credentialStoreAvailable: boolean }
 type Message = { id: number; role: string; content: string }
 
 export default function GeminiPanel({ onAnimationIntent }: { onAnimationIntent: (intent: AnimationIntent) => void }) {
   const [status, setStatus] = useState<Status | null>(null)
-  const [key, setKey] = useState('')
   const [message, setMessage] = useState('')
   const [history, setHistory] = useState<Message[]>([])
   const [stream, setStream] = useState('')
@@ -40,17 +39,6 @@ export default function GeminiPanel({ onAnimationIntent }: { onAnimationIntent: 
       if (active.current !== null) void cancelTask(active.current).catch(() => {})
     }
   }, [])
-  async function saveKey() {
-    try {
-      setStatus(await invoke<Status>('gemini_set_api_key', { apiKey: key }))
-      setKey('')
-      setError('')
-    } catch { setError('Não foi possível guardar a chave. Verifique o cofre do sistema.') }
-  }
-  async function deleteKey() {
-    try { setStatus(await invoke<Status>('gemini_delete_api_key')); setError('') }
-    catch { setError('Não foi possível remover a chave.') }
-  }
   async function send() {
     if (!status?.configured || busyRef.current || !message.trim() || new TextEncoder().encode(message).length > 4096) return
     busyRef.current = true
@@ -85,12 +73,8 @@ export default function GeminiPanel({ onAnimationIntent }: { onAnimationIntent: 
   return <section className="gemini-panel" aria-label="Chat Gemini LR-6">
     <h3>CHAT · LR-6</h3>
     {!lunaCoreAvailable ? <p>Gemini requer a janela Tauri. Nenhuma chave ou mensagem é enviada no navegador.</p> : <>
-      <p>Gemini: {status?.configured ? 'configurado' : 'não configurado'} · Modelo: {status?.model ?? '—'} · Cofre: {status?.credentialStoreAvailable ? 'disponível' : 'indisponível'}</p>
-      <div className="luna-core-controls">
-        <input type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} aria-label="Gemini API key" placeholder="Gemini API key" />
-        <button type="button" disabled={!key || busy} onClick={() => void saveKey()}>Guardar chave</button>
-        <button type="button" disabled={!status?.configured || busy} onClick={() => void deleteKey()}>Remover chave</button>
-      </div>
+      <p>Gemini: {status?.configured ? 'configurado' : 'não configurado'} · Cofre: {status?.credentialStoreAvailable ? 'disponível' : 'indisponível'}</p>
+      <p>Credencial e policy: gerenciar em Configurações → IA e modelos.</p>
       <p>Esta mensagem será enviada ao Gemini. No Free Tier, o conteúdo pode ser usado pelo Google para melhorar seus produtos. Memórias privadas da Luna não são enviadas nesta fase.</p>
       <textarea value={message} onChange={(e) => setMessage(e.target.value)} maxLength={4096} aria-label="Mensagem ao Gemini" />
       <div className="luna-core-controls">

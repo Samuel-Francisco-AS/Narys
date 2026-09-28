@@ -1,4 +1,5 @@
 use serde::Serialize;
+use super::policy::ThinkingLevel;
 use std::sync::Arc;
 use crate::persistence::{conversation::ConversationMessage, identity::IdentityInput, memory::MemoryRecord};
 
@@ -41,7 +42,10 @@ pub struct ProviderRequest {
   pub input: String,
   pub history: Vec<ProviderMessage>,
   pub context: Arc<ContextBundle>,
-  pub max_output_tokens: u32,
+  pub max_output_tokens: Option<u32>,
+  pub preferred_provider_id: Option<String>,
+  pub model: String,
+  pub thinking_level: Option<ThinkingLevel>,
   pub required_capabilities: ProviderCapabilities,
   pub attempt: u32,
 }
@@ -60,7 +64,7 @@ pub struct ProviderResponse { pub text: String, pub usage: ProviderUsage }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderError {
   RateLimited { retry_after_ms: Option<u64> }, Timeout, QuotaExceeded, Authentication, Fatal, Cancelled, RemoteCancelled,
-  Incomplete, RequiresAction, Protocol, Unavailable, EventSinkClosed,
+  Incomplete, RequiresAction, Protocol, InvalidRequest, Unavailable, EventSinkClosed,
 }
 impl ProviderError {
   pub fn code(&self) -> &'static str { match self {
@@ -68,12 +72,13 @@ impl ProviderError {
     Self::Authentication => "gemini_auth_failed", Self::Fatal => "fatal", Self::Cancelled => "cancelled",
     Self::RemoteCancelled => "provider_cancelled", Self::Incomplete => "provider_incomplete",
     Self::RequiresAction => "provider_requires_action", Self::Protocol => "provider_protocol_error",
+    Self::InvalidRequest => "model_or_request_rejected",
     Self::Unavailable => "unavailable", Self::EventSinkClosed => "channel_closed",
   }}
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct TaskBudget { pub max_provider_calls: u32, pub max_output_tokens: u32 }
+pub struct TaskBudget { pub max_provider_calls: u32, pub max_output_tokens: Option<u32> }
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchedulerUsage {

@@ -2,7 +2,6 @@ use std::sync::Arc;
 use serde::Serialize;
 use tauri::State;
 use crate::security::{audit::{Action, AuditEvent, Outcome}, secrets::{SecretKey, SecretStore}};
-use super::gemini::MODEL;
 use crate::persistence::{conversation::{self, ConversationHistoryItem, ConversationSession}, database::Database};
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -90,14 +89,14 @@ pub async fn close_conversation_session(db: State<'_, Database>, sessions: State
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GeminiStatus { pub configured: bool, pub enabled: bool, pub model: &'static str, pub credential_store_available: bool }
+pub struct GeminiStatus { pub configured: bool, pub enabled: bool, pub credential_store_available: bool }
 
 #[tauri::command]
 pub async fn gemini_status(store: State<'_, Arc<SecretStore>>) -> Result<GeminiStatus, String> {
   let store = store.inner().clone();
   let result = tauri::async_runtime::spawn_blocking(move || store.get_secret(SecretKey::GeminiApiKey).map(|v| v.is_some()))
     .await.map_err(|_| "gemini_status_failed")?;
-  Ok(GeminiStatus { configured: result.as_ref().copied().unwrap_or(false), enabled: true, model: MODEL, credential_store_available: result.is_ok() })
+  Ok(GeminiStatus { configured: result.as_ref().copied().unwrap_or(false), enabled: true, credential_store_available: result.is_ok() })
 }
 
 #[tauri::command]
@@ -110,16 +109,17 @@ pub async fn gemini_set_api_key(store: State<'_, Arc<SecretStore>>, worker: Stat
     .await.map_err(|_| "gemini_key_store_failed")?.map_err(|e| e.code())?;
   AuditEvent::new(Action::CommandInvoked, Outcome::Succeeded).with_detail("gemini_key_configured").emit();
   worker.kick();
-  Ok(GeminiStatus { configured: true, enabled: true, model: MODEL, credential_store_available: true })
+  Ok(GeminiStatus { configured: true, enabled: true, credential_store_available: true })
 }
 
 #[tauri::command]
-pub async fn gemini_delete_api_key(store: State<'_, Arc<SecretStore>>) -> Result<GeminiStatus, String> {
+pub async fn gemini_delete_api_key(store: State<'_, Arc<SecretStore>>, worker: State<'_, Arc<SummaryWorker>>) -> Result<GeminiStatus, String> {
   let store = store.inner().clone();
   tauri::async_runtime::spawn_blocking(move || store.delete_secret(SecretKey::GeminiApiKey))
     .await.map_err(|_| "gemini_key_delete_failed")?.map_err(|e| e.code())?;
   AuditEvent::new(Action::CommandInvoked, Outcome::Succeeded).with_detail("gemini_key_deleted").emit();
-  Ok(GeminiStatus { configured: false, enabled: true, model: MODEL, credential_store_available: true })
+  worker.kick();
+  Ok(GeminiStatus { configured: false, enabled: true, credential_store_available: true })
 }
 
 #[tauri::command]

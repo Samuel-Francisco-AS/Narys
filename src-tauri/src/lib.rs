@@ -46,6 +46,8 @@ pub fn run() {
     persistence::lr4_status, persistence::lr4_import_private_bootstrap,
     persistence::lr4_create_diagnostic_conversation, persistence::lr4_get_recent_conversation,
     luna::start_mock_cognition_task, luna::cognition_provider_status,
+    cognition::settings::open_general_settings_window, cognition::settings::open_ai_settings_window,
+    cognition::settings::get_ai_settings, cognition::settings::update_cognitive_role_policy,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
@@ -57,6 +59,8 @@ pub fn run() {
   let builder = builder.invoke_handler(tauri::generate_handler![
     luna::start_mock_task, luna::cancel_task,
     security::security_status,
+    cognition::settings::open_general_settings_window, cognition::settings::open_ai_settings_window,
+    cognition::settings::get_ai_settings, cognition::settings::update_cognitive_role_policy,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,

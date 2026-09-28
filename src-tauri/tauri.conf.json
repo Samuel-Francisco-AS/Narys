@@ -49,7 +49,7 @@
         "base-uri": "'none'",
         "form-action": "'none'"
       },
-      "capabilities": ["main-window"]
+      "capabilities": ["main-window", "settings-general", "settings-ai"]
     }
   },
   "bundle": {

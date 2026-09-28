@@ -42,7 +42,7 @@ impl Provider for MockProvider {
       for piece in pieces {
         delay(cancelled, if matches!(self.scenario, MockScenario::Streaming) { 120 } else { 40 }).await?;
         let words = piece.split_whitespace().count() as u32;
-        let remaining = request.max_output_tokens.saturating_sub(output_tokens);
+        let remaining = request.max_output_tokens.map(|limit| limit.saturating_sub(output_tokens)).unwrap_or(u32::MAX);
         if remaining == 0 { break; }
         let chunk = if words > remaining { piece.split_whitespace().take(remaining as usize).collect::<Vec<_>>().join(" ") } else { piece };
         output_tokens += chunk.split_whitespace().count() as u32;

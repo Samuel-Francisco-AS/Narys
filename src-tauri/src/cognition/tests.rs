@@ -40,11 +40,11 @@ fn context(db: &Database) -> super::types::ContextBundle {
     min_importance: 0, memory_limit: 3, include_recent_conversation: false }).unwrap()
 }
 fn request(db: &Database) -> ProviderRequest { ProviderRequest { input: "synthetic".into(), history: vec![], context: Arc::new(context(db)),
-  max_output_tokens: 30, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 } }
+  max_output_tokens: Some(30), preferred_provider_id: None, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 } }
 fn entry(id: &str, priority: u16, enabled: bool, caps: ProviderCapabilities, mock: Arc<MockProvider>, registry: &mut ProviderRegistry) {
   registry.register(ProviderConfig { id:id.into(), enabled, priority, capabilities:caps }, mock).unwrap();
 }
-fn budget(calls: u32) -> TaskBudget { TaskBudget { max_provider_calls:calls, max_output_tokens:30 } }
+fn budget(calls: u32) -> TaskBudget { TaskBudget { max_provider_calls:calls, max_output_tokens:Some(30) } }
 
 #[test]
 fn context_builder_selects_current_active_filtered_bounded_and_optional_conversation() {
@@ -158,7 +158,7 @@ fn disabled_provider_is_never_called_and_output_budget_is_respected() {
   entry("disabled",0,false,ProviderCapabilities::text_stream(),disabled.clone(),&mut registry);
   entry("enabled",1,true,ProviderCapabilities::text_stream(),enabled.clone(),&mut registry);
   let signal=AtomicBool::new(false);
-  let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),TaskBudget{max_provider_calls:1,max_output_tokens:2},&signal,&mut |_| Ok(()))).unwrap();
+  let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),TaskBudget{max_provider_calls:1,max_output_tokens:Some(2)},&signal,&mut |_| Ok(()))).unwrap();
   assert_eq!(result.provider_id,"enabled"); assert_eq!(result.usage.output_tokens,2); assert_eq!(disabled.calls(),0); assert_eq!(enabled.calls(),1);
   fs::remove_dir_all(dir).unwrap();
 }
@@ -319,5 +319,27 @@ fn scheduler_retries_only_transient_errors_before_a_chunk() {
       assert_eq!(provider.calls.load(Ordering::SeqCst),1);assert_eq!(retries,0);
     }
   }
+  fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn explicit_provider_and_unbounded_output() {
+  let (db, dir) = fixture(); seed(&db);
+  let unwanted = Arc::new(MockProvider::new(MockScenario::Normal));
+  let selected = Arc::new(MockProvider::new(MockScenario::Normal));
+  let mut registry = ProviderRegistry::default();
+  entry("first", 1, true, ProviderCapabilities::text_stream(), unwanted.clone(), &mut registry);
+  entry("selected", 2, true, ProviderCapabilities::text_stream(), selected.clone(), &mut registry);
+  let scheduler = Scheduler::new(registry);
+  let signal = AtomicBool::new(false);
+  let mut selected_request = request(&db);
+  selected_request.preferred_provider_id = Some("selected".into());
+  selected_request.max_output_tokens = None;
+  let result = tauri::async_runtime::block_on(scheduler.run(selected_request, TaskBudget { max_provider_calls: 1, max_output_tokens: None }, &signal, &mut |_| Ok(()))).unwrap();
+  assert_eq!(result.provider_id, "selected");
+  assert!(result.usage.output_tokens > 0);
+  assert_eq!(unwanted.calls(), 0); assert_eq!(selected.calls(), 1);
+  let mut missing = request(&db); missing.preferred_provider_id = Some("missing".into());
+  assert_eq!(tauri::async_runtime::block_on(scheduler.run(missing, budget(1), &signal, &mut |_| Ok(()))).unwrap_err(), SchedulerError::NoProvider);
   fs::remove_dir_all(dir).unwrap();
 }

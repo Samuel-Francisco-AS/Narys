@@ -1,8 +1,8 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react'
 import type { ConversationState } from './types'
 
-type Props = { state: ConversationState; visible: boolean; onExited: () => void; onDraft: (draft: string) => void; onSend: () => void; onCancel: () => void; onClose: () => void; onPanel: () => void; panelOpen: boolean }
-export function Composer({ state, visible, onExited, onDraft, onSend, onCancel, onClose, onPanel, panelOpen }: Props) {
+type Props = { state: ConversationState; visible: boolean; onExited: () => void; onDraft: (draft: string) => void; onSend: () => void; onCancel: () => void; onClose: () => void; onPanel: () => void; onSettings: () => void; panelOpen: boolean }
+export function Composer({ state, visible, onExited, onDraft, onSend, onCancel, onClose, onPanel, onSettings, panelOpen }: Props) {
   const input = useRef<HTMLTextAreaElement>(null)
   useEffect(() => { input.current?.focus() }, [])
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -15,6 +15,7 @@ export function Composer({ state, visible, onExited, onDraft, onSend, onCancel, 
     <div className="composer-actions">
       <span role="status">{state.assistantStreaming ? 'Luna está escrevendo…' : ''}</span>
       {!panelOpen && <button type="button" onClick={onPanel}>Conversas</button>}
+      <button type="button" aria-label="Configurações" title="Configurações" onClick={onSettings}>⚙</button>
       {state.activeTaskId !== null && <button type="button" onClick={onCancel}>Cancelar</button>}
       <button type="button" className="send-button" disabled={!state.draft.trim() || state.assistantStreaming} onClick={onSend}>Enviar</button>
     </div>

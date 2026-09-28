@@ -3,8 +3,10 @@ pub mod gemini;
 pub mod gemini_commands;
 pub mod mock;
 pub mod provider;
+pub mod policy;
 pub mod registry;
 pub mod scheduler;
+pub mod settings;
 pub mod summary;
 pub mod types;
 

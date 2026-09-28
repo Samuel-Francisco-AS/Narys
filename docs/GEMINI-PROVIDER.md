@@ -1,5 +1,7 @@
 # Gemini Provider · LR-6
 
+> **Atualização UIP-6A (28/09/2026):** LR-6 está fechada. O texto abaixo registra a evolução histórica do adapter. A política efetiva atual de `conversation` e `summary` vem da migration 003 e é editável na janela **IA e modelos**. `GeminiConfig` guarda endpoint/timeouts, não modelo ou output. `thinking_level=NULL` e `max_output_tokens=NULL` omitem esses campos no payload. Consulte [UIP-6-SETTINGS.md](UIP-6-SETTINGS.md).
+
 **Estado:** implementação local e auditoria de protocolo concluídas; validação com API real pendente de chave inserida manualmente no painel Tauri. LR-6 ainda não é PASS completo. Nenhuma chave é solicitada no chat, terminal ou arquivo.
 
 ## Contrato e estado

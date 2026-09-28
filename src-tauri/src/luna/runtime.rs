@@ -9,8 +9,8 @@ use chrono::{SecondsFormat, Utc};
 use crate::persistence::{database::Database, task_history::{self, TaskRecord}};
 use crate::persistence::conversation;
 use crate::cognition::{GeminiRuntime, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
-  types::{ProviderCapabilities, ProviderMessage, ProviderRequest, ProviderRole, TaskBudget, SchedulerError}};
-use crate::cognition::gemini::PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS;
+  types::{ContextBundle, ProviderCapabilities, ProviderMessage, ProviderRequest, ProviderRole, TaskBudget, SchedulerError}};
+use crate::cognition::policy::CognitiveRolePolicy;
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario};
 
@@ -128,12 +128,17 @@ fn emit_cognitive(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32,
   })
 }
 
-fn prototype_chat_budget() -> TaskBudget {
-  TaskBudget { max_provider_calls: 2, max_output_tokens: PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS }
+fn chat_budget_and_request(message: String, history: Vec<ProviderMessage>, context: ContextBundle,
+  policy: &CognitiveRolePolicy) -> (TaskBudget, ProviderRequest) {
+  let budget = TaskBudget { max_provider_calls: policy.max_provider_calls, max_output_tokens: policy.max_output_tokens };
+  let request = ProviderRequest { input: message, history, context: Arc::new(context), max_output_tokens: policy.max_output_tokens,
+    preferred_provider_id: Some(policy.provider_id.clone()), model: policy.model.clone(), thinking_level: policy.thinking_level,
+    required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
+  (budget, request)
 }
 
 pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<GeminiRuntime>,
-  session_id: i64, message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+  session_id: i64, message: String, policy: CognitiveRolePolicy, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   let (id, cancelled) = registry.register()?;
   *registry.in_flight_gemini.lock().unwrap_or_else(|poison| poison.into_inner()).entry(session_id).or_default() += 1;
   let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
@@ -153,13 +158,11 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<Gemin
       }).await.map_err(|_| "worker_failed")??;
       emit_cognitive(&channel,id,&mut sequence,TaskEventKind::ContextBuilt { memory_count: 0, recent_message_count: 0 },&cancelled)
         .map_err(|_| "channel_closed")?;
-      let budget = prototype_chat_budget();
       let history = history.into_iter().map(|turn| ProviderMessage {
         role: match turn.role { conversation::SessionRole::User => ProviderRole::User, conversation::SessionRole::Assistant => ProviderRole::Assistant },
         content: turn.content,
       }).collect();
-      let request = ProviderRequest { input: message.clone(), history, context: Arc::new(context), max_output_tokens: budget.max_output_tokens,
-        required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
+      let (budget, request) = chat_budget_and_request(message.clone(), history, context, &policy);
       let result = gemini.scheduler.run(request,budget,&cancelled,&mut |event| {
         let kind = match event {
           SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
@@ -309,10 +312,10 @@ pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc
         let context_event = emit_cognitive(&channel, id, &mut sequence, TaskEventKind::ContextBuilt {
           memory_count: context.metadata.memory_count, recent_message_count: context.metadata.recent_message_count }, &cancelled);
         let budget = if scenario == DiagnosticScenario::BudgetExhausted {
-          TaskBudget { max_provider_calls: 1, max_output_tokens: 32 }
-        } else { TaskBudget { max_provider_calls: 3, max_output_tokens: 32 } };
+          TaskBudget { max_provider_calls: 1, max_output_tokens: Some(32) }
+        } else { TaskBudget { max_provider_calls: 3, max_output_tokens: Some(32) } };
         let request = ProviderRequest { input: "Execute o diagnóstico cognitivo LR-5.".into(), history: vec![], context: Arc::new(context),
-          max_output_tokens: budget.max_output_tokens, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
+          max_output_tokens: budget.max_output_tokens, preferred_provider_id: None, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
         if context_event.is_err() { Err("channel_closed") } else { cognition.scheduler(scenario).run(request, budget, &cancelled, &mut |event| {
           let kind = match event {
             SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
@@ -372,10 +375,30 @@ mod tests {
   use super::*;
 
   #[test]
-  fn product_chat_budget_and_request_share_the_prototype_limit() {
-    let budget = prototype_chat_budget();
-    assert_eq!(budget.max_output_tokens, 4096);
-    // start_gemini copies this field into ProviderRequest before Scheduler::run.
+  fn chat_policy_is_snapshot_for_each_request() {
+    use crate::cognition::policy::{CognitiveRole, ThinkingLevel};
+    use crate::cognition::types::ContextMetadata;
+    let identity: crate::persistence::identity::IdentityInput = serde_json::from_value(serde_json::json!({
+      "version":"test","canonicalName":"Luna","presentation":"neutral","primaryLanguage":"pt-BR",
+      "concept":"test","traits":{},"behavioralInvariants":[],"modes":{},
+      "relationship":{"primaryPersonName":"","relationModes":[],
+        "affectionStyle":{"warm":false,"provocative":false,"playfulJealousy":false,"playfulTerritoriality":false,"coercion":false,"isolation":false,"emotionalBlackmail":false},
+        "interactionPreferences":{"wantsRealDisagreement":false,"wantsLunaToProposeDirectionsDuringStructuring":false,"prefersLinearFlowDuringImplementation":false}},
+      "memoryPolicy":{"retrieval":"none","history":"none","continuity":"none","storePrivateChainOfThought":false},
+      "provenance":"test","effectiveFrom":"2026-01-01"
+    })).unwrap();
+    let context = || ContextBundle { identity: identity.clone(), relevant_memories: vec![], recent_messages: vec![],
+      metadata: ContextMetadata { identity_version: "test".into(), memory_count: 0, recent_message_count: 0 } };
+    let mut policy = CognitiveRolePolicy { role: CognitiveRole::Conversation, provider_id: "gemini".into(),
+      model: "gemini-custom".into(), thinking_level: Some(ThinkingLevel::High), max_output_tokens: Some(8192), max_provider_calls: 3 };
+    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy);
+    policy.model = "gemini-new".into(); policy.thinking_level = None; policy.max_output_tokens = None; policy.max_provider_calls = 1;
+    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy);
+    assert_eq!(first.preferred_provider_id.as_deref(), Some("gemini"));
+    assert_eq!((first.model.as_str(), first.thinking_level, first.max_output_tokens, first_budget.max_provider_calls),
+      ("gemini-custom", Some(ThinkingLevel::High), Some(8192), 3));
+    assert_eq!((next.model.as_str(), next.thinking_level, next.max_output_tokens, next_budget.max_provider_calls),
+      ("gemini-new", None, None, 1));
   }
 
   #[test]

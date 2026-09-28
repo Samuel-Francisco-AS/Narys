@@ -1,10 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App'
 import './styles.css'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+const surface = new URLSearchParams(window.location.search).get('surface')
+const load = surface === 'settings-general'
+  ? import('./settings/GeneralSettingsApp')
+  : surface === 'settings-ai'
+    ? import('./settings/AiSettingsApp')
+    : import('./App')
+void load.then(({ default: Surface }) => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><Surface /></React.StrictMode>)
+})

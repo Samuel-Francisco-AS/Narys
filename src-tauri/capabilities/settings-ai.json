@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "settings-ai",
+  "description": "Janela IA independente: policy cognitiva e credencial Gemini.",
+  "windows": ["settings-ai"],
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": [
+    "allow-get-ai-settings",
+    "allow-update-cognitive-role-policy",
+    "allow-gemini-status",
+    "allow-gemini-set-api-key",
+    "allow-gemini-delete-api-key"
+  ]
+}

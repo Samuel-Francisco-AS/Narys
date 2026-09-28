@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "settings-general",
+  "description": "Janela geral independente: apenas navegação para IA.",
+  "windows": ["settings-general"],
+  "platforms": ["linux", "macOS", "windows"],
+  "permissions": ["allow-open-ai-settings-window"]
+}

@@ -23,8 +23,27 @@ fn write(path:&std::path::Path,value:&Value) { fs::write(path,serde_json::to_vec
 #[test]
 fn migration_empty_and_twice() {
   let (db,_) = fixture(); let conn=db.open().unwrap();
-  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,2);
+  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,3);
   drop(conn); assert!(db.open().is_ok());
+}
+
+#[test]
+fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
+  let conn = rusqlite::Connection::open_in_memory().unwrap();
+  conn.execute_batch(&format!("{} {} PRAGMA user_version=2;", include_str!("../../migrations/001_initial_persistence.sql"), include_str!("../../migrations/002_conversation_history.sql"))).unwrap();
+  conn.execute("INSERT INTO conversation_sessions(kind,status,title) VALUES ('product','closed','Antes da policy')", []).unwrap();
+  migrations::apply(&conn).unwrap();
+  let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+  assert_eq!(version, 3);
+  let title: String = conn.query_row("SELECT title FROM conversation_sessions WHERE id=1", [], |r| r.get(0)).unwrap();
+  assert_eq!(title, "Antes da policy");
+  let rows: Vec<(String, String, Option<String>, Option<i64>, i64)> = conn.prepare(
+    "SELECT role,model,thinking_level,max_output_tokens,max_provider_calls FROM cognitive_role_policies ORDER BY role").unwrap()
+    .query_map([], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap().map(Result::unwrap).collect();
+  assert_eq!(rows, vec![("conversation".into(),"gemini-3.8-flash".into(),Some("low".into()),Some(4096),2),
+    ("summary".into(),"gemini-3.8-flash".into(),Some("low".into()),Some(1024),1)]);
+  migrations::apply(&conn).unwrap();
+  assert_eq!(conn.query_row("SELECT COUNT(*) FROM cognitive_role_policies", [], |r| r.get::<_,i64>(0)).unwrap(), 2);
 }
 
 #[test]

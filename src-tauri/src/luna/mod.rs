@@ -7,6 +7,7 @@ use tauri::{ipc::Channel, State};
 use crate::persistence::database::Database;
 use crate::persistence::conversation;
 use crate::cognition::GeminiRuntime;
+use crate::cognition::policy::{self, CognitiveRole};
 use crate::cognition::gemini_commands::CurrentRunSessions;
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario, scheduler::ProviderStatus};
@@ -58,5 +59,6 @@ pub fn start_gemini_task(registry: State<'_, Arc<TaskRegistry>>, db: State<'_, D
   if session_id <= 0 || !current_run.contains(&session_id) { return Err("session_invalid".into()); }
   let conn = db.open().map_err(|e| e.code())?;
   if !conversation::is_active_session(&conn, session_id).map_err(|e| e.code())? { return Err("session_invalid".into()); }
-  runtime::start_gemini(registry.inner().clone(), db.inner().clone(), gemini.inner().clone(), session_id, message, channel)
+  let policy = policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?;
+  runtime::start_gemini(registry.inner().clone(), db.inner().clone(), gemini.inner().clone(), session_id, message, policy, channel)
 }

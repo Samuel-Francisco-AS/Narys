@@ -364,6 +364,8 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 ## 14. UIP-6 — janelas independentes de configuração
 
+**Sequência:** UIP-6A = **CANDIDATA** (policy cognitiva persistida por `conversation`/`summary` e janelas independentes Geral/IA); UIP-6B = Geral editável + avaliação de parâmetros avançados; UIP-6C = consolidação e gate. **UIP-6 completa não está concluída.** Consulte [UIP-6-SETTINGS.md](UIP-6-SETTINGS.md).
+
 **Objetivo:** retirar configuração operacional da superfície de presença.
 
 ### Janela geral
@@ -509,9 +511,4 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Com **UIP-5D candidata**, concluir o gate humano curto de Composer, Conversation, ciclos de painel, buffer/DPR/WebGL e Wave→Idle antes de decidir o PASS da UIP-5 completa. A dívida de estabilidade espacial da janela no Wayland permanece registrada para UIP-7 ou investigação nativa dedicada.
-
-
-### Continuação da UIP-5
-
-Após o fechamento funcional da UIP-5A, UIP-5B e UIP-5C, a **UIP-5D foi consolidada como CANDIDATA**: isolamento, restart, máquina de estados, fila, telemetria, SQLite e gates automatizados foram revalidados. O gate Tauri real confirmou startup, Presence, canvas fixo, um WebKitWebProcess e RSS/CPU ociosos estáveis; a automação sem foco não percorreu Composer/Conversation nem Wave→Idle, que ficam para confirmação humana curta. Dívidas de observabilidade do Gemini, mensagens de erro de cooldown/rate limit, compartilhamento temporário de Scheduler, `rustfmt` e ergonomia Wayland permanecem registradas. **UIP-5 completa não está em PASS e UIP-6 não foi iniciada.**
+Concluir o gate humano da **UIP-6A CANDIDATA**: confirmar abertura normal das duas janelas, ausência de efeitos espaciais na Luna, valores e credencial em IA, e estabilidade após restart. Depois, iniciar UIP-6B para controles gerais e avaliação de parâmetros avançados. UIP-6 completa e LR-7 permanecem abertas/não iniciadas, respectivamente. O registro histórico da UIP-5 permanece em [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
