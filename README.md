@@ -22,7 +22,7 @@ Documentos principais:
 - [Identidade e memória LR-4](docs/MEMORY-IDENTITY.md)
 - [Runtime cognitivo LR-5](docs/COGNITION-RUNTIME.md)
 
-**Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. A **UIP-0 — contratos + baseline**, a **UIP-1 — Presence Shell**, a **UIP-2 — Render Budget**, a **UIP-3 — ergonomia da janela** e a **UIP-4 — Composer + conversa atual** estão fechadas; a próxima etapa é **UIP-5 — histórico + resumo assíncrono**, antes de qualquer LR-7. Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram como limitações adiadas; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
+**Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. A **UIP-0 — contratos + baseline**, a **UIP-1 — Presence Shell**, a **UIP-2 — Render Budget**, a **UIP-3 — ergonomia da janela**, a **UIP-4 — Composer + conversa atual** e a **UIP-5 — histórico + resumo assíncrono** estão fechadas; a próxima etapa é **UIP-6 — configurações independentes**, antes de qualquer LR-7. Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram como limitações adiadas; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
 
 ## Requisitos no Fedora
 
