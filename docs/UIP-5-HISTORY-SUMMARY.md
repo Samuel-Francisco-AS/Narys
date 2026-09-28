@@ -1,6 +1,6 @@
 # UIP-5A — histórico persistente somente leitura
 
-**Estado: CANDIDATA. UIP-5 completa: NÃO concluída.** Gate humano pendente.
+**Estado: UIP-5A = PASS funcional / FECHADA em 27/09/2026. UIP-5 completa: NÃO concluída.** A etapa foi aceita para avanço com dívidas de observabilidade/UX do provider e refinamentos físicos no Wayland adiados; essas pendências não alteram o contrato de histórico somente leitura.
 
 ## Arquitetura e schema
 
@@ -38,3 +38,12 @@ Os testes de persistência cobrem backfill, `kind`, filtro de legacy/vazias, ord
 No Tauri real com Mesa em software, foi validada uma única WebView com Presence 310×410, Composer 310×490 e Conversation 625×490; stage e buffer permaneceram 300×360, DPR 1 e `glError 0`. A lista mostrou as quatro sessões de produto do banco local; o detalhe histórico abriu com seis mensagens e o retorno preservou o rascunho atual. O processo foi reiniciado antes da navegação: a UI voltou sem sessão atual e o histórico persistiu. O banco permaneceu com seis sessões (quatro `product`, duas `legacy`), sem nova sessão causada por leitura do histórico. Wave acionado no canvas retornou ao Idle. Alt+drag físico e a percepção visual fina no Wayland permanecem no gate humano.
 
 UIP-5B (retomada) e UIP-5C (resumo assíncrono/título) não foram implementadas. `summary_status='pending'` é apenas metadado para trabalho futuro; nenhum worker processa a fila nesta fase.
+
+
+## Fechamento da UIP-5A
+
+Em 27/09/2026, a UIP-5A foi aceita em **PASS funcional**. O histórico persistente somente leitura, a separação `product/legacy`, o fechamento de sessões órfãs, a listagem leve, o detalhe sob demanda e a proteção do contexto cognitivo foram mantidos. O teste fake HTTP provou que conteúdo de sessão histórica não entra no outbound da sessão corrente; restart preserva histórico e inicia sem sessão corrente automática.
+
+Durante o gate humano surgiram falhas reais do provider Gemini (`unavailable`, `rate_limited` e, em sequência, `provider_unavailable` por cooldown). Essas falhas não foram atribuídas à UIP-5A. Foram adicionados diagnósticos DEV sanitizados para indisponibilidade, rate limit e ausência de provider por cooldown, sem alterar retry/fallback. A política temporária do chat foi elevada de 512 para 4096 tokens, mantendo `thinking=low`, e a decisão de tornar esses parâmetros configuráveis na UIP-6 foi documentada.
+
+Dívidas não bloqueantes: mensagem de erro mais amigável para cooldown/rate limit, drift de `rustfmt`, refinamentos visuais/Alt+drag no Wayland e eventual exclusão da sessão corrente da lista histórica caso a UX humana indique necessidade. **Próxima etapa: UIP-5B — retomada explícita de sessão.**
