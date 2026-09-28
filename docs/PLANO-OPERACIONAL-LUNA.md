@@ -361,7 +361,7 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 ## Interlúdio UIP — interface de presença + performance
 
-**Estado:** em andamento desde 26/09/2026 após **LR-6 = PASS completo**. **UIP-0, UIP-1, UIP-2, UIP-3 e UIP-4 estão fechadas**; a próxima etapa é **UIP-5 — histórico + resumo assíncrono**. Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram adiados; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Essas limitações não bloqueiam a trilha. A sequência **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7.
+**Estado:** em andamento desde 26/09/2026 após **LR-6 = PASS completo**. **UIP-0 → UIP-5 estão fechadas**; a próxima etapa é **UIP-6 — janelas independentes de configuração**. Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram adiados; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Essas limitações não bloqueiam a trilha. A sequência **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7.
 
 Princípios fechados:
 
@@ -706,7 +706,7 @@ Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáve
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 → UIP-4 fechadas** e **UIP-5A/UIP-5B/UIP-5C = PASS funcional**, a etapa corrente é **UIP-5D — consolidação e gate final da UIP-5**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando o fechamento da trilha UIP. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo** e **UIP-0 → UIP-5 fechadas**, a etapa corrente é **UIP-6 — janelas independentes de configuração e política cognitiva controlada pelo usuário**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando o fechamento da trilha UIP. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
