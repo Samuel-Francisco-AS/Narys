@@ -340,7 +340,7 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 ## 13. UIP-5 — histórico + resumo assíncrono
 
-**Estado:** UIP-5A, UIP-5B e **UIP-5C = PASS funcional / FECHADAS**; a etapa corrente é **UIP-5D — consolidação e gate final da UIP-5**. UIP-5 completa ainda não está concluída. Consulte [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
+**Estado:** UIP-5A, UIP-5B e **UIP-5C = PASS funcional / FECHADAS**; **UIP-5D = CANDIDATA**, aguardando gate humano curto. UIP-5 completa ainda não está concluída. Consulte [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
 
 **Objetivo:** organizar continuidade sem criar prompt infinito.
 
@@ -509,9 +509,9 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Com **UIP-4 fechada em PASS funcional**, iniciar **UIP-5 — histórico + resumo assíncrono**. A dívida de estabilidade espacial da janela no Wayland permanece registrada para UIP-7 ou investigação nativa dedicada e não bloqueia a continuidade da trilha.
+Com **UIP-5D candidata**, concluir o gate humano curto de Composer, Conversation, ciclos de painel, buffer/DPR/WebGL e Wave→Idle antes de decidir o PASS da UIP-5 completa. A dívida de estabilidade espacial da janela no Wayland permanece registrada para UIP-7 ou investigação nativa dedicada.
 
 
 ### Continuação da UIP-5
 
-Após o fechamento funcional da UIP-5A, UIP-5B e UIP-5C, resta **UIP-5D — consolidação e gate final da UIP-5**. Dívidas de observabilidade do Gemini, mensagens de erro de cooldown/rate limit, compartilhamento temporário de Scheduler, `rustfmt` e ergonomia Wayland não bloqueiam essa etapa.
+Após o fechamento funcional da UIP-5A, UIP-5B e UIP-5C, a **UIP-5D foi consolidada como CANDIDATA**: isolamento, restart, máquina de estados, fila, telemetria, SQLite e gates automatizados foram revalidados. O gate Tauri real confirmou startup, Presence, canvas fixo, um WebKitWebProcess e RSS/CPU ociosos estáveis; a automação sem foco não percorreu Composer/Conversation nem Wave→Idle, que ficam para confirmação humana curta. Dívidas de observabilidade do Gemini, mensagens de erro de cooldown/rate limit, compartilhamento temporário de Scheduler, `rustfmt` e ergonomia Wayland permanecem registradas. **UIP-5 completa não está em PASS e UIP-6 não foi iniciada.**

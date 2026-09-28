@@ -136,6 +136,54 @@ fn summary_claim_recovery_completion_and_resume_preserve_messages() {
   assert_eq!(conversation::history_session(&conn,target).unwrap().unwrap().messages.len(),2);
 }
 #[test]
+fn completed_summary_does_not_reorder_history_or_change_messages() {
+  let (db,_) = fixture(); let mut conn=db.open().unwrap();
+  let old=conversation::create_session(&conn).unwrap();
+  let recent=conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,old,"ALFA-A-11","Resposta A").unwrap();
+  conversation::append_exchange_to_session(&mut conn,recent,"BETA-B-22","Resposta B").unwrap();
+  conversation::close_session(&conn,old).unwrap(); conversation::close_session(&conn,recent).unwrap();
+  conn.execute("UPDATE conversation_sessions SET updated_at='2026-01-01T00:00:00Z' WHERE id=?1",[old]).unwrap();
+  conn.execute("UPDATE conversation_sessions SET updated_at='2026-01-02T00:00:00Z' WHERE id=?1",[recent]).unwrap();
+  assert_eq!(conversation::claim_next_pending_summary(&mut conn).unwrap().unwrap().id,old);
+  assert!(conversation::complete_summary(&conn,old,"Título A","Resumo ALFA-A-11").unwrap());
+  let items=conversation::list_history(&conn,50).unwrap();
+  assert_eq!(items.iter().map(|item|item.id).collect::<Vec<_>>(),vec![recent,old]);
+  assert_eq!(items[1].updated_at,"2026-01-01T00:00:00Z");
+  assert_eq!(items[1].preview,"Resumo ALFA-A-11");
+  assert_eq!(conversation::history_session(&conn,old).unwrap().unwrap().messages.len(),2);
+}
+
+#[test]
+fn three_runs_require_explicit_resume_and_keep_sqlite_integrity() {
+  let (db,_) = fixture(); let mut run1=db.open().unwrap();
+  let a=conversation::create_session(&run1).unwrap();
+  conversation::append_exchange_to_session(&mut run1,a,"ALFA-A-11","Resposta A").unwrap();
+  assert!(conversation::close_session(&run1,a).unwrap());
+  assert_eq!(conversation::history_session(&run1,a).unwrap().unwrap().summary_status,"pending");
+  drop(run1);
+
+  let mut run2=db.open().unwrap();
+  assert_eq!(conversation::close_orphaned_product_sessions(&run2).unwrap(),0);
+  assert_eq!(conversation::reset_interrupted_summaries(&run2).unwrap(),0);
+  assert!(!conversation::is_active_session(&run2,a).unwrap());
+  assert_eq!(conversation::history_session(&run2,a).unwrap().unwrap().messages.len(),2);
+  conversation::resume_session(&mut run2,a,None).unwrap();
+  conversation::append_exchange_to_session(&mut run2,a,"Continuação A","Resposta nova").unwrap();
+  assert!(conversation::close_session(&run2,a).unwrap());
+  assert_eq!(conversation::history_session(&run2,a).unwrap().unwrap().summary_status,"pending");
+  drop(run2);
+
+  let run3=db.open().unwrap();
+  assert_eq!(conversation::close_orphaned_product_sessions(&run3).unwrap(),0);
+  assert!(!conversation::is_active_session(&run3,a).unwrap());
+  assert_eq!(conversation::history_session(&run3,a).unwrap().unwrap().messages.len(),4);
+  let integrity:String=run3.pragma_query_value(None,"integrity_check",|row|row.get(0)).unwrap();
+  assert_eq!(integrity,"ok");
+  let foreign_keys:i64=run3.query_row("SELECT COUNT(*) FROM pragma_foreign_key_check",[],|row|row.get(0)).unwrap();
+  assert_eq!(foreign_keys,0);
+}
+#[test]
 fn summary_claim_bounds_database_read_and_keeps_first_user() {
   let (db,_) = fixture(); let mut conn=db.open().unwrap();
   let id=conversation::create_session(&conn).unwrap();

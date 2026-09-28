@@ -392,6 +392,19 @@ mod tests {
   }
 
   #[test]
+  fn background_and_foreground_ids_share_one_monotonic_sequence() {
+    let registry = TaskRegistry::default();
+    registry.seed_next_id(40);
+    let (chat, _) = registry.register().unwrap();
+    let summary = registry.reserve_background_id().unwrap();
+    let (mock, _) = registry.register().unwrap();
+    assert_eq!((chat.0, summary.0, mock.0), (41, 42, 43));
+    assert!(!registry.cancel(summary));
+    assert!(registry.cancel(chat));
+    assert!(registry.cancel(mock));
+  }
+
+  #[test]
   fn cancellation_is_controlled() {
     let registry = TaskRegistry::default();
     let (id, cancelled) = registry.register().unwrap();

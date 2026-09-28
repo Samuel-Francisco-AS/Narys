@@ -366,6 +366,10 @@ mod tests {
                 assert_eq!(request.context.metadata.memory_count, 0);
                 assert!(request.context.relevant_memories.is_empty());
                 assert!(request.context.recent_messages.is_empty());
+                assert_eq!(
+                    request.context.identity.canonical_name,
+                    "Assistente de metadados"
+                );
                 self.requests.lock().unwrap().push(request.input.clone());
                 self.entered.notify_one();
                 if let Some(release) = &self.release {
@@ -521,12 +525,13 @@ mod tests {
             (Ok("texto inválido".into()), "failed", true),
         ] {
             let (db, fake, scheduler, registry) = fixture();
-            let id = add_session(&db, "SUMMARY-TARGET-71");
-            let other = add_session(&db, "OTHER-SESSION-88");
+            let id = add_session(&db, "BETA-B-22");
+            let other = add_session(&db, "ALFA-A-11");
+            let third = add_session(&db, "GAMA-C-33");
             let mut conn = db.open().unwrap();
-            conn.execute("INSERT INTO conversation_sessions(title,status,kind) VALUES ('LEGACY-LR6-55','active','legacy')",[]).unwrap();
+            conn.execute("INSERT INTO conversation_sessions(title,status,kind) VALUES ('LEGACY-55','active','legacy')",[]).unwrap();
             conn.execute("INSERT INTO memory_records(type,domains_json,state,title,summary,importance,confidence) VALUES
-        ('preference','[]','active','private','PRIVATE-MEMORY-99',5,'high')",[]).unwrap();
+        ('preference','[]','active','private','PRIVATE-44',5,'high')",[]).unwrap();
             let claim = conversation::claim_next_pending_summary(&mut conn)
                 .unwrap()
                 .unwrap();
@@ -561,10 +566,15 @@ mod tests {
                 .unwrap()
                 .summary
                 .is_none());
+            assert!(conversation::history_session(&conn, third)
+                .unwrap()
+                .unwrap()
+                .summary
+                .is_none());
             let captured = fake.requests.lock().unwrap();
             assert_eq!(captured.len(), 1);
-            assert!(captured[0].contains("SUMMARY-TARGET-71"));
-            for forbidden in ["OTHER-SESSION-88", "PRIVATE-MEMORY-99", "LEGACY-LR6-55"] {
+            assert!(captured[0].contains("BETA-B-22"));
+            for forbidden in ["ALFA-A-11", "GAMA-C-33", "PRIVATE-44", "LEGACY-55"] {
                 assert!(!captured[0].contains(forbidden));
             }
             if expected == "completed" {
@@ -604,6 +614,10 @@ mod tests {
         conversation::append_exchange_to_session(&mut conn, id, "SUMMARY-TARGET-71", "Resposta")
             .unwrap();
         assert!(conversation::close_session(&conn, id).unwrap());
+        let b = conversation::create_session(&conn).unwrap();
+        conversation::append_exchange_to_session(&mut conn, b, "BETA-B-22", "Resposta B").unwrap();
+        conversation::close_session(&conn, b).unwrap();
+        let current = conversation::create_session(&conn).unwrap();
         let worker = SummaryWorker::start(
             db.clone(),
             Arc::new(Scheduler::new(providers)),
@@ -620,6 +634,24 @@ mod tests {
                 .summary_status,
             "running"
         );
+        // The provider is held indefinitely until release. Resume, close and
+        // new-session persistence must finish while that call is still waiting.
+        let db_for_swap = db.clone();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            tokio::task::spawn_blocking(move || {
+                let mut conn = db_for_swap.open().unwrap();
+                conversation::resume_session(&mut conn, b, Some(current)).unwrap();
+                let to_close = conversation::create_session(&conn).unwrap();
+                assert!(conversation::close_session(&conn, to_close).unwrap());
+                let next = conversation::create_session(&conn).unwrap();
+                assert!(conversation::is_active_session(&conn, next).unwrap());
+            }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(fake.requests.lock().unwrap().len(), 1);
         release.notify_one();
         tokio::time::timeout(std::time::Duration::from_secs(2), async {
             loop {
@@ -637,7 +669,10 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(fake.requests.lock().unwrap().len(), 1);
-        worker.kick();
+        std::thread::scope(|scope| {
+            scope.spawn(|| worker.kick());
+            scope.spawn(|| worker.kick());
+        });
         tokio::task::yield_now().await;
         assert_eq!(fake.requests.lock().unwrap().len(), 1);
     }

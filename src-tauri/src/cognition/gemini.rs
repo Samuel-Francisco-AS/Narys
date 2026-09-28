@@ -430,20 +430,23 @@ mod tests {
     let (store,dir)=fixture(); let db=Database::for_test(dir.join("resume-http.sqlite3"));
     let mut conn=db.open().unwrap();
     let a=conversation::create_session(&conn).unwrap(); let b=conversation::create_session(&conn).unwrap(); let c=conversation::create_session(&conn).unwrap();
-    conversation::append_exchange_to_session(&mut conn,a,"ATUAL-A-11","Entendido.").unwrap();
-    conversation::append_exchange_to_session(&mut conn,b,"A palavra é ORQUIDEA-71","Entendido.").unwrap();
-    conversation::append_exchange_to_session(&mut conn,c,"SEGREDO-C-99","Entendido.").unwrap();
-    conversation::close_session(&conn,b).unwrap(); conversation::close_session(&conn,c).unwrap();
-    conversation::append_gemini_exchange(&mut conn,"LR-6 diagnostic","Entendido.").unwrap();
+    conversation::append_exchange_to_session(&mut conn,a,"ALFA-A-11","Entendido.").unwrap();
+    conversation::append_exchange_to_session(&mut conn,b,"BETA-B-22","Entendido.").unwrap();
+    conversation::append_exchange_to_session(&mut conn,c,"GAMA-C-33","Entendido.").unwrap();
+    conversation::close_session(&conn,a).unwrap(); conversation::close_session(&conn,b).unwrap(); conversation::close_session(&conn,c).unwrap();
+    conn.execute("UPDATE conversation_sessions SET summary_status='running' WHERE id=?1",[a]).unwrap();
+    assert!(conversation::complete_summary(&conn,a,"Título A","SUMMARY-ALFA-A-11").unwrap());
+    conversation::append_gemini_exchange(&mut conn,"LEGACY-55","Entendido.").unwrap();
     conversation::create_diagnostic(&mut conn).unwrap();
-    let sessions=CurrentRunSessions::default(); sessions.0.lock().unwrap().insert(a);
-    gemini_commands::resume_registered_session(&db,&sessions,&TaskRegistry::default(),b,Some(a)).unwrap();
+    let sessions=CurrentRunSessions::default();
+    gemini_commands::resume_registered_session(&db,&sessions,&TaskRegistry::default(),b,None).unwrap();
     assert_eq!(*sessions.0.lock().unwrap(),std::collections::HashSet::from([b]));
     let history=conversation::outbound_history(&conn,b).unwrap();
     assert_eq!(history.len(),2);
     let (url,handle)=server("200 OK",SSE,"",false);
     let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
-    let mut req=request(); req.input="Qual foi a palavra?".into();
+    let mut req=request(); req.input="Continue BETA-B-22".into();
+    Arc::get_mut(&mut req.context).unwrap().relevant_memories[0].summary="PRIVATE-44".into();
     req.history=history.into_iter().map(|turn| ProviderMessage {
       role:match turn.role { conversation::SessionRole::User=>ProviderRole::User, conversation::SessionRole::Assistant=>ProviderRole::Assistant },
       content:turn.content,
@@ -453,9 +456,9 @@ mod tests {
     let raw=handle.join().unwrap(); let (_,body)=raw.split_once("\r\n\r\n").unwrap();
     let payload:Value=serde_json::from_str(body).unwrap();
     assert_eq!(payload["input"].as_array().unwrap().len(),3);
-    assert_eq!(body.matches("Qual foi a palavra?").count(),1);
-    assert!(body.contains("ORQUIDEA-71"));
-    for marker in ["ATUAL-A-11","SEGREDO-C-99","LR-6 diagnostic","memory secret marker","recent private marker"] { assert!(!body.contains(marker),"unexpected {marker}"); }
+    assert_eq!(body.matches("Continue BETA-B-22").count(),1);
+    assert!(body.contains("BETA-B-22"));
+    for marker in ["ALFA-A-11","GAMA-C-33","PRIVATE-44","LEGACY-55","SUMMARY-ALFA-A-11","memory secret marker","recent private marker"] { assert!(!body.contains(marker),"unexpected {marker}"); }
     drop(conn); fs::remove_dir_all(dir).unwrap();
   }
   #[test] fn http_error_classes_and_retry_after() {
