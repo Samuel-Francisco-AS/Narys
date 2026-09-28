@@ -296,15 +296,9 @@ mod tests {
   fn parser_handles_split_sse_usage_and_ignores_reasoning() {
     let mut parser = SseParser::default();
     let a = br#"data: {"choices":[{"delta":{"content":"Ol"#;
-    let b = br#"á","reasoning":"segredo"}}]}
-
-data: {"choices":[],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}
-
-data: [DONE]
-
-"#;
+    let b = "á\",\"reasoning\":\"segredo\"}}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7}}\n\ndata: [DONE]\n\n";
     assert!(parser.push(a).unwrap().is_empty());
-    let events = parser.push(b).unwrap();
+    let events = parser.push(b.as_bytes()).unwrap();
     assert_eq!(events[0], StreamEvent::Text("Olá".into()));
     assert_eq!(events[1], StreamEvent::Usage(ProviderUsage { calls:1, input_tokens:5, output_tokens:2, total_tokens:Some(7), thought_tokens:None }));
     assert_eq!(events[2], StreamEvent::Done);
