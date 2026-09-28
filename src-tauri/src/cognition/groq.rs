@@ -246,8 +246,32 @@ fn token_field(usage: &Value, name: &str) -> Result<u32, ProviderError> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::cognition::types::{ContextMetadata, ProviderInvocationConfig, ProviderTarget};
-  use crate::persistence::{conversation::ConversationMessage, identity::IdentityInput};
+  use std::{fs, io::{Read, Write}, net::TcpListener, path::PathBuf,
+    sync::{Mutex, atomic::AtomicBool}, thread, time::{SystemTime, UNIX_EPOCH}};
+  use crate::{
+    cognition::{
+      registry::ProviderRegistry,
+      scheduler::{Scheduler, SchedulerEvent},
+      types::{ContextMetadata, ProviderCapabilities, ProviderConfig, ProviderInvocationConfig, ProviderSelection,
+        ProviderTarget, ProviderTaskRequest, TaskBudget},
+    },
+    persistence::{conversation::ConversationMessage, identity::IdentityInput},
+    security::secrets::{SecretError, UnlockKeyStore},
+  };
+
+  #[derive(Default)] struct Keys(Mutex<Option<Vec<u8>>>);
+  impl UnlockKeyStore for Keys {
+    fn load(&self) -> Result<Option<Vec<u8>>, SecretError> { Ok(self.0.lock().unwrap().clone()) }
+    fn store(&self, key: &[u8]) -> Result<(), SecretError> { *self.0.lock().unwrap() = Some(key.to_vec()); Ok(()) }
+    fn delete(&self) -> Result<(), SecretError> { *self.0.lock().unwrap() = None; Ok(()) }
+  }
+  fn fixture() -> (Arc<SecretStore>, PathBuf) {
+    let n = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let dir = std::env::temp_dir().join(format!("groq-test-{}-{n}", std::process::id()));
+    let store = Arc::new(SecretStore::with_key_store(dir.clone(), Arc::new(Keys::default())));
+    store.set_secret(SecretKey::GroqApiKey, b"fake-groq-secret").unwrap();
+    (store, dir)
+  }
 
   fn context() -> Arc<ContextBundle> {
     let identity: IdentityInput = serde_json::from_value(json!({
@@ -271,6 +295,49 @@ mod tests {
       }}, attempt: 1,
     }
   }
+
+  fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
+    ProviderTaskRequest {
+      input: request.input, history: request.history, context: request.context,
+      max_output_tokens: request.max_output_tokens, selection: ProviderSelection::Fixed("groq".into()),
+      targets: vec![request.target], required_capabilities: ProviderCapabilities::text_stream(),
+    }
+  }
+
+  fn server(status: &str, body: &str, extra: &str, split: bool) -> (String, thread::JoinHandle<String>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/openai/v1/chat/completions", listener.local_addr().unwrap());
+    let status = status.to_owned(); let body = body.to_owned(); let extra = extra.to_owned();
+    let handle = thread::spawn(move || {
+      let (mut conn, _) = listener.accept().unwrap();
+      conn.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+      let mut bytes = Vec::new(); let mut buf = [0u8; 4096];
+      loop {
+        let n = conn.read(&mut buf).unwrap();
+        if n == 0 { break; }
+        bytes.extend_from_slice(&buf[..n]);
+        if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+          let head = String::from_utf8_lossy(&bytes[..end]);
+          let length = head.lines().find_map(|line| line.to_ascii_lowercase()
+            .strip_prefix("content-length: ").and_then(|n| n.parse::<usize>().ok())).unwrap_or(0);
+          if bytes.len() >= end + 4 + length { break; }
+        }
+      }
+      let response = format!("HTTP/1.1 {status}\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\n{extra}\r\n{body}", body.len());
+      if split {
+        for chunk in response.as_bytes().chunks(7) {
+          if conn.write_all(chunk).is_err() { break; }
+          thread::sleep(Duration::from_millis(1));
+        }
+      } else {
+        let _ = conn.write_all(response.as_bytes());
+      }
+      String::from_utf8_lossy(&bytes).into_owned()
+    });
+    (url, handle)
+  }
+
+  const SSE: &str = "data: {\"choices\":[{\"delta\":{\"content\":\"Conexão \"}}],\"usage\":null}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"confirmada.\",\"reasoning\":\"segredo\"}}],\"usage\":null}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":3,\"total_tokens\":15}}\n\ndata: [DONE]\n\n";
 
   #[test]
   fn payload_is_provider_specific_private_and_reasoning_hidden() {
@@ -302,6 +369,46 @@ mod tests {
     assert_eq!(events[0], StreamEvent::Text("Olá".into()));
     assert_eq!(events[1], StreamEvent::Usage(ProviderUsage { calls:1, input_tokens:5, output_tokens:2, total_tokens:Some(7), thought_tokens:None }));
     assert_eq!(events[2], StreamEvent::Done);
+  }
+
+  #[test]
+  fn real_adapter_contract_stream_usage_and_secret_isolation() {
+    let (store, dir) = fixture();
+    let (url, handle) = server("200 OK", SSE, "", true);
+    let provider = GroqProvider::new(GroqConfig { endpoint: url, ..Default::default() }, store.clone()).unwrap();
+    let mut registry = ProviderRegistry::default();
+    registry.register(ProviderConfig { id:"groq".into(), enabled:true, priority:2,
+      capabilities:ProviderCapabilities::text_stream() }, Arc::new(provider)).unwrap();
+    let signal = AtomicBool::new(false); let mut chunks = Vec::new();
+    let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
+      task_request(request(Some(ThinkingLevel::Low))),
+      TaskBudget { max_provider_calls:1, max_output_tokens:Some(64) },
+      &signal,
+      &mut |event| { if let SchedulerEvent::Chunk { text, .. } = event { chunks.push(text); } Ok(()) },
+    )).unwrap();
+    assert_eq!(chunks, vec!["Conexão ", "confirmada."]);
+    assert_eq!(result.provider_id, "groq");
+    assert_eq!(result.text, "Conexão confirmada.");
+    assert_eq!((result.usage.input_tokens, result.usage.output_tokens, result.usage.total_tokens), (12, 3, Some(15)));
+    assert_eq!(result.usage.thought_tokens, None);
+
+    let raw = handle.join().unwrap();
+    assert!(raw.to_ascii_lowercase().contains("authorization: bearer fake-groq-secret"));
+    let (_, body) = raw.split_once("\r\n\r\n").unwrap();
+    let payload: Value = serde_json::from_str(body).unwrap();
+    assert_eq!(payload["model"], MODEL);
+    assert_eq!(payload["stream"], true);
+    assert_eq!(payload["stream_options"]["include_usage"], true);
+    assert_eq!(payload["include_reasoning"], false);
+    assert_eq!(payload["reasoning_effort"], "low");
+    assert_eq!(payload["max_completion_tokens"], 64);
+    assert!(payload.get("store").is_none());
+    assert!(!body.contains("PRIVATE"));
+    assert!(!body.contains("fake-groq-secret"));
+
+    store.delete_secret(SecretKey::GroqApiKey).unwrap();
+    assert!(store.get_secret(SecretKey::GroqApiKey).unwrap().is_none());
+    fs::remove_dir_all(dir).unwrap();
   }
 
   #[test]
