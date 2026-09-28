@@ -39,6 +39,27 @@ pub fn close_session(conn: &Connection, id: i64) -> Result<bool, PersistenceErro
       WHERE id=?1 AND kind='product' AND status='active'", [id])
     .map_err(|_| PersistenceError::Write)? == 1)
 }
+/// The caller holds CurrentRunSessions across this transaction and registry update.
+pub fn resume_session(conn: &mut Connection, target_id: i64, current_id: Option<i64>) -> Result<ConversationSession, &'static str> {
+  if target_id <= 0 || current_id.is_some_and(|id| id <= 0 || id == target_id) { return Err("session_invalid"); }
+  let tx = conn.transaction().map_err(|_| "write_failed")?;
+  let target = tx.query_row("SELECT kind,status,summary_status,EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=?1) FROM conversation_sessions WHERE id=?1",
+    [target_id], |r| Ok((r.get::<_, String>(0)?,r.get::<_, String>(1)?,r.get::<_, String>(2)?,r.get::<_, bool>(3)?)))
+    .optional().map_err(|_| "read_failed")?.ok_or("session_invalid")?;
+  if target.0 != "product" || target.1 != "closed" || !target.3 { return Err("session_invalid"); }
+  if target.2 == "running" { return Err("summary_busy"); }
+  if let Some(id) = current_id {
+    if !is_active_session(&tx, id).map_err(|_| "read_failed")? { return Err("session_invalid"); }
+    if !close_session(&tx, id).map_err(|_| "write_failed")? { return Err("session_invalid"); }
+  }
+  let changed = tx.execute("UPDATE conversation_sessions SET status='active',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+    summary_status='none',summary=NULL,summary_updated_at=NULL WHERE id=?1 AND kind='product' AND status='closed' AND summary_status!='running'",
+    [target_id]).map_err(|_| "write_failed")?;
+  if changed != 1 { return Err("session_invalid"); }
+  let resumed = session(&tx, target_id).map_err(|_| "read_failed")?.ok_or("session_invalid")?;
+  tx.commit().map_err(|_| "write_failed")?;
+  Ok(resumed)
+}
 /// Called once in Tauri setup, while CurrentRunSessions is still empty.
 pub fn close_orphaned_product_sessions(conn: &Connection) -> Result<usize, PersistenceError> {
   conn.execute("UPDATE conversation_sessions SET status='closed',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),

@@ -38,7 +38,7 @@ pub fn run() {
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
-    cognition::gemini_commands::close_conversation_session,
+    cognition::gemini_commands::close_conversation_session, cognition::gemini_commands::resume_conversation_session,
     cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
     luna::start_gemini_task,
   ]);
@@ -49,7 +49,7 @@ pub fn run() {
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
-    cognition::gemini_commands::close_conversation_session,
+    cognition::gemini_commands::close_conversation_session, cognition::gemini_commands::resume_conversation_session,
     cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
     luna::start_gemini_task,
   ]);

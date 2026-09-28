@@ -54,7 +54,8 @@ pub fn cognition_provider_status(cognition: State<'_, Arc<CognitionRuntime>>) ->
 pub fn start_gemini_task(registry: State<'_, Arc<TaskRegistry>>, db: State<'_, Database>,
   gemini: State<'_, Arc<GeminiRuntime>>, sessions: State<'_, CurrentRunSessions>, session_id: i64, message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   if message.trim().is_empty() || message.len() > 4096 { return Err("gemini_input_invalid".into()); }
-  if session_id <= 0 || !sessions.0.lock().map_err(|_| "session_registry_failed")?.contains(&session_id) { return Err("session_invalid".into()); }
+  let current_run = sessions.0.lock().map_err(|_| "session_registry_failed")?;
+  if session_id <= 0 || !current_run.contains(&session_id) { return Err("session_invalid".into()); }
   let conn = db.open().map_err(|e| e.code())?;
   if !conversation::is_active_session(&conn, session_id).map_err(|e| e.code())? { return Err("session_invalid".into()); }
   runtime::start_gemini(registry.inner().clone(), db.inner().clone(), gemini.inner().clone(), session_id, message, channel)

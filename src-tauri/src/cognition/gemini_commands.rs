@@ -6,9 +6,30 @@ use super::gemini::MODEL;
 use crate::persistence::{conversation::{self, ConversationHistoryItem, ConversationSession}, database::Database};
 use std::collections::HashSet;
 use std::sync::Mutex;
+use crate::luna::runtime::TaskRegistry;
 
 #[derive(Default)]
 pub struct CurrentRunSessions(pub Mutex<HashSet<i64>>);
+
+pub fn resume_registered_session(db: &Database, sessions: &CurrentRunSessions, registry: &TaskRegistry,
+  target_session_id: i64, current_session_id: Option<i64>) -> Result<ConversationSession, String> {
+  if target_session_id <= 0 || current_session_id.is_some_and(|id| id <= 0 || id == target_session_id) { return Err("session_invalid".into()); }
+  let mut current_run = sessions.0.lock().map_err(|_| "session_registry_failed")?;
+  if current_session_id.is_none() && !current_run.is_empty() { return Err("session_invalid".into()); }
+  if current_session_id.is_some_and(|id| !current_run.contains(&id)) { return Err("session_invalid".into()); }
+  if current_session_id.is_some_and(|id| registry.has_in_flight_gemini(id)) { return Err("session_busy".into()); }
+  let mut conn = db.open().map_err(|e| e.code())?;
+  let resumed = conversation::resume_session(&mut conn, target_session_id, current_session_id).map_err(str::to_owned)?;
+  if let Some(id) = current_session_id { current_run.remove(&id); }
+  current_run.insert(target_session_id);
+  Ok(resumed)
+}
+
+#[tauri::command]
+pub fn resume_conversation_session(db: State<'_, Database>, sessions: State<'_, CurrentRunSessions>,
+  registry: State<'_, Arc<TaskRegistry>>, target_session_id: i64, current_session_id: Option<i64>) -> Result<ConversationSession, String> {
+  resume_registered_session(&db, &sessions, &registry, target_session_id, current_session_id)
+}
 
 #[tauri::command]
 pub async fn list_conversation_history(db: State<'_, Database>) -> Result<Vec<ConversationHistoryItem>, String> {
@@ -102,4 +123,47 @@ pub async fn gemini_conversation(db: State<'_, Database>) -> Result<Option<Conve
   tauri::async_runtime::spawn_blocking(move || { let conn = db.open().map_err(|e| e.code())?;
     conversation::gemini_session(&conn).map_err(|e| e.code()) })
     .await.map_err(|_| "worker_failed".to_string())?.map_err(str::to_owned)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::time::{SystemTime, UNIX_EPOCH};
+
+  #[test]
+  fn resume_registry_changes_only_after_db_success() {
+    let n=SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let dir=std::env::temp_dir().join(format!("uip5b-registry-{}-{n}",std::process::id()));
+    let db=Database::for_test(dir.join("test.sqlite3"));
+    let mut conn=db.open().unwrap();
+    let a=conversation::create_session(&conn).unwrap(); let b=conversation::create_session(&conn).unwrap();
+    let legacy=conversation::create_diagnostic(&mut conn).unwrap();
+    conversation::append_exchange_to_session(&mut conn,b,"ORQUIDEA-71","Entendido.").unwrap();
+    conversation::close_session(&conn,b).unwrap();
+    let sessions=CurrentRunSessions::default(); let registry=TaskRegistry::default();
+    sessions.0.lock().unwrap().insert(a);
+    for id in [0,legacy,a] {
+      assert!(resume_registered_session(&db,&sessions,&registry,id,Some(a)).is_err());
+      assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([a]));
+    }
+    assert!(resume_registered_session(&db,&sessions,&registry,b,Some(legacy)).is_err());
+    assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([a]));
+    assert!(resume_registered_session(&db,&sessions,&registry,b,None).is_err());
+    registry.mark_in_flight_gemini_for_test(a);
+    assert_eq!(resume_registered_session(&db,&sessions,&registry,b,Some(a)).err().as_deref(),Some("session_busy"));
+    assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([a]));
+    registry.in_flight_gemini_for_test_clear(a);
+    conn.execute_batch("CREATE TRIGGER reject_resume_registry BEFORE UPDATE ON conversation_sessions WHEN NEW.status='active' AND OLD.status='closed' BEGIN SELECT RAISE(ABORT, 'synthetic'); END;").unwrap();
+    assert_eq!(resume_registered_session(&db,&sessions,&registry,b,Some(a)).err().as_deref(),Some("write_failed"));
+    assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([a]));
+    assert!(conversation::is_active_session(&conn,a).unwrap());
+    conn.execute_batch("DROP TRIGGER reject_resume_registry").unwrap();
+    let result=resume_registered_session(&db,&sessions,&registry,b,Some(a)).unwrap();
+    assert_eq!(result.messages[0].content,"ORQUIDEA-71");
+    assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([b]));
+    conversation::close_session(&conn,b).unwrap();
+    sessions.0.lock().unwrap().clear();
+    resume_registered_session(&db,&sessions,&registry,b,None).unwrap();
+    assert_eq!(*sessions.0.lock().unwrap(),HashSet::from([b]));
+  }
 }

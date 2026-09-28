@@ -25,9 +25,21 @@ struct TaskControl {
 pub struct TaskRegistry {
   next_id: AtomicU64,
   active: Mutex<HashMap<TaskId, TaskControl>>,
+  in_flight_gemini: Mutex<HashMap<i64, usize>>,
 }
 
 impl TaskRegistry {
+  pub fn has_in_flight_gemini(&self, session_id: i64) -> bool {
+    self.in_flight_gemini.lock().unwrap_or_else(|poison| poison.into_inner()).contains_key(&session_id)
+  }
+  #[cfg(test)]
+  pub fn mark_in_flight_gemini_for_test(&self, session_id: i64) {
+    self.in_flight_gemini.lock().unwrap().insert(session_id, 1);
+  }
+  #[cfg(test)]
+  pub fn in_flight_gemini_for_test_clear(&self, session_id: i64) {
+    self.in_flight_gemini.lock().unwrap().remove(&session_id);
+  }
   pub fn seed_next_id(&self, last: u64) { self.next_id.store(last, Ordering::Relaxed); }
   pub fn register(&self) -> Result<(TaskId, Arc<AtomicBool>), String> {
     // JavaScript numbers represent integers exactly only through 2^53 - 1.
@@ -82,11 +94,19 @@ impl TaskRegistry {
 struct ActiveTask {
   registry: Arc<TaskRegistry>,
   id: TaskId,
+  session_id: Option<i64>,
 }
 
 impl Drop for ActiveTask {
   fn drop(&mut self) {
     self.registry.remove(self.id);
+    if let Some(session_id) = self.session_id {
+      let mut in_flight = self.registry.in_flight_gemini.lock().unwrap_or_else(|poison| poison.into_inner());
+      if let Some(count) = in_flight.get_mut(&session_id) {
+        *count -= 1;
+        if *count == 0 { in_flight.remove(&session_id); }
+      }
+    }
   }
 }
 
@@ -109,9 +129,10 @@ fn prototype_chat_budget() -> TaskBudget {
 pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<GeminiRuntime>,
   session_id: i64, message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   let (id, cancelled) = registry.register()?;
+  *registry.in_flight_gemini.lock().unwrap_or_else(|poison| poison.into_inner()).entry(session_id).or_default() += 1;
   let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
   tauri::async_runtime::spawn(async move {
-    let _active = ActiveTask { registry: registry.clone(), id };
+    let _active = ActiveTask { registry: registry.clone(), id, session_id: Some(session_id) };
     let mut sequence = 0;
     registry.mark_running(id);
     let result = async {
@@ -235,7 +256,7 @@ pub fn start(registry: Arc<TaskRegistry>, db: Database, channel: Channel<TaskEve
   let (id, cancelled) = registry.register()?;
   let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
   tauri::async_runtime::spawn(async move {
-    let _active = ActiveTask { registry: registry.clone(), id };
+    let _active = ActiveTask { registry: registry.clone(), id, session_id: None };
     let mut sequence = 0;
     let outcome = match run_mock_task(&registry, id, &cancelled, &channel, &mut sequence).await {
       Ok(state) => state,
@@ -266,7 +287,7 @@ pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc
   let (id, cancelled) = registry.register()?;
   let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
   tauri::async_runtime::spawn(async move {
-    let _active = ActiveTask { registry: registry.clone(), id };
+    let _active = ActiveTask { registry: registry.clone(), id, session_id: None };
     let mut sequence = 0;
     registry.mark_running(id);
     let started = emit_cognitive(&channel, id, &mut sequence, TaskEventKind::TaskStarted, &cancelled);
@@ -359,7 +380,7 @@ mod tests {
     assert_eq!((first.0, second.0), (1, 2));
     registry.mark_running(first);
     assert_eq!(registry.active.lock().unwrap().get(&first).unwrap().state, TaskState::Running);
-    drop(ActiveTask { registry: registry.clone(), id: first });
+    drop(ActiveTask { registry: registry.clone(), id: first, session_id: None });
     assert!(!registry.cancel(first));
     assert!(registry.cancel(second));
   }

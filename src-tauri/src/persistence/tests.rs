@@ -229,3 +229,84 @@ fn explicit_exchange_is_atomic_on_assistant_failure() {
   assert!(conversation::append_exchange_to_session(&mut conn, id, "user", "assistant").is_err());
   assert!(conversation::session(&conn, id).unwrap().unwrap().messages.is_empty());
 }
+
+#[test]
+fn resume_validates_target_and_invalidates_summary() {
+  let (db, _) = fixture(); let mut conn = db.open().unwrap();
+  let legacy = conversation::create_diagnostic(&mut conn).unwrap();
+  let empty = conversation::create_session(&conn).unwrap();
+  let active = conversation::create_session(&conn).unwrap();
+  let b = conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,b,"ORQUIDEA-71","Entendido.").unwrap();
+  assert!(conversation::close_session(&conn,b).unwrap());
+  conn.execute("UPDATE conversation_sessions SET summary_status='completed',summary='old',summary_updated_at='2026-01-01' WHERE id=?1",[b]).unwrap();
+  for id in [0,legacy,empty,active] { assert!(conversation::resume_session(&mut conn,id,None).is_err()); }
+  assert_eq!(conversation::resume_session(&mut conn,b,Some(b)).err(),Some("session_invalid"));
+  conn.execute("UPDATE conversation_sessions SET summary_status='running' WHERE id=?1",[b]).unwrap();
+  assert_eq!(conversation::resume_session(&mut conn,b,None).err(),Some("summary_busy"));
+  conn.execute("UPDATE conversation_sessions SET summary_status='completed' WHERE id=?1",[b]).unwrap();
+  let resumed=conversation::resume_session(&mut conn,b,None).unwrap();
+  assert_eq!(resumed.status.as_deref(),Some("active"));
+  assert_eq!(resumed.messages[0].content,"ORQUIDEA-71");
+  let summary:(String,Option<String>,Option<String>)=conn.query_row("SELECT summary_status,summary,summary_updated_at FROM conversation_sessions WHERE id=?1",[b],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap();
+  assert_eq!(summary,("none".into(),None,None));
+  assert!(conversation::resume_session(&mut conn,b,None).is_err());
+}
+
+#[test]
+fn resume_swap_is_atomic_and_preserves_both_sessions() {
+  let (db, _) = fixture(); let mut conn = db.open().unwrap();
+  let a=conversation::create_session(&conn).unwrap();
+  let b=conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,a,"ATUAL-A-11","A resposta").unwrap();
+  conversation::append_exchange_to_session(&mut conn,b,"ORQUIDEA-71","Entendido.").unwrap();
+  conversation::close_session(&conn,b).unwrap();
+  let resumed=conversation::resume_session(&mut conn,b,Some(a)).unwrap();
+  assert_eq!(resumed.messages.len(),2);
+  let a_state:(String,String)=conn.query_row("SELECT status,summary_status FROM conversation_sessions WHERE id=?1",[a],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+  assert_eq!(a_state,("closed".into(),"pending".into()));
+  assert_eq!(conversation::session(&conn,a).unwrap().unwrap().messages[0].content,"ATUAL-A-11");
+  assert_eq!(conversation::outbound_history(&conn,b).unwrap()[0].content,"ORQUIDEA-71");
+  assert!(conversation::outbound_history(&conn,a).is_err());
+  let empty=conversation::create_session(&conn).unwrap();
+  conversation::close_session(&conn,b).unwrap();
+  conversation::resume_session(&mut conn,b,Some(empty)).unwrap();
+  let empty_summary:String=conn.query_row("SELECT summary_status FROM conversation_sessions WHERE id=?1",[empty],|r|r.get(0)).unwrap();
+  assert_eq!(empty_summary,"none");
+}
+
+#[test]
+fn failed_resume_rolls_back_closure_of_current_session() {
+  let (db, _) = fixture(); let mut conn = db.open().unwrap();
+  let a=conversation::create_session(&conn).unwrap(); let b=conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,a,"A","response").unwrap();
+  conversation::append_exchange_to_session(&mut conn,b,"B","response").unwrap();
+  conversation::close_session(&conn,b).unwrap();
+  conn.execute_batch("CREATE TRIGGER reject_resume BEFORE UPDATE ON conversation_sessions WHEN NEW.status='active' AND OLD.status='closed' BEGIN SELECT RAISE(ABORT, 'synthetic'); END;").unwrap();
+  assert_eq!(conversation::resume_session(&mut conn,b,Some(a)).err(),Some("write_failed"));
+  assert!(conversation::is_active_session(&conn,a).unwrap());
+  assert!(!conversation::is_active_session(&conn,b).unwrap());
+  assert_eq!(conversation::session(&conn,a).unwrap().unwrap().messages.len(),2);
+  assert_eq!(conversation::session(&conn,b).unwrap().unwrap().messages.len(),2);
+}
+
+#[test]
+fn restart_requires_explicit_resume_again() {
+  let (db, _) = fixture(); let mut conn=db.open().unwrap();
+  let a=conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,a,"ORQUIDEA-71","Entendido.").unwrap();
+  drop(conn);
+  let mut conn=db.open().unwrap();
+  assert_eq!(conversation::close_orphaned_product_sessions(&conn).unwrap(),1);
+  assert!(!conversation::is_active_session(&conn,a).unwrap());
+  assert_eq!(conversation::history_session(&conn,a).unwrap().unwrap().messages.len(),2);
+  conversation::resume_session(&mut conn,a,None).unwrap();
+  conversation::append_exchange_to_session(&mut conn,a,"Qual foi a palavra?","ORQUIDEA-71").unwrap();
+  drop(conn);
+  let mut conn=db.open().unwrap();
+  assert_eq!(conversation::close_orphaned_product_sessions(&conn).unwrap(),1);
+  assert!(!conversation::is_active_session(&conn,a).unwrap());
+  assert_eq!(conversation::session(&conn,a).unwrap().unwrap().messages.len(),4);
+  conversation::resume_session(&mut conn,a,None).unwrap();
+  assert!(conversation::is_active_session(&conn,a).unwrap());
+}

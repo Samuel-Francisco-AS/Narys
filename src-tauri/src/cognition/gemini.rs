@@ -423,6 +423,41 @@ mod tests {
     assert_eq!(payload["store"],false);
     drop(conn);fs::remove_dir_all(dir).unwrap();
   }
+  #[test] fn resumed_session_is_the_only_history_in_fake_http_outbound() {
+    use crate::persistence::{database::Database, conversation};
+    use crate::cognition::gemini_commands::{self, CurrentRunSessions};
+    use crate::luna::runtime::TaskRegistry;
+    let (store,dir)=fixture(); let db=Database::for_test(dir.join("resume-http.sqlite3"));
+    let mut conn=db.open().unwrap();
+    let a=conversation::create_session(&conn).unwrap(); let b=conversation::create_session(&conn).unwrap(); let c=conversation::create_session(&conn).unwrap();
+    conversation::append_exchange_to_session(&mut conn,a,"ATUAL-A-11","Entendido.").unwrap();
+    conversation::append_exchange_to_session(&mut conn,b,"A palavra é ORQUIDEA-71","Entendido.").unwrap();
+    conversation::append_exchange_to_session(&mut conn,c,"SEGREDO-C-99","Entendido.").unwrap();
+    conversation::close_session(&conn,b).unwrap(); conversation::close_session(&conn,c).unwrap();
+    conversation::append_gemini_exchange(&mut conn,"LR-6 diagnostic","Entendido.").unwrap();
+    conversation::create_diagnostic(&mut conn).unwrap();
+    let sessions=CurrentRunSessions::default(); sessions.0.lock().unwrap().insert(a);
+    gemini_commands::resume_registered_session(&db,&sessions,&TaskRegistry::default(),b,Some(a)).unwrap();
+    assert_eq!(*sessions.0.lock().unwrap(),std::collections::HashSet::from([b]));
+    let history=conversation::outbound_history(&conn,b).unwrap();
+    assert_eq!(history.len(),2);
+    let (url,handle)=server("200 OK",SSE,"",false);
+    let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
+    let mut req=request(); req.input="Qual foi a palavra?".into();
+    req.history=history.into_iter().map(|turn| ProviderMessage {
+      role:match turn.role { conversation::SessionRole::User=>ProviderRole::User, conversation::SessionRole::Assistant=>ProviderRole::Assistant },
+      content:turn.content,
+    }).collect();
+    let signal=AtomicBool::new(false);
+    assert!(tauri::async_runtime::block_on(provider.execute(&req,&signal,&mut |_|Ok(()))).is_ok());
+    let raw=handle.join().unwrap(); let (_,body)=raw.split_once("\r\n\r\n").unwrap();
+    let payload:Value=serde_json::from_str(body).unwrap();
+    assert_eq!(payload["input"].as_array().unwrap().len(),3);
+    assert_eq!(body.matches("Qual foi a palavra?").count(),1);
+    assert!(body.contains("ORQUIDEA-71"));
+    for marker in ["ATUAL-A-11","SEGREDO-C-99","LR-6 diagnostic","memory secret marker","recent private marker"] { assert!(!body.contains(marker),"unexpected {marker}"); }
+    drop(conn); fs::remove_dir_all(dir).unwrap();
+  }
   #[test] fn http_error_classes_and_retry_after() {
     let (store,dir)=fixture();
     for (status,extra,expected) in [("429 Too Many Requests","Retry-After: 3\r\n",ProviderError::RateLimited{retry_after_ms:Some(3000)}),

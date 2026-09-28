@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { cancelTask, lunaCoreAvailable } from '../luna/taskClient'
 import { startGeminiTask } from '../luna/geminiTaskClient'
-import { closeSession, createSession, geminiStatus, getSession } from './conversationClient'
-import type { ConversationState } from './types'
+import { closeSession, createSession, geminiStatus, getSession, resumeConversationSession } from './conversationClient'
+import type { ConversationSession, ConversationState } from './types'
 
 const initial: ConversationState = { sessionId: null, messages: [], draft: '', preview: '', assistantStreaming: false, activeTaskId: null, error: null }
 
@@ -81,5 +81,18 @@ export function useConversationController() {
     busy.current = false
     return true
   }
-  return { state, setDraft: (draft: string) => change({ draft }), send, cancel, newConversation }
+  const adoptSession = (session: ConversationSession) => {
+    generation.current += 1
+    change({ sessionId: session.id, messages: session.messages, draft: '', preview: '', assistantStreaming: false, activeTaskId: null, error: null })
+  }
+  const resumeConversation = async (targetId: number) => {
+    if (busy.current || current.current.assistantStreaming) return false
+    busy.current = true
+    try {
+      const session = await resumeConversationSession(targetId, current.current.sessionId)
+      adoptSession(session)
+      return true
+    } finally { busy.current = false }
+  }
+  return { state, setDraft: (draft: string) => change({ draft }), send, cancel, newConversation, resumeConversation }
 }

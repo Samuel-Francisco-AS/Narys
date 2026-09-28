@@ -143,7 +143,7 @@ export default function App() {
       </section>
       <button type="button" className="presence-handle" aria-label={composerOpen ? 'Recolher compositor' : 'Abrir compositor'} aria-expanded={composerOpen} onClick={toggleComposer}><span>⌄</span></button>
       {composerMounted && <Composer state={conversation.state} visible={composerOpen} onExited={onComposerExited} onDraft={conversation.setDraft} onSend={() => { setConversationMode('CURRENT'); sendStartedAt.current = panelVisible.current ? null : performance.now(); void conversation.send(); openPanel() }} onCancel={conversation.cancel} onClose={toggleComposer} onPanel={openPanel} panelOpen={panelOpen} />}
-      {panelMounted && <ConversationPanel state={conversation.state} mode={conversationMode} historyId={historyId} onMode={setConversationMode} onHistoryId={setHistoryId} visible={panelOpen} onExited={onPanelExited} onClose={() => { setConversationMode('CURRENT'); setHistoryId(null); closePanel() }} onNew={() => { void conversation.newConversation().then((closed) => { if (closed) { setConversationMode('CURRENT'); closePanel() } }) }} />}
+      {panelMounted && <ConversationPanel state={conversation.state} mode={conversationMode} historyId={historyId} onMode={setConversationMode} onHistoryId={setHistoryId} visible={panelOpen} onExited={onPanelExited} onClose={() => { setConversationMode('CURRENT'); setHistoryId(null); closePanel() }} onNew={() => { void conversation.newConversation().then((closed) => { if (closed) { setConversationMode('CURRENT'); closePanel() } }) }} onResume={conversation.resumeConversation} />}
 
       {import.meta.env.DEV && (
         <>
