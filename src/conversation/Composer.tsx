@@ -14,7 +14,7 @@ export function Composer({ state, visible, onExited, onDraft, onSend, onCancel, 
     <textarea ref={input} value={state.draft} onChange={(event) => onDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Mensagem para Luna…" aria-label="Mensagem para Luna" rows={2} />
     <div className="composer-actions">
       <span role="status">{state.assistantStreaming ? 'Luna está escrevendo…' : ''}</span>
-      {!panelOpen && state.messages.length > 0 && <button type="button" onClick={onPanel}>Conversa</button>}
+      {!panelOpen && <button type="button" onClick={onPanel}>Conversas</button>}
       {state.activeTaskId !== null && <button type="button" onClick={onCancel}>Cancelar</button>}
       <button type="button" className="send-button" disabled={!state.draft.trim() || state.assistantStreaming} onClick={onSend}>Enviar</button>
     </div>
