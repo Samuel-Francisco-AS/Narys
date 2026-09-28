@@ -445,7 +445,7 @@ Revisitar a dívida de estabilidade espacial da UIP-4 no Wayland se houver evid�
 - UI permanece responsiva durante streaming;
 - baseline e resultado final ficam documentados.
 
-Após esse gate, o uso cotidiano passa a ser o teste de endurance real.
+Após esse gate, o uso cotidiano passa a ser o teste de endurance real. **Gate humano aprovado por Sam em 28/09/2026; UIP-7 encerrada em PASS funcional.**
 
 ## 16. Trabalho explicitamente posterior
 
