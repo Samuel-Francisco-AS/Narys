@@ -511,6 +511,6 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Com **UIP-6A = PASS funcional**, iniciar **UIP-6B — controles gerais editáveis + avaliação dos parâmetros avançados restantes**. UIP-6 completa e LR-7 permanecem abertas/não iniciadas, respectivamente. O registro histórico da UIP-5 permanece em [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
+Com **UIP-6A e UIP-6B = PASS funcional**, iniciar **UIP-6C — consolidação e gate final da UIP-6**. UIP-6 completa e LR-7 permanecem abertas/não iniciadas, respectivamente. O registro histórico da UIP-5 permanece em [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
 
 **Atualização 28/09/2026:** UIP-6B é candidata: migration 004, Geral editável, RetryPolicy, orçamento de histórico/resumo e parâmetros avançados visíveis. UIP-6A permanece PASS; UIP-6 completa não foi fechada. UIP-6C é a próxima etapa, ainda não iniciada.
