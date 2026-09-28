@@ -4,7 +4,8 @@ import { startGeminiTask } from '../luna/geminiTaskClient'
 import { closeSession, createSession, geminiStatus, getSession, resumeConversationSession } from './conversationClient'
 import type { ConversationSession, ConversationState } from './types'
 
-const taskFailure = (detail: string) => {
+const taskFailure = (detail: string, cooldownMs = 0) => {
+  const wait = cooldownMs > 0 ? ` Tente novamente em cerca de ${Math.max(1, Math.ceil(cooldownMs / 1000))} s.` : ''
   const known: Record<string, string> = {
     model_or_request_rejected: 'Modelo ou parâmetros rejeitados pelo Gemini. Revise IA e modelos.',
     rate_limited: 'O Gemini limitou as chamadas. Aguarde antes de tentar novamente.',
@@ -12,10 +13,10 @@ const taskFailure = (detail: string) => {
     unavailable: 'O Gemini está temporariamente indisponível. Aguarde antes de tentar novamente.',
     timeout: 'A chamada ao Gemini excedeu o tempo configurado em IA e modelos.',
   }
-  return `${known[detail] ?? `Falha na resposta (${detail}).`} Mensagem não enviada.`
+  return `${known[detail] ?? `Falha na resposta (${detail}).`}${wait} Mensagem não enviada.`
 }
 
-const initial: ConversationState = { sessionId: null, messages: [], draft: '', preview: '', assistantStreaming: false, activeTaskId: null, error: null }
+const initial: ConversationState = { sessionId: null, messages: [], draft: '', preview: '', assistantStreaming: false, activeTaskId: null, providerCooldownUntil: null, error: null }
 
 export function useConversationController() {
   const [state, setState] = useState<ConversationState>(initial)
@@ -41,11 +42,13 @@ export function useConversationController() {
     let id = current.current.sessionId
     change({ draft: '', error: null, preview: '', assistantStreaming: true,
       messages: [...current.current.messages, { id: -run, sessionId: id ?? 0, role: 'user', content: message, createdAt: '' }] })
-    const rollback = (error: string) => change({ draft: message, assistantStreaming: false, preview: '', activeTaskId: null,
+    const rollback = (error: string, cooldownMs = 0) => change({ draft: message, assistantStreaming: false, preview: '', activeTaskId: null,
+      providerCooldownUntil: cooldownMs > 0 ? Date.now() + cooldownMs : null,
       messages: current.current.messages.filter((item) => item.id !== -run), error })
     try {
       const status = await geminiStatus()
       if (!status.configured) throw new Error('Configure a chave Gemini em Configurações → IA e modelos antes de conversar.')
+      if (status.cooldownMs > 0) { rollback(taskFailure('provider_unavailable', status.cooldownMs), status.cooldownMs); busy.current = false; return false }
       if (id === null) id = await createSession()
       if (run !== generation.current) return false
       const sessionId = id
@@ -60,11 +63,18 @@ export function useConversationController() {
           change({ activeTaskId: null })
           if (event.type === 'task_completed') {
             void refresh(sessionId, run)
-              .then(() => { if (run === generation.current) { busy.current = false; change({ assistantStreaming: false, error: null }) } })
+              .then(() => { if (run === generation.current) { busy.current = false; change({ assistantStreaming: false, providerCooldownUntil: null, error: null }) } })
               .catch(() => { if (run === generation.current) { busy.current = false; change({ assistantStreaming: false, preview: '', error: 'Resposta concluída; não foi possível atualizar a conversa local.' }) } })
+          } else if (event.type === 'task_failed') {
+            busy.current = false
+            void geminiStatus().then(status => {
+              if (run === generation.current) rollback(taskFailure(event.detail, status.cooldownMs), status.cooldownMs)
+            }).catch(() => {
+              if (run === generation.current) rollback(taskFailure(event.detail))
+            })
           } else {
             busy.current = false
-            rollback(event.type === 'task_failed' ? taskFailure(event.detail) : 'Resposta cancelada. Mensagem não enviada.')
+            rollback('Resposta cancelada. Mensagem não enviada.')
           }
         }
       })
@@ -94,7 +104,7 @@ export function useConversationController() {
   }
   const adoptSession = (session: ConversationSession) => {
     generation.current += 1
-    change({ sessionId: session.id, messages: session.messages, draft: '', preview: '', assistantStreaming: false, activeTaskId: null, error: null })
+    change({ sessionId: session.id, messages: session.messages, draft: '', preview: '', assistantStreaming: false, activeTaskId: null, providerCooldownUntil: null, error: null })
   }
   const resumeConversation = async (targetId: number) => {
     if (busy.current || current.current.assistantStreaming) return false
