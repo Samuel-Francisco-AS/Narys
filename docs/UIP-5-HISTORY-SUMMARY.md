@@ -73,7 +73,7 @@ A correção final de UX tornou o botão **Conversas** visível mesmo quando `se
 
 O fake HTTP já comprovava que, após retomar B, somente o histórico limitado de B entra no outbound; A e outras sessões continuam isoladas. Dívidas de Gemini/rate limit, mensagens públicas de cooldown, `rustfmt` e Wayland permanecem não bloqueantes. **Próxima etapa: UIP-5C — resumo assíncrono + título de sessão.**
 
-## UIP-5C — resumo assíncrono e título (CANDIDATA)
+## UIP-5C — resumo assíncrono e título (PASS funcional / FECHADA)
 
 O setup inicia um único `SummaryWorker` após fechar sessões `product` órfãs e devolver sessões `closed/running` a `pending`. Um `Notify` recebe kick inicial e kicks após o fechamento de **Nova conversa**, a troca A→B e a configuração da credencial. Kicks podem ser coalescidos; o worker drena sequencialmente a fila e dorme sem polling. Fechar ou retomar não aguarda a chamada cognitiva. A transição `pending→running` usa claim condicional em transação SQLite e exige sessão `product/closed` com mensagens. `active`, `legacy`, `completed` e `failed` não entram na fila.
 
@@ -85,8 +85,17 @@ Sucesso persiste título, resumo, `completed` e `summary_updated_at` em um únic
 
 Falhas transitórias (`rate_limited`, `unavailable`, `timeout`, `provider_unavailable`) devolvem `running→pending` e encerram o drain atual; o próximo kick ou startup tenta novamente. Falhas terminais de autenticação, quota, protocolo, output incompleto, parsing ou outras incompatibilidades marcam `failed`. `summary_updated_at` registra apenas conclusão bem sucedida, portanto fica nulo em falhas. Sem credencial configurada, o worker deixa `pending` quieto e espera novo kick; o histórico e o startup seguem disponíveis, sem popup. Cada tentativa efetiva grava `TaskRecord` `conversation_summary` com ID monotônico do registro de tarefas, tempos, estado e erro sanitizado, sem transcript ou output bruto; não fica cancelável pela conversa.
 
-Testes de persistência e fake provider cobrem claim único, isolamento de `active/legacy`, recuperação após reinício, sucesso, falhas, retomada, integridade das mensagens, input limitado/UTF-8, privacidade entre sessões e memória, além de provider lento sem bloquear fechamento. UIP-5C permanece **CANDIDATA** até o gate humano. UIP-5 completa ainda não está concluída; UIP-5D será a consolidação e gate final.
+Testes de persistência e fake provider cobrem claim único, isolamento de `active/legacy`, recuperação após reinício, sucesso, falhas, retomada, integridade das mensagens, input limitado/UTF-8, privacidade entre sessões e memória, além de provider lento sem bloquear fechamento. O gate humano foi concluído por Sam e **UIP-5C = PASS funcional / FECHADA**. UIP-5 completa ainda não está concluída; **UIP-5D** será a consolidação e gate final.
 
 No Tauri real com Mesa em software, uma única instância mostrou o Histórico com fallback e indicador “resumindo…”, abriu detalhe com mensagens completas e permitiu Retomar em cerca de 0,14 s. Nova conversa fechou a sessão em cerca de 0,83 s; o SQLite manteve as duas mensagens e `pending`. O provider real respondeu 429; o worker registrou falha sanitizada, devolveu a sessão a `pending` e parou o drain. Após reinício, o registro continuou íntegro e uma WebView foi observada. O canvas mediu 300×360 por acessibilidade. Buffer, DPR e `glError` ainda dependem de inspeção visual/técnica no gate humano; depois do reinício, a automação sem foco não conseguiu reabrir o Composer, embora o processo e o banco estivessem disponíveis.
 
 `npm run typecheck`, `npm run build`, `cargo check`, os 62 testes Rust e `git diff --check` passaram. `cargo fmt --check` continua falhando no drift global conhecido, com diffs já em `build.rs` e `context.rs`; o novo `summary.rs` passou em `rustfmt --check` isolado. Nenhuma migration nova foi necessária.
+
+
+## Fechamento da UIP-5C
+
+Em 27/09/2026, a UIP-5C foi fechada em **PASS funcional** após gate humano. Sam confirmou que **Nova conversa** permanece imediata, que o Histórico continua acessível, que sessões pendentes/running não bloqueiam a UI, que mensagens permanecem preservadas ao retomar/fechar/reiniciar e que o comportamento geral da Luna e das animações continua normal. A conclusão real do resumo pelo Gemini não foi usada como requisito de PASS porque o provider estava sujeito a 429; o caminho `completed` já está coberto por provider fake e testes automatizados.
+
+A arquitetura aprovada mantém resumo como trabalho assíncrono secundário, separado de memória persistente e da conversa corrente. O `SummaryWorker` é provider-agnostic, usa `Scheduler`, não recebe memória privada nem outras sessões e não bloqueia fechamento/retomada. O papel `summary`, o limite de 1024 tokens e o provider atual continuam provisórios até a UIP-6.
+
+Dívidas não bloqueantes seguem fora do caminho crítico: rate-limit/cooldown e mensagens públicas do provider, compartilhamento temporário do mesmo Scheduler entre chat e summary, drift global de `rustfmt` e limitações Wayland já documentadas. **Próxima etapa: UIP-5D — consolidação e gate final da UIP-5.**
