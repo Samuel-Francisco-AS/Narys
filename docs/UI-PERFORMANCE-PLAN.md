@@ -510,3 +510,8 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 ## 19. Próxima ação
 
 Com **UIP-4 fechada em PASS funcional**, iniciar **UIP-5 — histórico + resumo assíncrono**. A dívida de estabilidade espacial da janela no Wayland permanece registrada para UIP-7 ou investigação nativa dedicada e não bloqueia a continuidade da trilha.
+
+
+### Continuação da UIP-5
+
+Após o fechamento funcional da UIP-5A, a sequência interna fica: **UIP-5B — retomada explícita de sessão → UIP-5C — resumo assíncrono/título → UIP-5D — consolidação e gate final da UIP-5**. Dívidas de observabilidade do Gemini, mensagens de erro de cooldown/rate limit, `rustfmt` e ergonomia Wayland não bloqueiam essa sequência.
