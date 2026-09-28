@@ -72,3 +72,10 @@ Limitações conhecidas que não bloqueiam LR-6 no desktop atual:
 # Extensão LR-6 · Gemini
 
 O segredo tipado `GeminiApiKey` é gravado no Stronghold; o unlock continua no credential store do SO. Os comandos Tauri `gemini_set_api_key`, `gemini_delete_api_key` e `gemini_status` não devolvem o valor. A leitura no executor do provider ocorre em `spawn_blocking`. O header HTTP `x-goog-api-key` é o único local de autenticação. O frontend não envia requests ao Google, não expõe a chave nem amplia a CSP. O aviso do Free Tier antecede o envio manual; `store:false` e a política de saída mínima são aplicados no Rust. Veja [GEMINI-PROVIDER.md](GEMINI-PROVIDER.md).
+
+
+# Extensão LR-7B · Groq
+
+O segredo tipado `GroqApiKey` usa o mesmo Stronghold e a mesma chave de desbloqueio protegida pelo credential store do sistema. Os comandos `groq_set_api_key`, `groq_delete_api_key` e `groq_status` não retornam o valor da credencial. O adapter lê a chave no Rust via `spawn_blocking` e envia somente um header `Authorization: Bearer` marcado como sensível. A janela `settings-ai` recebe apenas o estado configurado/não configurado e não ganha filesystem, shell ou IPC genérico de segredos.
+
+O diagnóstico `groq_probe` é explícito, usa `Fixed("groq")`, contexto sintético sem memória privada e não persiste conversa. Nenhuma chamada Groq ocorre no startup. Conversation e Summary continuam `Fixed("gemini")` durante a LR-7B; a distribuição real fica para LR-7C. Veja [GROQ-PROVIDER.md](GROQ-PROVIDER.md).
