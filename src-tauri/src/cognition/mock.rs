@@ -2,7 +2,7 @@ use std::{sync::atomic::{AtomicBool, AtomicU32, Ordering}, time::Duration};
 use super::{provider::{Provider, ProviderFuture}, types::{ProviderChunk, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage}};
 
 #[derive(Clone, Copy, Debug)]
-pub enum MockScenario { Normal, Streaming, TransientThenSuccess, RateLimited, Timeout, QuotaExceeded, Fatal }
+pub enum MockScenario { Normal, Streaming, TransientThenSuccess, RateLimited, UnavailableRetry, Timeout, QuotaExceeded, Fatal }
 pub struct MockProvider { scenario: MockScenario, calls: AtomicU32 }
 impl MockProvider {
   pub fn new(scenario: MockScenario) -> Self { Self { scenario, calls: AtomicU32::new(0) } }
@@ -26,6 +26,7 @@ impl Provider for MockProvider {
       if request.context.identity.canonical_name.is_empty() { return Err(ProviderError::Fatal); }
       match self.scenario {
         MockScenario::RateLimited => return Err(ProviderError::RateLimited { retry_after_ms: Some(3_000) }),
+        MockScenario::UnavailableRetry => return Err(ProviderError::Unavailable { retry_after_ms: Some(3_000) }),
         MockScenario::QuotaExceeded => return Err(ProviderError::QuotaExceeded),
         MockScenario::Fatal => return Err(ProviderError::Fatal),
         MockScenario::Timeout if request.attempt == 1 => { delay(cancelled, 100).await?; return Err(ProviderError::Timeout); },

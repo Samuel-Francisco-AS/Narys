@@ -26,8 +26,17 @@ pub fn run() {
       app.manage(db.clone());
       let secrets = std::sync::Arc::new(security::secrets::SecretStore::new(directory));
       let timeouts = db.open().ok().and_then(|conn| persistence::gemini_settings::load(&conn).ok()).unwrap_or_default();
-      let gemini = cognition::GeminiRuntime::new(secrets.clone(), timeouts).map_err(|_| "gemini_http_client_unavailable")?;
-      let scheduler = gemini.scheduler.clone();
+      let mut providers = cognition::registry::ProviderRegistry::default();
+      let gemini_adapter = std::sync::Arc::new(cognition::gemini::GeminiProvider::new(
+        cognition::gemini::GeminiConfig::default(), secrets.clone()
+      ).map_err(|_| "gemini_http_client_unavailable")?);
+      let gemini_timeouts = gemini_adapter.timeout_handle();
+      *gemini_timeouts.write().unwrap_or_else(|p| p.into_inner()) = timeouts.into();
+      providers.register(cognition::types::ProviderConfig { id: "gemini".into(), enabled: true, priority: 1,
+        capabilities: cognition::types::ProviderCapabilities::text_stream() }, gemini_adapter)
+        .expect("unique Gemini ID");
+      let runtime = cognition::ProviderRuntime::new(providers, gemini_timeouts);
+      let scheduler = runtime.scheduler.clone();
       let available_secrets = secrets.clone();
       let available = std::sync::Arc::new(move || available_secrets.get_secret(security::secrets::SecretKey::GeminiApiKey)
         .ok().flatten().is_some());
@@ -36,7 +45,7 @@ pub fn run() {
       let worker = cognition::summary::SummaryWorker::start(db.clone(), scheduler,
         app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().inner().clone(), available);
       app.manage(secrets);
-      app.manage(std::sync::Arc::new(gemini));
+      app.manage(std::sync::Arc::new(runtime));
       app.manage(worker);
       Ok(())
     })

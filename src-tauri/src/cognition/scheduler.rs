@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{atomic::{AtomicBool, Ordering}, Mutex}, time::{Duration, Instant}};
 use serde::Serialize;
-use super::{registry::ProviderRegistry, types::{ProviderChunk, ProviderError, ProviderRequest, RetryPolicy, SchedulerError, SchedulerUsage, TaskBudget, TaskResult}};
+use super::{registry::ProviderRegistry, types::{ProviderChunk, ProviderError, ProviderRequest, ProviderSelection, RetryPolicy, SchedulerError, SchedulerUsage, TaskBudget, TaskResult}};
 
 #[derive(Clone, Debug)]
 pub enum SchedulerEvent {
@@ -35,8 +35,12 @@ impl Scheduler {
     };
     let mut usage = SchedulerUsage::default();
     let mut last_error = None;
-    let eligible: Vec<_> = self.registry.eligible(&request.required_capabilities).into_iter()
-      .filter(|entry| request.preferred_provider_id.as_ref().is_none_or(|id| entry.config.id == *id)).collect();
+    let mut eligible = self.registry.eligible(&request.required_capabilities);
+    match &request.selection {
+      ProviderSelection::Fixed(id) => eligible.retain(|entry| &entry.config.id == id),
+      ProviderSelection::Preferred(id) => eligible.sort_by_key(|entry| (&entry.config.id != id, entry.config.priority, entry.config.id.clone())),
+      ProviderSelection::Auto => {},
+    }
     let candidates: Vec<_> = eligible.iter().copied().filter(|entry| !self.cooling(&entry.config.id)).collect();
     let mut used_any = false;
     for (index, entry) in candidates.iter().enumerate() {
@@ -61,7 +65,7 @@ impl Scheduler {
             .map_err(|_| { cancelled.store(true, Ordering::Release); ProviderError::EventSinkClosed })
         };
         let attempt_request = ProviderRequest { input: request.input.clone(), history: request.history.clone(), context: request.context.clone(),
-          max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens), preferred_provider_id: request.preferred_provider_id.clone(),
+          max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens), selection: request.selection.clone(),
           model: request.model.clone(), thinking_level: request.thinking_level, required_capabilities: request.required_capabilities, attempt,
           provider_timeouts: request.provider_timeouts };
         // Keep the same structured context across retry/fallback; adapters decide serialization.
@@ -91,7 +95,6 @@ impl Scheduler {
               self.cooldowns.lock().unwrap_or_else(|p| p.into_inner()).insert(entry.config.id.clone(), Instant::now() + Duration::from_millis(ms));
               #[cfg(debug_assertions)] eprintln!("[Scheduler][diag] cooldown provider={} reason={} cooldown_ms={ms}",
                 if entry.config.id == "gemini" { "gemini" } else { "other" }, error.code());
-              return Err(SchedulerError::Provider(error));
             }
             // Once text has reached the UI, another attempt would concatenate
             // incompatible partial answers and could double provider cost.
@@ -123,8 +126,13 @@ impl Scheduler {
               }
               continue;
             }
+            let can_fallback = !matches!(request.selection, ProviderSelection::Fixed(_))
+              && matches!(error, ProviderError::RateLimited { .. } | ProviderError::Unavailable { .. } | ProviderError::Timeout);
+            if !can_fallback { return Err(SchedulerError::Provider(error)); }
+            if index + 1 < candidates.len() && usage.provider_calls >= budget.max_provider_calls {
+              return Err(SchedulerError::Provider(error));
+            }
             if index + 1 < candidates.len() {
-              if usage.provider_calls >= budget.max_provider_calls { return Err(SchedulerError::BudgetExceeded); }
               on_event(SchedulerEvent::Fallback { from: entry.config.id.clone(), reason_code: error.code() })
                 .map_err(|_| { cancelled.store(true, Ordering::Release); SchedulerError::EventSinkClosed })?;
               usage.fallbacks += 1;

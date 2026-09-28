@@ -8,8 +8,8 @@ use tauri::ipc::Channel;
 use chrono::{SecondsFormat, Utc};
 use crate::persistence::{database::Database, task_history::{self, TaskRecord}};
 use crate::persistence::conversation;
-use crate::cognition::{GeminiRuntime, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
-  types::{ContextBundle, ProviderCapabilities, ProviderMessage, ProviderRequest, ProviderRole, TaskBudget, SchedulerError}};
+use crate::cognition::{ProviderRuntime, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
+  types::{ContextBundle, ProviderCapabilities, ProviderMessage, ProviderRequest, ProviderRole, TaskBudget, SchedulerError, ProviderSelection}};
 use crate::cognition::policy::CognitiveRolePolicy;
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario};
@@ -149,19 +149,19 @@ fn emit_cognitive(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32,
 }
 
 fn chat_budget_and_request(message: String, history: Vec<ProviderMessage>, context: ContextBundle,
-  policy: &CognitiveRolePolicy, timeouts: crate::persistence::gemini_settings::GeminiTimeouts) -> (TaskBudget, ProviderRequest) {
+  policy: &CognitiveRolePolicy, timeouts: crate::cognition::types::ProviderTimeouts) -> (TaskBudget, ProviderRequest) {
   let budget = TaskBudget { max_provider_calls: policy.max_provider_calls, max_output_tokens: policy.max_output_tokens };
   let request = ProviderRequest { input: message, history, context: Arc::new(context), max_output_tokens: policy.max_output_tokens,
-    preferred_provider_id: Some(policy.provider_id.clone()), model: policy.model.clone(), thinking_level: policy.thinking_level,
-    required_capabilities: ProviderCapabilities::text_stream(), attempt: 1, provider_timeouts: Some(timeouts) };
+    selection: ProviderSelection::Fixed(policy.provider_id.clone()), model: policy.model.clone(), thinking_level: policy.thinking_level,
+    required_capabilities: ProviderCapabilities::text_stream(), attempt: 1, provider_timeouts: Some(timeouts.into()) };
   (budget, request)
 }
 
-pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<GeminiRuntime>,
+pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<ProviderRuntime>,
   session_id: i64, message: String, policy: CognitiveRolePolicy, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   let (id, cancelled) = registry.register()?;
   *registry.foreground_provider_tasks.lock().unwrap_or_else(|poison| poison.into_inner()).entry(session_id).or_default() += 1;
-  let timeouts = *gemini.timeouts.read().unwrap_or_else(|poison| poison.into_inner());
+  let timeouts = *gemini.gemini_timeouts.read().unwrap_or_else(|poison| poison.into_inner());
   let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
   tauri::async_runtime::spawn(async move {
     let _active = ActiveTask { registry: registry.clone(), id, session_id: Some(session_id) };
@@ -232,7 +232,7 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<Gemin
         task_history::mark_failed(&conn,id.0,"channel_closed") }).await;
       if !matches!(update,Ok(Ok(()))) { eprintln!("[Luna Core] task_history code=channel_update_failed task_id={}",id.0); }
     }
-    if matches!(error_code,Some("gemini_auth_failed" | "channel_closed")) {
+    if matches!(error_code,Some("provider_auth_failed" | "channel_closed")) {
       crate::security::audit::AuditEvent::new(crate::security::audit::Action::SecurityError,
         crate::security::audit::Outcome::Failed).with_detail(error_code.unwrap()).with_task_id(id.0).emit();
     }
@@ -336,7 +336,7 @@ pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc
           TaskBudget { max_provider_calls: 1, max_output_tokens: Some(32) }
         } else { TaskBudget { max_provider_calls: 3, max_output_tokens: Some(32) } };
         let request = ProviderRequest { input: "Execute o diagnóstico cognitivo LR-5.".into(), history: vec![], context: Arc::new(context),
-          max_output_tokens: budget.max_output_tokens, preferred_provider_id: None, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1, provider_timeouts: None };
+          max_output_tokens: budget.max_output_tokens, selection: ProviderSelection::Auto, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1, provider_timeouts: None };
         if context_event.is_err() { Err("channel_closed") } else { cognition.scheduler(scenario).run(request, budget, &cancelled, &mut |event| {
           let kind = match event {
             SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
@@ -413,17 +413,17 @@ mod tests {
     let mut policy = CognitiveRolePolicy { role: CognitiveRole::Conversation, provider_id: "gemini".into(),
       model: "gemini-custom".into(), thinking_level: Some(ThinkingLevel::High), max_output_tokens: Some(8192), max_provider_calls: 3, retry_enabled: true, max_retries: 1, retry_backoff_ms: 1500, history_max_messages: 8, history_max_bytes: 12288, summary_input_max_bytes: 32768 };
     let first_timeouts = crate::persistence::gemini_settings::GeminiTimeouts::default();
-    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, first_timeouts);
+    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, first_timeouts.into());
     policy.model = "gemini-new".into(); policy.thinking_level = None; policy.max_output_tokens = None; policy.max_provider_calls = 1;
     let next_timeouts = crate::persistence::gemini_settings::GeminiTimeouts { request_timeout_ms: 60_000, stream_idle_timeout_ms: 20_000 };
-    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, next_timeouts);
-    assert_eq!(first.preferred_provider_id.as_deref(), Some("gemini"));
+    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, next_timeouts.into());
+    assert_eq!(first.selection, ProviderSelection::Fixed("gemini".into()));
     assert_eq!((first.model.as_str(), first.thinking_level, first.max_output_tokens, first_budget.max_provider_calls),
       ("gemini-custom", Some(ThinkingLevel::High), Some(8192), 3));
     assert_eq!((next.model.as_str(), next.thinking_level, next.max_output_tokens, next_budget.max_provider_calls),
       ("gemini-new", None, None, 1));
-    assert_eq!(first.provider_timeouts, Some(first_timeouts));
-    assert_eq!(next.provider_timeouts, Some(next_timeouts));
+    assert_eq!(first.provider_timeouts, Some(first_timeouts.into()));
+    assert_eq!(next.provider_timeouts, Some(next_timeouts.into()));
   }
 
   #[test]

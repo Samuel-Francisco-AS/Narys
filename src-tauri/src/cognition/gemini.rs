@@ -2,8 +2,8 @@ use std::{collections::HashSet, sync::{atomic::{AtomicBool, Ordering}, Arc, RwLo
 use reqwest::{header::{HeaderMap, HeaderValue, RETRY_AFTER}, Client, StatusCode};
 use serde_json::{json, Value};
 use crate::security::secrets::{SecretKey, SecretStore};
-use crate::persistence::gemini_settings::GeminiTimeouts;
-use super::{policy::ThinkingLevel, provider::{Provider, ProviderFuture}, types::{ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage, ProviderMessage, ProviderRole}};
+
+use super::{policy::ThinkingLevel, provider::{Provider, ProviderFuture}, types::{ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage, ProviderMessage, ProviderRole, ProviderTimeouts}};
 
 #[cfg(test)]
 pub const MODEL: &str = "gemini-3.8-flash";
@@ -54,7 +54,7 @@ impl MinimalOutboundContext {
   }
 }
 
-pub struct GeminiProvider { config: GeminiConfig, client: Client, secrets: Arc<SecretStore>, timeouts: Arc<RwLock<GeminiTimeouts>> }
+pub struct GeminiProvider { config: GeminiConfig, client: Client, secrets: Arc<SecretStore>, timeouts: Arc<RwLock<ProviderTimeouts>> }
 impl GeminiProvider {
   pub fn new(config: GeminiConfig, secrets: Arc<SecretStore>) -> Result<Self, ProviderError> {
     let client = Client::builder().connect_timeout(config.connect_timeout)
@@ -62,11 +62,11 @@ impl GeminiProvider {
         #[cfg(debug_assertions)] eprintln!("[Gemini][diag] unavailable source=client_init");
         ProviderError::Unavailable { retry_after_ms: None }
       })?;
-    let timeouts = GeminiTimeouts { request_timeout_ms: config.request_timeout.as_millis().try_into().map_err(|_| ProviderError::Fatal)?,
+    let timeouts = ProviderTimeouts { request_timeout_ms: config.request_timeout.as_millis().try_into().map_err(|_| ProviderError::Fatal)?,
       stream_idle_timeout_ms: config.idle_timeout.as_millis().try_into().map_err(|_| ProviderError::Fatal)? };
     Ok(Self { config, client, secrets, timeouts: Arc::new(RwLock::new(timeouts)) })
   }
-  pub fn timeout_handle(&self) -> Arc<RwLock<GeminiTimeouts>> { self.timeouts.clone() }
+  pub fn timeout_handle(&self) -> Arc<RwLock<ProviderTimeouts>> { self.timeouts.clone() }
   fn classify(status: StatusCode, headers: &HeaderMap) -> ProviderError {
     match status.as_u16() {
       429 => ProviderError::RateLimited { retry_after_ms: retry_after_ms(headers) },
@@ -342,7 +342,7 @@ mod tests {
       metadata:ContextMetadata { identity_version:"v1".into(),memory_count:1,recent_message_count:1 } })
   }
   fn request() -> ProviderRequest { ProviderRequest { input:"Quanto é 2 + 2?".into(),history:vec![],context:bundle(),max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS),
-    preferred_provider_id:Some("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1,provider_timeouts:None } }
+    selection:crate::cognition::types::ProviderSelection::Fixed("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1,provider_timeouts:None } }
   fn server(status:&str, body:&str, extra:&str, split:bool) -> (String,thread::JoinHandle<String>) {
     let listener=TcpListener::bind("127.0.0.1:0").unwrap(); let url=format!("http://{}/v1beta/interactions",listener.local_addr().unwrap());
     let status=status.to_owned();let body=body.to_owned();let extra=extra.to_owned();
@@ -726,7 +726,7 @@ mod tests {
     let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
     let signal=AtomicBool::new(false);
     let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(ProviderRequest {input:"Quanto é 2 + 2?".into(),history:vec![],context:Arc::new(context),max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS),
-      preferred_provider_id:Some("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1,provider_timeouts:None},TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,&mut |_|Ok(()))).unwrap();
+      selection:crate::cognition::types::ProviderSelection::Fixed("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1,provider_timeouts:None},TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,&mut |_|Ok(()))).unwrap();
     assert_eq!(result.provider_id,"gemini");assert_eq!(result.text,"Quatro.");
     conversation::append_gemini_exchange(&mut conn,"Quanto é 2 + 2?",&result.text).unwrap();
     drop(conn);let reopened=db.open().unwrap();let session=conversation::gemini_session(&reopened).unwrap().unwrap();

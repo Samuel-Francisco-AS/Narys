@@ -386,7 +386,9 @@ Plano detalhado: [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md).
 
 ## 11. LR-7 — segundo provider real + distribuição
 
-**Candidatos preferidos:** Groq ou Mistral.
+**Estado (28/09/2026):** LR-7 iniciada pela **LR-7A — fundação multi-provider**. Esta rodada generaliza runtime, timeouts, seleção Fixed/Preferred/Auto e cooldown com fallback antes do primeiro chunk, usando apenas MockProvider nos cenários multi-provider. A policy persistida Gemini continua Fixed. Nenhum provider externo novo, chave ou chamada externa foi adicionado. **Groq está reservado para LR-7B**; nenhum gate multi-provider real foi declarado PASS. O Rate Limit Manager permanece na LR-8.
+
+**Segundo provider escolhido:** Groq (LR-7B).
 
 Essa fase prova que a arquitetura é de verdade multi-provider.
 

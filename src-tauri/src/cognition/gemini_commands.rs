@@ -6,7 +6,7 @@ use crate::persistence::{conversation::{self, ConversationHistoryItem, Conversat
 use std::collections::HashSet;
 use std::sync::Mutex;
 use crate::luna::runtime::TaskRegistry;
-use super::{summary::SummaryWorker, GeminiRuntime};
+use super::{summary::SummaryWorker, ProviderRuntime};
 
 #[derive(Default)]
 pub struct CurrentRunSessions(pub Mutex<HashSet<i64>>);
@@ -91,12 +91,12 @@ pub async fn close_conversation_session(db: State<'_, Database>, sessions: State
 #[serde(rename_all = "camelCase")]
 pub struct GeminiStatus { pub configured: bool, pub enabled: bool, pub credential_store_available: bool, pub cooldown_ms: u64 }
 
-fn gemini_cooldown_ms(runtime: &GeminiRuntime) -> u64 {
+fn gemini_cooldown_ms(runtime: &ProviderRuntime) -> u64 {
   runtime.scheduler.status().into_iter().find(|status| status.id == "gemini").map(|status| status.cooldown_ms).unwrap_or(0)
 }
 
 #[tauri::command]
-pub async fn gemini_status(store: State<'_, Arc<SecretStore>>, runtime: State<'_, Arc<GeminiRuntime>>) -> Result<GeminiStatus, String> {
+pub async fn gemini_status(store: State<'_, Arc<SecretStore>>, runtime: State<'_, Arc<ProviderRuntime>>) -> Result<GeminiStatus, String> {
   let store = store.inner().clone();
   let result = tauri::async_runtime::spawn_blocking(move || store.get_secret(SecretKey::GeminiApiKey).map(|v| v.is_some()))
     .await.map_err(|_| "gemini_status_failed")?;
@@ -104,7 +104,7 @@ pub async fn gemini_status(store: State<'_, Arc<SecretStore>>, runtime: State<'_
 }
 
 #[tauri::command]
-pub async fn gemini_set_api_key(store: State<'_, Arc<SecretStore>>, worker: State<'_, Arc<SummaryWorker>>, runtime: State<'_, Arc<GeminiRuntime>>, api_key: String) -> Result<GeminiStatus, String> {
+pub async fn gemini_set_api_key(store: State<'_, Arc<SecretStore>>, worker: State<'_, Arc<SummaryWorker>>, runtime: State<'_, Arc<ProviderRuntime>>, api_key: String) -> Result<GeminiStatus, String> {
   let key = api_key.trim();
   if key.is_empty() || key.len() > 512 || key.bytes().any(|b| b.is_ascii_control()) { return Err("gemini_key_invalid".into()); }
   let key = key.as_bytes().to_vec();
@@ -117,7 +117,7 @@ pub async fn gemini_set_api_key(store: State<'_, Arc<SecretStore>>, worker: Stat
 }
 
 #[tauri::command]
-pub async fn gemini_delete_api_key(store: State<'_, Arc<SecretStore>>, worker: State<'_, Arc<SummaryWorker>>, runtime: State<'_, Arc<GeminiRuntime>>) -> Result<GeminiStatus, String> {
+pub async fn gemini_delete_api_key(store: State<'_, Arc<SecretStore>>, worker: State<'_, Arc<SummaryWorker>>, runtime: State<'_, Arc<ProviderRuntime>>) -> Result<GeminiStatus, String> {
   let store = store.inner().clone();
   tauri::async_runtime::spawn_blocking(move || store.delete_secret(SecretKey::GeminiApiKey))
     .await.map_err(|_| "gemini_key_delete_failed")?.map_err(|e| e.code())?;

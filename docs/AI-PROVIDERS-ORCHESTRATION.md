@@ -436,7 +436,7 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 
 1. MockProvider local para testar Scheduler sem gastar cota.
 2. Gemini como primeiro provider geral.
-3. Groq ou Mistral como segundo provider para provar distribuição real.
+3. Groq como segundo provider para provar distribuição real na LR-7B.
 4. Rate Limit Manager completo.
 5. OpenAI-compatible adapter + Cloudflare Workers AI.
 6. OpenRouter/Cohere/Hugging Face como experimentos/fallback.
@@ -447,3 +447,5 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 Essa ordem pode mudar por bloqueio técnico, mas a primeira prova de arquitetura precisa usar pelo menos **dois providers independentes** para evitar uma abstração falsa.
 
 **Atualização UIP-6C (28/09/2026):** `conversation` é foreground; `summary` é background oportunista e não inicia provider enquanto há conversa em andamento. O Scheduler mantém cooldown compartilhado para 429 e 503/Unavailable com Retry-After. Summary já iniciado não é interrompido; preemption e Rate Limit Manager completo seguem planejados para LR-8. UIP-6C permanece CANDIDATA ao gate humano.
+
+**Atualização LR-7A (28/09/2026):** LR-7 foi iniciada com a fundação multi-provider local. O contrato usa `ProviderTimeouts` e seleção explícita `Fixed` (somente o escolhido), `Preferred` (primeiro o escolhido, com fallback permitido) ou `Auto` (prioridade entre elegíveis). A policy persistida existente continua `Fixed("gemini")`; a UI não expõe novos modos. `RateLimited` e `Unavailable` com Retry-After registram cooldown e podem seguir para outro provider elegível antes de qualquer chunk, dentro do orçamento. Depois do primeiro chunk não há retry nem fallback. Cancelamento e falha de Channel encerram a tarefa; erros terminais não disparam fallback. Groq fica para LR-7B; nenhum gate multi-provider real está em PASS e LR-8 segue separada.

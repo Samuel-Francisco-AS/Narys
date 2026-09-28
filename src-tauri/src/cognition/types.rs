@@ -5,6 +5,19 @@ use crate::persistence::{conversation::ConversationMessage, identity::IdentityIn
 
 pub type ProviderId = String;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProviderSelection {
+  Fixed(ProviderId),
+  Preferred(ProviderId),
+  Auto,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProviderTimeouts {
+  pub request_timeout_ms: u32,
+  pub stream_idle_timeout_ms: u32,
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderCapabilities {
@@ -43,12 +56,12 @@ pub struct ProviderRequest {
   pub history: Vec<ProviderMessage>,
   pub context: Arc<ContextBundle>,
   pub max_output_tokens: Option<u32>,
-  pub preferred_provider_id: Option<String>,
+  pub selection: ProviderSelection,
   pub model: String,
   pub thinking_level: Option<ThinkingLevel>,
   pub required_capabilities: ProviderCapabilities,
   pub attempt: u32,
-  pub provider_timeouts: Option<crate::persistence::gemini_settings::GeminiTimeouts>,
+  pub provider_timeouts: Option<ProviderTimeouts>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderRole { User, Assistant }
@@ -70,7 +83,7 @@ pub enum ProviderError {
 impl ProviderError {
   pub fn code(&self) -> &'static str { match self {
     Self::RateLimited { .. } => "rate_limited", Self::Timeout => "timeout", Self::QuotaExceeded => "quota_exceeded",
-    Self::Authentication => "gemini_auth_failed", Self::Fatal => "fatal", Self::Cancelled => "cancelled",
+    Self::Authentication => "provider_auth_failed", Self::Fatal => "fatal", Self::Cancelled => "cancelled",
     Self::RemoteCancelled => "provider_cancelled", Self::Incomplete => "provider_incomplete",
     Self::RequiresAction => "provider_requires_action", Self::Protocol => "provider_protocol_error",
     Self::InvalidRequest => "model_or_request_rejected",

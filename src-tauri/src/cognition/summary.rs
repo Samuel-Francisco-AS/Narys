@@ -2,7 +2,7 @@ use super::{
     policy::{self, CognitiveRole, CognitiveRolePolicy},
     scheduler::Scheduler,
     types::{
-        ContextBundle, ContextMetadata, ProviderCapabilities, ProviderRequest, SchedulerError,
+        ContextBundle, ContextMetadata, ProviderCapabilities, ProviderRequest, ProviderSelection, SchedulerError,
         TaskBudget,
     },
 };
@@ -381,12 +381,12 @@ fn summary_request(
         history: vec![],
         context: Arc::new(context),
         max_output_tokens: policy.max_output_tokens,
-        preferred_provider_id: Some(policy.provider_id.clone()),
+        selection: ProviderSelection::Fixed(policy.provider_id.clone()),
         model: policy.model.clone(),
         thinking_level: policy.thinking_level,
         required_capabilities: ProviderCapabilities::text_stream(),
         attempt: 1,
-        provider_timeouts: Some(timeouts),
+        provider_timeouts: Some(timeouts.into()),
     }
 }
 #[derive(Deserialize)]
@@ -550,7 +550,7 @@ mod tests {
             &policy,
             crate::persistence::gemini_settings::GeminiTimeouts::default(),
         );
-        assert_eq!(request.preferred_provider_id.as_deref(), Some("gemini"));
+        assert_eq!(request.selection, ProviderSelection::Fixed("gemini".into()));
         assert_eq!(request.model, "gemini-summary");
         assert_eq!(
             request.thinking_level,
