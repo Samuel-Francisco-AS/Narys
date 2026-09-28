@@ -10,6 +10,7 @@ use crate::persistence::{database::Database, task_history::{self, TaskRecord}};
 use crate::persistence::conversation;
 use crate::cognition::{GeminiRuntime, context::{ContextBuilder, ContextRequest}, scheduler::SchedulerEvent,
   types::{ProviderCapabilities, ProviderMessage, ProviderRequest, ProviderRole, TaskBudget, SchedulerError}};
+use crate::cognition::gemini::PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS;
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario};
 
@@ -101,6 +102,10 @@ fn emit_cognitive(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32,
   })
 }
 
+fn prototype_chat_budget() -> TaskBudget {
+  TaskBudget { max_provider_calls: 2, max_output_tokens: PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS }
+}
+
 pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<GeminiRuntime>,
   session_id: i64, message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   let (id, cancelled) = registry.register()?;
@@ -121,12 +126,12 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, gemini: Arc<Gemin
       }).await.map_err(|_| "worker_failed")??;
       emit_cognitive(&channel,id,&mut sequence,TaskEventKind::ContextBuilt { memory_count: 0, recent_message_count: 0 },&cancelled)
         .map_err(|_| "channel_closed")?;
-      let budget = TaskBudget { max_provider_calls: 2, max_output_tokens: 512 };
+      let budget = prototype_chat_budget();
       let history = history.into_iter().map(|turn| ProviderMessage {
         role: match turn.role { conversation::SessionRole::User => ProviderRole::User, conversation::SessionRole::Assistant => ProviderRole::Assistant },
         content: turn.content,
       }).collect();
-      let request = ProviderRequest { input: message.clone(), history, context: Arc::new(context), max_output_tokens: 512,
+      let request = ProviderRequest { input: message.clone(), history, context: Arc::new(context), max_output_tokens: budget.max_output_tokens,
         required_capabilities: ProviderCapabilities::text_stream(), attempt: 1 };
       let result = gemini.scheduler.run(request,budget,&cancelled,&mut |event| {
         let kind = match event {
@@ -338,6 +343,13 @@ pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn product_chat_budget_and_request_share_the_prototype_limit() {
+    let budget = prototype_chat_budget();
+    assert_eq!(budget.max_output_tokens, 4096);
+    // start_gemini copies this field into ProviderRequest before Scheduler::run.
+  }
 
   #[test]
   fn ids_are_monotonic_and_tasks_are_removed() {
