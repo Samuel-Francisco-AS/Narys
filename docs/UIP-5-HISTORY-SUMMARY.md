@@ -48,7 +48,7 @@ Durante o gate humano surgiram falhas reais do provider Gemini (`unavailable`, `
 
 Dívidas não bloqueantes: mensagem de erro mais amigável para cooldown/rate limit, drift de `rustfmt`, refinamentos visuais/Alt+drag no Wayland e eventual exclusão da sessão corrente da lista histórica caso a UX humana indique necessidade. **Próxima etapa: UIP-5B — retomada explícita de sessão.**
 
-## UIP-5B — retomada explícita de sessão (CANDIDATA)
+## UIP-5B — retomada explícita de sessão (PASS funcional / FECHADA)
 
 Abrir o detalhe histórico continua somente leitura. Apenas o botão **Retomar**, visível para sessão `product` fechada com mensagens, chama `resume_conversation_session(target_session_id, current_session_id?)`. O comando exige IDs explícitos, rejeita `legacy`, sessão vazia, target ativo e `summary_status='running'` (`summary_busy`). ID corrente igual ao target é rejeitado; a UI oculta a sessão corrente da lista. Não há busca pela sessão mais recente nem retomada automática.
 
@@ -58,8 +58,17 @@ Ao reabrir B, `summary_status='none'`, `summary=NULL` e `summary_updated_at=NULL
 
 O caminho cognitivo continua a exigir ID em `CurrentRunSessions` e sessão `active/product`. O outbound de B usa apenas suas oito mensagens anteriores mais recentes, até 12 KiB; a mensagem nova entra uma vez. A e outras sessões históricas não entram no contexto. Após restart, a normalização fecha B novamente e o registro recomeça vazio; o usuário precisa acionar **Retomar** outra vez.
 
-Os testes cobrem validação de alvo, `summary_busy`, invalidação de resumo, troca A→B, sessão A vazia, rollback em falha de escrita, atualização de `CurrentRunSessions`, bloqueio durante task em voo, restart e outbound fake HTTP isolado com `ORQUIDEA-71`, sem marcadores de A, C, LR-6 ou memória privada. Typecheck, build, cargo check, os 56 testes Rust e diff-check passaram. `cargo fmt --check` continua falhando pelo drift global conhecido, inclusive em `src-tauri/src/main.rs` não alterado. O gate humano e a continuidade Gemini real ficam pendentes; por isso UIP-5B permanece **CANDIDATA** e UIP-5 completa permanece aberta.
+Os testes cobrem validação de alvo, `summary_busy`, invalidação de resumo, troca A→B, sessão A vazia, rollback em falha de escrita, atualização de `CurrentRunSessions`, bloqueio durante task em voo, restart e outbound fake HTTP isolado com `ORQUIDEA-71`, sem marcadores de A, C, LR-6 ou memória privada. Typecheck, build, cargo check, os 56 testes Rust e diff-check passaram. `cargo fmt --check` continua falhando pelo drift global conhecido, inclusive em `src-tauri/src/main.rs` não alterado. O gate humano foi concluído por Sam e a continuidade estrutural já estava coberta pelo fake HTTP; por isso **UIP-5B = PASS funcional / FECHADA**. A chamada Gemini real não é requisito de fechamento desta subetapa porque indisponibilidade/rate limit do provider é dívida externa ao contrato de retomada. A UIP-5 completa permanece aberta.
 
 No Tauri real, uma instância com Mesa em software abriu histórico e detalhe com “Somente leitura”; o botão mostrou confirmação ao encontrar draft, Cancelar preservou o texto, e Retomar exibiu as mensagens antigas em CURRENT com Composer limpo. Após restart, a UI iniciou sem sessão atual, o detalhe voltou a ser somente leitura, `get_conversation_session` recusou o ID antigo e foi necessário clicar Retomar novamente. A lista continuou funcional. Stage e drawing buffer mediram 300×360, DPR 1 e `glError 0`; o inspector mostrou uma página WebView. Nesta sessão controlada pelo inspector sem foco, `setSize` resolveu mas `innerWidth/innerHeight` permaneceram 310×410 e os callbacks de render ficaram suspensos: layout 625×490, Wave→Idle e aparência física permanecem no gate humano. A sessão usada no teste foi fechada de novo por “Nova conversa”. Nenhuma chamada Gemini real foi necessária.
 
-O gate humano identificou e corrigiu o acesso ao Histórico quando não há sessão ou mensagens atuais: o Composer agora mostra “Conversas” mesmo após restart. UIP-5B permanece **CANDIDATA** até Sam validar esse botão.
+O gate humano identificou e corrigiu o acesso ao Histórico quando não há sessão ou mensagens atuais: o Composer agora mostra “Conversas” mesmo após restart. Sam validou o botão em sessão limpa, a navegação até Histórico e o fluxo de retomada. Também confirmou: detalhe em “Somente leitura”, `Retomar`, preservação/cancelamento de draft, adoção das mensagens antigas em `CURRENT`, restart sem retomada automática e animações funcionando normalmente.
+
+
+## Fechamento da UIP-5B
+
+Em 27/09/2026, a UIP-5B foi fechada em **PASS funcional** após gate humano. O fluxo validado foi: abrir sessão histórica em modo somente leitura → acionar **Retomar** → adotar explicitamente a sessão em `CURRENT` → preservar mensagens históricas → continuar com Composer vazio. Um draft não enviado exige confirmação; **Cancelar** preserva o texto e **Retomar** descarta o draft de forma explícita. Após restart, nenhuma sessão é retomada automaticamente e o usuário precisa escolher novamente qual conversa deseja continuar.
+
+A correção final de UX tornou o botão **Conversas** visível mesmo quando `sessionId=null` e `messages=[]`, permitindo acessar Histórico logo após iniciar o aplicativo sem criar uma conversa nova. Isso fecha a lacuna descoberta no gate humano sem alterar persistência, Gemini ou o contrato cognitivo.
+
+O fake HTTP já comprovava que, após retomar B, somente o histórico limitado de B entra no outbound; A e outras sessões continuam isoladas. Dívidas de Gemini/rate limit, mensagens públicas de cooldown, `rustfmt` e Wayland permanecem não bloqueantes. **Próxima etapa: UIP-5C — resumo assíncrono + título de sessão.**
