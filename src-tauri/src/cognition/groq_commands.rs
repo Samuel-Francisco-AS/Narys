@@ -57,7 +57,7 @@ pub async fn groq_delete_api_key(store: State<'_, Arc<SecretStore>>, runtime: St
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum GroqProbeEvent {
-  Selected { provider_id: String, attempt: u32 },
+  Selected { #[serde(rename = "providerId")] provider_id: String, attempt: u32 },
   Chunk { text: String },
 }
 
