@@ -364,7 +364,7 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 ## 14. UIP-6 — janelas independentes de configuração
 
-**Sequência:** UIP-6A = **CANDIDATA** (policy cognitiva persistida por `conversation`/`summary` e janelas independentes Geral/IA); UIP-6B = Geral editável + avaliação de parâmetros avançados; UIP-6C = consolidação e gate. **UIP-6 completa não está concluída.** Consulte [UIP-6-SETTINGS.md](UIP-6-SETTINGS.md).
+**Sequência:** **UIP-6A = PASS funcional / FECHADA em 28/09/2026** (policy cognitiva persistida por `conversation`/`summary` e janelas independentes Geral/IA); **UIP-6B = etapa corrente** — Geral editável + avaliação de parâmetros avançados; UIP-6C = consolidação e gate. **UIP-6 completa não está concluída.** Consulte [UIP-6-SETTINGS.md](UIP-6-SETTINGS.md).
 
 **Objetivo:** retirar configuração operacional da superfície de presença.
 
@@ -511,4 +511,4 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Concluir o gate humano da **UIP-6A CANDIDATA**: confirmar abertura normal das duas janelas, ausência de efeitos espaciais na Luna, valores e credencial em IA, e estabilidade após restart. Depois, iniciar UIP-6B para controles gerais e avaliação de parâmetros avançados. UIP-6 completa e LR-7 permanecem abertas/não iniciadas, respectivamente. O registro histórico da UIP-5 permanece em [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
+Com **UIP-6A = PASS funcional**, iniciar **UIP-6B — controles gerais editáveis + avaliação dos parâmetros avançados restantes**. UIP-6 completa e LR-7 permanecem abertas/não iniciadas, respectivamente. O registro histórico da UIP-5 permanece em [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
