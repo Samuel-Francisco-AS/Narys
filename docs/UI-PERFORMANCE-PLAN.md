@@ -364,7 +364,7 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 ## 14. UIP-6 — janelas independentes de configuração
 
-**Sequência:** **UIP-6A = PASS funcional / FECHADA em 28/09/2026** (policy cognitiva persistida por `conversation`/`summary` e janelas independentes Geral/IA); **UIP-6B = PASS funcional / FECHADA** — Geral editável + retry e parâmetros avançados; **UIP-6C = CANDIDATA / gate humano pendente** — consolidação e coordenação foreground/background. **UIP-6 completa não está concluída.** Consulte [UIP-6-SETTINGS.md](UIP-6-SETTINGS.md).
+**Sequência:** **UIP-6A/UIP-6B/UIP-6C = PASS funcional / FECHADAS em 28/09/2026; UIP-6 = PASS funcional / FECHADA.** A dívida residual de `SummaryWorker` consumir o Gemini antes da primeira mensagem manual foi documentada para estabilidade/orquestração futura. Consulte [UIP-6-SETTINGS.md](UIP-6-SETTINGS.md).
 
 **Objetivo:** retirar configuração operacional da superfície de presença.
 
@@ -417,6 +417,8 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 - escolhas explícitas e políticas de fallback ficam distinguíveis na UI.
 
 ## 15. UIP-7 — consolidação + segundo gate de performance
+
+**Estado:** **ETAPA CORRENTE em 28/09/2026.**
 
 **Objetivo:** fechar a trilha com a interface funcional e custo conhecido.
 
