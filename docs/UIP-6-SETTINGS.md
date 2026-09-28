@@ -48,7 +48,7 @@ O custo de memória das Settings permanece registrado: cada WebView independente
 
 # UIP-6B — Geral editável + retry/capacidade
 
-**Estado: CANDIDATA, aguardando gate humano.** UIP-6A permanece PASS. UIP-6C e LR-7/LR-8 não foram iniciadas.
+**Estado: UIP-6B = PASS funcional / FECHADA em 28/09/2026.** UIP-6A permanece PASS. **UIP-6C = etapa corrente**; LR-7/LR-8 não foram iniciadas.
 
 ## Evidência e política de retry
 
@@ -78,4 +78,13 @@ As capabilities continuam por janela: Geral recebe apenas leitura/gravação de 
 
 Em Tauri real com `LIBGL_ALWAYS_SOFTWARE=1`, a árvore AT-SPI mostrou um canvas na main, zero em Geral e IA, e os campos de retry, budgets e timeouts. O banco local migrou v4→v5 e a IA carregou com timeouts 45000/15000. Abrir as três janelas apresentou aproximadamente 1.355.428 KiB de RSS somado (Tauri + WebKitNetworkProcess + três WebKitWebProcess); após fechar as duas Settings, restaram aproximadamente 679.956 KiB e só o WebKitWebProcess da main. São snapshots de processos, não memória exclusiva. Um processo separado por Settings desapareceu ao fechar; nenhuma janela foi escondida permanentemente.
 
-Não houve teste controlado de conversa Gemini nesta rodada. Na segunda inicialização, o log de um trabalho de fundo mostrou `rate_limited` HTTP 429 com Retry-After de 48000 ms; isso não estabelece causalidade entre retry e rate limit. A edição física de FPS/AOT, percepção visual de Wayland e uma conversa Gemini moderada permanecem no gate humano. A candidata não promove UIP-6B a PASS nem inicia UIP-6C.
+Durante o gate técnico, um trabalho de fundo registrou `rate_limited` HTTP 429 com Retry-After de 48000 ms; isso não estabelece causalidade entre retry e rate limit. No gate humano posterior, Sam confirmou aplicação visual do FPS, persistência das configurações e funcionamento das superfícies Gerais/IA. Uma conversa Gemini moderada concluiu sem `rate_limited`. Antes de qualquer mensagem do usuário, também foram observadas duas respostas HTTP 503 `unavailable` com Retry-After de 30000 ms, compatíveis com trabalho cognitivo em background; não havia captura persistida do terminal para provar se eram retry da mesma tarefa ou kicks distintos. Esse achado vira dívida explícita de coordenação/background para UIP-6C/LR-8, sem bloquear o PASS da 6B.
+
+
+## Fechamento da UIP-6B
+
+Em 28/09/2026, a UIP-6B foi fechada em **PASS funcional** após gate humano. Sam confirmou que a redução de FPS é perceptível em tempo real e que restaurar `30/24` retorna ao comportamento esperado; as configurações gerais e cognitivas persistem após reabertura/restart; os controles de retry e call budget permaneceram separados e editáveis; e uma conversa Gemini curta concluiu sem `rate_limited`.
+
+O gate também produziu evidência nova: antes de uma mensagem manual, o terminal mostrou duas ocorrências `503 unavailable` com `Retry-After=30000`. Como `conversation` e `summary` ainda compartilham o mesmo Scheduler/cooldown e o SummaryWorker pode acordar em background, a UIP-6C deve consolidar a coordenação entre foreground/background e o respeito a hints transitórios do provider, sem antecipar o Rate Limit Manager completo da LR-8.
+
+Dívidas não bloqueantes mantidas: custo temporário de WebViews Settings em `tauri dev`, Wayland/AOT, click-through seguro, fallback multi-provider, `rustfmt` global e Rate Limit Manager completo. **Próxima etapa: UIP-6C — consolidação e gate final da UIP-6.**
