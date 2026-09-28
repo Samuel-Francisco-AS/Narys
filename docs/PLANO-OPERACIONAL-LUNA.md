@@ -741,3 +741,6 @@ O hardening introduz propagação terminal de falha do Channel (`channel_closed`
 **Atualização UIP-6C (28/09/2026):** UIP-6A/UIP-6B/UIP-6C e UIP-6 estão fechadas em PASS funcional. O Scheduler compartilha cooldown de Retry-After de 429 e 503 entre conversa e resumo. Summary é oportunista e aguarda a conclusão das conversas foreground antes de iniciar nova chamada. A dívida residual de Summary consumir disponibilidade Gemini antes da primeira mensagem manual permanece para LR-7/LR-8 ou rodada dedicada de estabilidade; LR-7 e LR-8 não começaram.
 
 **Atualização UIP-7 (28/09/2026):** segundo gate curto de performance e lifecycle concluído e aprovado por Sam. [UIP-7 = PASS funcional / FECHADA](UIP-7-FINAL-PERFORMANCE.md); **UIP-0 → UIP-7 encerradas**. A próxima etapa funcional é **LR-7 — segundo provider real + distribuição**. Groq e Mistral seguem candidatos; a escolha será feita na nova sessão dedicada à LR-7.
+
+
+**Atualização LR-7B (28/09/2026):** implementação candidata adiciona Groq como segundo provider real no Registry, com Stronghold, streaming SSE, usage e diagnóstico `Fixed(groq)`. Conversation/Summary continuam `Fixed(gemini)`; nenhuma distribuição automática foi ativada. Gate técnico local e gate humano com chave real permanecem necessários antes de declarar LR-7B PASS.
