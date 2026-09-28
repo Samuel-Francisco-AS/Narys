@@ -95,7 +95,7 @@ impl Scheduler {
             if let Some(ms) = cooldown_ms {
               self.cooldowns.lock().unwrap_or_else(|p| p.into_inner()).insert(entry.config.id.clone(), Instant::now() + Duration::from_millis(ms));
               #[cfg(debug_assertions)] eprintln!("[Scheduler][diag] cooldown provider={} reason={} cooldown_ms={ms}",
-                if entry.config.id == "gemini" { "gemini" } else { "other" }, error.code());
+                match entry.config.id.as_str() { "gemini" => "gemini", "groq" => "groq", _ => "other" }, error.code());
             }
             // Once text has reached the UI, another attempt would concatenate
             // incompatible partial answers and could double provider cost.
@@ -112,7 +112,7 @@ impl Scheduler {
             if can_retry {
               let backoff_ms = retry_policy.backoff_ms(attempt);
               #[cfg(debug_assertions)] {
-                let provider = if entry.config.id == "gemini" { "gemini" } else { "other" };
+                let provider = match entry.config.id.as_str() { "gemini" => "gemini", "groq" => "groq", _ => "other" };
                 eprintln!("[Scheduler][diag] retry provider={provider} attempt={} reason={} backoff_ms={backoff_ms}", attempt + 1, error.code());
               }
               on_event(SchedulerEvent::Retry { provider_id: entry.config.id.clone(), reason_code: error.code() })
@@ -155,7 +155,7 @@ impl Scheduler {
           for entry in eligible {
             let cooldown_ms = cooldowns.get(&entry.config.id).map(|until| until.saturating_duration_since(now).as_millis() as u64).unwrap_or(0);
             // Provider IDs are configuration values; only print the known public ID.
-            let provider = if entry.config.id == "gemini" { "gemini" } else { "other" };
+            let provider = match entry.config.id.as_str() { "gemini" => "gemini", "groq" => "groq", _ => "other" };
             eprintln!("[Scheduler][diag] no_provider reason=cooldown provider={provider} cooldown_ms={cooldown_ms}");
           }
         }
