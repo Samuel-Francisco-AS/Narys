@@ -110,3 +110,8 @@ Migrations 001→005 permanecem intactas. Testes cobrem banco novo, upgrades v3/
 Diagnóstico manual opcional: `LIBGL_ALWAYS_SOFTWARE=1 npm run tauri dev 2>&1 | tee /tmp/luna-gemini.log`. Esse arquivo é externo ao app; o app não grava log persistente nem conteúdo de prompts.
 
 Na instância Tauri real da 6C, o startup encontrou uma sessão summary `pending` e produziu **uma** resposta espontânea HTTP 503 com `retry_after_ms=30000`, seguida de **uma** linha de cooldown do Scheduler. Não apareceu retry local após 1500 ms nem segunda chamada enquanto a instância ficou aberta. Isso evidencia a nova semântica sem atribuir causa às duas linhas do gate da 6B. A árvore AT-SPI mostrou uma main, Geral e IA, com contagem de canvas 1/0/0; abrir IA de novo manteve três janelas. Fechar as Settings deixou apenas a main. O resize Composer solicitado pela main não se materializou no GNOME/Wayland desta execução (frame permaneceu 310×410); a UI de conversa e o gate visual Wave→Idle continuam para Sam, sem mudança em WindowController nesta 6C.
+
+
+### FIX do gate humano — cooldown visível no Composer
+
+Após o gate humano da UIP-6C mostrar 429 reais seguidos de cooldown local, a main passou a consultar o `cooldown_ms` seguro já mantido pelo Scheduler por meio de `gemini_status`. O Composer exibe a contagem aproximada em segundos e desabilita Enviar enquanto o cooldown ainda está ativo. Em falha `rate_limited`/`provider_unavailable`, a mensagem passa a incluir o tempo restante quando disponível. Isso não cria nova chamada de rede: `gemini_status` lê apenas estado local do runtime. A credencial continua não retornando ao React.
