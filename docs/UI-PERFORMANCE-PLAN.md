@@ -340,7 +340,7 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 ## 13. UIP-5 — histórico + resumo assíncrono
 
-**Estado:** UIP-5A = PASS funcional; **UIP-5B = PASS funcional / FECHADA em 27/09/2026**; **UIP-5C = CANDIDATA**, aguardando gate humano. UIP-5 completa ainda não está concluída. **UIP-5D** será a consolidação e gate final da UIP-5. Consulte [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
+**Estado:** UIP-5A, UIP-5B e **UIP-5C = PASS funcional / FECHADAS**; a etapa corrente é **UIP-5D — consolidação e gate final da UIP-5**. UIP-5 completa ainda não está concluída. Consulte [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
 
 **Objetivo:** organizar continuidade sem criar prompt infinito.
 
@@ -514,4 +514,4 @@ Com **UIP-4 fechada em PASS funcional**, iniciar **UIP-5 — histórico + resumo
 
 ### Continuação da UIP-5
 
-Após o fechamento funcional da UIP-5A e da UIP-5B, a sequência interna restante fica: **UIP-5C — resumo assíncrono/título → UIP-5D — consolidação e gate final da UIP-5**. Dívidas de observabilidade do Gemini, mensagens de erro de cooldown/rate limit, `rustfmt` e ergonomia Wayland não bloqueiam essa sequência.
+Após o fechamento funcional da UIP-5A, UIP-5B e UIP-5C, resta **UIP-5D — consolidação e gate final da UIP-5**. Dívidas de observabilidade do Gemini, mensagens de erro de cooldown/rate limit, compartilhamento temporário de Scheduler, `rustfmt` e ergonomia Wayland não bloqueiam essa etapa.
