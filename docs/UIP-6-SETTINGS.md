@@ -91,7 +91,7 @@ Dívidas não bloqueantes mantidas: custo temporário de WebViews Settings em `t
 
 # UIP-6C — consolidação
 
-**Estado: CANDIDATA ao gate humano em 28/09/2026.** UIP-6A e UIP-6B permanecem PASS funcional; UIP-6 completa ainda não é PASS. As duas linhas HTTP 503 com `Retry-After=30000` observadas no gate da 6B não permitem distinguir retry da mesma tarefa de dois kicks distintos do SummaryWorker.
+**Estado: UIP-6C = PASS funcional / FECHADA em 28/09/2026; UIP-6 = PASS funcional / FECHADA.** As duas linhas HTTP 503 com `Retry-After=30000` observadas no gate da 6B não permitem distinguir retry da mesma tarefa de dois kicks distintos do SummaryWorker.
 
 ## Coordenação cognitiva
 
@@ -115,3 +115,12 @@ Na instância Tauri real da 6C, o startup encontrou uma sessão summary `pending
 ### FIX do gate humano — cooldown visível no Composer
 
 Após o gate humano da UIP-6C mostrar 429 reais seguidos de cooldown local, a main passou a consultar o `cooldown_ms` seguro já mantido pelo Scheduler por meio de `gemini_status`. O Composer exibe a contagem aproximada em segundos e desabilita Enviar enquanto o cooldown ainda está ativo. Em falha `rate_limited`/`provider_unavailable`, a mensagem passa a incluir o tempo restante quando disponível. Isso não cria nova chamada de rede: `gemini_status` lê apenas estado local do runtime. A credencial continua não retornando ao React.
+
+
+## Fechamento da UIP-6C e da UIP-6
+
+Em 28/09/2026, Sam optou por encerrar a UIP-6 e avançar para a UIP-7 após confirmar o funcionamento das configurações, persistência, RenderBudget e UX de cooldown. O gate humano também mostrou uma dívida residual: o `SummaryWorker` pode consumir a primeira oportunidade do Gemini após startup e colocar o provider em cooldown antes da primeira mensagem manual. A proteção nova funciona — 429/503 geram cooldown local, novas chamadas durante o cooldown são barradas, e o Composer mostra o tempo restante — mas a política de agendamento do background ainda pode degradar a disponibilidade percebida do chat.
+
+Essa dívida é **não bloqueante para UIP-6** e fica explicitamente adiada para uma rodada de estabilidade/orquestração após o segundo provider e/ou LR-8. Não criar workaround que ignore `Retry-After`: o objetivo futuro é coordenar melhor background, prioridade, quotas e múltiplos providers.
+
+**Próxima etapa: UIP-7 — consolidação + segundo gate de performance.** Após UIP-7, a trilha funcional retorna com **LR-7 — segundo provider real**, etapa especialmente relevante para reduzir dependência operacional de um único provider.
