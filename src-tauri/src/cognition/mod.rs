@@ -1,6 +1,8 @@
 pub mod context;
 pub mod gemini;
 pub mod gemini_commands;
+pub mod groq;
+pub mod groq_commands;
 pub mod mock;
 pub mod provider;
 pub mod policy;
