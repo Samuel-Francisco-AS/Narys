@@ -361,7 +361,7 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 ## Interlúdio UIP — interface de presença + performance
 
-**Estado:** em andamento desde 26/09/2026 após **LR-6 = PASS completo**. **UIP-0 → UIP-5 estão fechadas**; a etapa corrente é **UIP-6C — consolidação e gate humano final**, ainda candidata. Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram adiados; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Essas limitações não bloqueiam a trilha. A sequência **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7.
+**Estado:** em andamento desde 26/09/2026 após **LR-6 = PASS completo**. **UIP-0 → UIP-6 estão fechadas; UIP-7 é CANDIDATA ao gate humano final.** Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram adiados; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Essas limitações não bloqueiam isoladamente o gate. A sequência **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7. [Resultado técnico UIP-7](UIP-7-FINAL-PERFORMANCE.md).
 
 Princípios fechados:
 
@@ -734,4 +734,6 @@ O hardening introduz propagação terminal de falha do Channel (`channel_closed`
 
 **Auditoria:** PASS em 26/09/2026. A revisão confirmou que falhas do event sink impedem execução/retry/fallback subsequentes e resultam em `channel_closed`; os mocks transitórios usam `attempt` por execução e permanecem repetíveis com o mesmo runtime; cooldown continua compartilhado entre tarefas; o SecretStore usa `UnlockKeyStore` interno com credential store do SO e não possui fallback plaintext. A migração só remove o legado após validação da chave recuperada e do snapshot. O gate técnico para iniciar LR-6 no desktop Fedora está liberado.
 
-**Atualização UIP-6C (28/09/2026):** UIP-6A/UIP-6B permanecem PASS funcional; UIP-6C é CANDIDATA. O Scheduler compartilha cooldown de Retry-After de 429 e 503 entre conversa e resumo. Summary é oportunista e aguarda a conclusão das conversas foreground antes de iniciar nova chamada. UIP-6 completa ainda aguarda o gate humano; LR-7 e LR-8 não começaram.
+**Atualização UIP-6C (28/09/2026):** UIP-6A/UIP-6B/UIP-6C e UIP-6 estão fechadas em PASS funcional. O Scheduler compartilha cooldown de Retry-After de 429 e 503 entre conversa e resumo. Summary é oportunista e aguarda a conclusão das conversas foreground antes de iniciar nova chamada. A dívida residual de Summary consumir disponibilidade Gemini antes da primeira mensagem manual permanece para LR-7/LR-8 ou rodada dedicada de estabilidade; LR-7 e LR-8 não começaram.
+
+**Atualização UIP-7 (28/09/2026):** segundo gate curto de performance e lifecycle concluído tecnicamente; [UIP-7 é CANDIDATA ao gate humano](UIP-7-FINAL-PERFORMANCE.md), sem alteração de features, avatar, SummaryWorker ou WindowController. Após aprovação de Sam, fechar UIP-0 → UIP-7 e iniciar LR-7 — segundo provider real. Groq e Mistral seguem candidatos, sem escolha nesta rodada.

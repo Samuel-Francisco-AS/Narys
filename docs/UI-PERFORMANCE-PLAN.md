@@ -418,7 +418,7 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 ## 15. UIP-7 — consolidação + segundo gate de performance
 
-**Estado:** **ETAPA CORRENTE em 28/09/2026.**
+**Estado:** **CANDIDATA ao gate humano final em 28/09/2026.** UIP-0 → UIP-6 permanecem PASS; LR-7 ainda não foi iniciada. Resultados e checklist em [UIP-7-FINAL-PERFORMANCE.md](UIP-7-FINAL-PERFORMANCE.md).
 
 **Objetivo:** fechar a trilha com a interface funcional e custo conhecido.
 
@@ -513,6 +513,4 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 
 ## 19. Próxima ação
 
-Com **UIP-6A e UIP-6B = PASS funcional**, **UIP-6C é candidata ao gate humano final**. UIP-6 completa e LR-7 permanecem abertas/não iniciadas, respectivamente. O registro histórico da UIP-5 permanece em [UIP-5-HISTORY-SUMMARY.md](UIP-5-HISTORY-SUMMARY.md).
-
-**Atualização 28/09/2026:** UIP-6B foi fechada em PASS funcional. UIP-6C consolidou prioridade foreground, Retry-After transitório e auditoria das Settings; permanece CANDIDATA até o gate humano. UIP-6 completa não é PASS.
+Com **UIP-0 → UIP-6 = PASS funcional/fechadas**, **UIP-7 é CANDIDATA ao gate humano final**. LR-7 permanece não iniciada e será a próxima etapa funcional após aprovação humana. O registro do segundo gate está em [UIP-7-FINAL-PERFORMANCE.md](UIP-7-FINAL-PERFORMANCE.md).
