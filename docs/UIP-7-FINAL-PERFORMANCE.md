@@ -1,6 +1,6 @@
 # UIP-7 — Gate final de UI/performance
 
-**Estado: CANDIDATA ao gate humano final em 28/09/2026.** Branch `main`; HEAD inicial `e794042647772de622de7587a669ca56efca9634`; pull fast-forward sem mudanças; worktree inicialmente limpa. Nenhum commit ou push nesta rodada. LR-7 e LR-8 não foram iniciadas.
+**Estado: PASS funcional / FECHADA em 28/09/2026.** O gate técnico foi concluído e Sam aprovou o fechamento humano da etapa. A trilha **UIP-0 → UIP-7 está encerrada**. LR-7 passa a ser a próxima etapa funcional; LR-8 permanece não iniciada.
 
 ## Ambiente e método
 
@@ -74,13 +74,10 @@ As amostras de CPU das Settings foram feitas com a main sem foco e não servem p
 - Idle e Wave têm ~462 canais por clipe; otimização do asset/exportação fica para trabalho artístico/performance próprio. O drift global de rustfmt permanece.
 - Depois da aprovação humana da UIP-7, LR-7 deverá provar um segundo provider real. Groq e Mistral são candidatos documentados; a decisão dependerá de pesquisa/API real na LR-7. Nenhum provider foi escolhido ou implementado nesta rodada.
 
-## Veredito e gate humano
+## Veredito e fechamento
 
-**UIP-7 = CANDIDATA.** Os gates técnicos mínimos passaram, exceto o `cargo fmt --check` global já conhecido; não houve blocker novo de canvas, memória, WebGL, RenderBudget, Settings ou banco. UIP-0 → UIP-6 permanecem PASS; LR-7 ainda não começou. Fechar a trilha como PASS depende de Sam.
+**UIP-7 = PASS funcional / FECHADA.** Os gates técnicos mínimos passaram, exceto o `cargo fmt --check` global já conhecido; não houve blocker novo de canvas, memória, WebGL, RenderBudget, Settings ou banco. Em 28/09/2026, Sam aprovou o fechamento humano sem exigir nova rodada de testes. Com isso, **UIP-0 → UIP-7 = trilha UIP oficialmente encerrada**.
 
-1. Presence → Composer → Conversation → Presence; conferir transições e tamanho efetivo.
-2. Confirmar que Luna mantém escala e qualidade visual.
-3. Abrir/fechar Geral e IA.
-4. Mudar FPS e restaurar 30/24.
-5. Acionar Wave e confirmar retorno ao Idle.
-6. Minimizar/restaurar e confirmar que Luna continua funcionando.
+As limitações conhecidas permanecem documentadas e não são reinterpretadas como resolvidas: Wayland/AOT/resize, custo elevado das WebViews de Settings, software rendering nesta máquina, clips com ~462 canais, drift global de rustfmt e disputa de quota Gemini entre SummaryWorker e conversa. Essas dívidas seguem para fases específicas de estabilidade, LR-7/LR-8 ou trabalho artístico, conforme o caso.
+
+**Próxima etapa funcional: LR-7 — segundo provider real + primeira prova de distribuição/fallback multi-provider.**
