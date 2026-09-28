@@ -41,6 +41,12 @@ impl TaskRegistry {
     self.in_flight_gemini.lock().unwrap().remove(&session_id);
   }
   pub fn seed_next_id(&self, last: u64) { self.next_id.store(last, Ordering::Relaxed); }
+  /// Reserve a monotonic ID for background work without making it cancelable in the conversation UI.
+  pub fn reserve_background_id(&self) -> Result<TaskId, String> {
+    let last = self.next_id.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |last|
+      (last < 9_007_199_254_740_991).then_some(last + 1)).map_err(|_| "task_id_exhausted".to_string())?;
+    Ok(TaskId(last + 1))
+  }
   pub fn register(&self) -> Result<(TaskId, Arc<AtomicBool>), String> {
     // JavaScript numbers represent integers exactly only through 2^53 - 1.
     let id = self.next_id.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |last| {

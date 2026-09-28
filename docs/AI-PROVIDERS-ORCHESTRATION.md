@@ -20,6 +20,8 @@ Essas prioridades são **defaults operacionais**, não autorização para escond
 
 O Luna Core deve representar uma política persistida por papel cognitivo (`conversation`, `summary`, `voice`, `worker`, especialistas e futuros papéis), em vez de espalhar constantes de produto dentro dos adapters.
 
+Na UIP-5C, `summary` é o primeiro papel usado concretamente em um worker de fundo. Seu scheduler é selecionado no composition root e usa temporariamente o provider real disponível, com 1024 tokens de output e uma chamada por sessão. Esta é uma política provisória, sem configuração persistida; provider, modelo, output e thinking por papel permanecem trabalho da UIP-6.
+
 Por papel/provider, a configuração deve poder expressar, quando suportado:
 
 - provider/agente e modelo;

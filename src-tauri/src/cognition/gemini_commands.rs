@@ -7,6 +7,7 @@ use crate::persistence::{conversation::{self, ConversationHistoryItem, Conversat
 use std::collections::HashSet;
 use std::sync::Mutex;
 use crate::luna::runtime::TaskRegistry;
+use super::summary::SummaryWorker;
 
 #[derive(Default)]
 pub struct CurrentRunSessions(pub Mutex<HashSet<i64>>);
@@ -27,8 +28,10 @@ pub fn resume_registered_session(db: &Database, sessions: &CurrentRunSessions, r
 
 #[tauri::command]
 pub fn resume_conversation_session(db: State<'_, Database>, sessions: State<'_, CurrentRunSessions>,
-  registry: State<'_, Arc<TaskRegistry>>, target_session_id: i64, current_session_id: Option<i64>) -> Result<ConversationSession, String> {
-  resume_registered_session(&db, &sessions, &registry, target_session_id, current_session_id)
+  registry: State<'_, Arc<TaskRegistry>>, worker: State<'_, Arc<SummaryWorker>>, target_session_id: i64, current_session_id: Option<i64>) -> Result<ConversationSession, String> {
+  let resumed = resume_registered_session(&db, &sessions, &registry, target_session_id, current_session_id)?;
+  if current_session_id.is_some() { worker.kick(); }
+  Ok(resumed)
 }
 
 #[tauri::command]
@@ -72,7 +75,7 @@ pub async fn get_conversation_session(db: State<'_, Database>, sessions: State<'
 }
 
 #[tauri::command]
-pub async fn close_conversation_session(db: State<'_, Database>, sessions: State<'_, CurrentRunSessions>, session_id: i64) -> Result<(), String> {
+pub async fn close_conversation_session(db: State<'_, Database>, sessions: State<'_, CurrentRunSessions>, worker: State<'_, Arc<SummaryWorker>>, session_id: i64) -> Result<(), String> {
   if session_id <= 0 || !sessions.0.lock().map_err(|_| "session_registry_failed")?.contains(&session_id) { return Err("session_invalid".into()); }
   let db = db.inner().clone();
   let closed = tauri::async_runtime::spawn_blocking(move || {
@@ -81,6 +84,7 @@ pub async fn close_conversation_session(db: State<'_, Database>, sessions: State
   }).await.map_err(|_| "worker_failed")?.map_err(str::to_owned)?;
   if !closed { return Err("session_invalid".into()); }
   sessions.0.lock().map_err(|_| "session_registry_failed")?.remove(&session_id);
+  worker.kick();
   Ok(())
 }
 
@@ -97,7 +101,7 @@ pub async fn gemini_status(store: State<'_, Arc<SecretStore>>) -> Result<GeminiS
 }
 
 #[tauri::command]
-pub async fn gemini_set_api_key(store: State<'_, Arc<SecretStore>>, api_key: String) -> Result<GeminiStatus, String> {
+pub async fn gemini_set_api_key(store: State<'_, Arc<SecretStore>>, worker: State<'_, Arc<SummaryWorker>>, api_key: String) -> Result<GeminiStatus, String> {
   let key = api_key.trim();
   if key.is_empty() || key.len() > 512 || key.bytes().any(|b| b.is_ascii_control()) { return Err("gemini_key_invalid".into()); }
   let key = key.as_bytes().to_vec();
@@ -105,6 +109,7 @@ pub async fn gemini_set_api_key(store: State<'_, Arc<SecretStore>>, api_key: Str
   tauri::async_runtime::spawn_blocking(move || store.set_secret(SecretKey::GeminiApiKey, &key))
     .await.map_err(|_| "gemini_key_store_failed")?.map_err(|e| e.code())?;
   AuditEvent::new(Action::CommandInvoked, Outcome::Succeeded).with_detail("gemini_key_configured").emit();
+  worker.kick();
   Ok(GeminiStatus { configured: true, enabled: true, model: MODEL, credential_store_available: true })
 }
 

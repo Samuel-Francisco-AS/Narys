@@ -100,6 +100,58 @@ fn restart_keeps_old_history_out_of_new_outbound_context() {
   assert!(!outbound.iter().any(|turn|turn.content.contains("HISTORICO-SECRETO-55")));
 }
 #[test]
+fn summary_claim_recovery_completion_and_resume_preserve_messages() {
+  let (db,_) = fixture(); let mut conn=db.open().unwrap();
+  let target=conversation::create_session(&conn).unwrap();
+  let active=conversation::create_session(&conn).unwrap();
+  let legacy=conversation::create_diagnostic(&mut conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,target,"SUMMARY-TARGET-71","Resposta").unwrap();
+  conversation::append_exchange_to_session(&mut conn,active,"OTHER-SESSION-88","Resposta").unwrap();
+  conversation::close_session(&conn,target).unwrap();
+  conn.execute("UPDATE conversation_sessions SET summary_status='pending' WHERE id=?1",[legacy]).unwrap();
+  let before:String=conn.query_row("SELECT updated_at FROM conversation_sessions WHERE id=?1",[target],|r|r.get(0)).unwrap();
+  let claimed=conversation::claim_next_pending_summary(&mut conn).unwrap().unwrap();
+  assert_eq!(claimed.id,target); assert_eq!(claimed.messages.len(),2);
+  assert!(conversation::claim_next_pending_summary(&mut conn).unwrap().is_none());
+  assert_eq!(conversation::reset_interrupted_summaries(&conn).unwrap(),1);
+  drop(conn); let mut conn=db.open().unwrap();
+  let reclaimed=conversation::claim_next_pending_summary(&mut conn).unwrap().unwrap();
+  assert_eq!(reclaimed.id,target);
+  assert!(conversation::fail_summary(&conn,target,true).unwrap());
+  assert_eq!(conversation::claim_next_pending_summary(&mut conn).unwrap().unwrap().id,target);
+  assert!(conversation::complete_summary(&conn,target,"Título persistido","Resumo factual").unwrap());
+  assert!(!conversation::complete_summary(&conn,target,"Sobrescrito","Outro").unwrap());
+  let after:String=conn.query_row("SELECT updated_at FROM conversation_sessions WHERE id=?1",[target],|r|r.get(0)).unwrap();
+  assert_eq!(before,after);
+  let item=conversation::list_history(&conn,50).unwrap().into_iter().find(|v|v.id==target).unwrap();
+  assert_eq!(item.title,"Título persistido"); assert_eq!(item.preview,"Resumo factual");
+  let resumed=conversation::resume_session(&mut conn,target,None).unwrap();
+  assert_eq!(resumed.title.as_deref(),Some("Título persistido"));
+  assert_eq!(resumed.summary_status,"none"); assert!(resumed.summary.is_none());
+  assert!(conversation::claim_next_pending_summary(&mut conn).unwrap().is_none());
+  assert!(conversation::close_session(&conn,target).unwrap());
+  assert_eq!(conversation::claim_next_pending_summary(&mut conn).unwrap().unwrap().id,target);
+  assert!(conversation::fail_summary(&conn,target,false).unwrap());
+  assert!(conversation::claim_next_pending_summary(&mut conn).unwrap().is_none());
+  assert_eq!(conversation::history_session(&conn,target).unwrap().unwrap().messages.len(),2);
+}
+#[test]
+fn summary_claim_bounds_database_read_and_keeps_first_user() {
+  let (db,_) = fixture(); let mut conn=db.open().unwrap();
+  let id=conversation::create_session(&conn).unwrap();
+  conversation::append_exchange_to_session(&mut conn,id,"FIRST-USER-😀","Resposta").unwrap();
+  for n in 0..300 {
+    conn.execute("INSERT INTO conversation_messages(session_id,role,content) VALUES (?1,'user',?2)",
+      rusqlite::params![id,format!("RECENT-{n}")]).unwrap();
+  }
+  conversation::close_session(&conn,id).unwrap();
+  let claimed=conversation::claim_next_pending_summary(&mut conn).unwrap().unwrap();
+  assert!(claimed.truncated);
+  assert_eq!(claimed.messages.len(),257);
+  assert_eq!(claimed.messages.first().unwrap().content,"FIRST-USER-😀");
+  assert_eq!(claimed.messages.last().unwrap().content,"RECENT-299");
+}
+#[test]
 fn identity_versions_and_memory_import() {
   let (db,path)=fixture(); write(&path,&data("v1"));
   assert_eq!(import_bootstrap(&db,&path).unwrap().memories_inserted,2);

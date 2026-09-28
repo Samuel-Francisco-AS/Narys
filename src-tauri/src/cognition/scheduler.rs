@@ -78,7 +78,7 @@ impl Scheduler {
             // incompatible partial answers and could double provider cost.
             if !chunks.is_empty() { return Err(SchedulerError::Provider(error)); }
             let retry = matches!(error, ProviderError::Timeout | ProviderError::Unavailable) && attempt == 1;
-            if retry {
+            if retry && usage.provider_calls < budget.max_provider_calls {
               on_event(SchedulerEvent::Retry { provider_id: entry.config.id.clone(), reason_code: error.code() })
                 .map_err(|_| { cancelled.store(true, Ordering::Release); SchedulerError::EventSinkClosed })?;
               // Cancellable asynchronous backoff.

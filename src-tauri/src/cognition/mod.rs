@@ -5,6 +5,7 @@ pub mod mock;
 pub mod provider;
 pub mod registry;
 pub mod scheduler;
+pub mod summary;
 pub mod types;
 
 use std::{collections::HashMap, sync::Arc};

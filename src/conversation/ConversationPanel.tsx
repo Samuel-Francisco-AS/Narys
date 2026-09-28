@@ -78,7 +78,7 @@ export function ConversationPanel({ state, mode, historyId, onMode, onHistoryId,
       {error && <p className="conversation-error" role="alert">{error}</p>}
       {!loading && !error && visibleHistory.length === 0 && <p className="conversation-empty">Nenhuma conversa anterior.</p>}
       {!loading && !error && visibleHistory.map((item) => <button type="button" className="history-item" key={item.id} onClick={() => { onHistoryId(item.id); onMode('HISTORY_DETAIL') }}>
-        <strong>{item.title}</strong><span>{dateLabel(item.updatedAt)} · {item.messageCount} mensagens{item.status === 'active' ? ' · em andamento' : ''}</span>
+        <strong>{item.title}</strong><span>{dateLabel(item.updatedAt)} · {item.messageCount} mensagens{item.status === 'active' ? ' · em andamento' : ''}{item.summaryStatus === 'pending' || item.summaryStatus === 'running' ? ' · resumindo…' : item.summaryStatus === 'failed' ? ' · resumo indisponível' : ''}</span>
         {item.preview && <small>{item.preview}</small>}
       </button>)}
     </div>}
@@ -89,6 +89,9 @@ export function ConversationPanel({ state, mode, historyId, onMode, onHistoryId,
         {detail.id !== state.sessionId && detail.status === 'closed' && detail.messages.length > 0 &&
           <button type="button" onClick={requestResume} disabled={state.assistantStreaming || resuming}>Retomar</button>}</div>
         {confirmResume && <div className="history-resume-confirm" role="group" aria-label="Confirmar retomada"><p>Há um texto não enviado na conversa atual. Retomar esta conversa descartará esse texto.</p><div><button type="button" onClick={() => setConfirmResume(false)}>Cancelar</button><button type="button" onClick={() => void doResume()} disabled={resuming || state.assistantStreaming}>Retomar</button></div></div>}
+        {detail.summaryStatus === 'completed' && detail.summary && <section className="history-summary"><strong>Resumo da sessão</strong><p>{detail.summary}</p></section>}
+        {(detail.summaryStatus === 'pending' || detail.summaryStatus === 'running') && <p className="history-summary-status">Resumo sendo preparado.</p>}
+        {detail.summaryStatus === 'failed' && <p className="history-summary-status">Resumo indisponível.</p>}
         {detail.messages.map((message) => <article key={message.id} className={`conversation-message ${message.role}`}><strong>{message.role === 'user' ? 'Você' : 'Luna'}</strong><p>{message.content}</p></article>)}
       </>}
     </div>}

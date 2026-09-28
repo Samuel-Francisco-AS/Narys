@@ -14,15 +14,26 @@ pub fn run() {
         // Before any CurrentRunSessions ID can be registered in this process.
         persistence::conversation::close_orphaned_product_sessions(&conn)
           .map_err(|_| "orphan_session_normalization_failed")?;
+        persistence::conversation::reset_interrupted_summaries(&conn)
+          .map_err(|_| "summary_recovery_failed")?;
         if let Ok(max_id) = persistence::task_history::max_id(&conn) {
           app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().seed_next_id(max_id);
         }
       }
-      app.manage(db);
+      app.manage(db.clone());
       let secrets = std::sync::Arc::new(security::secrets::SecretStore::new(directory));
       let gemini = cognition::GeminiRuntime::new(secrets.clone()).map_err(|_| "gemini_http_client_unavailable")?;
+      let scheduler = gemini.scheduler.clone();
+      let available_secrets = secrets.clone();
+      let available = std::sync::Arc::new(move || available_secrets.get_secret(security::secrets::SecretKey::GeminiApiKey)
+        .ok().flatten().is_some());
+      // UIP-6 will configure provider/model by cognitive role. Summary currently
+      // routes through the available scheduler; the worker itself is provider agnostic.
+      let worker = cognition::summary::SummaryWorker::start(db.clone(), scheduler,
+        app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().inner().clone(), available);
       app.manage(secrets);
       app.manage(std::sync::Arc::new(gemini));
+      app.manage(worker);
       Ok(())
     })
     .manage(std::sync::Arc::new(luna::runtime::TaskRegistry::default()));
