@@ -117,3 +117,14 @@ O único `SummaryWorker` é iniciado no setup, recebe `Notify`/kick em startup, 
 No Tauri real, uma única instância com `LIBGL_ALWAYS_SOFTWARE=1` iniciou em Presence 310×410. A acessibilidade confirmou canvas 300×360; um `WebKitWebProcess` permaneceu único. Três amostras separadas por 3 s mostraram RSS agregado estável em 619,1 MiB (app 173,7 MiB); em janela ociosa de 5 s, app/WebKit/Network marcaram aproximadamente 0% de CPU. O worker recebeu 429 no startup e deixou os resumos `pending`, sem loop observado. O código preserva os layouts Composer 310×490/Conversation 625×490 e RenderBudget 30/24/0. A automação AT-SPI não conseguiu avançar o botão do Composer nesta sessão sem foco; por isso esses layouts, ciclos de painel, drawing buffer, DPR, `glError` e Wave→Idle **não foram revalidados visualmente na UIP-5D**. Esses valores constam dos gates humanos anteriores e precisam de confirmação curta de Sam antes do PASS final.
 
 Não houve chamada Gemini de chat nesta rodada. O 429 de summary, o compartilhamento temporário de Scheduler, a UX de rate limit, o drift global de `rustfmt` e as limitações Wayland permanecem dívidas conhecidas fora da UIP-5D. **UIP-5D = CANDIDATA; UIP-5 completa ainda não é PASS.**
+
+
+## Fechamento da UIP-5D e da UIP-5
+
+Em 28/09/2026, a UIP-5D foi encerrada em **PASS funcional** e, com ela, **UIP-5 = PASS funcional / FECHADA**.
+
+A consolidação auditou histórico, retomada explícita, isolamento cognitivo, summary assíncrono, lifecycle de restart, concorrência, Task IDs, integridade SQLite, capabilities e contratos Rust↔TypeScript. Não foram encontrados vazamento entre sessões, perda de mensagens ou regressão funcional que justificasse reabrir as subetapas. `PRAGMA integrity_check` retornou `ok` e `foreign_key_check` não apontou violações.
+
+O gate técnico curto do Tauri confirmou Presence 310×410, canvas 300×360, uma WebView, RSS agregado estável em aproximadamente 619 MiB nas amostras e ausência de loop perceptível do SummaryWorker ocioso. As medições físicas não repetidas nesta rodada — Composer/Conversation, drawing buffer, DPR, `glError` e Wave→Idle — já possuem validações anteriores e passam a ser rechecadas na UIP-7, sem bloquear a transição.
+
+Dívidas mantidas: 429/cooldown e UX correspondente, Scheduler temporariamente compartilhado por `conversation`/`summary`, drift global de `rustfmt`, estabilidade espacial Wayland e revalidação global de performance. **Próxima etapa: UIP-6 — janelas independentes de configuração e política cognitiva controlada pelo usuário.**
