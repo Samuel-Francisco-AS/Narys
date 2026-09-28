@@ -388,6 +388,8 @@ Plano detalhado: [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md).
 
 **Estado (28/09/2026):** LR-7 iniciada pela **LR-7A — fundação multi-provider**. Esta rodada generaliza runtime, timeouts, seleção Fixed/Preferred/Auto e cooldown com fallback antes do primeiro chunk, usando apenas MockProvider nos cenários multi-provider. A policy persistida Gemini continua Fixed. Nenhum provider externo novo, chave ou chamada externa foi adicionado. **Groq está reservado para LR-7B**; nenhum gate multi-provider real foi declarado PASS. O Rate Limit Manager permanece na LR-8.
 
+**LR-7A-FIX (28/09/2026):** a auditoria apontou que o routing era provider-aware, mas parâmetros de invocação ainda eram únicos por request. A FIX separa a requisição da tarefa dos targets, cada um com model, thinking e timeouts próprios. O Scheduler resolve e valida a configuração do provider selecionado antes de invocá-lo; configuração ausente ou inválida falha fechada. `ProviderRuntime` não possui mais timeouts Gemini. Groq permanece LR-7B; nenhum gate real multi-provider foi executado.
+
 **Segundo provider escolhido:** Groq (LR-7B).
 
 Essa fase prova que a arquitetura é de verdade multi-provider.

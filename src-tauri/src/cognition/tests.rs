@@ -2,7 +2,7 @@ use std::{fs, sync::{atomic::{AtomicBool, Ordering}, Arc}, time::{Duration, Syst
 use serde_json::json;
 use crate::persistence::{database::Database, identity::{self, IdentityInput}, memory::{self, MemoryInput}, conversation};
 use super::{context::{ContextBuilder, ContextError, ContextRequest}, mock::{MockProvider, MockScenario}, registry::ProviderRegistry,
-  scheduler::{Scheduler, SchedulerEvent}, types::{ProviderCapabilities, ProviderConfig, ProviderError, ProviderRequest, ProviderSelection, SchedulerError, TaskBudget}};
+  scheduler::{Scheduler, SchedulerEvent}, types::{ProviderCapabilities, ProviderConfig, ProviderError, ProviderRequest, ProviderTaskRequest, ProviderTarget, ProviderInvocationConfig, ProviderSelection, SchedulerError, TaskBudget}};
 
 fn fixture() -> (Database, std::path::PathBuf) {
   let n = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
@@ -39,8 +39,14 @@ fn context(db: &Database) -> super::types::ContextBundle {
   ContextBuilder::build(&db.open().unwrap(), ContextRequest { domain: Some("projects"), kind: None,
     min_importance: 0, memory_limit: 3, include_recent_conversation: false }).unwrap()
 }
-fn request(db: &Database) -> ProviderRequest { ProviderRequest { input: "synthetic".into(), history: vec![], context: Arc::new(context(db)),
-  max_output_tokens: Some(30), selection: ProviderSelection::Auto, model: "mock".into(), thinking_level: None, required_capabilities: ProviderCapabilities::text_stream(), attempt: 1, provider_timeouts: None } }
+fn request(db: &Database) -> ProviderTaskRequest { ProviderTaskRequest { input: "synthetic".into(), history: vec![], context: Arc::new(context(db)),
+  max_output_tokens: Some(30), selection: ProviderSelection::Auto, targets: [
+    "a", "alternative", "b", "disabled", "enabled", "fallback", "first", "fixed", "gemini", "healthy",
+    "limited", "mock-fallback", "mock-primary", "no-stream", "normal", "only", "other", "preferred",
+    "primary", "second", "selected", "stream", "terminal", "timeout", "transient",
+  ].into_iter().map(|id| ProviderTarget { provider_id: id.into(), invocation: ProviderInvocationConfig {
+    model: "mock".into(), thinking_level: None, timeouts: None,
+  } }).collect(), required_capabilities: ProviderCapabilities::text_stream() } }
 fn entry(id: &str, priority: u16, enabled: bool, caps: ProviderCapabilities, mock: Arc<MockProvider>, registry: &mut ProviderRegistry) {
   registry.register(ProviderConfig { id:id.into(), enabled, priority, capabilities:caps }, mock).unwrap();
 }
@@ -490,5 +496,90 @@ fn unavailable_retry_after_falls_back_only_with_budget_and_auth_is_generic() {
   assert_eq!(tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db), budget(2), &signal, &mut |_| Ok(()))).unwrap_err(),
     SchedulerError::Provider(ProviderError::QuotaExceeded));
   assert_eq!((terminal.calls(), untouched.calls()), (1, 0));
+  fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn target_configuration_isolated_across_fixed_preferred_and_fallback() {
+  use super::{provider::{Provider, ProviderFuture}, types::{ProviderChunk, ProviderResponse, ProviderUsage, ProviderTimeouts}};
+  use std::sync::Mutex;
+  struct InspectingProvider { seen: Mutex<Vec<ProviderTarget>>, error: Option<ProviderError>, chunk_before_error: bool }
+  impl Provider for InspectingProvider {
+    fn execute<'a>(&'a self, request: &'a ProviderRequest, _cancelled: &'a AtomicBool,
+      on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send)) -> ProviderFuture<'a> {
+      Box::pin(async move {
+        self.seen.lock().unwrap().push(request.target.clone());
+        if self.chunk_before_error { on_chunk(ProviderChunk { text: "partial".into() })?; }
+        if let Some(error) = &self.error { return Err(error.clone()); }
+        Ok(ProviderResponse { text: "ok".into(), usage: ProviderUsage { calls: 1, output_tokens: 1, ..Default::default() } })
+      })
+    }
+  }
+  fn target(id: &str, model: &str, thinking_level: Option<super::policy::ThinkingLevel>, timeout: u32) -> ProviderTarget {
+    ProviderTarget { provider_id: id.into(), invocation: ProviderInvocationConfig { model: model.into(), thinking_level,
+      timeouts: Some(ProviderTimeouts { request_timeout_ms: timeout, stream_idle_timeout_ms: timeout + 1 }) } }
+  }
+  fn make_scheduler(a: Arc<InspectingProvider>, b: Arc<InspectingProvider>) -> Scheduler {
+    let mut registry = ProviderRegistry::default();
+    for (id, priority, provider) in [("a", 1, a), ("b", 2, b)] {
+      registry.register(ProviderConfig { id: id.into(), enabled: true, priority,
+        capabilities: ProviderCapabilities::text_stream() }, provider).unwrap();
+    }
+    Scheduler::new(registry)
+  }
+  fn inspector(error: Option<ProviderError>, chunk_before_error: bool) -> Arc<InspectingProvider> {
+    Arc::new(InspectingProvider { seen: Mutex::new(vec![]), error, chunk_before_error })
+  }
+  let (db, dir) = fixture(); seed(&db);
+  let signal = AtomicBool::new(false);
+  let a_config = target("a", "model-a", Some(super::policy::ThinkingLevel::High), 101);
+  let b_config = target("b", "model-b", None, 201);
+  let configure = |selection| { let mut req = request(&db); req.selection = selection;
+    req.targets = vec![a_config.clone(), b_config.clone()]; req };
+
+  let a = inspector(None, false); let b = inspector(None, false);
+  let scheduler = make_scheduler(a.clone(), b.clone());
+  let result = tauri::async_runtime::block_on(scheduler.run(configure(ProviderSelection::Fixed("a".into())), budget(2), &signal, &mut |_| Ok(()))).unwrap();
+  assert_eq!(result.provider_id, "a"); assert_eq!(*a.seen.lock().unwrap(), vec![a_config.clone()]);
+  assert!(b.seen.lock().unwrap().is_empty());
+
+  let a = inspector(None, false); let b = inspector(None, false);
+  let scheduler = make_scheduler(a.clone(), b.clone());
+  let result = tauri::async_runtime::block_on(scheduler.run(configure(ProviderSelection::Preferred("b".into())), budget(2), &signal, &mut |_| Ok(()))).unwrap();
+  assert_eq!(result.provider_id, "b"); assert_eq!(*b.seen.lock().unwrap(), vec![b_config.clone()]);
+  assert!(a.seen.lock().unwrap().is_empty());
+
+  let a = inspector(Some(ProviderError::RateLimited { retry_after_ms: Some(3000) }), false);
+  let b = inspector(None, false);
+  let scheduler = make_scheduler(a.clone(), b.clone());
+  let result = tauri::async_runtime::block_on(scheduler.run(configure(ProviderSelection::Auto), budget(2), &signal, &mut |_| Ok(()))).unwrap();
+  assert_eq!(result.provider_id, "b"); assert_eq!(result.usage.providers_used, vec!["a", "b"]);
+  assert_eq!(*a.seen.lock().unwrap(), vec![a_config.clone()]);
+  assert_eq!(*b.seen.lock().unwrap(), vec![b_config.clone()]);
+  assert_ne!(a_config.invocation.model, b_config.invocation.model);
+  assert_ne!(a_config.invocation.thinking_level, b_config.invocation.thinking_level);
+  assert_ne!(a_config.invocation.timeouts, b_config.invocation.timeouts);
+
+  let a = inspector(Some(ProviderError::RateLimited { retry_after_ms: Some(3000) }), false);
+  let b = inspector(None, false);
+  let scheduler = make_scheduler(a.clone(), b.clone());
+  let mut missing = configure(ProviderSelection::Auto); missing.targets.pop();
+  assert_eq!(tauri::async_runtime::block_on(scheduler.run(missing, budget(2), &signal, &mut |_| Ok(()))).unwrap_err(), SchedulerError::InvalidTargetConfig);
+  assert_eq!(a.seen.lock().unwrap().len(), 1); assert!(b.seen.lock().unwrap().is_empty());
+  let mut invalid = configure(ProviderSelection::Fixed("b".into()));
+  invalid.targets[1].invocation.model = " ".into();
+  assert_eq!(tauri::async_runtime::block_on(scheduler.run(invalid, budget(1), &signal, &mut |_| Ok(()))).unwrap_err(), SchedulerError::InvalidTargetConfig);
+  assert!(b.seen.lock().unwrap().is_empty());
+  let mut duplicate = configure(ProviderSelection::Fixed("b".into()));
+  duplicate.targets.push(b_config.clone());
+  assert_eq!(tauri::async_runtime::block_on(scheduler.run(duplicate, budget(1), &signal, &mut |_| Ok(()))).unwrap_err(), SchedulerError::InvalidTargetConfig);
+  assert!(b.seen.lock().unwrap().is_empty());
+
+  let a = inspector(Some(ProviderError::Unavailable { retry_after_ms: Some(3000) }), true);
+  let b = inspector(None, false);
+  let scheduler = make_scheduler(a.clone(), b.clone());
+  assert_eq!(tauri::async_runtime::block_on(scheduler.run(configure(ProviderSelection::Auto), budget(2), &signal, &mut |_| Ok(()))).unwrap_err(),
+    SchedulerError::Provider(ProviderError::Unavailable { retry_after_ms: Some(3000) }));
+  assert!(b.seen.lock().unwrap().is_empty());
   fs::remove_dir_all(dir).unwrap();
 }

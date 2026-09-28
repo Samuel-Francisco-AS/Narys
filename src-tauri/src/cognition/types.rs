@@ -50,18 +50,45 @@ pub struct ContextBundle {
 #[serde(rename_all = "camelCase")]
 pub struct ContextMetadata { pub identity_version: String, pub memory_count: usize, pub recent_message_count: usize }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderInvocationConfig {
+  pub model: String,
+  pub thinking_level: Option<ThinkingLevel>,
+  pub timeouts: Option<ProviderTimeouts>,
+}
+impl ProviderInvocationConfig {
+  pub fn valid(&self) -> bool {
+    !self.model.is_empty() && self.model.len() <= 128 && self.model.trim() == self.model
+      && !self.model.chars().any(char::is_control)
+      && self.timeouts.is_none_or(|t| t.request_timeout_ms > 0 && t.stream_idle_timeout_ms > 0)
+  }
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderTarget {
+  pub provider_id: ProviderId,
+  pub invocation: ProviderInvocationConfig,
+}
+
+#[derive(Debug)]
+pub struct ProviderTaskRequest {
+  pub input: String,
+  pub history: Vec<ProviderMessage>,
+  pub context: Arc<ContextBundle>,
+  pub max_output_tokens: Option<u32>,
+  pub selection: ProviderSelection,
+  pub targets: Vec<ProviderTarget>,
+  pub required_capabilities: ProviderCapabilities,
+}
+
+// Only the Scheduler constructs this for a selected target.
 #[derive(Debug)]
 pub struct ProviderRequest {
   pub input: String,
   pub history: Vec<ProviderMessage>,
   pub context: Arc<ContextBundle>,
   pub max_output_tokens: Option<u32>,
-  pub selection: ProviderSelection,
-  pub model: String,
-  pub thinking_level: Option<ThinkingLevel>,
-  pub required_capabilities: ProviderCapabilities,
+  pub target: ProviderTarget,
   pub attempt: u32,
-  pub provider_timeouts: Option<ProviderTimeouts>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderRole { User, Assistant }
@@ -111,7 +138,7 @@ pub struct SchedulerUsage {
 pub struct TaskResult { pub text: String, pub provider_id: ProviderId, pub usage: SchedulerUsage, pub context_metadata: ContextMetadata }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum SchedulerError { BudgetExceeded, Cancelled, EventSinkClosed, NoProvider, Provider(ProviderError) }
+pub enum SchedulerError { BudgetExceeded, Cancelled, EventSinkClosed, NoProvider, InvalidTargetConfig, Provider(ProviderError) }
 impl SchedulerError { pub fn code(&self) -> &'static str { match self {
-  Self::BudgetExceeded => "budget_exceeded", Self::Cancelled => "cancelled", Self::EventSinkClosed => "channel_closed", Self::NoProvider => "provider_unavailable", Self::Provider(e) => e.code(),
+  Self::BudgetExceeded => "budget_exceeded", Self::Cancelled => "cancelled", Self::EventSinkClosed => "channel_closed", Self::NoProvider => "provider_unavailable", Self::InvalidTargetConfig => "provider_config_invalid", Self::Provider(e) => e.code(),
 }} }

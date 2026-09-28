@@ -54,6 +54,8 @@ impl MinimalOutboundContext {
   }
 }
 
+pub struct GeminiTimeoutState { pub timeouts: Arc<RwLock<ProviderTimeouts>> }
+
 pub struct GeminiProvider { config: GeminiConfig, client: Client, secrets: Arc<SecretStore>, timeouts: Arc<RwLock<ProviderTimeouts>> }
 impl GeminiProvider {
   pub fn new(config: GeminiConfig, secrets: Arc<SecretStore>) -> Result<Self, ProviderError> {
@@ -182,6 +184,9 @@ impl Provider for GeminiProvider {
     on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send)) -> ProviderFuture<'a> {
     Box::pin(async move {
       if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
+      if request.target.provider_id != "gemini" || !request.target.invocation.valid() {
+        return Err(ProviderError::InvalidRequest);
+      }
       let secrets = self.secrets.clone();
       let key = tokio::select! {
         _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
@@ -196,9 +201,9 @@ impl Provider for GeminiProvider {
           })?.ok_or(ProviderError::Authentication)?,
       };
       let key = HeaderValue::from_bytes(&key).map_err(|_| ProviderError::Authentication)?;
-      let payload = MinimalOutboundContext::from_bundle(&request.context)?.payload(&request.model, &request.input, &request.history,
-        request.max_output_tokens, request.thinking_level);
-      let timeouts = request.provider_timeouts.unwrap_or_else(|| *self.timeouts.read().unwrap_or_else(|p| p.into_inner()));
+      let payload = MinimalOutboundContext::from_bundle(&request.context)?.payload(&request.target.invocation.model, &request.input, &request.history,
+        request.max_output_tokens, request.target.invocation.thinking_level);
+      let timeouts = request.target.invocation.timeouts.unwrap_or_else(|| *self.timeouts.read().unwrap_or_else(|p| p.into_inner()));
       let send = self.client.post(&self.config.endpoint).timeout(Duration::from_millis(timeouts.request_timeout_ms as u64))
         .header("x-goog-api-key", key).json(&payload).send();
       let mut response = tokio::select! {
@@ -341,8 +346,14 @@ mod tests {
       recent_messages:vec![ConversationMessage { id:1,session_id:1,role:"user".into(),content:"recent private marker".into(),created_at:"now".into() }],
       metadata:ContextMetadata { identity_version:"v1".into(),memory_count:1,recent_message_count:1 } })
   }
+  use crate::cognition::types::{ProviderTarget, ProviderInvocationConfig, ProviderTaskRequest};
   fn request() -> ProviderRequest { ProviderRequest { input:"Quanto é 2 + 2?".into(),history:vec![],context:bundle(),max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS),
-    selection:crate::cognition::types::ProviderSelection::Fixed("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1,provider_timeouts:None } }
+    target: ProviderTarget { provider_id: "gemini".into(), invocation: ProviderInvocationConfig { model: MODEL.into(), thinking_level: Some(ThinkingLevel::Low), timeouts: None } }, attempt:1 } }
+  fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
+    ProviderTaskRequest { input: request.input, history: request.history, context: request.context,
+      max_output_tokens: request.max_output_tokens, selection: crate::cognition::types::ProviderSelection::Fixed("gemini".into()),
+      targets: vec![request.target], required_capabilities: ProviderCapabilities::text_stream() }
+  }
   fn server(status:&str, body:&str, extra:&str, split:bool) -> (String,thread::JoinHandle<String>) {
     let listener=TcpListener::bind("127.0.0.1:0").unwrap(); let url=format!("http://{}/v1beta/interactions",listener.local_addr().unwrap());
     let status=status.to_owned();let body=body.to_owned();let extra=extra.to_owned();
@@ -380,7 +391,7 @@ mod tests {
     let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store.clone()).unwrap();
     let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
     let mut chunks=Vec::new();let signal=AtomicBool::new(false);
-    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(),TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,
+    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(task_request(request()),TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,
       &mut |event| {if let SchedulerEvent::Chunk {text,..}=event {chunks.push(text)}Ok(())})).unwrap();
     assert_eq!(chunks,vec!["Quatro","."]);assert_eq!(result.text,"Quatro.");assert_eq!(result.usage.total_tokens,Some(30));assert_eq!(result.usage.thought_tokens,Some(8));
     let raw=handle.join().unwrap();let (_,body)=raw.split_once("\r\n\r\n").unwrap();let payload:Value=serde_json::from_str(body).unwrap();
@@ -402,7 +413,7 @@ mod tests {
         capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
       let mut chat_request=request();chat_request.max_output_tokens=Some(request_limit);
       let signal=AtomicBool::new(false);
-      tauri::async_runtime::block_on(Scheduler::new(registry).run(chat_request,
+      tauri::async_runtime::block_on(Scheduler::new(registry).run(task_request(chat_request),
         TaskBudget {max_provider_calls:1,max_output_tokens:Some(budget_limit)},&signal,&mut |_|Ok(()))).unwrap();
       let raw=handle.join().unwrap();let (_,body)=raw.split_once("\r\n\r\n").unwrap();
       let payload:Value=serde_json::from_str(body).unwrap();
@@ -666,12 +677,12 @@ mod tests {
     let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,
       capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
     let scheduler=Scheduler::new(registry);let signal=AtomicBool::new(false);
-    let result=tauri::async_runtime::block_on(scheduler.run(request(),TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},
+    let result=tauri::async_runtime::block_on(scheduler.run(task_request(request()),TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},
       &signal,&mut |_|Ok(())));
     assert!(matches!(result.unwrap_err(),super::super::types::SchedulerError::Provider(
       ProviderError::RateLimited {retry_after_ms:Some(ms)} ) if ms>0 && ms<=60_000));
     assert!(scheduler.status()[0].cooldown_ms>0);
-    let next=tauri::async_runtime::block_on(scheduler.run(request(),TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},
+    let next=tauri::async_runtime::block_on(scheduler.run(task_request(request()),TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},
       &signal,&mut |_|Ok(())));
     let no_provider=next.unwrap_err();
     assert_eq!(no_provider,super::super::types::SchedulerError::NoProvider);
@@ -688,7 +699,7 @@ mod tests {
     let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
     let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
     let signal=AtomicBool::new(false);let mut chunks=0;
-    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(),TaskBudget {max_provider_calls:2,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,
+    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(task_request(request()),TaskBudget {max_provider_calls:2,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,
       &mut |event| {if matches!(event,SchedulerEvent::Chunk{..}) {chunks+=1;return Err(super::super::types::SchedulerError::EventSinkClosed)}Ok(())}));
     assert_eq!(result.unwrap_err(),super::super::types::SchedulerError::EventSinkClosed);assert_eq!(chunks,1);
     assert!(signal.load(Ordering::Acquire));handle.join().unwrap();fs::remove_dir_all(dir).unwrap();
@@ -725,8 +736,8 @@ mod tests {
     let provider=GeminiProvider::new(GeminiConfig {endpoint:url,..Default::default()},store).unwrap();
     let mut registry=ProviderRegistry::default();registry.register(ProviderConfig {id:"gemini".into(),enabled:true,priority:1,capabilities:ProviderCapabilities::text_stream()},Arc::new(provider)).unwrap();
     let signal=AtomicBool::new(false);
-    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(ProviderRequest {input:"Quanto é 2 + 2?".into(),history:vec![],context:Arc::new(context),max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS),
-      selection:crate::cognition::types::ProviderSelection::Fixed("gemini".into()),model:MODEL.into(),thinking_level:Some(ThinkingLevel::Low),required_capabilities:ProviderCapabilities::text_stream(),attempt:1,provider_timeouts:None},TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,&mut |_|Ok(()))).unwrap();
+    let result=tauri::async_runtime::block_on(Scheduler::new(registry).run(ProviderTaskRequest {input:"Quanto é 2 + 2?".into(),history:vec![],context:Arc::new(context),max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS),
+      selection:crate::cognition::types::ProviderSelection::Fixed("gemini".into()), targets: vec![ProviderTarget { provider_id: "gemini".into(), invocation: ProviderInvocationConfig { model: MODEL.into(), thinking_level: Some(ThinkingLevel::Low), timeouts: None } }], required_capabilities:ProviderCapabilities::text_stream()},TaskBudget {max_provider_calls:1,max_output_tokens:Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS)},&signal,&mut |_|Ok(()))).unwrap();
     assert_eq!(result.provider_id,"gemini");assert_eq!(result.text,"Quatro.");
     conversation::append_gemini_exchange(&mut conn,"Quanto é 2 + 2?",&result.text).unwrap();
     drop(conn);let reopened=db.open().unwrap();let session=conversation::gemini_session(&reopened).unwrap().unwrap();

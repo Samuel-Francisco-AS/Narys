@@ -17,15 +17,9 @@ use registry::ProviderRegistry;
 use scheduler::{ProviderStatus, Scheduler};
 use types::{ProviderCapabilities, ProviderConfig};
 
-pub struct ProviderRuntime {
-  pub scheduler: Arc<Scheduler>,
-  // Handle for the currently configured Gemini adapter; future adapters own their settings.
-  pub gemini_timeouts: Arc<std::sync::RwLock<types::ProviderTimeouts>>,
-}
+pub struct ProviderRuntime { pub scheduler: Arc<Scheduler> }
 impl ProviderRuntime {
-  pub fn new(registry: ProviderRegistry, gemini_timeouts: Arc<std::sync::RwLock<types::ProviderTimeouts>>) -> Self {
-    Self { scheduler: Arc::new(Scheduler::new(registry)), gemini_timeouts }
-  }
+  pub fn new(registry: ProviderRegistry) -> Self { Self { scheduler: Arc::new(Scheduler::new(registry)) } }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq)]

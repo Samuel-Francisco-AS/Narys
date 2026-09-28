@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{atomic::{AtomicBool, Ordering}, Mutex}, time::{Duration, Instant}};
 use serde::Serialize;
-use super::{registry::ProviderRegistry, types::{ProviderChunk, ProviderError, ProviderRequest, ProviderSelection, RetryPolicy, SchedulerError, SchedulerUsage, TaskBudget, TaskResult}};
+use super::{registry::ProviderRegistry, types::{ProviderChunk, ProviderError, ProviderRequest, ProviderTaskRequest, ProviderSelection, RetryPolicy, SchedulerError, SchedulerUsage, TaskBudget, TaskResult}};
 
 #[derive(Clone, Debug)]
 pub enum SchedulerEvent {
@@ -24,11 +24,11 @@ impl Scheduler {
       priority: config.priority, capabilities: config.capabilities,
       cooldown_ms: cooldowns.get(&config.id).map(|until| until.saturating_duration_since(now).as_millis() as u64).unwrap_or(0) }).collect()
   }
-  pub async fn run(&self, request: ProviderRequest, budget: TaskBudget, cancelled: &AtomicBool,
+  pub async fn run(&self, request: ProviderTaskRequest, budget: TaskBudget, cancelled: &AtomicBool,
     on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send)) -> Result<TaskResult, SchedulerError> {
     self.run_with_retry(request, budget, RetryPolicy { enabled: true, max_retries: 1, initial_backoff_ms: 0 }, cancelled, on_event).await
   }
-  pub async fn run_with_retry(&self, request: ProviderRequest, budget: TaskBudget, retry_policy: RetryPolicy, cancelled: &AtomicBool,
+  pub async fn run_with_retry(&self, request: ProviderTaskRequest, budget: TaskBudget, retry_policy: RetryPolicy, cancelled: &AtomicBool,
     on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send)) -> Result<TaskResult, SchedulerError> {
     let output_limit = match (budget.max_output_tokens, request.max_output_tokens) {
       (Some(a), Some(b)) => Some(a.min(b)), (Some(a), None) | (None, Some(a)) => Some(a), (None, None) => None,
@@ -45,6 +45,9 @@ impl Scheduler {
     let mut used_any = false;
     for (index, entry) in candidates.iter().enumerate() {
       if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
+      let mut matching = request.targets.iter().filter(|target| target.provider_id == entry.config.id);
+      let target = matching.next().filter(|target| target.invocation.valid() && matching.next().is_none())
+        .ok_or(SchedulerError::InvalidTargetConfig)?;
       used_any = true;
       let mut attempt = 0;
       loop {
@@ -65,9 +68,7 @@ impl Scheduler {
             .map_err(|_| { cancelled.store(true, Ordering::Release); ProviderError::EventSinkClosed })
         };
         let attempt_request = ProviderRequest { input: request.input.clone(), history: request.history.clone(), context: request.context.clone(),
-          max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens), selection: request.selection.clone(),
-          model: request.model.clone(), thinking_level: request.thinking_level, required_capabilities: request.required_capabilities, attempt,
-          provider_timeouts: request.provider_timeouts };
+          max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens), target: target.clone(), attempt };
         // Keep the same structured context across retry/fallback; adapters decide serialization.
         let result = entry.provider.execute(&attempt_request, cancelled, &mut on_chunk).await;
         if matches!(result, Err(ProviderError::EventSinkClosed)) { return Err(SchedulerError::EventSinkClosed); }

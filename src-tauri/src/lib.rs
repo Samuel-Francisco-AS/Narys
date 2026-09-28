@@ -35,7 +35,7 @@ pub fn run() {
       providers.register(cognition::types::ProviderConfig { id: "gemini".into(), enabled: true, priority: 1,
         capabilities: cognition::types::ProviderCapabilities::text_stream() }, gemini_adapter)
         .expect("unique Gemini ID");
-      let runtime = cognition::ProviderRuntime::new(providers, gemini_timeouts);
+      let runtime = cognition::ProviderRuntime::new(providers);
       let scheduler = runtime.scheduler.clone();
       let available_secrets = secrets.clone();
       let available = std::sync::Arc::new(move || available_secrets.get_secret(security::secrets::SecretKey::GeminiApiKey)
@@ -46,6 +46,7 @@ pub fn run() {
         app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().inner().clone(), available);
       app.manage(secrets);
       app.manage(std::sync::Arc::new(runtime));
+      app.manage(std::sync::Arc::new(cognition::gemini::GeminiTimeoutState { timeouts: gemini_timeouts }));
       app.manage(worker);
       Ok(())
     })

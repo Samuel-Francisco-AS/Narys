@@ -113,7 +113,7 @@ pub async fn get_ai_settings(
 #[tauri::command]
 pub async fn update_gemini_timeouts(
     db: State<'_, Database>,
-    runtime: State<'_, Arc<super::ProviderRuntime>>,
+    gemini: State<'_, Arc<super::gemini::GeminiTimeoutState>>,
     timeouts: GeminiTimeouts,
 ) -> Result<GeminiTimeouts, String> {
     timeouts.validate().map_err(str::to_owned)?;
@@ -126,7 +126,7 @@ pub async fn update_gemini_timeouts(
     .await
     .map_err(|_| "worker_failed".to_string())?
     .map_err(str::to_owned)?;
-    *runtime.gemini_timeouts.write().unwrap_or_else(|p| p.into_inner()) = saved.into();
+    *gemini.timeouts.write().unwrap_or_else(|p| p.into_inner()) = saved.into();
     Ok(saved)
 }
 
