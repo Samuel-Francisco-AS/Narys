@@ -100,6 +100,19 @@ fn diag_http_unavailable(status: StatusCode, headers: &HeaderMap, code: Option<&
   }
 }
 #[cfg(debug_assertions)]
+fn rate_limit_diagnostic(status: StatusCode, code: Option<&str>, retry_after_ms: Option<u64>) -> String {
+  // Keep response-provided strings out of diagnostics unless explicitly allowlisted.
+  let code = match code { Some("rate_limit_exceeded") => "rate_limit_exceeded", Some("too_many_requests") => "too_many_requests", _ => "none" };
+  let retry_after_ms = retry_after_ms.map_or_else(|| "none".to_owned(), |ms| ms.to_string());
+  format!("[Gemini][diag] rate_limited source=http status={} code={code} retry_after_ms={retry_after_ms}", status.as_u16())
+}
+#[cfg(debug_assertions)]
+fn diag_http_rate_limited(status: StatusCode, code: Option<&str>, result: &ProviderError) {
+  if let ProviderError::RateLimited { retry_after_ms } = result {
+    eprintln!("{}", rate_limit_diagnostic(status, code, *retry_after_ms));
+  }
+}
+#[cfg(debug_assertions)]
 fn diag_stream_unavailable(code: &str, result: &ProviderError) {
   if *result == ProviderError::Unavailable {
     // Keep the diagnostic allowlisted even if the mapper gains new codes later.
@@ -124,6 +137,7 @@ async fn http_error(response: &mut reqwest::Response, cancelled: &AtomicBool) ->
       _ => {
         let result = fallback();
         #[cfg(debug_assertions)] diag_http_unavailable(status, &headers, None, &result);
+        #[cfg(debug_assertions)] diag_http_rate_limited(status, None, &result);
         return result;
       },
     }
@@ -132,6 +146,7 @@ async fn http_error(response: &mut reqwest::Response, cancelled: &AtomicBool) ->
   let code = parsed.as_ref().and_then(error_code);
   let result = code.map(|code| classify_error_code(code, retry_after_ms(&headers))).unwrap_or_else(fallback);
   #[cfg(debug_assertions)] diag_http_unavailable(status, &headers, code, &result);
+  #[cfg(debug_assertions)] diag_http_rate_limited(status, code, &result);
   result
 }
 fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
@@ -420,6 +435,17 @@ mod tests {
     }
     fs::remove_dir_all(dir).unwrap();
   }
+  #[test]
+  fn rate_limit_diagnostic_allowlists_code_and_excludes_private_fields() {
+    let private = "private prompt key history identity memory response";
+    assert_eq!(rate_limit_diagnostic(StatusCode::TOO_MANY_REQUESTS,Some("rate_limit_exceeded"),Some(3000)),
+      "[Gemini][diag] rate_limited source=http status=429 code=rate_limit_exceeded retry_after_ms=3000");
+    assert_eq!(rate_limit_diagnostic(StatusCode::TOO_MANY_REQUESTS,Some("too_many_requests"),None),
+      "[Gemini][diag] rate_limited source=http status=429 code=too_many_requests retry_after_ms=none");
+    let diagnostic=rate_limit_diagnostic(StatusCode::TOO_MANY_REQUESTS,Some(private),Some(2000));
+    assert_eq!(diagnostic,"[Gemini][diag] rate_limited source=http status=429 code=none retry_after_ms=2000");
+    assert!(!diagnostic.contains(private));
+  }
   #[test] fn unavailable_diagnostics_leave_public_and_persisted_error_sanitized() {
     use crate::persistence::{database::Database, task_history};
     let (store,dir)=fixture();
@@ -579,6 +605,11 @@ mod tests {
     assert!(matches!(result.unwrap_err(),super::super::types::SchedulerError::Provider(
       ProviderError::RateLimited {retry_after_ms:Some(ms)} ) if ms>0 && ms<=60_000));
     assert!(scheduler.status()[0].cooldown_ms>0);
+    let next=tauri::async_runtime::block_on(scheduler.run(request(),TaskBudget {max_provider_calls:1,max_output_tokens:PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS},
+      &signal,&mut |_|Ok(())));
+    let no_provider=next.unwrap_err();
+    assert_eq!(no_provider,super::super::types::SchedulerError::NoProvider);
+    assert_eq!(no_provider.code(),"provider_unavailable");
     handle.join().unwrap();fs::remove_dir_all(dir).unwrap();
   }
   #[test] fn parser_never_emits_thought_or_unknown_delta() {

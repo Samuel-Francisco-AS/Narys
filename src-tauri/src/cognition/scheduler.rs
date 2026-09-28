@@ -29,8 +29,8 @@ impl Scheduler {
     let output_limit = budget.max_output_tokens.min(request.max_output_tokens);
     let mut usage = SchedulerUsage::default();
     let mut last_error = None;
-    let candidates: Vec<_> = self.registry.eligible(&request.required_capabilities).into_iter()
-      .filter(|entry| !self.cooling(&entry.config.id)).collect();
+    let eligible = self.registry.eligible(&request.required_capabilities);
+    let candidates: Vec<_> = eligible.iter().copied().filter(|entry| !self.cooling(&entry.config.id)).collect();
     let mut used_any = false;
     for (index, entry) in candidates.iter().enumerate() {
       if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
@@ -102,6 +102,22 @@ impl Scheduler {
       }
     }
     if cancelled.load(Ordering::Acquire) { return Err(SchedulerError::Cancelled); }
-    if !used_any { Err(SchedulerError::NoProvider) } else { Err(SchedulerError::Provider(last_error.unwrap_or(ProviderError::Unavailable))) }
+    if !used_any {
+      #[cfg(debug_assertions)] {
+        if eligible.is_empty() {
+          eprintln!("[Scheduler][diag] no_provider reason=no_eligible_provider");
+        } else {
+          let now = Instant::now();
+          let cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
+          for entry in eligible {
+            let cooldown_ms = cooldowns.get(&entry.config.id).map(|until| until.saturating_duration_since(now).as_millis() as u64).unwrap_or(0);
+            // Provider IDs are configuration values; only print the known public ID.
+            let provider = if entry.config.id == "gemini" { "gemini" } else { "other" };
+            eprintln!("[Scheduler][diag] no_provider reason=cooldown provider={provider} cooldown_ms={cooldown_ms}");
+          }
+        }
+      }
+      Err(SchedulerError::NoProvider)
+    } else { Err(SchedulerError::Provider(last_error.unwrap_or(ProviderError::Unavailable))) }
   }
 }
