@@ -361,7 +361,7 @@ Nesta fase a Luna Voice pode usar o mesmo provider.
 
 ## Interlúdio UIP — interface de presença + performance
 
-**Estado:** em andamento desde 26/09/2026 após **LR-6 = PASS completo**. **UIP-0 → UIP-6 estão fechadas; UIP-7 é CANDIDATA ao gate humano final.** Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram adiados; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Essas limitações não bloqueiam isoladamente o gate. A sequência **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7. [Resultado técnico UIP-7](UIP-7-FINAL-PERFORMANCE.md).
+**Estado:** **FECHADO em 28/09/2026. UIP-0 → UIP-7 = PASS funcional.** Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram adiados; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Essas limitações não bloqueiam isoladamente o gate. A sequência **UIP-0 → UIP-7** transforma a casca M0-B em uma interface de presença desktop e estabelece orçamento real de renderização antes da LR-7. [Resultado técnico UIP-7](UIP-7-FINAL-PERFORMANCE.md).
 
 Princípios fechados:
 
@@ -706,7 +706,7 @@ Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáve
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo** e **UIP-0 → UIP-6 fechadas**, a etapa corrente é **UIP-7 — consolidação + segundo gate de performance**, conforme [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md). LR-7 permanece deliberadamente aguardando somente o fechamento da UIP-7 e será a próxima etapa funcional, com segundo provider real. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo** e **UIP-0 → UIP-7 encerradas em PASS funcional**, a etapa corrente passa a ser **LR-7 — segundo provider real + distribuição**. A implementação será retomada em uma nova sessão de conversa. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
@@ -736,4 +736,4 @@ O hardening introduz propagação terminal de falha do Channel (`channel_closed`
 
 **Atualização UIP-6C (28/09/2026):** UIP-6A/UIP-6B/UIP-6C e UIP-6 estão fechadas em PASS funcional. O Scheduler compartilha cooldown de Retry-After de 429 e 503 entre conversa e resumo. Summary é oportunista e aguarda a conclusão das conversas foreground antes de iniciar nova chamada. A dívida residual de Summary consumir disponibilidade Gemini antes da primeira mensagem manual permanece para LR-7/LR-8 ou rodada dedicada de estabilidade; LR-7 e LR-8 não começaram.
 
-**Atualização UIP-7 (28/09/2026):** segundo gate curto de performance e lifecycle concluído tecnicamente; [UIP-7 é CANDIDATA ao gate humano](UIP-7-FINAL-PERFORMANCE.md), sem alteração de features, avatar, SummaryWorker ou WindowController. Após aprovação de Sam, fechar UIP-0 → UIP-7 e iniciar LR-7 — segundo provider real. Groq e Mistral seguem candidatos, sem escolha nesta rodada.
+**Atualização UIP-7 (28/09/2026):** segundo gate curto de performance e lifecycle concluído e aprovado por Sam. [UIP-7 = PASS funcional / FECHADA](UIP-7-FINAL-PERFORMANCE.md); **UIP-0 → UIP-7 encerradas**. A próxima etapa funcional é **LR-7 — segundo provider real + distribuição**. Groq e Mistral seguem candidatos; a escolha será feita na nova sessão dedicada à LR-7.
