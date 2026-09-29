@@ -14,6 +14,8 @@ const MAX_MESSAGE_BYTES: usize = 64 * 1024;
 const MAX_PROBE_BYTES: usize = 256 * 1024;
 const MAX_STDERR_BYTES: usize = 4 * 1024;
 const MAX_NOTIFICATIONS: usize = 32;
+// Reserve one additional slot for the initialize response after the permitted notifications.
+const FRAME_CHANNEL_CAPACITY: usize = MAX_NOTIFICATIONS + 1;
 static NEXT_REQUEST_ID: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -65,7 +67,7 @@ impl CodexAppServerProcess {
         return Err(io::Error::other("app-server pipes unavailable"));
       }
     };
-    let (sender, receiver) = mpsc::sync_channel(8);
+    let (sender, receiver) = mpsc::sync_channel(FRAME_CHANNEL_CAPACITY);
     let stdout_reader = thread::spawn(move || read_frames(stdout, sender));
     let stderr_reader = thread::spawn(move || drain_stderr(stderr));
     Ok((Self { child, stdout_reader: Some(stdout_reader), stderr_reader: Some(stderr_reader) }, receiver))
@@ -81,21 +83,22 @@ impl CodexAppServerProcess {
   fn shutdown(&mut self) -> Result<(), CodexAppServerDiagnosticCode> {
     self.child.stdin.take(); // EOF is the app-server stdio transport shutdown.
     let deadline = Instant::now() + SHUTDOWN_TIMEOUT;
-    let mut clean = false;
+    let mut reaped = false;
     loop {
       match self.child.try_wait() {
-        Ok(Some(_)) => { clean = true; break; }
+        Ok(Some(_)) => { reaped = true; break; }
         Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(20)),
         _ => break,
       }
     }
-    if !clean {
+    if !reaped {
       let _ = self.child.kill();
-      self.child.wait().map_err(|_| CodexAppServerDiagnosticCode::CodexAppServerShutdownFailed)?;
+      reaped = self.child.wait().is_ok();
     }
-    if self.stdout_reader.take().is_some_and(|reader| reader.join().is_err()) { clean = false; }
-    if self.stderr_reader.take().is_some_and(|reader| reader.join().is_err()) { clean = false; }
-    if clean { Ok(()) } else { Err(CodexAppServerDiagnosticCode::CodexAppServerShutdownFailed) }
+    let stdout_joined = self.stdout_reader.take().map_or(true, |reader| reader.join().is_ok());
+    let stderr_joined = self.stderr_reader.take().map_or(true, |reader| reader.join().is_ok());
+    if reaped && stdout_joined && stderr_joined { Ok(()) }
+    else { Err(CodexAppServerDiagnosticCode::CodexAppServerShutdownFailed) }
   }
 }
 
@@ -256,6 +259,27 @@ mod tests {
     assert!(await_initialize(&receiver, 9, Instant::now() + Duration::from_secs(1)).unwrap().initialized);
     drop(sender);
     assert!(matches!(await_initialize(&receiver, 10, Instant::now() + Duration::from_secs(1)), Err(CodexAppServerDiagnosticCode::CodexAppServerClosed)));
+  }
+
+  fn queued_initialize_after_notifications(count: usize) -> Result<CodexAppServerProbe, CodexAppServerDiagnosticCode> {
+    let mut input = Vec::new();
+    for _ in 0..count { input.extend_from_slice(b"{\"method\":\"config/warning\",\"params\":{}}\n"); }
+    input.extend_from_slice(&response(77));
+    input.push(b'\n');
+    let (sender, receiver) = mpsc::sync_channel(FRAME_CHANNEL_CAPACITY);
+    // Produce the entire burst before consuming, exercising the bounded channel's capacity.
+    read_frames(&input[..], sender);
+    await_initialize(&receiver, 77, Instant::now() + Duration::from_secs(1))
+  }
+
+  #[test] fn maximum_notifications_then_response_succeeds() {
+    assert_eq!(FRAME_CHANNEL_CAPACITY, MAX_NOTIFICATIONS + 1);
+    assert!(queued_initialize_after_notifications(MAX_NOTIFICATIONS).unwrap().initialized);
+  }
+
+  #[test] fn notification_over_limit_is_protocol_error() {
+    assert!(matches!(queued_initialize_after_notifications(MAX_NOTIFICATIONS + 1),
+      Err(CodexAppServerDiagnosticCode::CodexAppServerProtocolError)));
   }
 
   #[test] fn framing_limits_message_and_probe() {

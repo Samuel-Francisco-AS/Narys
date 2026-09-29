@@ -58,9 +58,12 @@ help e no JSON Schema gerado pelo CLI local `0.158.0`; o código não fixa essa
 versão nem opta por `experimentalApi`.
 
 O probe é efêmero: fecha stdin após o handshake, aguarda saída por até 2 s e,
-se necessário, mata e recolhe o processo com `wait`. O prazo do handshake é
+se necessário, mata e recolhe o processo com `wait`. Ambos os caminhos são
+cleanup bem-sucedido quando o processo é recolhido e os readers são joined.
+O prazo do handshake é
 8 s. Leitura incremental de stdout limita cada linha a 64 KiB e todo o probe
-a 256 KiB, com canal de 8 mensagens; stderr é drenado em paralelo com retenção
+a 256 KiB, com canal de 33 mensagens (32 notificações permitidas mais a
+resposta `initialize`); stderr é drenado em paralelo com retenção
 máxima de 4 KiB. Stderr nunca é interpretado como protocolo, logado ou enviado
 à UI. Erros de parse, EOF, timeout, ID divergente e rejeição encerram o
 processo antes de retornar.
