@@ -21,6 +21,7 @@ Documentos principais:
 - [Segurança LR-3](docs/SECURITY.md)
 - [Identidade e memória LR-4](docs/MEMORY-IDENTITY.md)
 - [Runtime cognitivo LR-5](docs/COGNITION-RUNTIME.md)
+- [Bridge de runtime Codex LR-7D0.5](docs/LR-7D05-CODEX-AGENT-BRIDGE.md)
 
 **Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. **UIP-0 → UIP-7 estão fechadas em PASS funcional; a trilha UIP está oficialmente encerrada.** **LR-7A/FIX, LR-7B, LR-7C e LR-7D0 estão fechadas em PASS**, com Gemini e Groq reais, fallback/overflow validados e seleção de provider configurável por papel. Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram como limitações adiadas; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md), [gate UIP-7](docs/UIP-7-FINAL-PERFORMANCE.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
 
@@ -128,3 +129,11 @@ A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode 
 ### LR-7D — papéis cognitivos e roteamento configurável
 
 **LR-7D0 fechada em PASS completo em 29/09/2026.** Gemini e Groq agora podem ser escolhidos por configuração como providers de Conversation, com primary/fallback invertíveis, e Summary Fixed pode usar qualquer um dos dois; timeouts são independentes e as escolhas persistem após restart. Próximas etapas: Orchestrator/Planner configurável, fallback chain/Auto/affinity e task graph mínimo. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
+
+### LR-7D0.5A — descoberta segura do Codex
+
+**PASS completo em 29/09/2026.** O Luna Core pode observar `codex --version` e
+`codex login status` com timeout, sem ler ou expor credenciais. Codex permanece
+fora do contrato `CognitiveProvider`; app-server e a arquitetura
+`AgentBackend` começam somente nos checkpoints D0.5B+. Veja [a especificação
+D0.5](docs/LR-7D05-CODEX-AGENT-BRIDGE.md).

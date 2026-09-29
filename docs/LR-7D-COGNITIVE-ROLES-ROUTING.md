@@ -3,6 +3,13 @@
 Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1/D2/D3 planejadas.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
+### D0.5 — fronteira futura de agentes
+
+A mini-trilha D0.5 começa após o fechamento da D0 e mantém Codex separado dos
+Cognitive Providers. **D0.5A foi fechada em PASS completo em 29/09/2026** e detecta
+somente o runtime e o estado seguro de autenticação; app-server, `AgentBackend` e planner
+ficam para D0.5B+. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
+
 ## Princípio central
 
 A Luna não possui uma "LLM principal" fixa.
