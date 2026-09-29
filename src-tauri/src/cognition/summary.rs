@@ -139,7 +139,14 @@ impl SummaryWorker {
             .open()
             .and_then(|conn| policy::load(&conn, CognitiveRole::Summary))
         {
-            Ok(policy) => policy,
+            Ok(policy) => {
+                if policy.validate().is_err() {
+                    eprintln!("[Summary] policy code=invalid");
+                    self.defer_claim(claimed.id);
+                    return ProcessOutcome::Transient;
+                }
+                policy
+            },
             Err(_) => {
                 eprintln!("[Summary] policy code=read_failed");
                 self.defer_claim(claimed.id);
