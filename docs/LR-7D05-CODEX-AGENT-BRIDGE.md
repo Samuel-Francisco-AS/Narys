@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A e D0.5B — PASS completo e integradas à `main` em 29/09/2026. D0.5C — `AgentBackend` + registry genérico — é o próximo checkpoint.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A e D0.5B — PASS completo e integradas à `main` em 29/09/2026. D0.5C — PASS técnico após auditoria independente; pronta para integração.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -8,8 +8,8 @@ segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 Gemini e Groq continuam sendo `CognitiveProvider`s para Conversation e Summary.
 Codex é um **AgentBackend futuro** porque sua integração prevista é orientada a
 agente/app-server, threads, turns, ferramentas e aprovações, e não a uma chamada
-cognitiva intercambiável. Nenhuma abstração `AgentBackend` ou registry de agentes
-é criada em D0.5A.
+cognitiva intercambiável. D0.5C cria somente a abstração genérica; nenhum
+backend agentivo real é registrado ou executado nesta etapa.
 
 ## Checkpoints
 
@@ -84,13 +84,44 @@ Os testes automatizados usam mensagens e streams simulados, sem exigir Codex,
 conta, rede ou quota. Um teste marcado `ignored` permite validar manualmente
 o handshake local sem inferência.
 
-## Explicitamente não implementado em D0.5A
+## D0.5C — PASS técnico
 
-Não há login/logout, token ou API key na UI; seleção de modelo; app-server,
-JSON-RPC/JSONL, threads, turns, streaming de eventos, planner, sandbox,
-aprovações, tool calling, MCP, execução de tarefas, leitura/escrita de
-repositório, `AgentBackend`, `AgentRegistry`, novo provider ou alterações em
-Gemini/Groq, Conversation e Summary.
+D0.5C cria a fundação genérica para runtimes agentivos sem antecipar uma
+operação concreta. `CognitiveProvider` continua sendo a família de inferência
+de texto/stream, com Scheduler, retry, fallback e cooldown próprios. `AgentBackend`
+é uma família separada para runtimes com futuro lifecycle de threads/turns,
+ferramentas, filesystem, comandos, approvals, eventos e cancelamento. Portanto,
+`AgentBackend` não implementa `Provider`, `AgentConfig` não reutiliza
+`ProviderConfig` e `AgentRegistry` não reutiliza `ProviderRegistry`.
+
+O `AgentRegistry` mantém `AgentEntry` com `AgentConfig` e
+`Arc<dyn AgentBackend>`. O registro rejeita IDs duplicados; `eligible` exclui
+entradas desabilitadas e exige todas as capabilities solicitadas. A seleção é
+determinística por menor `priority` e, em empate, por ID. As capabilities
+iniciais são `planning`, `repository_read`, `file_write`, `command_execution`,
+`tool_use` e `structured_output`.
+
+O contrato usa um future boxed para permanecer object-safe, `Send + Sync`, sem
+`async-trait`. `AgentRequest` contém somente um objetivo e capabilities
+necessárias; `AgentResult`, `AgentEvent` e um enum fechado `AgentError` são
+deliberadamente pequenos. A flag `AtomicBool` e o event sink já aparecem na
+assinatura como preparação estrutural, mas esta etapa não implementa
+cancelamento remoto, lifecycle ou observabilidade real.
+
+`MockAgentBackend` existe apenas em `#[cfg(test)]` para validar registro,
+seleção, execução por trait object, cancelamento pré-marcado e propagação de
+falha do sink. Não há mock em produção, exposição na UI ou gate humano nesta
+etapa. Codex ainda não implementa `AgentBackend`; D0.5D será a primeira
+integração concreta, com Planner read-only e `PlanV1`.
+
+## Explicitamente não implementado até D0.5C
+
+A ponte diagnóstica de app-server/stdio já existe desde D0.5B, mas ainda não há
+backend agentivo real sobre ela. Não há login/logout, token ou API key na UI;
+seleção de modelo; threads/turns; streaming agentivo de eventos; planner;
+sandbox; aprovações; tool calling; MCP; execução de tarefas; leitura/escrita
+real de repositório; `CodexAgentBackend`; `PlanV1`; novo provider; nem
+alterações em Gemini/Groq, Conversation ou Summary.
 
 ## Auditoria independente da Luna — 29/09/2026
 
@@ -111,6 +142,33 @@ A revisão remota confirmou que:
 Os gates locais foram executados pelo Copilot e reportados como PASS, com 104 testes Rust. A auditoria da Luna foi revisão independente do código remoto, não uma segunda execução local desses comandos.
 
 O gate humano foi concluído em 29/09/2026 com o runtime Codex real: a UI detectou `codex-cli 0.158.0`, autenticação `ChatGPT` e estado disponível; refresh manual e restart preservaram o diagnóstico correto. A referência externa `codex --version` / `codex login status` coincidiu com o estado mostrado pelo aplicativo.
+
+## Auditoria independente da Luna — D0.5C — 29/09/2026
+
+**PASS técnico. Não há gate humano nesta etapa.**
+
+A revisão independente do código remoto confirmou que:
+
+- `AgentBackend` é um contrato próprio, object-safe, `Send + Sync`, com future boxed e sem `async-trait`;
+- `AgentBackendId`, `AgentCapabilities`, `AgentConfig`, `AgentRequest`, `AgentResult`, `AgentEvent` e `AgentError` são tipos próprios do domínio agentivo;
+- `AgentRegistry` é independente de `ProviderRegistry` e não importa a família `cognition`;
+- IDs duplicados são rejeitados; entradas desabilitadas e capabilities incompatíveis ficam fora de `eligible`;
+- múltiplas capabilities requeridas precisam ser atendidas em conjunto;
+- a ordenação é determinística por menor prioridade e depois ID;
+- cancelamento por `AtomicBool` e event sink aparecem apenas como preparação estrutural do contrato;
+- `MockAgentBackend` existe somente sob `#[cfg(test)]`;
+- nenhum backend Codex real, composition state, UI, Tauri Channel, TaskRegistry ou integração com Scheduler foi criado;
+- a ponte Codex D0.5B permaneceu intacta;
+- D0.5D continua sendo a primeira integração concreta, com Planner read-only e `PlanV1`.
+
+Os gates foram executados pelo Copilot e reportados como PASS: typecheck, build,
+`cargo check`, **122 testes Rust PASS + 1 manual ignored**, release e
+`git diff --check`. A auditoria da Luna foi revisão independente do código
+remoto, não uma segunda execução local desses comandos.
+
+Como D0.5C adiciona apenas infraestrutura interna sem comportamento de produto
+observável, não há gate humano artificial. O checkpoint está pronto para
+integração após esta auditoria.
 
 ## Auditoria independente da Luna — D0.5B — 29/09/2026
 
@@ -141,4 +199,4 @@ O gate humano foi concluído: detecção, versão, autenticação ChatGPT, refre
 
 ## Fechamento de integração da D0.5B — 29/09/2026
 
-A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf4ef590a22c97ab`. A D0.5B está oficialmente encerrada em PASS completo. O próximo checkpoint da mini-trilha é **D0.5C — contrato `AgentBackend` + registry genérico**, mantendo Codex separado dos `CognitiveProvider`s.
+A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf4ef590a22c97ab`. A D0.5B está oficialmente encerrada em PASS completo. D0.5C é uma candidata à auditoria técnica, mantendo Codex separado dos `CognitiveProvider`s; D0.5D será a primeira integração real.
