@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A e D0.5B — PASS completo e integradas à `main` em 29/09/2026. D0.5C — `AgentBackend` + registry genérico — é o próximo checkpoint.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A e D0.5B — PASS completo e integradas à `main` em 29/09/2026. D0.5C — candidata à auditoria técnica.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -8,8 +8,8 @@ segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 Gemini e Groq continuam sendo `CognitiveProvider`s para Conversation e Summary.
 Codex é um **AgentBackend futuro** porque sua integração prevista é orientada a
 agente/app-server, threads, turns, ferramentas e aprovações, e não a uma chamada
-cognitiva intercambiável. Nenhuma abstração `AgentBackend` ou registry de agentes
-é criada em D0.5A.
+cognitiva intercambiável. D0.5C cria somente a abstração genérica; nenhum
+backend agentivo real é registrado ou executado nesta etapa.
 
 ## Checkpoints
 
@@ -84,13 +84,43 @@ Os testes automatizados usam mensagens e streams simulados, sem exigir Codex,
 conta, rede ou quota. Um teste marcado `ignored` permite validar manualmente
 o handshake local sem inferência.
 
-## Explicitamente não implementado em D0.5A
+## D0.5C — candidata técnica à auditoria
+
+D0.5C cria a fundação genérica para runtimes agentivos sem antecipar uma
+operação concreta. `CognitiveProvider` continua sendo a família de inferência
+de texto/stream, com Scheduler, retry, fallback e cooldown próprios. `AgentBackend`
+é uma família separada para runtimes com futuro lifecycle de threads/turns,
+ferramentas, filesystem, comandos, approvals, eventos e cancelamento. Portanto,
+`AgentBackend` não implementa `Provider`, `AgentConfig` não reutiliza
+`ProviderConfig` e `AgentRegistry` não reutiliza `ProviderRegistry`.
+
+O `AgentRegistry` mantém `AgentEntry` com `AgentConfig` e
+`Arc<dyn AgentBackend>`. O registro rejeita IDs duplicados; `eligible` exclui
+entradas desabilitadas e exige todas as capabilities solicitadas. A seleção é
+determinística por menor `priority` e, em empate, por ID. As capabilities
+iniciais são `planning`, `repository_read`, `file_write`, `command_execution`,
+`tool_use` e `structured_output`.
+
+O contrato usa um future boxed para permanecer object-safe, `Send + Sync`, sem
+`async-trait`. `AgentRequest` contém somente um objetivo e capabilities
+necessárias; `AgentResult`, `AgentEvent` e um enum fechado `AgentError` são
+deliberadamente pequenos. A flag `AtomicBool` e o event sink já aparecem na
+assinatura como preparação estrutural, mas esta etapa não implementa
+cancelamento remoto, lifecycle ou observabilidade real.
+
+`MockAgentBackend` existe apenas em `#[cfg(test)]` para validar registro,
+seleção, execução por trait object, cancelamento pré-marcado e propagação de
+falha do sink. Não há mock em produção, exposição na UI ou gate humano nesta
+etapa. Codex ainda não implementa `AgentBackend`; D0.5D será a primeira
+integração concreta, com Planner read-only e `PlanV1`.
+
+## Explicitamente não implementado em D0.5A-C
 
 Não há login/logout, token ou API key na UI; seleção de modelo; app-server,
 JSON-RPC/JSONL, threads, turns, streaming de eventos, planner, sandbox,
 aprovações, tool calling, MCP, execução de tarefas, leitura/escrita de
-repositório, `AgentBackend`, `AgentRegistry`, novo provider ou alterações em
-Gemini/Groq, Conversation e Summary.
+repositório, `CodexAgentBackend`, Planner, PlanV1, thread/turn, novo provider ou
+alterações em Gemini/Groq, Conversation e Summary.
 
 ## Auditoria independente da Luna — 29/09/2026
 
@@ -141,4 +171,4 @@ O gate humano foi concluído: detecção, versão, autenticação ChatGPT, refre
 
 ## Fechamento de integração da D0.5B — 29/09/2026
 
-A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf4ef590a22c97ab`. A D0.5B está oficialmente encerrada em PASS completo. O próximo checkpoint da mini-trilha é **D0.5C — contrato `AgentBackend` + registry genérico**, mantendo Codex separado dos `CognitiveProvider`s.
+A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf4ef590a22c97ab`. A D0.5B está oficialmente encerrada em PASS completo. D0.5C é uma candidata à auditoria técnica, mantendo Codex separado dos `CognitiveProvider`s; D0.5D será a primeira integração real.
