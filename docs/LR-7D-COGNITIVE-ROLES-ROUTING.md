@@ -1,6 +1,6 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 candidata à auditoria/gate; LR-7D1/D2/D3 planejadas.**
+Estado: **LR-7D0 — auditoria remota independente PASS; gate humano pendente. LR-7D1/D2/D3 planejadas.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ## Princípio central
@@ -47,6 +47,30 @@ Dívida intencional deixada pela LR-7C:
 - `get_ai_settings` oferece metadados seguros derivados dos providers registrados. A UI usa esses dados para as opções, capabilities, thinking e disponibilidade. Credenciais seguem separadas no Stronghold e só o indicador `configured` é exposto.
 - A migration 007 adiciona `provider_timeout_settings`, copia o timeout Gemini existente e semeia Groq com os defaults já usados pelo adapter (45 s request, 15 s idle). A tabela Gemini antiga é preservada para upgrade não destrutivo.
 - A mudança não ativa novos providers, Orchestrator, fallback chain, Auto, task graph nem o Rate Limit Manager da LR-8. A aprovação depende da auditoria independente e do gate humano.
+
+### Auditoria independente da Luna — 29/09/2026
+
+**PASS para gate humano; ainda não é PASS final da LR-7D0.**
+
+A revisão remota confirmou:
+- `main` permaneceu em `a427586c4c5027cdf6e4f92b230a6de44f6035f9`; a candidata está isolada em `lr-7d0-provider-neutral-routing`;
+- a policy persistida valida estrutura sem assumir Gemini/Groq;
+- catálogo/Registry/settings fazem a validação concreta de provider, capability, thinking e credencial;
+- Conversation constrói targets/timeouts por `provider_id` e cobre as duas ordens de Preferred;
+- Summary permanece Fixed, mas aceita Gemini ou Groq;
+- a UI de roteamento deriva providers do backend e remove Gemini/Groq da semântica genérica;
+- migration 007 copia os timeouts Gemini existentes, cria defaults Groq equivalentes aos defaults já usados pelo adapter e preserva policies no upgrade v6 → v7;
+- testes cobrem reopen e isolamento de timeouts;
+- permissions/capabilities do novo comando de timeout seguem restritas à janela de IA;
+- LR-7D1/D2/D3 e LR-8 não foram antecipadas.
+
+Os gates `typecheck/build/cargo check/cargo test 96/96/release/diff check` foram executados pelo Codex e reportados como PASS; a auditoria da Luna foi uma revisão independente do código remoto, não uma segunda execução local desses comandos.
+
+Observações não bloqueantes:
+1. o catálogo de integração atual associa cada provider a um `SecretKey`; isso atende Gemini/Groq, mas futuros providers OAuth/local poderão exigir abstração de autenticação mais ampla;
+2. Gemini não anuncia `defaultModel` no catálogo. A configuração persistida atual é preservada e a troca Gemini ↔ Groq funciona, mas após reinício com Gemini totalmente fora dos targets ativos a UI pode exigir que o usuário informe novamente o model ao reativá-lo.
+
+O fechamento depende do gate humano descrito abaixo.
 
 ### Objetivo
 
