@@ -53,6 +53,26 @@ aprovações, tool calling, MCP, execução de tarefas, leitura/escrita de
 repositório, `AgentBackend`, `AgentRegistry`, novo provider ou alterações em
 Gemini/Groq, Conversation e Summary.
 
+## Auditoria independente da Luna — 29/09/2026
+
+**PASS para gate humano; D0.5A ainda não é PASS final.**
+
+A revisão remota confirmou que:
+
+- Codex permanece fora de `CognitiveProvider`, `ProviderRegistry` e `Scheduler`;
+- o comando usa execução direta de `codex --version` e `codex login status`, sem shell intermediário;
+- nenhum arquivo/token de autenticação é lido ou exposto ao frontend;
+- autenticação positiva só é aceita quando `codex login status` termina com sucesso; falhas terminam fechadas;
+- stdout/stderr são drenados em paralelo, com retenção máxima de 16 KiB por stream e descarte do excedente;
+- timeout de 5 s encerra e recolhe o processo;
+- o comando Tauri é somente leitura e restrito à capability `settings-ai`;
+- a FIX posterior à primeira auditoria alterou somente a captura/classificação de status e esta documentação;
+- nenhuma etapa D0.5B+ foi antecipada.
+
+Os gates locais foram executados pelo Copilot e reportados como PASS, com 104 testes Rust. A auditoria da Luna foi revisão independente do código remoto, não uma segunda execução local desses comandos.
+
+O fechamento depende do gate humano com o runtime Codex real.
+
 ## Gates
 
 O gate técnico desta candidata é `npm run typecheck`, `npm run build`,
