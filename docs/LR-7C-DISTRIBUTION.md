@@ -1,6 +1,6 @@
 # LR-7C — distribuição real Gemini ↔ Groq
 
-Estado: **CANDIDATA ao gate técnico e humano.**
+Estado: **PASS técnico; gate humano pendente.**
 
 A LR-7C ativa a primeira rota real multi-provider do produto sem antecipar o Rate Limit Manager da LR-8.
 
@@ -72,18 +72,17 @@ A conversa mostra seleção, fallback e provider final reais. Não há mensagem 
 
 O comando de produto foi generalizado de `start_gemini_task` para `start_conversation_task`, e novos históricos de tarefa usam kind `conversation`.
 
-## Gate técnico pendente
+## Gate técnico — PASS
 
-Executar:
+Validado em 28/09/2026 no Fedora:
 
-```bash
-npm run typecheck
-npm run build
-cargo check --manifest-path src-tauri/Cargo.toml
-cargo test --manifest-path src-tauri/Cargo.toml
-cargo check --release --manifest-path src-tauri/Cargo.toml
-git diff --check origin/main...HEAD
-```
+- `npm run typecheck`: PASS;
+- `npm run build`: PASS, mantendo apenas o warning conhecido de chunk acima de 500 kB;
+- `cargo check --manifest-path src-tauri/Cargo.toml`: PASS;
+- `cargo test --manifest-path src-tauri/Cargo.toml`: **90/90 PASS**;
+- `cargo check --release --manifest-path src-tauri/Cargo.toml`: PASS;
+- `git diff --check origin/main...HEAD`: PASS;
+- `git status`: worktree clean.
 
 ## Gate humano pendente
 
