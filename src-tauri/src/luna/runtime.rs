@@ -191,7 +191,7 @@ pub fn start_gemini(registry: Arc<TaskRegistry>, db: Database, runtime: Arc<Prov
           SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
           SchedulerEvent::Chunk { provider_id, text } => TaskEventKind::ProviderChunk { provider_id, chunk: text },
           SchedulerEvent::Retry { provider_id, reason_code } => TaskEventKind::ProviderRetry { provider_id, reason_code: reason_code.into() },
-          SchedulerEvent::Fallback { from, reason_code } => TaskEventKind::ProviderFallback { provider_id: from, reason_code: reason_code.into() },
+          SchedulerEvent::Fallback { from, to, reason_code } => TaskEventKind::ProviderFallback { from_provider_id: from, to_provider_id: to, reason_code: reason_code.into() },
         };
         emit_cognitive(&channel,id,&mut sequence,kind,&cancelled).map_err(|_| SchedulerError::EventSinkClosed)
       }).await.map_err(|e| e.code())?;
@@ -346,7 +346,7 @@ pub fn start_cognition(registry: Arc<TaskRegistry>, db: Database, cognition: Arc
             SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
             SchedulerEvent::Chunk { provider_id, text } => TaskEventKind::ProviderChunk { provider_id, chunk: text },
             SchedulerEvent::Retry { provider_id, reason_code } => TaskEventKind::ProviderRetry { provider_id, reason_code: reason_code.into() },
-            SchedulerEvent::Fallback { from, reason_code } => TaskEventKind::ProviderFallback { provider_id: from, reason_code: reason_code.into() },
+            SchedulerEvent::Fallback { from, to, reason_code } => TaskEventKind::ProviderFallback { from_provider_id: from, to_provider_id: to, reason_code: reason_code.into() },
           };
           emit_cognitive(&channel, id, &mut sequence, kind, &cancelled).map_err(|_| SchedulerError::EventSinkClosed)
         }).await.map_err(|e| e.code()) }
