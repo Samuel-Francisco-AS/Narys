@@ -79,24 +79,28 @@ fn provider_configured(store: &SecretStore, provider_id: &str) -> bool {
 }
 
 #[tauri::command]
-pub fn conversation_routing_status(db: State<'_, Database>, runtime: State<'_, Arc<ProviderRuntime>>,
+pub async fn conversation_routing_status(db: State<'_, Database>, runtime: State<'_, Arc<ProviderRuntime>>,
   store: State<'_, Arc<SecretStore>>) -> Result<ConversationRoutingStatus, String> {
-  let conn = db.open().map_err(|e| e.code())?;
-  let policy = policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?;
-  policy.validate().map_err(str::to_owned)?;
+  let db = db.inner().clone();
+  let store = store.inner().clone();
   let statuses = runtime.scheduler.status();
-  let state = |provider_id: &str| ConversationProviderState {
-    provider_id: provider_id.to_owned(),
-    configured: provider_configured(store.inner().as_ref(), provider_id),
-    cooldown_ms: statuses.iter().find(|status| status.id == provider_id).map(|status| status.cooldown_ms).unwrap_or(0),
-  };
-  Ok(ConversationRoutingStatus {
-    routing_mode: policy.routing_mode,
-    primary: state(&policy.provider_id),
-    fallback: if policy.routing_mode == RoutingMode::Preferred {
-      policy.fallback_provider_id.as_deref().map(state)
-    } else { None },
-  })
+  tauri::async_runtime::spawn_blocking(move || {
+    let conn = db.open().map_err(|e| e.code().to_owned())?;
+    let policy = policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code().to_owned())?;
+    policy.validate().map_err(str::to_owned)?;
+    let state = |provider_id: &str| ConversationProviderState {
+      provider_id: provider_id.to_owned(),
+      configured: provider_configured(store.as_ref(), provider_id),
+      cooldown_ms: statuses.iter().find(|status| status.id == provider_id).map(|status| status.cooldown_ms).unwrap_or(0),
+    };
+    Ok(ConversationRoutingStatus {
+      routing_mode: policy.routing_mode,
+      primary: state(&policy.provider_id),
+      fallback: if policy.routing_mode == RoutingMode::Preferred {
+        policy.fallback_provider_id.as_deref().map(state)
+      } else { None },
+    })
+  }).await.map_err(|_| "worker_failed".to_owned())?
 }
 
 #[tauri::command]
