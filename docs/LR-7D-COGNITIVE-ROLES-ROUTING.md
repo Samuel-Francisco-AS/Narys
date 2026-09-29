@@ -1,6 +1,6 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 — PASS técnico + auditoria independente + gate humano. Pronta para integração. LR-7D1/D2/D3 planejadas.**
+Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1/D2/D3 planejadas.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ## Princípio central
@@ -53,7 +53,7 @@ Dívida intencional deixada pela LR-7C:
 **PASS da auditoria independente. O gate humano foi concluído posteriormente com sucesso.**
 
 A revisão remota confirmou:
-- `main` permaneceu em `a427586c4c5027cdf6e4f92b230a6de44f6035f9`; a candidata está isolada em `lr-7d0-provider-neutral-routing`;
+- durante a auditoria, `main` permaneceu em `a427586c4c5027cdf6e4f92b230a6de44f6035f9` e a candidata ficou isolada em `lr-7d0-provider-neutral-routing`; após os gates, a PR #3 foi integrada por squash;
 - a policy persistida valida estrutura sem assumir Gemini/Groq;
 - catálogo/Registry/settings fazem a validação concreta de provider, capability, thinking e credencial;
 - Conversation constrói targets/timeouts por `provider_id` e cobre as duas ordens de Preferred;
