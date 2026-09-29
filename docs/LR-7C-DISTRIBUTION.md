@@ -1,6 +1,6 @@
 # LR-7C — distribuição real Gemini ↔ Groq
 
-Estado: **PASS técnico revalidado; fallback real observado; reteste humano de grounding pendente.**
+Estado: **PASS técnico + PASS humano. LR-7C pronta para integração.**
 
 A LR-7C ativa a primeira rota real multi-provider do produto sem antecipar o Rate Limit Manager da LR-8.
 
@@ -130,3 +130,29 @@ Após adicionar metadado técnico de execução atual aos adapters Gemini e Groq
 - `git status`: worktree clean.
 
 Permanece apenas o reteste humano para confirmar que a resposta textual do provider atual fica coerente com a rota operacional observada.
+
+
+## Reteste humano de grounding — PASS
+
+Após restart e com a policy `Preferred(Gemini)` persistida, Gemini já estava em cooldown. O preflight permitiu a tarefa e o Scheduler selecionou Groq diretamente.
+
+Evidência observada:
+- UI: `Resposta concluída por Groq · rota Groq`;
+- resposta textual: identificou corretamente o provider atual como **Groq**;
+- resposta textual: identificou corretamente o modelo atual como `openai/gpt-oss-20b`.
+
+Isso confirma que o metadado técnico de execução atual corrige a inferência errada anterior sem alterar a identidade da Luna.
+
+### Fechamento do gate LR-7C
+
+Os cenários reais essenciais foram observados:
+- `Preferred` com Gemini saudável: uma única chamada Gemini;
+- mesma sessão, nova tarefa: Gemini HTTP 429 antes do primeiro chunk → fallback real → Groq conclui;
+- Gemini já em cooldown: Groq selecionado diretamente;
+- policy persistiu após restart;
+- Summary permaneceu `Fixed(gemini)`;
+- provider/modelo atuais agora são corretamente grounded na resposta textual.
+
+O comportamento de **não fazer fallback após o primeiro chunk** permanece coberto por teste automatizado e não foi induzido manualmente contra providers reais.
+
+**LR-7C = PASS completo.**
