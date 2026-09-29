@@ -1,15 +1,15 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — CodexAgentBackend real + Planner read-only + PlanV1 — é o próximo checkpoint.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS técnico, auditoria independente e gate humano concluídos; pronta para integração pela PR #7. Próximo checkpoint: D0.5E — cancelamento, recovery e eventos reais.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
 
 Gemini e Groq continuam sendo `CognitiveProvider`s para Conversation e Summary.
-Codex é um **AgentBackend futuro** porque sua integração prevista é orientada a
+Codex pertence à família **AgentBackend** porque sua integração é orientada a
 agente/app-server, threads, turns, ferramentas e aprovações, e não a uma chamada
-cognitiva intercambiável. D0.5C cria somente a abstração genérica; nenhum
-backend agentivo real é registrado ou executado nesta etapa.
+cognitiva intercambiável. D0.5C criou a abstração genérica; D0.5D adicionou o primeiro
+backend agentivo real, restrito a planejamento read-only estruturado.
 
 ## Checkpoints
 
@@ -290,3 +290,12 @@ A compatibilidade foi conferida na [fonte de métodos da tag rust-v0.158.0](http
 Integração manual separada, expressamente autorizada nesta rodada, executou o mesmo objetivo e o mesmo isolamento no runtime local 0.159.0: **PASS**, 721 frames e 217592 wire bytes agregados; PlanV1 válido e cleanup concluído. O git status permaneceu igual antes/depois da chamada e nenhum `codex app-server --stdio` residual foi encontrado. Nenhum payload real, resposta do modelo, ID, path privado, autenticação ou mensagem bruta foi registrado. A instrumentação temporária e o teste real temporário foram removidos antes dos gates finais; testes automáticos continuam sem inferência/quota.
 
 Nove testes novos cobrem regressões de contagem/rajada, 2048 notificações antes de uma resposta RPC, budget de frames e reader sem consumidor drenando, budgets individual/total, EOF/read error/JSON inválido, request do servidor versus response inesperada, 3000 deltas benignos seguidos de PlanV1 válido e cleanup, e falhas no wire com cleanup sem responder à request. Os testes novos usam buffers em memória, sem alterar arquivos ou repositório. D0.5D continua candidata ao gate humano; o próximo teste humano só ocorre depois de auditoria independente deste commit.
+
+
+## Fechamento humano da D0.5D — 29/09/2026
+
+**PASS completo.** Após a correção do transporte de streaming, o gate humano repetiu o objetivo **“Planeje como investigar e corrigir um botão de uma aplicação Tauri que não responde ao clique. Não execute nenhuma alteração.”**. A UI retornou um `PlanV1` válido e coerente com sete passos encadeados, riscos explícitos, nenhuma pergunta obrigatória e capabilities apenas declarativas para execução futura. Nenhum comando ou alteração foi executado pelo Planner.
+
+A validação pós-turno confirmou cleanup e ausência de efeito sobre o checkout: `git status --short` retornou vazio e `pgrep -af 'codex app-server --stdio'` também retornou vazio. Assim, isolamento, inferência estruturada, validação de `PlanV1` e cleanup passaram no runtime real.
+
+A auditoria independente do commit `ecd92032ff20004cd6791b1118d1b74fa9880955` aprovou a correção do streaming: o limite artificial de 256 mensagens e a perda de frames por `try_send` foram removidos do Planner, mantendo limites explícitos de 64 KiB por mensagem, 512 KiB por sessão e 8192 frames. Requests do servidor continuam fail-closed e não recebem resposta. D0.5D está encerrada em **PASS completo** e a PR #7 está pronta para integração por squash na `main`. O próximo checkpoint é **D0.5E — cancelamento, recovery e eventos reais**.
