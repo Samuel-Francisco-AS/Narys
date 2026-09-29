@@ -1,6 +1,6 @@
 # LR-7C — distribuição real Gemini ↔ Groq
 
-Estado: **PASS técnico + PASS humano. LR-7C pronta para integração.**
+Estado: **PASS técnico + PASS humano. LR-7C integrada à `main` em 28/09/2026.**
 
 A LR-7C ativa a primeira rota real multi-provider do produto sem antecipar o Rate Limit Manager da LR-8.
 
