@@ -392,6 +392,8 @@ Plano detalhado: [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md).
 
 **LR-7B — segundo provider real (28/09/2026): PASS completo.** Groq foi registrado no Registry real como provider `groq`, prioridade 2, com `openai/gpt-oss-20b`, credencial própria no Stronghold, streaming SSE, usage real, reasoning oculto, mapping de 429/Retry-After e diagnóstico isolado `Fixed(groq)`. O gate técnico passou com typecheck/build, cargo check, **89/89 testes**, cargo check release e diff check. No gate humano, a chamada real Groq respondeu por streaming com 126 tokens de entrada, 22 de saída e 148 total; a credencial permaneceu configurada após restart. Conversation e Summary continuaram `Fixed(gemini)`. Um HTTP 429 real do Gemini confirmou que o Scheduler respeita `Fixed` e não desvia silenciosamente para Groq. A distribuição/fallback real Gemini ↔ Groq fica para **LR-7C**.
 
+**LR-7C — distribuição real (28/09/2026): CANDIDATA ao gate.** A Conversa ganha policy persistida `Fixed` ou `Preferred`; em `Preferred`, Gemini é o primário e Groq o fallback explícito com model/thinking próprios. A migration 006 preserva `Fixed` por padrão. O preflight passa a consultar a rota real e não bloqueia envio quando Gemini está em cooldown mas Groq está elegível. Eventos de fallback registram origem, destino e motivo reais. Summary permanece `Fixed(gemini)`; Auto, affinity, task graph, paralelismo e Rate Limit Manager completo continuam fora desta rodada. Veja [LR-7C-DISTRIBUTION.md](LR-7C-DISTRIBUTION.md).
+
 **Segundo provider escolhido:** Groq (LR-7B).
 
 Essa fase prova que a arquitetura é de verdade multi-provider.
