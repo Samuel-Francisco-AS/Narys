@@ -114,7 +114,7 @@ O gate humano foi concluído em 29/09/2026 com o runtime Codex real: a UI detect
 
 ## Auditoria independente da Luna — D0.5B — 29/09/2026
 
-**PASS para gate humano; D0.5B ainda não é PASS final.**
+**PASS da auditoria independente e do gate humano. D0.5B = PASS completo.**
 
 A revisão remota confirmou que:
 
@@ -131,7 +131,7 @@ A revisão remota confirmou que:
 
 Os gates locais foram executados pelo Codex e reportados como PASS, com 113 testes Rust no total (112 PASS + 1 teste manual ignorado). O teste manual real de handshake também foi reportado como PASS, sem processo remanescente. A auditoria da Luna foi revisão independente do código remoto, não uma segunda execução local desses comandos.
 
-O fechamento depende do gate humano pelo botão **Testar app-server** e da confirmação de que não resta processo `codex app-server` após o probe.
+O gate humano foi concluído em 29/09/2026: três probes consecutivos pela UI retornaram `conectado` / `Linux`, e após cada execução `pgrep -af 'codex app-server --stdio'` não encontrou processo remanescente. Os processos persistentes `--managed-daemon` / `pid-update-loop` já existiam antes do gate e pertencem ao runtime gerenciado do próprio Codex; a ponte D0.5B cria e encerra apenas o subprocesso efêmero `--stdio`.
 
 ## Gates
 
