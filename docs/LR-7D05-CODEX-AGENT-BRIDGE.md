@@ -225,6 +225,18 @@ O handshake e cada request preparatória têm limite de 8 s; o turno tem 60 s; s
 
 Cancelamento remoto, `turn/interrupt`, observabilidade de progresso, eventos reais, persistência e recuperação ficam para D0.5E+. O Planner atual apenas rejeita cancelamento já marcado antes do início.
 
+## Auditoria independente da Luna — D0.5D permission-profile FIX — 29/09/2026
+
+**PASS técnico.**
+
+A revisão remota confirmou que `activePermissionProfile` deixou de ser tratado como autoridade de segurança e passou a ser apenas provenance opcional. O gate efetivo continua baseado em sandbox `readOnly`, ausência de network access, `approvalPolicy=never`, cwd isolado, `runtimeWorkspaceRoots=[]`, `instructionSources=[]` e thread id válido.
+
+Perfis ausentes, `:read-only` ou IDs customizados bem formados são aceitos somente quando todos os invariantes efetivos já passaram. Metadata malformada ou ID inválido continua falhando com `planner_permission_profile_rejected`, sem exposição do valor. Testes adicionais confirmam que profile arbitrário não autoriza workspace write, network access ou approval incompatível.
+
+Os gates foram executados pelo Codex e reportados como PASS, com 151 testes Rust no total (150 PASS + 1 manual ignored). Nenhuma chamada ao modelo foi feita.
+
+O próximo passo é repetir apenas o preflight humano **Testar isolamento**.
+
 ## Auditoria independente da Luna — D0.5D FIX diagnóstica — 29/09/2026
 
 **PASS técnico para preflight humano sem inferência.**
