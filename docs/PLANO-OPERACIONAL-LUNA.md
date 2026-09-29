@@ -390,6 +390,8 @@ Plano detalhado: [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md).
 
 **LR-7A-FIX (28/09/2026):** a auditoria apontou que o routing era provider-aware, mas parâmetros de invocação ainda eram únicos por request. A FIX separa a requisição da tarefa dos targets, cada um com model, thinking e timeouts próprios. O Scheduler resolve e valida a configuração do provider selecionado antes de invocá-lo; configuração ausente ou inválida falha fechada. `ProviderRuntime` não possui mais timeouts Gemini. Groq permanece LR-7B; nenhum gate real multi-provider foi executado.
 
+**LR-7B — segundo provider real (28/09/2026): PASS completo.** Groq foi registrado no Registry real como provider `groq`, prioridade 2, com `openai/gpt-oss-20b`, credencial própria no Stronghold, streaming SSE, usage real, reasoning oculto, mapping de 429/Retry-After e diagnóstico isolado `Fixed(groq)`. O gate técnico passou com typecheck/build, cargo check, **89/89 testes**, cargo check release e diff check. No gate humano, a chamada real Groq respondeu por streaming com 126 tokens de entrada, 22 de saída e 148 total; a credencial permaneceu configurada após restart. Conversation e Summary continuaram `Fixed(gemini)`. Um HTTP 429 real do Gemini confirmou que o Scheduler respeita `Fixed` e não desvia silenciosamente para Groq. A distribuição/fallback real Gemini ↔ Groq fica para **LR-7C**.
+
 **Segundo provider escolhido:** Groq (LR-7B).
 
 Essa fase prova que a arquitetura é de verdade multi-provider.
