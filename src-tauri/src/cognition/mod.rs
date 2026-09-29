@@ -1,4 +1,5 @@
 pub mod context;
+pub mod catalog;
 pub mod gemini;
 pub mod gemini_commands;
 pub mod groq;
@@ -12,7 +13,7 @@ pub mod settings;
 pub mod summary;
 pub mod types;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 use serde::Deserialize;
 use mock::{MockProvider, MockScenario};
 use registry::ProviderRegistry;
@@ -20,6 +21,7 @@ use scheduler::{ProviderStatus, Scheduler};
 use types::{ProviderCapabilities, ProviderConfig};
 
 pub struct ProviderRuntime { pub scheduler: Arc<Scheduler> }
+pub struct ProviderTimeoutHandles(pub HashMap<String, Arc<RwLock<types::ProviderTimeouts>>>);
 impl ProviderRuntime {
   pub fn new(registry: ProviderRegistry) -> Self { Self { scheduler: Arc::new(Scheduler::new(registry)) } }
 }

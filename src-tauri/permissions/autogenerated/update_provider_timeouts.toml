@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-provider-timeouts"
+description = "Enables the update_provider_timeouts command without any pre-configured scope."
+commands.allow = ["update_provider_timeouts"]
+
+[[permission]]
+identifier = "deny-update-provider-timeouts"
+description = "Denies the update_provider_timeouts command without any pre-configured scope."
+commands.deny = ["update_provider_timeouts"]

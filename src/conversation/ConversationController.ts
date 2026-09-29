@@ -4,7 +4,6 @@ import { startConversationTask } from '../luna/conversationTaskClient'
 import { closeSession, conversationRoutingStatus, createSession, getSession, resumeConversationSession } from './conversationClient'
 import type { ConversationSession, ConversationState } from './types'
 
-const providerLabel = (id: string) => id === 'gemini' ? 'Gemini' : id === 'groq' ? 'Groq' : id
 const taskFailure = (detail: string, cooldownMs = 0) => {
   const wait = cooldownMs > 0 ? ` Tente novamente em cerca de ${Math.max(1, Math.ceil(cooldownMs / 1000))} s.` : ''
   const known: Record<string, string> = {
@@ -49,15 +48,14 @@ export function useConversationController() {
       messages: current.current.messages.filter((item) => item.id !== -run), error })
     try {
       const routing = await conversationRoutingStatus()
+      const providerLabel = (providerId: string) => [routing.primary, routing.fallback].find(provider => provider?.providerId === providerId)?.displayName ?? providerId
       if (!routing.primary.configured) throw new Error(`Configure a chave ${providerLabel(routing.primary.providerId)} em Configurações → IA e modelos antes de conversar.`)
+      if (routing.routingMode === 'preferred' && routing.fallback && !routing.fallback.configured) throw new Error(`Configure a chave ${providerLabel(routing.fallback.providerId)} do fallback em Configurações → IA e modelos antes de conversar.`)
       const fallbackReady = routing.routingMode === 'preferred' && routing.fallback?.configured === true && routing.fallback.cooldownMs === 0
       if (routing.primary.cooldownMs > 0 && !fallbackReady) {
         const fallbackWait = routing.fallback?.cooldownMs ?? 0
         const wait = fallbackWait > 0 ? Math.min(routing.primary.cooldownMs, fallbackWait) : routing.primary.cooldownMs
-        const detail = routing.routingMode === 'preferred' && routing.fallback && !routing.fallback.configured
-          ? `${providerLabel(routing.primary.providerId)} está em cooldown e o fallback ${providerLabel(routing.fallback.providerId)} não está configurado. Configure-o ou aguarde.`
-          : taskFailure('provider_unavailable', wait)
-        rollback(detail, wait); busy.current = false; return false
+        rollback(taskFailure('provider_unavailable', wait), wait); busy.current = false; return false
       }
       if (routing.primary.cooldownMs > 0 && fallbackReady && routing.fallback) {
         change({ providerRoute: `${providerLabel(routing.primary.providerId)} em cooldown · ${providerLabel(routing.fallback.providerId)} elegível` })

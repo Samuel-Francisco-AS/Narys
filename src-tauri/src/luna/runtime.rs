@@ -149,18 +149,18 @@ fn emit_cognitive(channel: &Channel<TaskEvent>, id: TaskId, sequence: &mut u32,
 }
 
 fn chat_budget_and_request(message: String, history: Vec<ProviderMessage>, context: ContextBundle,
-  policy: &CognitiveRolePolicy, gemini_timeouts: crate::cognition::types::ProviderTimeouts,
-  groq_timeouts: crate::cognition::types::ProviderTimeouts) -> (TaskBudget, ProviderTaskRequest) {
+  policy: &CognitiveRolePolicy, timeouts: &HashMap<String, crate::cognition::types::ProviderTimeouts>) -> Result<(TaskBudget, ProviderTaskRequest), &'static str> {
+  let timeout = |id: &str| timeouts.get(id).copied().ok_or("provider_config_invalid");
   let budget = TaskBudget { max_provider_calls: policy.max_provider_calls, max_output_tokens: policy.max_output_tokens };
   let mut targets = vec![ProviderTarget { provider_id: policy.provider_id.clone(), invocation: ProviderInvocationConfig {
-    model: policy.model.clone(), thinking_level: policy.thinking_level, timeouts: Some(gemini_timeouts),
+    model: policy.model.clone(), thinking_level: policy.thinking_level, timeouts: Some(timeout(&policy.provider_id)?),
   } }];
   let selection = match policy.routing_mode {
     RoutingMode::Fixed => ProviderSelection::Fixed(policy.provider_id.clone()),
     RoutingMode::Preferred => {
       if let (Some(provider_id), Some(model)) = (&policy.fallback_provider_id, &policy.fallback_model) {
         targets.push(ProviderTarget { provider_id: provider_id.clone(), invocation: ProviderInvocationConfig {
-          model: model.clone(), thinking_level: policy.fallback_thinking_level, timeouts: Some(groq_timeouts),
+          model: model.clone(), thinking_level: policy.fallback_thinking_level, timeouts: Some(timeout(provider_id)?),
         } });
       }
       ProviderSelection::Preferred(policy.provider_id.clone())
@@ -168,17 +168,15 @@ fn chat_budget_and_request(message: String, history: Vec<ProviderMessage>, conte
   };
   let request = ProviderTaskRequest { input: message, history, context: Arc::new(context), max_output_tokens: policy.max_output_tokens,
     selection, targets, required_capabilities: ProviderCapabilities::text_stream() };
-  (budget, request)
+  Ok((budget, request))
 }
 
 pub fn start_conversation(registry: Arc<TaskRegistry>, db: Database, runtime: Arc<ProviderRuntime>,
-  gemini: Arc<crate::cognition::gemini::GeminiTimeoutState>, groq: Arc<crate::cognition::groq::GroqTimeoutState>,
+  timeouts: HashMap<String, crate::cognition::types::ProviderTimeouts>,
   session_id: i64, message: String, policy: CognitiveRolePolicy, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
   policy.validate().map_err(str::to_owned)?;
   let (id, cancelled) = registry.register()?;
   *registry.foreground_provider_tasks.lock().unwrap_or_else(|poison| poison.into_inner()).entry(session_id).or_default() += 1;
-  let gemini_timeouts = *gemini.timeouts.read().unwrap_or_else(|poison| poison.into_inner());
-  let groq_timeouts = *groq.timeouts.read().unwrap_or_else(|poison| poison.into_inner());
   let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
   tauri::async_runtime::spawn(async move {
     let _active = ActiveTask { registry: registry.clone(), id, session_id: Some(session_id) };
@@ -200,7 +198,7 @@ pub fn start_conversation(registry: Arc<TaskRegistry>, db: Database, runtime: Ar
         role: match turn.role { conversation::SessionRole::User => ProviderRole::User, conversation::SessionRole::Assistant => ProviderRole::Assistant },
         content: turn.content,
       }).collect();
-      let (budget, request) = chat_budget_and_request(message.clone(), history, context, &policy, gemini_timeouts, groq_timeouts);
+      let (budget, request) = chat_budget_and_request(message.clone(), history, context, &policy, &timeouts)?;
       let result = runtime.scheduler.run_with_retry(request,budget,policy.retry_policy(),&cancelled,&mut |event| {
         let kind = match event {
           SchedulerEvent::Selected { provider_id, attempt } => TaskEventKind::ProviderSelected { provider_id, attempt },
@@ -437,11 +435,13 @@ mod tests {
       summary_input_max_bytes: 32768 };
     let first_timeouts = crate::persistence::gemini_settings::GeminiTimeouts::default();
     let groq_timeouts = crate::cognition::types::ProviderTimeouts { request_timeout_ms: 30_000, stream_idle_timeout_ms: 12_000 };
-    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, first_timeouts.into(), groq_timeouts);
+    let first_configs = HashMap::from([("gemini".into(), first_timeouts.into()), ("groq".into(), groq_timeouts)]);
+    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, &first_configs).unwrap();
     policy.model = "gemini-new".into(); policy.thinking_level = None; policy.max_output_tokens = None; policy.max_provider_calls = 2;
     policy.routing_mode = RoutingMode::Preferred;
     let next_timeouts = crate::persistence::gemini_settings::GeminiTimeouts { request_timeout_ms: 60_000, stream_idle_timeout_ms: 20_000 };
-    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, next_timeouts.into(), groq_timeouts);
+    let next_configs = HashMap::from([("gemini".into(), next_timeouts.into()), ("groq".into(), groq_timeouts)]);
+    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, &next_configs).unwrap();
     assert_eq!(first.selection, ProviderSelection::Fixed("gemini".into()));
     assert_eq!((first.targets[0].invocation.model.as_str(), first.targets[0].invocation.thinking_level, first.max_output_tokens, first_budget.max_provider_calls),
       ("gemini-custom", Some(ThinkingLevel::High), Some(8192), 3));
@@ -456,6 +456,18 @@ mod tests {
     assert_eq!(first.targets[0].invocation.timeouts, Some(first_timeouts.into()));
     assert_eq!(next.targets[0].invocation.timeouts, Some(next_timeouts.into()));
     assert_eq!(next.targets[1].invocation.timeouts, Some(groq_timeouts));
+    policy.provider_id = "groq".into();
+    policy.model = "groq-primary".into();
+    policy.thinking_level = Some(ThinkingLevel::Medium);
+    policy.fallback_provider_id = Some("gemini".into());
+    policy.fallback_model = Some("gemini-fallback".into());
+    policy.fallback_thinking_level = Some(ThinkingLevel::High);
+    let (_, reversed) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, &next_configs).unwrap();
+    assert_eq!(reversed.selection, ProviderSelection::Preferred("groq".into()));
+    assert_eq!(reversed.targets[0].invocation.timeouts, Some(groq_timeouts));
+    assert_eq!(reversed.targets[1].invocation.timeouts, Some(next_timeouts.into()));
+    assert_eq!((&reversed.targets[0].invocation.model, reversed.targets[0].invocation.thinking_level), (&"groq-primary".to_string(), Some(ThinkingLevel::Medium)));
+    assert_eq!((&reversed.targets[1].invocation.model, reversed.targets[1].invocation.thinking_level), (&"gemini-fallback".to_string(), Some(ThinkingLevel::High)));
   }
 
   #[test]

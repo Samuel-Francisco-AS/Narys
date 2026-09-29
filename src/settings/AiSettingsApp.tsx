@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Channel, invoke } from '@tauri-apps/api/core'
 import './settings.css'
 
@@ -7,15 +7,31 @@ type Role = 'conversation' | 'summary'
 type Routing = 'fixed' | 'preferred'
 type Policy = { role: Role; providerId: string; model: string; thinkingLevel: Thinking; routingMode: Routing; fallbackProviderId: string | null; fallbackModel: string | null; fallbackThinkingLevel: Thinking; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number }
 type Timeouts = { requestTimeoutMs: number; streamIdleTimeoutMs: number }
-type ProviderInfo = { id: string; displayName: string; configured: boolean; supportedThinkingLevels: string[] }
-type Settings = { providerTimeouts: Timeouts; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
+type ProviderInfo = { id: string; displayName: string; configured: boolean; enabled: boolean; capabilities: { textGeneration: boolean; streaming: boolean }; supportedThinkingLevels: Thinking[]; defaultModel: string | null }
+type Settings = { providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
 type ProbeEvent = { type: 'selected'; providerId: string; attempt: number } | { type: 'chunk'; text: string }
 type ProbeResult = { text: string; providerId: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; retries: number; fallbacks: number } }
 const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
-function RoleForm({ initial, groqConfigured, onSaved }: { initial: Policy; groqConfigured: boolean; onSaved: (policy: Policy) => void }) {
+function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers: ProviderInfo[]; onSaved: (policy: Policy) => void }) {
   const [policy, setPolicy] = useState(initial)
+  const targetConfigs = useRef<Record<string, { model: string; thinking: Thinking }>>({
+    [initial.providerId]: { model: initial.model, thinking: initial.thinkingLevel },
+    ...(initial.fallbackProviderId && initial.fallbackModel ? { [initial.fallbackProviderId]: { model: initial.fallbackModel, thinking: initial.fallbackThinkingLevel } } : {}),
+  })
+  const primary = providers.find(provider => provider.id === policy.providerId)
+  const fallback = providers.find(provider => provider.id === policy.fallbackProviderId)
+  const usable = (provider: ProviderInfo | undefined) => Boolean(provider?.enabled && provider.configured && provider.capabilities.textGeneration && provider.capabilities.streaming)
+  function chooseProvider(target: 'primary' | 'fallback', id: string) {
+    targetConfigs.current[policy.providerId] = { model: policy.model, thinking: policy.thinkingLevel }
+    if (policy.fallbackProviderId && policy.fallbackProviderId !== policy.providerId && policy.fallbackModel) targetConfigs.current[policy.fallbackProviderId] = { model: policy.fallbackModel, thinking: policy.fallbackThinkingLevel }
+    const config = targetConfigs.current[id] ?? { model: providers.find(provider => provider.id === id)?.defaultModel ?? '', thinking: null }
+    setPolicy(current => target === 'primary'
+      ? { ...current, providerId: id, model: config.model, thinkingLevel: config.thinking,
+          ...(current.fallbackProviderId === id ? { fallbackProviderId: null, fallbackModel: null, fallbackThinkingLevel: null } : {}) }
+      : { ...current, fallbackProviderId: id, fallbackModel: config.model, fallbackThinkingLevel: config.thinking })
+  }
   const [customOutput, setCustomOutput] = useState(String(initial.maxOutputTokens ?? 4096))
   const [calls, setCalls] = useState(String(initial.maxProviderCalls))
   const [retries, setRetries] = useState(String(initial.maxRetries))
@@ -30,10 +46,13 @@ function RoleForm({ initial, groqConfigured, onSaved }: { initial: Policy; groqC
     const maxProviderCalls = numberValue(calls)
     const maxOutputTokens = policy.maxOutputTokens === null ? null : numberValue(customOutput)
     if (!policy.model.trim() || policy.model !== policy.model.trim() || policy.model.length > 128 || /[\u0000-\u001f\u007f]/.test(policy.model)) { setError('Modelo inválido. Use um identificador sem controles, até 128 caracteres.'); return }
+    if (!usable(primary)) { setError('Configure uma credencial para o provider primário compatível antes de salvar.'); return }
+    if (policy.thinkingLevel && !primary?.supportedThinkingLevels.includes(policy.thinkingLevel)) { setError('Thinking indisponível no provider primário.'); return }
     if (policy.routingMode === 'preferred') {
       const fallbackModel = policy.fallbackModel ?? ''
-      if (initial.role !== 'conversation' || policy.fallbackProviderId !== 'groq' || !fallbackModel.trim() || fallbackModel !== fallbackModel.trim() || fallbackModel.length > 128 || /[\u0000-\u001f\u007f]/.test(fallbackModel)) { setError('Fallback inválido. A LR-7C usa Groq com um identificador de modelo válido.'); return }
-      if (!groqConfigured) { setError('Configure a chave Groq antes de ativar o fallback real.'); return }
+      if (initial.role !== 'conversation' || !fallback || policy.fallbackProviderId === policy.providerId || !fallbackModel.trim() || fallbackModel !== fallbackModel.trim() || fallbackModel.length > 128 || /[\u0000-\u001f\u007f]/.test(fallbackModel)) { setError('Escolha um fallback diferente do primário e um modelo válido.'); return }
+      if (!usable(fallback)) { setError('Configure uma credencial para o fallback compatível antes de salvar.'); return }
+      if (policy.fallbackThinkingLevel && !fallback.supportedThinkingLevels.includes(policy.fallbackThinkingLevel)) { setError('Thinking indisponível no fallback.'); return }
     }
     if (!Number.isSafeInteger(maxProviderCalls) || maxProviderCalls < 1 || maxProviderCalls > 4294967295) { setError('Max provider calls deve estar entre 1 e 4294967295.'); return }
     if (policy.routingMode === 'preferred' && maxProviderCalls < 2) { setError('Fallback real exige pelo menos 2 provider calls por tarefa.'); return }
@@ -52,24 +71,26 @@ function RoleForm({ initial, groqConfigured, onSaved }: { initial: Policy; groqC
   return <section className="settings-card role-card" aria-label={labels[initial.role]}>
     <div className="role-header"><div><p className="settings-kicker">PAPEL COGNITIVO</p><h2>{labels[initial.role]}</h2></div><span>{initial.role}</span></div>
     <div className="settings-fields">
-      <label>Provider<select value={policy.providerId} onChange={event => setPolicy({ ...policy, providerId: event.target.value })}><option value="gemini">Gemini</option></select></label>
-      <label>Modelo <small>Identificador do provider · default atual: gemini-3.8-flash</small><input value={policy.model} maxLength={128} onChange={event => setPolicy({ ...policy, model: event.target.value })} /></label>
+      <label>Provider primário<select value={policy.providerId} onChange={event => chooseProvider('primary', event.target.value)}>{providers.map(provider => <option key={provider.id} value={provider.id}>{provider.displayName}{!usable(provider) ? ' · indisponível' : ''}</option>)}</select></label>
+      {!usable(primary) && <p className="settings-warning">Provider primário indisponível ou sem credencial.</p>}
+      <label>Modelo <small>Identificador do provider · default da integração: {primary?.defaultModel ?? '—'}</small><input value={policy.model} maxLength={128} onChange={event => setPolicy({ ...policy, model: event.target.value })} /></label>
       <label>Thinking<select value={policy.thinkingLevel ?? ''} onChange={event => setPolicy({ ...policy, thinkingLevel: (event.target.value || null) as Thinking })}>
-        <option value="">Padrão do provider</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+        <option value="">Padrão do provider</option>{primary?.supportedThinkingLevels.filter((level): level is Exclude<Thinking, null> => level !== null).map(level => <option key={level} value={level}>{level}</option>)}
       </select></label>
       {initial.role === 'conversation' && <fieldset><legend>Roteamento</legend>
         <label>Modo<select value={policy.routingMode} onChange={event => setPolicy({ ...policy, routingMode: event.target.value as Routing })}>
-          <option value="fixed">Fixed · somente Gemini</option>
-          <option value="preferred">Preferred · Gemini → Groq quando elegível</option>
+          <option value="fixed">Fixed · somente o provider primário</option>
+          <option value="preferred">Preferred · primário → fallback quando elegível</option>
         </select></label>
         {policy.routingMode === 'preferred' && <>
-          <label>Fallback<select value={policy.fallbackProviderId ?? 'groq'} onChange={() => setPolicy({ ...policy, fallbackProviderId: 'groq' })}><option value="groq">Groq</option></select></label>
-          <label>Modelo do fallback<input value={policy.fallbackModel ?? ''} maxLength={128} onChange={event => setPolicy({ ...policy, fallbackProviderId: 'groq', fallbackModel: event.target.value })} /></label>
+          <label>Fallback<select value={policy.fallbackProviderId ?? ''} onChange={event => chooseProvider('fallback', event.target.value)}><option value="">Selecione</option>{providers.filter(provider => provider.id !== policy.providerId).map(provider => <option key={provider.id} value={provider.id}>{provider.displayName}{!usable(provider) ? ' · indisponível' : ''}</option>)}</select></label>
+          {policy.fallbackProviderId === policy.providerId && <p className="settings-warning">O fallback deve ser diferente do primário.</p>}
+          <label>Modelo do fallback<input value={policy.fallbackModel ?? ''} maxLength={128} onChange={event => setPolicy({ ...policy, fallbackModel: event.target.value })} /></label>
           <label>Thinking do fallback<select value={policy.fallbackThinkingLevel ?? ''} onChange={event => setPolicy({ ...policy, fallbackThinkingLevel: (event.target.value || null) as Thinking })}>
-            <option value="">Padrão do provider</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+            <option value="">Padrão do provider</option>{fallback?.supportedThinkingLevels.filter((level): level is Exclude<Thinking, null> => level !== null).map(level => <option key={level} value={level}>{level}</option>)}
           </select></label>
           <small>Fallback só acontece antes do primeiro chunk e apenas para erros elegíveis/cooldown. Autenticação, quota terminal, request inválido e falha após chunk não trocam de provider.</small>
-          {!groqConfigured && <p className="settings-warning">Groq não está configurado. Salve a chave antes de ativar Preferred.</p>}
+          {!usable(fallback) && <p className="settings-warning">Fallback indisponível ou sem credencial.</p>}
         </>}
       </fieldset>}
       <fieldset><legend>Output</legend>
@@ -85,7 +106,7 @@ function RoleForm({ initial, groqConfigured, onSaved }: { initial: Policy; groqC
         <label>Backoff inicial (ms)<input type="number" min="0" value={backoff} onChange={event => setBackoff(event.target.value)} /></label>
         <small>O retry só ocorre antes do primeiro trecho e para Timeout/Unavailable sem Retry-After. Rate limit e Unavailable com Retry-After entram em cooldown; em Preferred, podem seguir ao fallback se ainda houver orçamento.</small>
         {numberValue(retries) + 1 > numberValue(calls) && <p className="settings-warning">Seu orçamento total permite menos tentativas do que o número de retries configurado.</p>}
-        {policy.routingMode === 'preferred' && policy.retryEnabled && numberValue(retries) > 0 && numberValue(calls) <= numberValue(retries) + 1 && <p className="settings-warning">Um timeout pode consumir todo o orçamento em retries do Gemini antes de chegar ao Groq. Aumente Max provider calls se quiser reservar uma chamada para fallback.</p>}
+        {policy.routingMode === 'preferred' && policy.retryEnabled && numberValue(retries) > 0 && numberValue(calls) <= numberValue(retries) + 1 && <p className="settings-warning">Um timeout pode consumir todo o orçamento em retries do primário antes do fallback. Aumente Max provider calls se quiser reservar uma chamada para fallback.</p>}
       </fieldset>
       {initial.role === 'conversation' && <fieldset><legend>Histórico enviado</legend>
         <label>Máximo de mensagens anteriores<input type="number" min="0" value={historyMessages} onChange={event => setHistoryMessages(event.target.value)} /></label>
@@ -103,7 +124,7 @@ function RoleForm({ initial, groqConfigured, onSaved }: { initial: Policy; groqC
 }
 
 
-function TimeoutForm({ initial, onSaved }: { initial: Timeouts; onSaved: (timeouts: Timeouts) => void }) {
+function TimeoutForm({ provider, initial, onSaved }: { provider: ProviderInfo; initial: Timeouts; onSaved: (timeouts: Timeouts) => void }) {
   const [request, setRequest] = useState(String(initial.requestTimeoutMs))
   const [idle, setIdle] = useState(String(initial.streamIdleTimeoutMs))
   const [busy, setBusy] = useState(false)
@@ -116,12 +137,12 @@ function TimeoutForm({ initial, onSaved }: { initial: Timeouts; onSaved: (timeou
     }
     setBusy(true); setError(''); setMessage('')
     try {
-      const saved = await invoke<Timeouts>('update_gemini_timeouts', { timeouts: { requestTimeoutMs, streamIdleTimeoutMs } })
-      onSaved(saved); setMessage('Salvo. Novas chamadas Gemini usarão estes timeouts.')
+      const saved = await invoke<Timeouts>('update_provider_timeouts', { providerId: provider.id, timeouts: { requestTimeoutMs, streamIdleTimeoutMs } })
+      onSaved(saved); setMessage(`Salvo. Novas chamadas ${provider.displayName} usarão estes timeouts.`)
     } catch (cause) { setError(`Não foi possível salvar: ${String(cause)}`) }
     finally { setBusy(false) }
   }
-  return <fieldset><legend>Timeouts globais do Gemini</legend>
+  return <fieldset><legend>Timeouts de {provider.displayName}</legend>
     <div className="settings-fields">
       <label>Timeout HTTP total (ms)<input type="number" min="1" value={request} onChange={event => setRequest(event.target.value)} /></label>
       <label>Timeout sem dados no stream (ms)<input type="number" min="1" value={idle} onChange={event => setIdle(event.target.value)} /></label>
@@ -173,14 +194,14 @@ export default function AiSettingsApp() {
     <header><p className="settings-kicker">LUNA · COGNIÇÃO</p><h1>IA e modelos</h1><p>Estas escolhas são aplicadas na próxima tarefa. Uma resposta em andamento mantém a configuração com que começou.</p></header>
     {settings ? <>
       <section className="settings-card"><h2>Providers disponíveis</h2>
-        <p>Gemini · {gemini?.configured ? 'Configurado' : 'Não configurado'} · Groq · {groq?.configured ? 'Configurado' : 'Não configurado'} · Cofre {settings.credentialStoreAvailable ? 'disponível' : 'indisponível'}</p>
-        <p>LR-7C: a Conversa pode usar Gemini como preferido e Groq como fallback explícito. Resumo continua Fixed(Gemini) até um gate próprio.</p>
+        <p>{settings.providers.map(provider => `${provider.displayName} · ${provider.configured ? 'Configurado' : 'Não configurado'}`).join(' · ')} · Cofre {settings.credentialStoreAvailable ? 'disponível' : 'indisponível'}</p>
+        <p>Conversa permite Fixed ou Preferred com primário e fallback configurados. Resumo usa Fixed com o provider escolhido.</p>
         <label>Chave API Gemini <input type="password" autoComplete="off" value={geminiKey} onChange={event => setGeminiKey(event.target.value)} placeholder="Definir ou substituir chave Gemini" /></label>
         <div className="settings-actions"><button disabled={busy || !geminiKey.trim()} onClick={() => void credential('gemini', 'set')}>Guardar Gemini</button><button disabled={busy || !gemini?.configured} onClick={() => void credential('gemini', 'delete')}>Remover Gemini</button></div>
         <label>Chave API Groq <input type="password" autoComplete="off" value={groqKey} onChange={event => setGroqKey(event.target.value)} placeholder="Definir ou substituir chave Groq" /></label>
         <div className="settings-actions"><button disabled={busy || !groqKey.trim()} onClick={() => void credential('groq', 'set')}>Guardar Groq</button><button disabled={busy || !groq?.configured} onClick={() => void credential('groq', 'delete')}>Remover Groq</button></div>
         {notice && <p role="status">{notice}</p>}
-        <TimeoutForm initial={settings.providerTimeouts} onSaved={saved => setSettings(current => current && ({ ...current, providerTimeouts: saved }))} />
+        {settings.providers.map(provider => settings.providerTimeouts[provider.id] && <TimeoutForm key={provider.id} provider={provider} initial={settings.providerTimeouts[provider.id]} onSaved={saved => setSettings(current => current && ({ ...current, providerTimeouts: { ...current.providerTimeouts, [provider.id]: saved } }))} />)}
       </section>
       <section className="settings-card"><h2>Diagnóstico Groq</h2>
         <p>Executa uma chamada <strong>Fixed(groq)</strong> isolada com <code>openai/gpt-oss-20b</code>. Não altera a policy da conversa nem do Summary.</p>
@@ -188,14 +209,14 @@ export default function AiSettingsApp() {
         {probeOutput && <p aria-live="polite"><strong>Stream:</strong> {probeOutput}</p>}
         {probeResult && <p role="status">Provider: {probeResult.providerId} · input {probeResult.usage.inputTokens} · output {probeResult.usage.outputTokens} · total {probeResult.usage.totalTokens ?? '—'} tokens.</p>}
       </section>
-      <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} groqConfigured={Boolean(groq?.configured)} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
+      <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} providers={settings.providers} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
       <section className="settings-card"><h2>Parâmetros avançados</h2>
         <p>Streaming: ativo — requerido pelo adapter atual. Thinking summaries: desativado — não configurável nesta versão.</p>
-        <p>Timeout HTTP total e idle do stream: configuráveis globalmente para Gemini. Conexão: 8 s — configuração do adapter atual.</p>
+        <p>Timeout HTTP total e idle do stream: configuráveis por provider. Conexão: 8 s — configuração dos adapters atuais.</p>
         <p>Histórico de conversa enviado: configurável em Conversa. Summary input budget: configurável em Resumo. Retry: configurável por papel.</p>
         <p>Preparação de resumo: até 256 mensagens candidatas mais a primeira fala do usuário; leitura local limitada a 8193 caracteres por mensagem. Título gerado: até 70 caracteres; resumo: até 1200. Limites técnicos desta versão.</p>
-        <p>Fallback: Conversa expõe Fixed ou Preferred(Gemini) com target Groq configurado separadamente. Resumo continua Fixed(Gemini). Auto, affinity e task graph permanecem fora da LR-7C.</p>
-        <p>Groq usa modelo/thinking/timeouts próprios; nenhum parâmetro Gemini é reaproveitado silenciosamente. Temperature, top-p e tools ainda não são expostos.</p>
+        <p>Fallback: Conversa expõe Fixed ou Preferred entre providers compatíveis. Resumo permanece Fixed. Auto, affinity e task graph não estão disponíveis.</p>
+        <p>Cada target usa seu próprio modelo, thinking e timeouts. Temperature, top-p e tools ainda não são expostos.</p>
         <p>Segurança, isolamento de sessão e segredos fora do React são invariantes do aplicativo. O adapter Gemini envia <code>store:false</code>; o adapter Groq não envia parâmetros não suportados pelo endpoint Chat Completions.</p>
       </section>
     </> : <p>Carregando…</p>}

@@ -41,6 +41,9 @@ impl Scheduler {
       ProviderSelection::Preferred(id) => eligible.sort_by_key(|entry| (&entry.config.id != id, entry.config.priority, entry.config.id.clone())),
       ProviderSelection::Auto => {},
     }
+    if matches!(request.selection, ProviderSelection::Preferred(_)) {
+      eligible.retain(|entry| request.targets.iter().any(|target| target.provider_id == entry.config.id));
+    }
     let candidates: Vec<_> = eligible.iter().copied().filter(|entry| !self.cooling(&entry.config.id)).collect();
     let mut used_any = false;
     for (index, entry) in candidates.iter().enumerate() {
@@ -95,7 +98,7 @@ impl Scheduler {
             if let Some(ms) = cooldown_ms {
               self.cooldowns.lock().unwrap_or_else(|p| p.into_inner()).insert(entry.config.id.clone(), Instant::now() + Duration::from_millis(ms));
               #[cfg(debug_assertions)] eprintln!("[Scheduler][diag] cooldown provider={} reason={} cooldown_ms={ms}",
-                match entry.config.id.as_str() { "gemini" => "gemini", "groq" => "groq", _ => "other" }, error.code());
+                entry.config.id, error.code());
             }
             // Once text has reached the UI, another attempt would concatenate
             // incompatible partial answers and could double provider cost.
@@ -112,7 +115,7 @@ impl Scheduler {
             if can_retry {
               let backoff_ms = retry_policy.backoff_ms(attempt);
               #[cfg(debug_assertions)] {
-                let provider = match entry.config.id.as_str() { "gemini" => "gemini", "groq" => "groq", _ => "other" };
+                let provider = &entry.config.id;
                 eprintln!("[Scheduler][diag] retry provider={provider} attempt={} reason={} backoff_ms={backoff_ms}", attempt + 1, error.code());
               }
               on_event(SchedulerEvent::Retry { provider_id: entry.config.id.clone(), reason_code: error.code() })
@@ -154,8 +157,7 @@ impl Scheduler {
           let cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
           for entry in eligible {
             let cooldown_ms = cooldowns.get(&entry.config.id).map(|until| until.saturating_duration_since(now).as_millis() as u64).unwrap_or(0);
-            // Provider IDs are configuration values; only print the known public ID.
-            let provider = match entry.config.id.as_str() { "gemini" => "gemini", "groq" => "groq", _ => "other" };
+            let provider = &entry.config.id;
             eprintln!("[Scheduler][diag] no_provider reason=cooldown provider={provider} cooldown_ms={cooldown_ms}");
           }
         }

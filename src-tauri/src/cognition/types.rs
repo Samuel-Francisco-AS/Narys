@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use super::policy::ThinkingLevel;
 use std::sync::Arc;
 use crate::persistence::{conversation::ConversationMessage, identity::IdentityInput, memory::MemoryRecord};
@@ -12,7 +12,8 @@ pub enum ProviderSelection {
   Auto,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProviderTimeouts {
   pub request_timeout_ms: u32,
   pub stream_idle_timeout_ms: u32,

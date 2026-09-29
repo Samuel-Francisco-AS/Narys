@@ -1,6 +1,6 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **PLANEJADA em 28/09/2026.**  
+Estado: **LR-7D0 candidata à auditoria/gate; LR-7D1/D2/D3 planejadas.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ## Princípio central
@@ -38,6 +38,15 @@ Dívida intencional deixada pela LR-7C:
 ---
 
 ## LR-7D0 — providers genéricos por papel + remoção dos hardcodes
+
+### Implementação candidata
+
+- A persistência valida apenas a estrutura da policy. O boundary de settings e o início da conversa validam o provider contra o catálogo, Registry, capabilities e estado da credencial. Provider desconhecido, indisponível ou sem credencial falha fechado.
+- Conversation monta targets por `provider_id`, cada qual com model, thinking e timeouts próprios. `Fixed` aceita Gemini ou Groq; `Preferred` aceita as duas ordens com targets diferentes. O Scheduler continua responsável por cooldown, retry, fallback anterior ao primeiro chunk e cancelamento, sem regras por marca.
+- Summary permanece `Fixed`, com Gemini ou Groq configurável. O worker consulta a policy escolhida para disponibilidade e resolve timeouts pelo provider antes da chamada; claim, recovery, validação de JSON e persistência continuam sob o Core.
+- `get_ai_settings` oferece metadados seguros derivados dos providers registrados. A UI usa esses dados para as opções, capabilities, thinking e disponibilidade. Credenciais seguem separadas no Stronghold e só o indicador `configured` é exposto.
+- A migration 007 adiciona `provider_timeout_settings`, copia o timeout Gemini existente e semeia Groq com os defaults já usados pelo adapter (45 s request, 15 s idle). A tabela Gemini antiga é preservada para upgrade não destrutivo.
+- A mudança não ativa novos providers, Orchestrator, fallback chain, Auto, task graph nem o Rate Limit Manager da LR-8. A aprovação depende da auditoria independente e do gate humano.
 
 ### Objetivo
 

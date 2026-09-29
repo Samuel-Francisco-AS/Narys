@@ -156,7 +156,7 @@ impl SummaryWorker {
         let timeouts = match self
             .db
             .open()
-            .and_then(|conn| crate::persistence::gemini_settings::load(&conn))
+            .and_then(|conn| crate::persistence::provider_timeouts::load(&conn, &policy.provider_id))
         {
             Ok(timeouts) => timeouts,
             Err(_) => {
@@ -360,7 +360,7 @@ fn summary_request(
     messages: &[ConversationMessage],
     already_truncated: bool,
     policy: &CognitiveRolePolicy,
-    timeouts: crate::persistence::gemini_settings::GeminiTimeouts,
+    timeouts: super::types::ProviderTimeouts,
 ) -> ProviderTaskRequest {
     // Static synthetic identity satisfies the current provider contract without
     // loading private identity, memories or any global recent conversation.
@@ -390,7 +390,7 @@ fn summary_request(
         max_output_tokens: policy.max_output_tokens,
         selection: ProviderSelection::Fixed(policy.provider_id.clone()),
         targets: vec![ProviderTarget { provider_id: policy.provider_id.clone(), invocation: ProviderInvocationConfig {
-            model: policy.model.clone(), thinking_level: policy.thinking_level, timeouts: Some(timeouts.into()),
+            model: policy.model.clone(), thinking_level: policy.thinking_level, timeouts: Some(timeouts),
         } }],
         required_capabilities: ProviderCapabilities::text_stream(),
     }
@@ -506,6 +506,10 @@ mod tests {
                 fake.clone(),
             )
             .unwrap();
+        providers.register(ProviderConfig {
+            id: "groq".into(), enabled: true, priority: 2,
+            capabilities: ProviderCapabilities::text_stream(),
+        }, fake.clone()).unwrap();
         (
             db,
             fake,
@@ -519,6 +523,26 @@ mod tests {
         conversation::append_exchange_to_session(&mut conn, id, marker, "Resposta").unwrap();
         conversation::close_session(&conn, id).unwrap();
         id
+    }
+    #[tokio::test]
+    async fn fixed_groq_summary_accepts_output_without_changing_messages() {
+        let (db, fake, scheduler, registry) = fixture();
+        let id = add_session(&db, "GROQ-SUMMARY-71");
+        let mut conn = db.open().unwrap();
+        let mut policy = policy::load(&conn, CognitiveRole::Summary).unwrap();
+        policy.provider_id = "groq".into();
+        policy.model = "openai/gpt-oss-20b".into();
+        policy::save(&mut conn, &policy).unwrap();
+        let before = conversation::history_session(&conn, id).unwrap().unwrap().messages;
+        let claim = conversation::claim_next_pending_summary(&mut conn).unwrap().unwrap();
+        drop(conn);
+        fake.responses.lock().unwrap().push_back(Ok("{\"title\":\"Groq válido\",\"summary\":\"Resumo factual.\"}".into()));
+        assert_eq!(worker(db.clone(), scheduler, registry).process(claim).await, ProcessOutcome::Continue);
+        let after = conversation::history_session(&db.open().unwrap(), id).unwrap().unwrap();
+        assert_eq!(after.title.as_deref(), Some("Groq válido"));
+        assert_eq!(after.summary.as_deref(), Some("Resumo factual."));
+        assert_eq!(after.messages.len(), before.len());
+        for (a, b) in after.messages.iter().zip(before.iter()) { assert_eq!((&a.role, &a.content), (&b.role, &b.content)); }
     }
     fn worker(
         db: Database,
@@ -559,7 +583,7 @@ mod tests {
             &[],
             false,
             &policy,
-            crate::persistence::gemini_settings::GeminiTimeouts::default(),
+            crate::persistence::gemini_settings::GeminiTimeouts::default().into(),
         );
         assert_eq!(request.selection, ProviderSelection::Fixed("gemini".into()));
         assert_eq!(request.targets.len(), 1);

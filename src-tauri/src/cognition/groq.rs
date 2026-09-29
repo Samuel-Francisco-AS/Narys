@@ -26,8 +26,6 @@ impl Default for GroqConfig {
   }
 }
 
-pub struct GroqTimeoutState { pub timeouts: Arc<RwLock<ProviderTimeouts>> }
-
 pub struct GroqProvider {
   config: GroqConfig,
   client: Client,

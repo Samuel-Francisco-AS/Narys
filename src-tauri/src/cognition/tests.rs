@@ -41,7 +41,7 @@ fn context(db: &Database) -> super::types::ContextBundle {
 }
 fn request(db: &Database) -> ProviderTaskRequest { ProviderTaskRequest { input: "synthetic".into(), history: vec![], context: Arc::new(context(db)),
   max_output_tokens: Some(30), selection: ProviderSelection::Auto, targets: [
-    "a", "alternative", "b", "disabled", "enabled", "fallback", "first", "fixed", "gemini", "healthy",
+    "a", "alternative", "b", "disabled", "enabled", "fallback", "first", "fixed", "gemini", "groq", "healthy",
     "limited", "mock-fallback", "mock-primary", "no-stream", "normal", "only", "other", "preferred",
     "primary", "second", "selected", "stream", "terminal", "timeout", "transient",
   ].into_iter().map(|id| ProviderTarget { provider_id: id.into(), invocation: ProviderInvocationConfig {
@@ -132,6 +132,29 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
   let recovered=tauri::async_runtime::block_on(Scheduler::new(registry).run(request(&db),budget(2),&cancelled,&mut |_| Ok(()))).unwrap();
   assert_eq!(recovered.usage.retries,1); assert_eq!(transient.calls(),2);
   fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn preferred_groq_precedes_higher_priority_gemini_and_falls_back_to_it() {
+  let (db, _) = fixture(); seed(&db);
+  for (groq_scenario, expected) in [(MockScenario::Normal, "groq"), (MockScenario::RateLimited, "gemini")] {
+    let mut registry = ProviderRegistry::default();
+    let gemini = Arc::new(MockProvider::new(MockScenario::Normal));
+    let groq = Arc::new(MockProvider::new(groq_scenario));
+    entry("gemini", 1, true, ProviderCapabilities::text_stream(), gemini.clone(), &mut registry);
+    entry("groq", 2, true, ProviderCapabilities::text_stream(), groq.clone(), &mut registry);
+    let scheduler = Scheduler::new(registry);
+    let mut route = request(&db);
+    route.selection = ProviderSelection::Preferred("groq".into());
+    assert!(matches!(&route.selection, ProviderSelection::Preferred(id) if id == "groq"));
+    route.targets.retain(|target| target.provider_id == "groq" || target.provider_id == "gemini");
+    let mut events = vec![];
+    let result = tauri::async_runtime::block_on(scheduler.run(route, budget(2), &AtomicBool::new(false), &mut |event| { events.push(event); Ok(()) })).unwrap();
+    assert_eq!(result.provider_id, expected, "events={events:?}");
+    assert_eq!(groq.calls(), 1);
+    assert_eq!(gemini.calls(), if expected == "gemini" { 1 } else { 0 });
+    if expected == "gemini" { assert!(events.iter().any(|event| matches!(event, SchedulerEvent::Fallback { from, to, .. } if from == "groq" && to == "gemini"))); }
+  }
 }
 
 #[test]
