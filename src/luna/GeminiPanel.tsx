@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { startConversationTask } from './geminiTaskClient'
+import { startConversationTask } from './conversationTaskClient'
 import { createSession, getSession } from '../conversation/conversationClient'
 import { cancelTask, lunaCoreAvailable } from './taskClient'
 import type { CognitiveResult, TaskEvent, TaskId, TaskState } from './types'
