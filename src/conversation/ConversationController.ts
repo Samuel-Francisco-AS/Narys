@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cancelTask, lunaCoreAvailable } from '../luna/taskClient'
-import { startGeminiTask } from '../luna/geminiTaskClient'
+import { startConversationTask } from '../luna/geminiTaskClient'
 import { closeSession, createSession, geminiStatus, getSession, resumeConversationSession } from './conversationClient'
 import type { ConversationSession, ConversationState } from './types'
 
@@ -54,7 +54,7 @@ export function useConversationController() {
       const sessionId = id
       change({ sessionId })
       let terminal = false
-      const taskId = await startGeminiTask(sessionId, message, (event) => {
+      const taskId = await startConversationTask(sessionId, message, (event) => {
         if (run !== generation.current) return
         if (event.state === 'pending' || event.state === 'running') change({ activeTaskId: event.taskId })
         if (event.type === 'provider_chunk') change({ preview: current.current.preview + event.chunk })
