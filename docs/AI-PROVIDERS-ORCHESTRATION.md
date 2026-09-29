@@ -454,3 +454,6 @@ Essa ordem pode mudar por bloqueio técnico, mas a primeira prova de arquitetura
 
 
 **LR-7B fechada (28/09/2026): PASS técnico + humano.** Groq entrou como Cognitive Provider real de prioridade 2 usando `openai/gpt-oss-20b`. O adapter possui configuração/timeout/credencial próprios e fronteira outbound explícita. O diagnóstico real `Fixed(groq)` concluiu por streaming com usage observado de 126 tokens de entrada, 22 de saída e 148 total; a credencial persistiu após restart. Conversation/Summary permaneceram `Fixed(gemini)`, e um 429 real do Gemini confirmou que o Scheduler não faz fallback oculto quando a policy é Fixed. Distribuição/overflow real fica para LR-7C. Quotas atuais não são hardcoded; LR-8 continua responsável por rate-limit manager/telemetria avançada.
+
+
+**LR-7C candidata (28/09/2026):** `conversation` passa a poder persistir `Preferred(gemini)` com target Groq explícito. Cada target mantém model/thinking/timeouts próprios. A migration preserva `Fixed` até opt-in do usuário. O frontend consulta o estado de roteamento em vez de bloquear a conversa apenas pelo cooldown Gemini, e o fallback observável registra `from → to → reason`. `summary` continua `Fixed(gemini)`. O gate real exige uma mesma tarefa com tentativa Gemini e conclusão Groq após erro elegível antes do primeiro chunk. [Detalhes](LR-7C-DISTRIBUTION.md).
