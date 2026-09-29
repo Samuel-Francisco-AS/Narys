@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-groq-status"
+description = "Enables the groq_status command without any pre-configured scope."
+commands.allow = ["groq_status"]
+
+[[permission]]
+identifier = "deny-groq-status"
+description = "Denies the groq_status command without any pre-configured scope."
+commands.deny = ["groq_status"]
