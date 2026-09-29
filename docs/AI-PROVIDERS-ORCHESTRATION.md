@@ -42,6 +42,8 @@ Adapters traduzem essa política para a API específica. Eles não devem inventa
 
 Uma seleção explícita do usuário tem precedência sobre a heurística do Scheduler. O Scheduler pode advertir e aplicar apenas guardrails de segurança/integridade e limites reais da integração. Se o usuário fixar, por exemplo, um agente Codex compatível como papel `conversation`, o runtime deve respeitar essa escolha enquanto a integração sustentar esse modo.
 
+**Decisão LR-7D (28/09/2026):** não existe uma “LLM principal da Luna”. O Luna Core é a autoridade do sistema; Gemini, Groq e futuros providers ocupam papéis cognitivos substituíveis. LR-7D0 remove hardcodes comerciais das policies de Conversation/Summary e torna primary/fallback configuráveis por provider registrado. LR-7D1 adiciona um papel cognitivo real `orchestrator`/Planner, também configurável, sem transferir ao modelo autoridade sobre permissões ou execução. LR-7D2 evolui para fallback chain + Auto/score + affinity; LR-7D3 fecha com task graph mínimo. Consulte [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
+
 ## 2. Tipos de integração
 
 ### Cognitive Provider
