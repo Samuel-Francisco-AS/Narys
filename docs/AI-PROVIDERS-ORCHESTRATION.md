@@ -461,7 +461,6 @@ Essa ordem pode mudar por bloqueio técnico, mas a primeira prova de arquitetura
 **LR-7C fechada (28/09/2026): PASS técnico + humano.** `conversation` pode persistir `Preferred(gemini)` com target Groq explícito; cada target mantém model/thinking/timeouts próprios. A migration preserva `Fixed` até opt-in do usuário. O frontend consulta o estado de roteamento e o fallback observável registra `from → to → reason`. Em provider real foram validados Gemini saudável → Gemini, Gemini 429 → Groq na mesma tarefa e Gemini já em cooldown → Groq direto. Provider/modelo atuais são grounded explicitamente nos adapters para evitar inferência incorreta pelo histórico. `summary` continua `Fixed(gemini)`. [Detalhes](LR-7C-DISTRIBUTION.md).
 
 **D0.5A — PASS completo em 29/09/2026; Codex fora dos Cognitive Providers:** a interface de IA e modelos
-apenas consulta o executável Codex e o estado de autenticação reportado por
-`codex login status`. Isso não é inferência, não altera Conversation/Summary e
-não cria ainda um adapter, app-server ou `AgentBackend`. O contrato e a
+consulta o executável Codex e o estado de autenticação reportado por
+`codex login status`. **D0.5B também está integrada em PASS**, com ponte efêmera Rust ↔ `codex app-server --stdio` para handshake diagnóstico sem inferência. Conversation/Summary permanecem inalterados; `AgentBackend` e registry genérico começam apenas em D0.5C. O contrato e a
 fronteira de segurança estão em [LR-7D0.5](LR-7D05-CODEX-AGENT-BRIDGE.md).
