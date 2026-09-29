@@ -56,7 +56,6 @@ pub enum AgentError {
     Protocol,
     BackendFailed,
     EventSinkClosed,
-    PlannerDiagnostic(super::codex::backend::PlannerDiagnosticCode),
 }
 
 impl AgentError {
@@ -69,7 +68,6 @@ impl AgentError {
             Self::Protocol => "protocol_error",
             Self::BackendFailed => "backend_failed",
             Self::EventSinkClosed => "event_sink_closed",
-            Self::PlannerDiagnostic(code) => code.code(),
         }
     }
 }

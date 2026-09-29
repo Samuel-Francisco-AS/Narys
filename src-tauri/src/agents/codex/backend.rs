@@ -1,4 +1,4 @@
-use std::{fs, path::{Path, PathBuf}, sync::atomic::{AtomicBool, Ordering}, time::{Duration, Instant}};
+use std::{fs, path::{Path, PathBuf}, sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex}, time::{Duration, Instant}};
 
 use serde::Serialize;
 use serde_json::{json, Map, Value};
@@ -82,7 +82,7 @@ impl PlannerTurnDiagnosticCode {
     }
 }
 
-// Only closed codes cross AgentBackend; no payload is stored in this error.
+// Operation-specific diagnostics stay in Planner/Codex, outside AgentError.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PlannerDiagnosticCode {
     Preparation(PlannerPreflightDiagnosticCode),
@@ -93,6 +93,51 @@ impl PlannerDiagnosticCode {
     pub fn code(self) -> &'static str {
         match self { Self::Preparation(code) => code.code(), Self::Turn(code) => code.code() }
     }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum PlannerProbeError {
+    Agent(AgentError),
+    Diagnostic(PlannerDiagnosticCode),
+}
+
+impl PlannerProbeError {
+    pub fn code(&self) -> &'static str {
+        match self { Self::Agent(error) => error.code(), Self::Diagnostic(code) => code.code() }
+    }
+}
+
+type ProbeDiagnostic = Arc<Mutex<Option<PlannerDiagnosticCode>>>;
+
+// This adapter and its typed slot belong to one probe only, never managed state.
+struct CodexPlannerProbeBackend { diagnostic: ProbeDiagnostic }
+
+impl AgentBackend for CodexPlannerProbeBackend {
+    fn execute<'a>(&'a self, request: &'a AgentRequest, cancelled: &'a AtomicBool,
+        _on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send)) -> AgentFuture<'a> {
+        execute_planner(request, cancelled, Some(&self.diagnostic))
+    }
+}
+
+pub async fn probe_planner(registry: &Arc<crate::agents::registry::AgentRegistry>, objective: String)
+    -> Result<PlanV1, PlannerProbeError> {
+    let diagnostic = Arc::new(Mutex::new(None));
+    let backend = Arc::new(CodexPlannerProbeBackend { diagnostic: diagnostic.clone() });
+    plan_probe_with_backend(registry, objective, backend, diagnostic).await
+}
+
+async fn plan_probe_with_backend(registry: &Arc<crate::agents::registry::AgentRegistry>, objective: String,
+    backend: Arc<dyn AgentBackend>, diagnostic: ProbeDiagnostic) -> Result<PlanV1, PlannerProbeError> {
+    // Preserve the configured entry's enabled/capability gates. Only this
+    // operation substitutes an adapter using the same execute_planner path.
+    let mut scoped = crate::agents::registry::AgentRegistry::default();
+    if let Some(entry) = registry.get("codex") {
+        scoped.register(entry.config.clone(), backend).map_err(|_| PlannerProbeError::Agent(AgentError::BackendFailed))?;
+    }
+    let result = planner::plan(&Arc::new(scoped), objective).await;
+    let code = *diagnostic.lock().map_err(|_| PlannerProbeError::Agent(AgentError::BackendFailed))?;
+    if let Some(code) = code { return Err(PlannerProbeError::Diagnostic(code)); }
+    result.map_err(PlannerProbeError::Agent)
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -110,18 +155,44 @@ pub fn production_config() -> AgentConfig {
 impl AgentBackend for CodexAgentBackend {
     fn execute<'a>(&'a self, request: &'a AgentRequest, cancelled: &'a AtomicBool,
         _on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send)) -> AgentFuture<'a> {
-        Box::pin(async move {
-            if cancelled.load(Ordering::Acquire) { return Err(AgentError::Cancelled); }
-            if !production_config().capabilities.supports(&request.required_capabilities)
-                || !request.required_capabilities.planning { return Err(AgentError::UnsupportedCapability); }
-            if request.objective.trim().is_empty() || request.objective.len() > planner::MAX_OBJECTIVE_BYTES {
-                return Err(AgentError::InvalidRequest);
+        execute_planner(request, cancelled, None)
+    }
+}
+
+fn execute_planner<'a>(request: &'a AgentRequest, cancelled: &'a AtomicBool,
+    diagnostic: Option<&'a ProbeDiagnostic>) -> AgentFuture<'a> {
+    Box::pin(async move {
+        if cancelled.load(Ordering::Acquire) { return Err(AgentError::Cancelled); }
+        if !production_config().capabilities.supports(&request.required_capabilities)
+            || !request.required_capabilities.planning { return Err(AgentError::UnsupportedCapability); }
+        if request.objective.trim().is_empty() || request.objective.len() > planner::MAX_OBJECTIVE_BYTES {
+            return Err(AgentError::InvalidRequest);
+        }
+        let objective = request.objective.clone();
+        let result = tauri::async_runtime::spawn_blocking(move || run_planner(&objective))
+            .await.map_err(|_| AgentError::BackendFailed)?;
+        let output = match result {
+            Ok(output) => output,
+            Err(code) => {
+                return Err(record_planner_failure(code, diagnostic));
             }
-            let objective = request.objective.clone();
-            let output = tauri::async_runtime::spawn_blocking(move || run_planner(&objective))
-                .await.map_err(|_| AgentError::BackendFailed)?.map_err(AgentError::PlannerDiagnostic)?;
-            Ok(AgentResult { output })
-        })
+        };
+        Ok(AgentResult { output })
+    })
+}
+
+fn record_planner_failure(code: PlannerDiagnosticCode, diagnostic: Option<&ProbeDiagnostic>) -> AgentError {
+    if let Some(slot) = diagnostic {
+        match slot.lock() {
+            Ok(mut value) => *value = Some(code),
+            Err(_) => return AgentError::BackendFailed,
+        }
+    }
+    match code {
+        PlannerDiagnosticCode::Preparation(PlannerPreflightDiagnosticCode::PlannerSpawnFailed) => AgentError::Unavailable,
+        PlannerDiagnosticCode::Preparation(PlannerPreflightDiagnosticCode::PlannerCleanupFailed)
+        | PlannerDiagnosticCode::Turn(PlannerTurnDiagnosticCode::PlannerCleanupFailed) => AgentError::BackendFailed,
+        _ => AgentError::Protocol,
     }
 }
 
@@ -417,6 +488,95 @@ mod tests {
     use super::*;
     use std::sync::Arc;
 
+    // Compile generic types in an isolated module without any backend modules.
+    #[allow(dead_code)]
+    mod standalone_agent_types { include!("../types.rs"); }
+
+    #[test] fn generic_agent_errors_compile_without_backend_dependencies() {
+        use standalone_agent_types::AgentError::*;
+        for (error,code) in [(Cancelled,"cancelled"),(UnsupportedCapability,"unsupported_capability"),
+            (InvalidRequest,"invalid_request"),(Unavailable,"unavailable"),(Protocol,"protocol_error"),
+            (BackendFailed,"backend_failed"),(EventSinkClosed,"event_sink_closed")] {
+            assert_eq!(error.code(),code);
+        }
+    }
+
+    struct FakeProbeBackend {
+        diagnostic: ProbeDiagnostic,
+        code: Option<PlannerDiagnosticCode>,
+        result: Result<String, AgentError>,
+        calls: Arc<std::sync::atomic::AtomicUsize>,
+    }
+    impl AgentBackend for FakeProbeBackend {
+        fn execute<'a>(&'a self, _: &'a AgentRequest, _: &'a AtomicBool,
+            _: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send)) -> AgentFuture<'a> {
+            Box::pin(async move {
+                self.calls.fetch_add(1,Ordering::Relaxed);
+                if let Some(code) = self.code { return Err(record_planner_failure(code,Some(&self.diagnostic))); }
+                self.result.clone().map(|output| AgentResult { output })
+            })
+        }
+    }
+    async fn fake_probe(registry: &Arc<crate::agents::registry::AgentRegistry>, objective: &str,
+        code: Option<PlannerDiagnosticCode>, result: Result<String, AgentError>) -> (Result<PlanV1,String>,usize) {
+        let diagnostic=Arc::new(Mutex::new(None));
+        let calls=Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let backend=Arc::new(FakeProbeBackend { diagnostic:diagnostic.clone(),code,result,calls:calls.clone() });
+        let result=plan_probe_with_backend(registry,objective.into(),backend,diagnostic).await;
+        (super::super::planner_probe_response(result),calls.load(Ordering::Relaxed))
+    }
+    #[tokio::test] async fn probe_operation_preserves_closed_diagnostics_through_command_boundary() {
+        use PlannerTurnDiagnosticCode::*;
+        let registry=Arc::new(crate::agents::registry::AgentRegistry::production());
+        for code in [PlannerTurnStartFailed,PlannerTurnIdInvalid,PlannerTurnTransportFailed,PlannerTurnTimeout,
+            PlannerTurnUnexpectedNotification,PlannerTurnUnexpectedItem,PlannerTurnFailed,PlannerResponseMissing,
+            PlannerPlanInvalid,PlannerCleanupFailed] {
+            let (result,calls)=fake_probe(&registry,"Objetivo",Some(PlannerDiagnosticCode::Turn(code)),
+                Ok("/private/raw payload".into())).await;
+            assert_eq!(result,Err(code.code().to_string())); assert_eq!(calls,1);
+        }
+        use PlannerPreflightDiagnosticCode as Preparation;
+        for code in [Preparation::PlannerSpawnFailed,Preparation::PlannerInitializeFailed,Preparation::PlannerConfigReadFailed,
+            Preparation::PlannerMcpConfigInvalid,Preparation::PlannerThreadStartFailed,Preparation::PlannerSandboxRejected,
+            Preparation::PlannerApprovalPolicyRejected,Preparation::PlannerCwdRejected,Preparation::PlannerWorkspaceRootsRejected,
+            Preparation::PlannerInstructionSourcesRejected,Preparation::PlannerPermissionProfileRejected,
+            Preparation::PlannerThreadIdInvalid,Preparation::PlannerCleanupFailed] {
+            let (result,calls)=fake_probe(&registry,"Objetivo",Some(PlannerDiagnosticCode::Preparation(code)),
+                Ok("/private/raw payload".into())).await;
+            assert_eq!(result,Err(code.code().to_string())); assert_eq!(calls,1);
+        }
+    }
+    #[tokio::test] async fn probe_operation_keeps_generic_errors_and_success_without_diagnostic_leakage() {
+        let registry=Arc::new(crate::agents::registry::AgentRegistry::production());
+        for error in [AgentError::Cancelled,AgentError::UnsupportedCapability,AgentError::InvalidRequest,
+            AgentError::Unavailable,AgentError::Protocol,AgentError::BackendFailed,AgentError::EventSinkClosed] {
+            let expected=error.code().to_string();
+            let (result,calls)=fake_probe(&registry,"Objetivo",None,Err(error)).await;
+            assert_eq!(result,Err(expected)); assert_eq!(calls,1);
+        }
+        let (result,calls)=fake_probe(&registry,"Objetivo",None,Ok("/private/raw payload".into())).await;
+        assert_eq!(result,Err("protocol_error".into())); assert_eq!(calls,1);
+        let (result,calls)=fake_probe(&registry,"Objetivo",None,Ok(valid_plan().to_string())).await;
+        assert_eq!(serde_json::to_value(result.unwrap()).unwrap(),valid_plan()); assert_eq!(calls,1);
+    }
+    #[tokio::test] async fn probe_adapter_preserves_registry_and_request_gates() {
+        let production=Arc::new(crate::agents::registry::AgentRegistry::production());
+        let (result,calls)=fake_probe(&production,"",None,Ok(valid_plan().to_string())).await;
+        assert_eq!(result,Err("invalid_request".into())); assert_eq!(calls,0);
+        let missing=Arc::new(crate::agents::registry::AgentRegistry::default());
+        let (result,calls)=fake_probe(&missing,"Objetivo",None,Ok(valid_plan().to_string())).await;
+        assert_eq!(result,Err("unavailable".into())); assert_eq!(calls,0);
+        for disabled in [true,false] {
+            let mut registry=crate::agents::registry::AgentRegistry::default();
+            let mut config=production_config();
+            if disabled { config.enabled=false; } else { config.capabilities.planning=false; }
+            registry.register(config,Arc::new(CodexAgentBackend)).unwrap();
+            let (result,calls)=fake_probe(&Arc::new(registry),"Objetivo",None,Ok(valid_plan().to_string())).await;
+            assert_eq!(result,Err(if disabled { "unavailable".into() } else { "unsupported_capability".into() }));
+            assert_eq!(calls,0);
+        }
+    }
+
     struct FakeTurnProtocol {
         calls: Vec<&'static str>,
         start: Result<Value, ()>,
@@ -466,7 +626,9 @@ mod tests {
     fn assert_turn_failure(mut fake: FakeTurnProtocol, expected: PlannerTurnDiagnosticCode) {
         assert_eq!(run_prepared_turn(&mut fake,"t","Objetivo"),Err(expected));
         assert!(fake.calls.ends_with(&["thread/unsubscribe","shutdown"]));
-        let public=AgentError::PlannerDiagnostic(PlannerDiagnosticCode::Turn(expected)).code();
+        let error=PlannerProbeError::Diagnostic(PlannerDiagnosticCode::Turn(expected));
+        let public=error.code();
+        assert_eq!(super::super::planner_probe_response(Err(error)),Err(public.to_string()));
         assert_eq!(serde_json::to_value(expected).unwrap(),json!(public));
         assert!(!public.contains("private") && !public.contains("payload") && !public.contains('/'));
     }
