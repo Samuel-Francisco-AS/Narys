@@ -716,7 +716,7 @@ Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáve
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional** e **LR-7A/FIX → LR-7C fechadas em PASS**, a trilha multi-provider já possui Gemini + Groq reais e fallback/overflow funcional. A próxima evolução funcional segue para as etapas posteriores do plano, mantendo LR-8 separada para Rate Limit Manager e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional** e **LR-7A/FIX → LR-7D0 fechadas em PASS**, a trilha multi-provider já possui Gemini + Groq reais, fallback/overflow funcional e seleção configurável de provider por papel. A próxima evolução funcional é **LR-7D1 — Orchestrator/Planner configurável**, mantendo LR-8 separada para Rate Limit Manager e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
