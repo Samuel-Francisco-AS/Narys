@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@tauri-apps/api/core'
 import './settings.css'
 
 type Thinking = 'low' | 'medium' | 'high' | null
@@ -7,6 +7,8 @@ type Role = 'conversation' | 'summary'
 type Policy = { role: Role; providerId: string; model: string; thinkingLevel: Thinking; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number }
 type Timeouts = { requestTimeoutMs: number; streamIdleTimeoutMs: number }
 type Settings = { providerTimeouts: Timeouts; providers: { id: string; displayName: string; configured: boolean; supportedThinkingLevels: string[] }[]; roles: Policy[]; credentialStoreAvailable: boolean }
+type ProbeEvent = { type: 'selected'; providerId: string; attempt: number } | { type: 'chunk'; text: string }
+type ProbeResult = { text: string; providerId: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; retries: number; fallbacks: number } }
 const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
@@ -108,29 +110,59 @@ function TimeoutForm({ initial, onSaved }: { initial: Timeouts; onSaved: (timeou
 
 export default function AiSettingsApp() {
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [key, setKey] = useState('')
+  const [geminiKey, setGeminiKey] = useState('')
+  const [groqKey, setGroqKey] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const [probing, setProbing] = useState(false)
+  const [probeOutput, setProbeOutput] = useState('')
+  const [probeResult, setProbeResult] = useState<ProbeResult | null>(null)
   async function refresh() { setSettings(await invoke<Settings>('get_ai_settings')) }
   useEffect(() => { void refresh().catch(() => setError('Não foi possível carregar as configurações.')) }, [])
-  async function credential(command: 'gemini_set_api_key' | 'gemini_delete_api_key') {
+  async function credential(provider: 'gemini' | 'groq', action: 'set' | 'delete') {
     setBusy(true); setError(''); setNotice('')
+    const command = `${provider}_${action === 'set' ? 'set_api_key' : 'delete_api_key'}`
+    const value = provider === 'gemini' ? geminiKey : groqKey
     try {
-      await invoke(command, command === 'gemini_set_api_key' ? { apiKey: key } : {})
-      setKey(''); await refresh(); setNotice(command === 'gemini_set_api_key' ? 'Chave guardada no SecretStore.' : 'Chave removida.')
+      await invoke(command, action === 'set' ? { apiKey: value } : {})
+      if (provider === 'gemini') setGeminiKey(''); else setGroqKey('')
+      await refresh()
+      setNotice(`${provider === 'gemini' ? 'Gemini' : 'Groq'}: ${action === 'set' ? 'chave guardada no SecretStore' : 'chave removida'}.`)
     } catch { setError('Não foi possível alterar a credencial no SecretStore.') }
     finally { setBusy(false) }
   }
+  async function probeGroq() {
+    setProbing(true); setError(''); setProbeOutput(''); setProbeResult(null)
+    try {
+      const channel = new Channel<ProbeEvent>(event => {
+        if (event.type === 'chunk') setProbeOutput(current => current + event.text)
+      })
+      const result = await invoke<ProbeResult>('groq_probe', { channel })
+      setProbeResult(result)
+    } catch (cause) { setError(`Diagnóstico Groq falhou: ${String(cause)}`) }
+    finally { setProbing(false) }
+  }
+  const gemini = settings?.providers.find(provider => provider.id === 'gemini')
+  const groq = settings?.providers.find(provider => provider.id === 'groq')
   return <main className="settings-page">
     <header><p className="settings-kicker">LUNA · COGNIÇÃO</p><h1>IA e modelos</h1><p>Estas escolhas são aplicadas na próxima tarefa. Uma resposta em andamento mantém a configuração com que começou.</p></header>
     {settings ? <>
-      <section className="settings-card"><h2>Provider disponível</h2><p>Gemini · {settings.providers[0]?.configured ? 'Configurado' : 'Não configurado'} · Cofre {settings.credentialStoreAvailable ? 'disponível' : 'indisponível'}</p>
-        <p>Outros providers aparecerão quando a integração estiver disponível.</p>
-        <label>Chave API Gemini <input type="password" autoComplete="off" value={key} onChange={event => setKey(event.target.value)} placeholder="Definir ou substituir chave" /></label>
-        <div className="settings-actions"><button disabled={busy || !key.trim()} onClick={() => void credential('gemini_set_api_key')}>Guardar chave</button><button disabled={busy || !settings.providers[0]?.configured} onClick={() => void credential('gemini_delete_api_key')}>Remover chave</button></div>
+      <section className="settings-card"><h2>Providers disponíveis</h2>
+        <p>Gemini · {gemini?.configured ? 'Configurado' : 'Não configurado'} · Groq · {groq?.configured ? 'Configurado' : 'Não configurado'} · Cofre {settings.credentialStoreAvailable ? 'disponível' : 'indisponível'}</p>
+        <p>A conversa e o Summary continuam fixos no Gemini durante a LR-7B. Groq entra no Registry real, mas a distribuição automática só começa na LR-7C.</p>
+        <label>Chave API Gemini <input type="password" autoComplete="off" value={geminiKey} onChange={event => setGeminiKey(event.target.value)} placeholder="Definir ou substituir chave Gemini" /></label>
+        <div className="settings-actions"><button disabled={busy || !geminiKey.trim()} onClick={() => void credential('gemini', 'set')}>Guardar Gemini</button><button disabled={busy || !gemini?.configured} onClick={() => void credential('gemini', 'delete')}>Remover Gemini</button></div>
+        <label>Chave API Groq <input type="password" autoComplete="off" value={groqKey} onChange={event => setGroqKey(event.target.value)} placeholder="Definir ou substituir chave Groq" /></label>
+        <div className="settings-actions"><button disabled={busy || !groqKey.trim()} onClick={() => void credential('groq', 'set')}>Guardar Groq</button><button disabled={busy || !groq?.configured} onClick={() => void credential('groq', 'delete')}>Remover Groq</button></div>
         {notice && <p role="status">{notice}</p>}
         <TimeoutForm initial={settings.providerTimeouts} onSaved={saved => setSettings(current => current && ({ ...current, providerTimeouts: saved }))} />
+      </section>
+      <section className="settings-card"><h2>Diagnóstico Groq · LR-7B</h2>
+        <p>Executa uma chamada <strong>Fixed(groq)</strong> isolada com <code>openai/gpt-oss-20b</code>. Não altera a policy da conversa nem do Summary.</p>
+        <div className="settings-actions"><button disabled={probing || !groq?.configured} onClick={() => void probeGroq()}>{probing ? 'Executando…' : 'Testar Groq'}</button></div>
+        {probeOutput && <p aria-live="polite"><strong>Stream:</strong> {probeOutput}</p>}
+        {probeResult && <p role="status">Provider: {probeResult.providerId} · input {probeResult.usage.inputTokens} · output {probeResult.usage.outputTokens} · total {probeResult.usage.totalTokens ?? '—'} tokens.</p>}
       </section>
       <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
       <section className="settings-card"><h2>Parâmetros avançados</h2>
@@ -138,9 +170,9 @@ export default function AiSettingsApp() {
         <p>Timeout HTTP total e idle do stream: configuráveis globalmente para Gemini. Conexão: 8 s — configuração do adapter atual.</p>
         <p>Histórico de conversa enviado: configurável em Conversa. Summary input budget: configurável em Resumo. Retry: configurável por papel.</p>
         <p>Preparação de resumo: até 256 mensagens candidatas mais a primeira fala do usuário; leitura local limitada a 8193 caracteres por mensagem. Título gerado: até 70 caracteres; resumo: até 1200. Limites técnicos desta versão.</p>
-        <p>Fallback: desativado para seleção explícita de provider nesta versão.</p>
-        <p>Temperature e top-p: não expostos pelo adapter atual. Tools e Grounding/Web: não disponíveis.</p>
-        <p>Segurança, isolamento de sessão, segredos fora do React, permissões e <code>store:false</code> são invariantes do aplicativo.</p>
+        <p>Fallback: a infraestrutura suporta Preferred/Auto, mas Conversation e Summary continuam Fixed(Gemini) na LR-7B.</p>
+        <p>Groq usa configuração própria e diagnóstico isolado. Temperature, top-p e tools ainda não são expostos.</p>
+        <p>Segurança, isolamento de sessão e segredos fora do React são invariantes do aplicativo. O adapter Gemini envia <code>store:false</code>; o adapter Groq não envia parâmetros não suportados pelo endpoint Chat Completions.</p>
       </section>
     </> : <p>Carregando…</p>}
     {error && <p className="settings-error" role="alert">{error}</p>}

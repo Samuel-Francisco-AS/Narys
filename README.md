@@ -114,3 +114,8 @@ Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA
 O trabalho artístico não precisa bloquear a evolução estrutural: **LR-1** separou o runtime de avatar/animação sem mudar o asset atual; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
 
 O chat Gemini LR-6 funciona na janela Tauri com credencial mantida no SecretStore. A trilha UIP já transformou a interface em presença desktop transparente/recolhível e estabeleceu o orçamento de performance. Ferramentas operacionais, Android e mensageiros continuam posteriores; **LR-7A** iniciou a fundação multi-provider com mocks locais; **LR-7B** fica reservada ao Groq e à prova real de distribuição/fallback. **LR-8** segue separada.
+
+
+### LR-7B — Groq
+
+A LR-7A/LR-7A-FIX fechou a fundação multi-provider e a **LR-7B passou os gates técnico e humano em 28/09/2026**: Groq está integrado como segundo provider real, com credencial no Stronghold, streaming/usage reais e diagnóstico isolado `Fixed(groq)`. Conversation e Summary permanecem `Fixed(gemini)`; distribuição Gemini ↔ Groq continua reservada à LR-7C. Consulte [Groq Provider](docs/GROQ-PROVIDER.md).

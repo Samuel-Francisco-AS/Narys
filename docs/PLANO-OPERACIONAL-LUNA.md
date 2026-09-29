@@ -390,6 +390,8 @@ Plano detalhado: [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md).
 
 **LR-7A-FIX (28/09/2026):** a auditoria apontou que o routing era provider-aware, mas parâmetros de invocação ainda eram únicos por request. A FIX separa a requisição da tarefa dos targets, cada um com model, thinking e timeouts próprios. O Scheduler resolve e valida a configuração do provider selecionado antes de invocá-lo; configuração ausente ou inválida falha fechada. `ProviderRuntime` não possui mais timeouts Gemini. Groq permanece LR-7B; nenhum gate real multi-provider foi executado.
 
+**LR-7B — segundo provider real (28/09/2026): PASS completo.** Groq foi registrado no Registry real como provider `groq`, prioridade 2, com `openai/gpt-oss-20b`, credencial própria no Stronghold, streaming SSE, usage real, reasoning oculto, mapping de 429/Retry-After e diagnóstico isolado `Fixed(groq)`. O gate técnico passou com typecheck/build, cargo check, **89/89 testes**, cargo check release e diff check. No gate humano, a chamada real Groq respondeu por streaming com 126 tokens de entrada, 22 de saída e 148 total; a credencial permaneceu configurada após restart. Conversation e Summary continuaram `Fixed(gemini)`. Um HTTP 429 real do Gemini confirmou que o Scheduler respeita `Fixed` e não desvia silenciosamente para Groq. A distribuição/fallback real Gemini ↔ Groq fica para **LR-7C**.
+
 **Segundo provider escolhido:** Groq (LR-7B).
 
 Essa fase prova que a arquitetura é de verdade multi-provider.
@@ -741,3 +743,6 @@ O hardening introduz propagação terminal de falha do Channel (`channel_closed`
 **Atualização UIP-6C (28/09/2026):** UIP-6A/UIP-6B/UIP-6C e UIP-6 estão fechadas em PASS funcional. O Scheduler compartilha cooldown de Retry-After de 429 e 503 entre conversa e resumo. Summary é oportunista e aguarda a conclusão das conversas foreground antes de iniciar nova chamada. A dívida residual de Summary consumir disponibilidade Gemini antes da primeira mensagem manual permanece para LR-7/LR-8 ou rodada dedicada de estabilidade; LR-7 e LR-8 não começaram.
 
 **Atualização UIP-7 (28/09/2026):** segundo gate curto de performance e lifecycle concluído e aprovado por Sam. [UIP-7 = PASS funcional / FECHADA](UIP-7-FINAL-PERFORMANCE.md); **UIP-0 → UIP-7 encerradas**. A próxima etapa funcional é **LR-7 — segundo provider real + distribuição**. Groq e Mistral seguem candidatos; a escolha será feita na nova sessão dedicada à LR-7.
+
+
+**Atualização LR-7B (28/09/2026):** implementação candidata adiciona Groq como segundo provider real no Registry, com Stronghold, streaming SSE, usage e diagnóstico `Fixed(groq)`. Conversation/Summary continuam `Fixed(gemini)`; nenhuma distribuição automática foi ativada. Gate técnico local e gate humano com chave real permanecem necessários antes de declarar LR-7B PASS.

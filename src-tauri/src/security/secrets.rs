@@ -8,8 +8,8 @@ const SERVICE: &str = "br.com.assistente3d.app";
 const ACCOUNT: &str = "stronghold-unlock-v1";
 
 #[derive(Clone, Copy)]
-pub enum SecretKey { Lr3Test, GeminiApiKey }
-impl SecretKey { fn bytes(self) -> &'static [u8] { match self { Self::Lr3Test => b"lr3_test_secret", Self::GeminiApiKey => b"gemini_api_key" } } }
+pub enum SecretKey { Lr3Test, GeminiApiKey, GroqApiKey }
+impl SecretKey { fn bytes(self) -> &'static [u8] { match self { Self::Lr3Test => b"lr3_test_secret", Self::GeminiApiKey => b"gemini_api_key", Self::GroqApiKey => b"groq_api_key" } } }
 
 #[derive(Debug)]
 pub enum SecretError {

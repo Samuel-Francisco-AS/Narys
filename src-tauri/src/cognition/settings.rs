@@ -92,16 +92,25 @@ pub async fn get_ai_settings(
             policy::load(&conn, CognitiveRole::Summary).map_err(|e| e.code())?,
         ];
         let provider_timeouts = gemini_settings::load(&conn).map_err(|e| e.code())?;
-        let credential = store.get_secret(SecretKey::GeminiApiKey);
+        let gemini_credential = store.get_secret(SecretKey::GeminiApiKey);
+        let groq_credential = store.get_secret(SecretKey::GroqApiKey);
         Ok::<_, &'static str>(AiSettings {
-            providers: vec![AiProviderInfo {
-                id: "gemini",
-                display_name: "Gemini",
-                configured: credential.as_ref().is_ok_and(|value| value.is_some()),
-                supported_thinking_levels: ["low", "medium", "high"],
-            }],
+            providers: vec![
+                AiProviderInfo {
+                    id: "gemini",
+                    display_name: "Gemini",
+                    configured: gemini_credential.as_ref().is_ok_and(|value| value.is_some()),
+                    supported_thinking_levels: ["low", "medium", "high"],
+                },
+                AiProviderInfo {
+                    id: "groq",
+                    display_name: "Groq",
+                    configured: groq_credential.as_ref().is_ok_and(|value| value.is_some()),
+                    supported_thinking_levels: ["low", "medium", "high"],
+                },
+            ],
             roles,
-            credential_store_available: credential.is_ok(),
+            credential_store_available: gemini_credential.is_ok() && groq_credential.is_ok(),
             provider_timeouts,
         })
     })

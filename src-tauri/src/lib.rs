@@ -35,6 +35,13 @@ pub fn run() {
       providers.register(cognition::types::ProviderConfig { id: "gemini".into(), enabled: true, priority: 1,
         capabilities: cognition::types::ProviderCapabilities::text_stream() }, gemini_adapter)
         .expect("unique Gemini ID");
+      let groq_adapter = std::sync::Arc::new(cognition::groq::GroqProvider::new(
+        cognition::groq::GroqConfig::default(), secrets.clone()
+      ).map_err(|_| "groq_http_client_unavailable")?);
+      let groq_timeouts = groq_adapter.timeout_handle();
+      providers.register(cognition::types::ProviderConfig { id: "groq".into(), enabled: true, priority: 2,
+        capabilities: cognition::types::ProviderCapabilities::text_stream() }, groq_adapter)
+        .expect("unique Groq ID");
       let runtime = cognition::ProviderRuntime::new(providers);
       let scheduler = runtime.scheduler.clone();
       let available_secrets = secrets.clone();
@@ -47,6 +54,7 @@ pub fn run() {
       app.manage(secrets);
       app.manage(std::sync::Arc::new(runtime));
       app.manage(std::sync::Arc::new(cognition::gemini::GeminiTimeoutState { timeouts: gemini_timeouts }));
+      app.manage(std::sync::Arc::new(cognition::groq::GroqTimeoutState { timeouts: groq_timeouts }));
       app.manage(worker);
       Ok(())
     })
@@ -66,6 +74,8 @@ pub fn run() {
     cognition::settings::get_general_settings, cognition::settings::update_general_settings,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
+    cognition::groq_commands::groq_status, cognition::groq_commands::groq_set_api_key,
+    cognition::groq_commands::groq_delete_api_key, cognition::groq_commands::groq_probe,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
     cognition::gemini_commands::close_conversation_session, cognition::gemini_commands::resume_conversation_session,
     cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
@@ -81,6 +91,8 @@ pub fn run() {
     cognition::settings::get_general_settings, cognition::settings::update_general_settings,
     cognition::gemini_commands::gemini_status, cognition::gemini_commands::gemini_set_api_key,
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
+    cognition::groq_commands::groq_status, cognition::groq_commands::groq_set_api_key,
+    cognition::groq_commands::groq_delete_api_key, cognition::groq_commands::groq_probe,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
     cognition::gemini_commands::close_conversation_session, cognition::gemini_commands::resume_conversation_session,
     cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
