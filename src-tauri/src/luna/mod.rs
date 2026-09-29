@@ -3,11 +3,13 @@ mod task;
 
 use std::sync::Arc;
 
+use serde::Serialize;
 use tauri::{ipc::Channel, State};
 use crate::persistence::database::Database;
 use crate::persistence::conversation;
 use crate::cognition::ProviderRuntime;
-use crate::cognition::policy::{self, CognitiveRole};
+use crate::cognition::policy::{self, CognitiveRole, RoutingMode};
+use crate::security::secrets::{SecretKey, SecretStore};
 use crate::cognition::gemini_commands::CurrentRunSessions;
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario, scheduler::ProviderStatus};
@@ -49,6 +51,52 @@ pub fn start_mock_cognition_task(registry: State<'_, Arc<TaskRegistry>>, db: Sta
 #[tauri::command]
 pub fn cognition_provider_status(cognition: State<'_, Arc<CognitionRuntime>>) -> Vec<ProviderStatus> {
   cognition.status()
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationProviderState {
+  provider_id: String,
+  configured: bool,
+  cooldown_ms: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationRoutingStatus {
+  routing_mode: RoutingMode,
+  primary: ConversationProviderState,
+  fallback: Option<ConversationProviderState>,
+}
+
+fn provider_configured(store: &SecretStore, provider_id: &str) -> bool {
+  let key = match provider_id {
+    "gemini" => SecretKey::GeminiApiKey,
+    "groq" => SecretKey::GroqApiKey,
+    _ => return false,
+  };
+  store.get_secret(key).ok().flatten().is_some()
+}
+
+#[tauri::command]
+pub fn conversation_routing_status(db: State<'_, Database>, runtime: State<'_, Arc<ProviderRuntime>>,
+  store: State<'_, Arc<SecretStore>>) -> Result<ConversationRoutingStatus, String> {
+  let conn = db.open().map_err(|e| e.code())?;
+  let policy = policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?;
+  policy.validate().map_err(str::to_owned)?;
+  let statuses = runtime.scheduler.status();
+  let state = |provider_id: &str| ConversationProviderState {
+    provider_id: provider_id.to_owned(),
+    configured: provider_configured(&store, provider_id),
+    cooldown_ms: statuses.iter().find(|status| status.id == provider_id).map(|status| status.cooldown_ms).unwrap_or(0),
+  };
+  Ok(ConversationRoutingStatus {
+    routing_mode: policy.routing_mode,
+    primary: state(&policy.provider_id),
+    fallback: if policy.routing_mode == RoutingMode::Preferred {
+      policy.fallback_provider_id.as_deref().map(state)
+    } else { None },
+  })
 }
 
 #[tauri::command]
