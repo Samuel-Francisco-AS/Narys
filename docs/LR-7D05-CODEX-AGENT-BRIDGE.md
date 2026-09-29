@@ -112,6 +112,27 @@ Os gates locais foram executados pelo Copilot e reportados como PASS, com 104 te
 
 O gate humano foi concluído em 29/09/2026 com o runtime Codex real: a UI detectou `codex-cli 0.158.0`, autenticação `ChatGPT` e estado disponível; refresh manual e restart preservaram o diagnóstico correto. A referência externa `codex --version` / `codex login status` coincidiu com o estado mostrado pelo aplicativo.
 
+## Auditoria independente da Luna — D0.5B — 29/09/2026
+
+**PASS para gate humano; D0.5B ainda não é PASS final.**
+
+A revisão remota confirmou que:
+
+- a ponte inicia diretamente `codex app-server --stdio`, sem shell intermediário;
+- o handshake segue `initialize` → resposta correlacionada pelo mesmo ID → `initialized`;
+- notificações válidas podem ser intercaladas antes da resposta, com limite explícito de 32;
+- o canal limitado reserva `MAX_NOTIFICATIONS + 1` posições, permitindo 32 notificações mais a resposta de initialize mesmo em burst anterior ao consumo;
+- 32 notificações + resposta passam e 33 notificações resultam em erro de protocolo;
+- stdout é lido incrementalmente, com 64 KiB por mensagem e 256 KiB por probe; stderr é drenado em paralelo com retenção máxima de 4 KiB;
+- `codexHome`, `userAgent`, stdout e stderr brutos não atravessam a fronteira pública;
+- o processo é efêmero; EOF é tentado primeiro e `kill + wait` é fallback válido de cleanup, sem ser tratado por si só como falha;
+- threads leitoras são joined antes do retorno;
+- nenhuma inferência, thread, turn, ferramenta, AgentBackend, registry ou Planner foi antecipado.
+
+Os gates locais foram executados pelo Codex e reportados como PASS, com 113 testes Rust no total (112 PASS + 1 teste manual ignorado). O teste manual real de handshake também foi reportado como PASS, sem processo remanescente. A auditoria da Luna foi revisão independente do código remoto, não uma segunda execução local desses comandos.
+
+O fechamento depende do gate humano pelo botão **Testar app-server** e da confirmação de que não resta processo `codex app-server` após o probe.
+
 ## Gates
 
 O gate técnico desta candidata é `npm run typecheck`, `npm run build`,
