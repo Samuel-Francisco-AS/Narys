@@ -1,6 +1,6 @@
 # LR-7C — distribuição real Gemini ↔ Groq
 
-Estado: **PASS técnico; gate humano pendente.**
+Estado: **gate humano principal observado; revalidação técnica pendente após correção de grounding.**
 
 A LR-7C ativa a primeira rota real multi-provider do produto sem antecipar o Rate Limit Manager da LR-8.
 
@@ -102,3 +102,16 @@ Validado em 28/09/2026 no Fedora:
 9. Confirmar que Summary continua Fixed(Gemini).
 
 O gate final da LR-7 exige ao menos uma tarefa real que use os dois providers sem perder sessão/identidade.
+
+
+## Evidência humana parcial — 28/09/2026
+
+- `Preferred(Gemini)` com Gemini saudável selecionou apenas Gemini e concluiu sem chamar Groq;
+- em nova mensagem na mesma sessão, Gemini retornou HTTP 429 antes do primeiro chunk;
+- a mesma tarefa fez fallback e concluiu por Groq;
+- a UI registrou `Resposta concluída por Groq · rota Gemini → Groq`;
+- a resposta textual do modelo, porém, afirmou incorretamente que Gemini havia respondido.
+
+A causa foi identificada: os adapters não forneciam ao modelo o provider/modelo da execução atual, então a resposta tentou inferir esse dado pelo histórico da sessão. O runtime e a UI estavam corretos.
+
+Correção aplicada: Gemini e Groq agora recebem metadado técnico explícito de execução atual (provider/modelo), separado da identidade da Luna, com instrução para não inferir provider pelo histórico nem inventar rota anterior. Como houve mudança Rust após o PASS técnico anterior, os gates técnicos devem ser reexecutados antes do fechamento.
