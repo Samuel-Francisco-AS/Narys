@@ -531,7 +531,8 @@ fn migration_007_preserves_v6_policy_and_gemini_timeout() {
   use crate::cognition::policy::{self, CognitiveRole, RoutingMode, ThinkingLevel};
   use super::provider_timeouts;
   use crate::cognition::types::ProviderTimeouts;
-  let conn = rusqlite::Connection::open_in_memory().unwrap();
+  let (db, bootstrap_path) = fixture();
+  let conn = rusqlite::Connection::open(bootstrap_path.with_file_name("test.sqlite3")).unwrap();
   conn.execute_batch(&format!("{} {} {} {} {} {} PRAGMA user_version=6;",
     include_str!("../../migrations/001_initial_persistence.sql"),
     include_str!("../../migrations/002_conversation_history.sql"),
@@ -556,6 +557,13 @@ fn migration_007_preserves_v6_policy_and_gemini_timeout() {
   migrations::apply(&conn).unwrap();
   assert_eq!(provider_timeouts::load(&conn, "groq").unwrap().request_timeout_ms, 33000);
   assert_sqlite_integrity(&conn);
+  drop(conn);
+  let reopened = db.open().unwrap();
+  assert_eq!(policy::load(&reopened, CognitiveRole::Conversation).unwrap(), before);
+  assert_eq!(policy::load(&reopened, CognitiveRole::Summary).unwrap(), summary);
+  assert_eq!(provider_timeouts::load(&reopened, "gemini").unwrap().request_timeout_ms, 64000);
+  assert_eq!(provider_timeouts::load(&reopened, "groq").unwrap().request_timeout_ms, 33000);
+  assert_sqlite_integrity(&reopened);
 }
 
 #[test]
