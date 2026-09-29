@@ -25,6 +25,6 @@ export type TaskEvent = TaskEventBase & (
   | { type: 'provider_selected'; provider_id: string; attempt: number }
   | { type: 'provider_chunk'; provider_id: string; chunk: string }
   | { type: 'provider_retry'; provider_id: string; reason_code: string }
-  | { type: 'provider_fallback'; provider_id: string; reason_code: string }
+  | { type: 'provider_fallback'; from_provider_id: string; to_provider_id: string; reason_code: string }
   | { type: 'task_result_ready'; result: CognitiveResult }
 )
