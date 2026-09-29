@@ -394,6 +394,8 @@ Plano detalhado: [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md).
 
 **LR-7C — distribuição real (28/09/2026): PASS completo.** A Conversa persiste policy `Fixed` ou `Preferred`; em `Preferred`, Gemini é o primário e Groq o fallback explícito com model/thinking próprios. A migration 006 preserva `Fixed` por padrão. O preflight consulta a rota real e não bloqueia envio quando Gemini está em cooldown mas Groq está elegível. Foram observados em provider real: Gemini saudável → Gemini; Gemini HTTP 429 antes do primeiro chunk → Groq na mesma tarefa; Gemini já em cooldown → Groq direto. A UI registra origem/destino/motivo reais, e o grounding de provider/modelo foi corrigido e revalidado. Summary permanece `Fixed(gemini)`; Auto, affinity, task graph, paralelismo e Rate Limit Manager completo continuam fora desta rodada. Veja [LR-7C-DISTRIBUTION.md](LR-7C-DISTRIBUTION.md).
 
+**LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente (planejada em 28/09/2026).** A subtrilha remove a noção de Gemini como provider estruturalmente principal. O Luna Core permanece autoridade de identidade/estado/permissões; providers ocupam papéis cognitivos configuráveis. Sequência: **LR-7D0** providers genéricos por papel + remoção de hardcodes; **LR-7D1** papel real `orchestrator`/Planner configurável; **LR-7D2** fallback chain + Auto/score + affinity; **LR-7D3** task graph mínimo com subtarefas independentes. LR-7D0 será implementada pelo Codex, auditada independentemente pela Luna e submetida a gate humano. Plano detalhado: [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
+
 **Segundo provider escolhido:** Groq (LR-7B).
 
 Essa fase prova que a arquitetura é de verdade multi-provider.
