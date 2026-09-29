@@ -119,3 +119,8 @@ O chat Gemini LR-6 funciona na janela Tauri com credencial mantida no SecretStor
 ### LR-7B — Groq
 
 A LR-7A/LR-7A-FIX fechou a fundação multi-provider e a **LR-7B passou os gates técnico e humano em 28/09/2026**: Groq está integrado como segundo provider real, com credencial no Stronghold, streaming/usage reais e diagnóstico isolado `Fixed(groq)`. Conversation e Summary permanecem `Fixed(gemini)`; distribuição Gemini ↔ Groq continua reservada à LR-7C. Consulte [Groq Provider](docs/GROQ-PROVIDER.md).
+
+
+### LR-7C — distribuição real
+
+A LR-7C está **candidata ao gate** em branch dedicada: Conversa pode usar `Preferred(Gemini)` com fallback Groq explicitamente configurado, enquanto Summary permanece `Fixed(Gemini)`. O comportamento anterior continua Fixed após migration; a distribuição só é ativada por configuração do usuário. Veja [LR-7C — distribuição real](docs/LR-7C-DISTRIBUTION.md).
