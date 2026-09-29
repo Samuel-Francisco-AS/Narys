@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A — PASS completo e integrada à `main` em 29/09/2026. D0.5B — candidata ao gate humano.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A — PASS completo e integrada à `main` em 29/09/2026. D0.5B — PASS completo; pronta para integração. D0.5C é o próximo checkpoint após o merge.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -45,7 +45,7 @@ interface oferece apenas consulta inicial e atualização manual.
 - seção experimental em **IA e modelos**;
 - testes unitários sem conta, internet, quota ou chamada de modelo.
 
-## D0.5B — candidata ao gate humano
+## D0.5B — PASS completo
 
 O comando read-only `probe_codex_app_server`, disponível apenas à capability
 `settings-ai`, inicia diretamente `codex app-server --stdio` sem shell. Ele abre
