@@ -131,7 +131,7 @@ impl CognitiveRolePolicy {
                     return Err("fallback_budget_invalid");
                 }
                 if self.fallback_provider_id.as_deref() != Some("groq")
-                    || self.fallback_model.as_deref().is_none_or(|model| !Self::valid_model(model))
+                    || self.fallback_model.as_deref().map_or(true, |model| !Self::valid_model(model))
                     || self.fallback_provider_id.as_deref() == Some(self.provider_id.as_str())
                 {
                     return Err("fallback_config_invalid");
