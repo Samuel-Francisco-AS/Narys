@@ -18,7 +18,7 @@ function label(event: TaskEvent): string {
     case 'provider_selected': return `${event.provider_id} · tentativa ${event.attempt}`
     case 'provider_chunk': return `Chunk de ${event.provider_id}: ${event.chunk}`
     case 'provider_retry': return `Retry ${event.provider_id}: ${event.reason_code}`
-    case 'provider_fallback': return `Fallback após ${event.provider_id}: ${event.reason_code}`
+    case 'provider_fallback': return `Fallback ${event.from_provider_id} → ${event.to_provider_id}: ${event.reason_code}`
     case 'task_result_ready': return `Resultado pronto: ${event.result.providerId}`
     case 'task_started': return 'Tarefa iniciada'
     case 'task_completed': return 'Tarefa concluída'
