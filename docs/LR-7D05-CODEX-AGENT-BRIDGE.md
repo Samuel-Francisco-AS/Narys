@@ -23,8 +23,9 @@ cognitiva intercambiável. Nenhuma abstração `AgentBackend` ou registry de age
 ## Escopo e fronteira de segurança da D0.5A
 
 O Luna Core executa diretamente `codex --version` e `codex login status`, sem
-shell intermediário, com timeout de 5 segundos por processo. A saída é limitada
-em memória e usada somente para extrair uma versão e classificar marcadores
+shell intermediário, com timeout de 5 segundos por processo. Cada stream é
+drenado sem deadlock, mantendo no máximo 16 KiB por stream em memória; bytes
+excedentes são descartados. A saída mantida é usada somente para extrair uma versão e classificar marcadores
 públicos de autenticação (`ChatGPT`, API key, outro, desconhecido ou nenhum).
 O frontend recebe apenas `CodexRuntimeStatus`, com `installed`, `version`,
 `authenticated`, `authKind`, `available` e um código diagnóstico sanitizado.

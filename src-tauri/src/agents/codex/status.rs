@@ -1,7 +1,8 @@
 use serde::Serialize;
 use std::{
-  io,
+  io::{self, Read},
   process::{Child, Command, Output, Stdio},
+  thread::{self, JoinHandle},
   time::{Duration, Instant},
 };
 
@@ -58,28 +59,49 @@ fn run_codex(args: &[&str]) -> Result<CommandResult, io::Error> {
 }
 
 fn wait_with_timeout(mut child: Child) -> Result<CommandResult, io::Error> {
+  let stdout = child.stdout.take().ok_or_else(|| io::Error::other("codex_stdout_unavailable"))?;
+  let stderr = child.stderr.take().ok_or_else(|| io::Error::other("codex_stderr_unavailable"))?;
+  let stdout_reader = thread::spawn(|| drain_stream(stdout));
+  let stderr_reader = thread::spawn(|| drain_stream(stderr));
   let started = Instant::now();
   loop {
-    if child.try_wait()?.is_some() {
-      let output = child.wait_with_output()?;
-      return Ok(CommandResult::Completed(Output {
-        status: output.status,
-        stdout: cap_output(output.stdout),
-        stderr: cap_output(output.stderr),
-      }));
+    if let Some(status) = child.try_wait()? {
+      return completed_output(status, stdout_reader, stderr_reader);
     }
     if started.elapsed() >= COMMAND_TIMEOUT {
       let _ = child.kill();
       let _ = child.wait();
+      let _ = stdout_reader.join();
+      let _ = stderr_reader.join();
       return Ok(CommandResult::TimedOut);
     }
     std::thread::sleep(POLL_INTERVAL);
   }
 }
 
-fn cap_output(mut output: Vec<u8>) -> Vec<u8> {
-  output.truncate(MAX_OUTPUT_BYTES);
-  output
+fn drain_stream<R: Read>(mut stream: R) -> Vec<u8> {
+  let mut retained = Vec::with_capacity(MAX_OUTPUT_BYTES);
+  let mut buffer = [0u8; 8192];
+  loop {
+    match stream.read(&mut buffer) {
+      Ok(0) | Err(_) => break,
+      Ok(bytes_read) => {
+        let remaining = MAX_OUTPUT_BYTES.saturating_sub(retained.len());
+        retained.extend_from_slice(&buffer[..bytes_read.min(remaining)]);
+      }
+    }
+  }
+  retained
+}
+
+fn completed_output(
+  status: std::process::ExitStatus,
+  stdout_reader: JoinHandle<Vec<u8>>,
+  stderr_reader: JoinHandle<Vec<u8>>,
+) -> Result<CommandResult, io::Error> {
+  let stdout = stdout_reader.join().map_err(|_| io::Error::other("codex_stdout_reader_failed"))?;
+  let stderr = stderr_reader.join().map_err(|_| io::Error::other("codex_stderr_reader_failed"))?;
+  Ok(CommandResult::Completed(Output { status, stdout, stderr }))
 }
 
 fn output_text(output: &Output) -> String {
@@ -108,9 +130,11 @@ fn classify_authentication(text: &str, successful: bool) -> (bool, CodexAuthKind
   if normalized.contains("not logged in")
     || normalized.contains("logged out")
     || normalized.contains("not authenticated")
-    || (!successful && normalized.is_empty())
   {
     return (false, CodexAuthKind::None, Some(CodexDiagnosticCode::CodexNotAuthenticated));
+  }
+  if !successful {
+    return (false, CodexAuthKind::Unknown, Some(CodexDiagnosticCode::CodexStatusFailed));
   }
   if normalized.contains("logged in using chatgpt") {
     return (true, CodexAuthKind::Chatgpt, None);
@@ -212,6 +236,18 @@ mod tests {
   }
 
   #[test]
+  fn positive_markers_fail_closed_when_command_fails() {
+    assert_eq!(
+      classify_authentication("Logged in using ChatGPT", false),
+      (false, CodexAuthKind::Unknown, Some(CodexDiagnosticCode::CodexStatusFailed))
+    );
+    assert_eq!(
+      classify_authentication("Logged in using API key", false),
+      (false, CodexAuthKind::Unknown, Some(CodexDiagnosticCode::CodexStatusFailed))
+    );
+  }
+
+  #[test]
   fn classifies_other_login() {
     assert_eq!(
       classify_authentication("Authenticated with enterprise SSO", true),
@@ -224,6 +260,14 @@ mod tests {
     assert_eq!(
       classify_authentication("Not logged in", false),
       (false, CodexAuthKind::None, Some(CodexDiagnosticCode::CodexNotAuthenticated))
+    );
+  }
+
+  #[test]
+  fn arbitrary_failure_output_fails_closed() {
+    assert_eq!(
+      classify_authentication("unexpected error", false),
+      (false, CodexAuthKind::Unknown, Some(CodexDiagnosticCode::CodexStatusFailed))
     );
   }
 
