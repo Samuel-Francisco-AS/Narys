@@ -1,15 +1,15 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — CodexAgentBackend real + Planner read-only + PlanV1 — é o próximo checkpoint.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS técnico, auditoria independente e gate humano concluídos; pronta para integração pela PR #7. Próximo checkpoint: D0.5E — cancelamento, recovery e eventos reais.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
 
 Gemini e Groq continuam sendo `CognitiveProvider`s para Conversation e Summary.
-Codex é um **AgentBackend futuro** porque sua integração prevista é orientada a
+Codex pertence à família **AgentBackend** porque sua integração é orientada a
 agente/app-server, threads, turns, ferramentas e aprovações, e não a uma chamada
-cognitiva intercambiável. D0.5C cria somente a abstração genérica; nenhum
-backend agentivo real é registrado ou executado nesta etapa.
+cognitiva intercambiável. D0.5C criou a abstração genérica; D0.5D adicionou o primeiro
+backend agentivo real, restrito a planejamento read-only estruturado.
 
 ## Checkpoints
 
@@ -114,7 +114,7 @@ falha do sink. Não há mock em produção, exposição na UI ou gate humano nes
 etapa. Codex ainda não implementa `AgentBackend`; D0.5D será a primeira
 integração concreta, com Planner read-only e `PlanV1`.
 
-## Explicitamente não implementado até D0.5C
+## Estado até D0.5C (histórico)
 
 A ponte diagnóstica de app-server/stdio já existe desde D0.5B, mas ainda não há
 backend agentivo real sobre ela. Não há login/logout, token ou API key na UI;
@@ -204,3 +204,98 @@ A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf
 ## Fechamento de integração da D0.5C — 29/09/2026
 
 A PR #6 foi integrada à `main` por squash no commit `663610cacff526558b353e22c6d6292ea7a5c0f4`. A D0.5C está oficialmente encerrada em PASS técnico, sem gate humano artificial. O próximo checkpoint é **D0.5D — primeiro `CodexAgentBackend` real + Planner read-only + `PlanV1`**, mantendo o Luna Core como autoridade sobre validação e execução.
+
+## D0.5D — CANDIDATA AO GATE HUMANO
+
+`CodexAgentBackend` é o primeiro backend agentivo de produção, registrado como `codex` em `AgentRegistry`. Suas únicas capabilities são `planning` e `structured_output`; leitura de repositório, escrita, execução de comandos e uso de ferramentas permanecem false. O módulo `planner` escolhe explicitamente esse ID, consome o contrato `AgentBackend` e valida o `PlanV1` antes de devolver uma estrutura sanitizada ao diagnóstico em **IA e modelos**. Não há integração com `CognitiveProvider`, `ProviderRegistry`, Scheduler ou TaskRegistry.
+
+Cada chamada cria um diretório temporário fora do checkout e inicia um processo `codex app-server --stdio` nesse cwd. O transporte reutiliza framing, limites, drenagem de stderr e cleanup da D0.5B. O Planner declara `capabilities.experimentalApi=true` no initialize para os campos de isolamento presentes no schema local `--experimental`; o probe D0.5B mantém seu initialize original. O fluxo é `initialize` → `initialized` → `config/read` → `thread/start` → `turn/start` com `outputSchema` → notificações `item/completed` e `turn/completed` → `thread/unsubscribe` → EOF → wait ou kill+wait. IDs de request são únicos e correlacionados; request do servidor com ID, inclusive approval/tool, falha fechada. O processo nunca é daemon persistente. O frontend não recebe protocolo, caminhos, IDs, configuração, stdout ou stderr.
+
+O `thread/start` usa `ephemeral=true`, `approvalPolicy=never`, `sandbox=read-only`, `environments=[]`, `dynamicTools=[]`, `runtimeWorkspaceRoots=[]` e `selectedCapabilityRoots=[]`. O `config/read` com o cwd isolado precede a criação da thread; os nomes de `mcp_servers` efetivos são sobrepostos com `enabled=false`. A configuração da thread também usa `default_permissions=:read-only`, `web_search=disabled`, `features.shell_tool=false`, `features.unified_exec=false` e desabilita code mode, apps, plugins, skills, multi-agent, ferramentas de permissões, request-user-input e update-plan, entre outras superfícies do padrão `temporary_structured_request` da tag `rust-v0.158.0`. Antes do turn, o Core rejeita sandbox efetivo que não seja `readOnly`, approval policy incompatível ou cwd divergente. O objetivo é enviado apenas como dado textual junto a instruções estáticas; não inclui repo, home, identidade, memória, histórico ou secrets.
+
+**FIX de auditoria:** `environments=[]` não impede, por si só, que o Codex carregue instruções globais do `CODEX_HOME`. Antes de `turn/start`, a resposta de `thread/start` deve conter `instructionSources=[]`; campo ausente ou qualquer fonte herdada causa erro de protocolo sanitizado, sem leitura ou exposição do path. Também são obrigatórios na resposta `approvalPolicy=never`, `runtimeWorkspaceRoots=[]`, cwd temporário exato, sandbox `readOnly` sem `networkAccess=true` e `thread.id` não vazio. O diretório final é verificado contra a raiz canônica do checkout inteiro, derivada do pai de `CARGO_MANIFEST_DIR`. Um `TMPDIR` dentro do checkout é rejeitado. Não há alteração de `CODEX_HOME`.
+
+**FIX de provenance do permission profile:** `activePermissionProfile` é metadata opcional neste fluxo; campo ausente ou `null` representam ausência de provenance. Quando não nulo, deve ser um objeto e seu `id`, se presente, deve ser string não vazia. O valor nominal não é exigido nem exposto/logado. O gate de segurança depende do estado efetivo da thread, incluindo sandbox `readOnly`, network ausente ou false, approval never e os demais requisitos de isolamento. Isso segue `temporary_structured_request` da tag `rust-v0.158.0` para o fluxo sem preservação de custom profile. A Luna não seleciona nem preserva custom profiles nesta etapa; `planner_permission_profile_rejected` indica somente metadata malformada. D0.5D permanece candidata ao gate humano.
+
+Referência de protocolo e isolamento: [temporary_structured_request.rs na tag rust-v0.158.0](https://github.com/openai/codex/blob/rust-v0.158.0/codex-rs/tui/src/temporary_structured_request.rs). Os campos foram conferidos também no schema gerado pelo CLI local com `codex app-server generate-json-schema --experimental`; a versão do CLI não é codificada no backend.
+
+`PlanV1` contém `version=1`, `objective`, `steps[{id,description,requiredCapabilities,dependsOn}]`, `risks`, `needsUserInput` e `questions`. O enum fechado de capabilities aceita `planning`, `repository_read`, `file_write`, `command_execution`, `tool_use` e `structured_output` apenas como requisitos propostos de passos futuros. A validação Rust rejeita campos desconhecidos, JSON inválido ou acima de 16 KiB, objetivo vazio ou acima de 2048 bytes, zero ou mais de 16 passos, IDs duplicados, dependências desconhecidas, próprias ou cíclicas, descrições ou IDs fora dos limites, mais de oito riscos/perguntas, texto longo e inconsistência entre `needsUserInput` e `questions`. Não há reparo automático de JSON e nenhum passo é executado.
+
+O handshake e cada request preparatória têm limite de 8 s; o turno tem 60 s; shutdown espera 2 s antes de kill+wait. Mensagens do protocolo são limitadas a 64 KiB e tráfego total do Planner a 512 KiB. O produtor também limita frames a 8192 por sessão, derivados do budget existente dividido por 64 bytes de allowance de metadata por frame; até um marcador terminal adicional pode ser enfileirado. A fila pendente de RPC compartilha esse teto. Não há limite de 256 mensagens recebidas nem de 128 notificações intercaladas. Somente `agentMessage` da thread/turn correta é candidato a resposta; o último é aceito apenas após `turn/completed` com status `completed`. Itens de comando, alteração de arquivo, MCP, ferramenta ou qualquer tipo não permitido falham fechados. Não há chamada real ao modelo no gate automático. O teste real na UI está reservado para depois da auditoria independente.
+
+Cancelamento remoto, `turn/interrupt`, observabilidade de progresso, eventos reais, persistência e recuperação ficam para D0.5E+. O Planner atual apenas rejeita cancelamento já marcado antes do início.
+
+## Auditoria independente da Luna — D0.5D permission-profile FIX — 29/09/2026
+
+**PASS técnico.**
+
+A revisão remota confirmou que `activePermissionProfile` deixou de ser tratado como autoridade de segurança e passou a ser apenas provenance opcional. O gate efetivo continua baseado em sandbox `readOnly`, ausência de network access, `approvalPolicy=never`, cwd isolado, `runtimeWorkspaceRoots=[]`, `instructionSources=[]` e thread id válido.
+
+Perfis ausentes, `:read-only` ou IDs customizados bem formados são aceitos somente quando todos os invariantes efetivos já passaram. Metadata malformada ou ID inválido continua falhando com `planner_permission_profile_rejected`, sem exposição do valor. Testes adicionais confirmam que profile arbitrário não autoriza workspace write, network access ou approval incompatível.
+
+Os gates foram executados pelo Codex e reportados como PASS, com 151 testes Rust no total (150 PASS + 1 manual ignored). Nenhuma chamada ao modelo foi feita.
+
+O próximo passo é repetir apenas o preflight humano **Testar isolamento**.
+
+## Auditoria independente da Luna — D0.5D FIX diagnóstica — 29/09/2026
+
+**PASS técnico para preflight humano sem inferência.**
+
+A revisão remota confirmou que:
+
+- `PreparedPlannerSession::prepare` é o caminho único de preparação usado tanto pelo preflight quanto pelo Planner real;
+- a preparação executa diretório temporário, spawn, initialize, `config/read`, descoberta MCP, `thread/start` e validação efetiva;
+- o preflight encerra a thread/processo após essa preparação e **não constrói nem envia `turn/start`**;
+- somente o Planner real chama `run_turn` depois de uma preparação bem-sucedida;
+- os diagnósticos públicos são um enum fechado por estágio e a resposta pública contém apenas `ready` e `diagnosticCode`;
+- paths, payloads, stdout/stderr, Codex home, MCP names e IDs não aparecem na resposta pública;
+- a UI mantém whitelist tanto dos códigos de preflight quanto dos `AgentError` do Planner real;
+- cleanup continua obrigatório em sucesso e falha.
+
+Os gates foram executados pelo Codex e reportados como PASS, com 148 testes Rust no total (147 PASS + 1 manual ignored). A auditoria da Luna foi revisão independente do código remoto, não uma segunda execução local desses comandos.
+
+O próximo gate humano deve executar apenas **Testar isolamento**. Somente se o preflight retornar `ready=true` deve ser repetida a chamada real de Planner.
+
+**FIX diagnóstica do gate humano:** a preparação foi centralizada em `PreparedPlannerSession::prepare`, que executa diretório temporário, spawn, initialize, `config/read`, descoberta MCP, `thread/start` e `effective_thread`. O preflight em **IA e modelos** usa essa mesma preparação e encerra a thread com `thread/unsubscribe` e shutdown sem construir ou enviar `turn/start`; só o Planner real inicia o turno após a preparação. A resposta pública do preflight contém exclusivamente `ready` e `diagnosticCode`, de enum fechado: `planner_spawn_failed`, `planner_initialize_failed`, `planner_config_read_failed`, `planner_mcp_config_invalid`, `planner_thread_start_failed`, `planner_sandbox_rejected`, `planner_approval_policy_rejected`, `planner_cwd_rejected`, `planner_workspace_roots_rejected`, `planner_instruction_sources_rejected`, `planner_permission_profile_rejected`, `planner_thread_id_invalid` ou `planner_cleanup_failed`. Nenhum path, ID, payload ou mensagem bruta atravessa essa resposta. O Planner real continua exibindo somente os códigos fechados de `AgentError`.
+
+**FIX do caso nulo no gate humano:** o preflight humano revelou `activePermissionProfile: null`, que agora é aceito como ausência de provenance. Metadata malformada continua falhando fechada. Sandbox `readOnly`, rede desabilitada, approval `never`, cwd isolado, workspace roots vazias, instruction sources vazias e thread ID válido continuam sendo a autoridade de segurança, na mesma ordem de validação. O gate humano deve ser repetido somente em **IA e modelos → Planner experimental → Testar isolamento**; não executar **Testar Planner** antes de `Isolamento: pronto`. D0.5D permanece candidata ao gate humano.
+
+### FIX diagnóstica do primeiro turno real
+
+O gate humano de **Testar isolamento** passou (`Isolamento: pronto`). O primeiro **Testar Planner** real chegou ao caminho de inferência e retornou `protocol_error`. Segundo a verificação humana imediatamente após ambos os gates, `git status --short` e `pgrep -af 'codex app-server --stdio'` ficaram vazios: checkout limpo e nenhum app-server residual. O erro genérico não localizava o estágio da rejeição.
+
+Esta FIX adiciona `PlannerTurnDiagnosticCode`, enum fechado, mantido na camada Planner/Codex e adaptado por `PlannerProbeError::code()` no comando Tauri até a whitelist do frontend. `AgentError` permanece backend-agnóstico. Os códigos são `planner_turn_start_failed`, `planner_turn_id_invalid`, `planner_turn_transport_failed`, `planner_turn_timeout`, `planner_turn_unexpected_notification`, `planner_turn_unexpected_item`, `planner_turn_failed`, `planner_response_missing`, `planner_plan_invalid` e `planner_cleanup_failed`. Falhas de preparação do Planner real preservam os códigos fechados já usados pelo preflight. O preflight mantém seu comportamento e usa a mesma preparação; não houve alteração de prompt, outputSchema, modelo ou controles de isolamento.
+
+Um JSON-RPC error em `turn/start` resulta somente em `planner_turn_start_failed`, sem classificar ou expor message/data. Timeout durante notificações é distinguido pelo enum existente do transporte, sem ler stderr. Requests inesperadas do servidor continuam rejeitadas pelo transporte (`planner_turn_transport_failed` durante a coleta); notificações proibidas e itens proibidos continuam falhando fechados. Nenhum novo tipo de item é aceito. PlanV1 continua com o mesmo parse/validate, sem reparo; ausência de AgentMessage final é distinguida de plano inválido.
+
+Cleanup sempre executa unsubscribe e shutdown, incluindo falhas de turno. A falha primária do turno prevalece se cleanup também falhar; sucesso do turno com cleanup falho retorna `planner_cleanup_failed`. Na preparação do Planner real, a falha primária de preparação/segurança prevalece sobre cleanup. A precedência anterior do preflight permanece intacta. Os diagnósticos não contêm payload, mensagens brutas, paths, IDs, configuração, dados de conta ou autenticação, e não são persistidos.
+
+Não houve inferência real durante esta FIX nem tentativa de corrigir a causa do runtime. Os testes usam fakes e cobrem estágios de falha, parse inválido/válido, lifecycle, cleanup e precedência. D0.5D continua candidata ao gate humano. Após auditoria desta FIX, o próximo gate humano deve repetir exatamente o objetivo **“Planeje como investigar e corrigir um botão de uma aplicação Tauri que não responde ao clique. Não execute nenhuma alteração.”** em **Testar Planner**, observando o novo código sanitizado.
+
+**FIX arquitetural dos diagnósticos:** removida a dependência de `agents::types` para `agents::codex::backend`. `AgentError`, `AgentBackend` e o registry de produção mantêm o contrato genérico. O probe cria um adaptador `AgentBackend` e um slot tipado de códigos fechados por chamada; o Planner consome esse adaptador via um registry restrito à operação, preservando a configuração/capabilities do registro `codex`. Adaptador e backend de produção usam a mesma função `execute_planner`, com a mesma preparação, turno e cleanup. O backend retorna somente `AgentError` genérico; a fronteira da operação recupera o código específico em `PlannerProbeError` e o comando retorna apenas seu código fechado. O slot não pertence ao estado gerenciado nem ao banco e é descartado ao final da chamada. Não há string arbitrária de erro, alteração da whitelist da UI, do preflight ou da precedência de cleanup. Os nove testes diagnósticos foram preservados; cobertura adicional compila os tipos genéricos isoladamente e verifica códigos de preparação/turno, erros genéricos, sucesso e gates do registry através da adaptação usada pelo comando. Nenhuma inferência real e nenhuma tentativa de corrigir a causa do runtime nesta FIX. O mesmo objetivo do gate anterior só deve ser repetido após nova auditoria.
+
+
+### FIX do transporte de streaming
+
+O preflight humano passou; `turn/start` real e seu `turn.id` também passaram. A falha humana observada depois disso foi `planner_turn_transport_failed`, com checkout limpo e nenhum processo residual após cleanup, conforme verificação humana.
+
+A investigação demonstrou dois defeitos do cliente no HEAD `fc09a6b`: a sessão rejeitava a 257ª leitura, mesmo com tráfego legítimo abaixo do budget; e `try_send` no canal Planner de 257 posições encerrava silenciosamente o reader numa rajada. Antes da correção, os dois testes de regressão falharam: 1024 frames produzidos resultaram em somente 257 frames retidos, e 1024 notificações causaram `CodexAppServerProtocolError`. Esses mecanismos são causas prováveis do gate anterior; o payload daquela execução não foi capturado, portanto não se atribui retrospectivamente a ela um encerramento exato.
+
+A correção remove a contagem artificial de leituras. O canal Planner usa `mpsc::channel`, cuja operação de enqueue não aguarda o consumidor, com limites obrigatórios no produtor: 512 KiB de wire bytes totais, 64 KiB por mensagem e 8192 frames de dados, mais no máximo um marcador terminal. O teto de frames deriva do mesmo budget de 512 KiB dividido por uma allowance mínima de 64 bytes de metadata por frame; é uma barreira independente contra uma quantidade excessiva de frames minúsculos. Isso limita tanto os buffers quanto a quantidade de alocações, sem afirmar que 512 KiB é o uso exato de RAM do parser/canal. O reader nunca espera espaço livre nem perde uma rajada por fila cheia; pode ser recolhido por EOF ou kill+wait mesmo sem drenar a fila. Receiver desconectado encerra o produtor deliberadamente. O probe D0.5B preserva canal de 33 posições, limite de 32 notificações e budget de 256 KiB. A fila RPC passa a `VecDeque`, preservando a ordem, sem remoção quadrática nem o antigo teto de 128 notificações; o teto é o mesmo budget de frames do transporte.
+
+Requests válidas do servidor (`method` + ID) agora recebem classificação interna `CodexAppServerUnexpectedServerRequest`, distinguida de JSON/RPC corrompido. Durante a coleta, o Planner retorna somente `planner_turn_unexpected_notification`, sem responder à request ou expor seus campos. JSON inválido, EOF, read error, limites excedidos e responses RPC inesperadas continuam falhando fechados. `inspect_notification`, seus tipos de item permitidos, PlanV1, outputSchema, prompt, isolamento, registry e tipos genéricos de agentes não foram relaxados nem alterados.
+
+A compatibilidade foi conferida na [fonte de métodos da tag rust-v0.158.0](https://github.com/openai/codex/blob/rust-v0.158.0/codex-rs/app-server-protocol/src/protocol/common.rs) e nos schemas oficiais dessa tag: `TurnStartResponse`, `TurnStartedNotification`, `ItemStartedNotification`, `ItemCompletedNotification`, `AgentMessageDeltaNotification`, `ReasoningTextDeltaNotification`, `ReasoningSummaryTextDeltaNotification`, `TurnCompletedNotification`, `ErrorNotification` e `ServerRequest`. Os envelopes dos eventos conferidos também coincidem com os schemas gerados pelo CLI local, que nesta rodada já estava em **0.159.0**. Não houve atualização/substituição do CLI ou seleção de modelo/provider pela FIX.
+
+Integração manual separada, expressamente autorizada nesta rodada, executou o mesmo objetivo e o mesmo isolamento no runtime local 0.159.0: **PASS**, 721 frames e 217592 wire bytes agregados; PlanV1 válido e cleanup concluído. O git status permaneceu igual antes/depois da chamada e nenhum `codex app-server --stdio` residual foi encontrado. Nenhum payload real, resposta do modelo, ID, path privado, autenticação ou mensagem bruta foi registrado. A instrumentação temporária e o teste real temporário foram removidos antes dos gates finais; testes automáticos continuam sem inferência/quota.
+
+Nove testes novos cobrem regressões de contagem/rajada, 2048 notificações antes de uma resposta RPC, budget de frames e reader sem consumidor drenando, budgets individual/total, EOF/read error/JSON inválido, request do servidor versus response inesperada, 3000 deltas benignos seguidos de PlanV1 válido e cleanup, e falhas no wire com cleanup sem responder à request. Os testes novos usam buffers em memória, sem alterar arquivos ou repositório. D0.5D continua candidata ao gate humano; o próximo teste humano só ocorre depois de auditoria independente deste commit.
+
+
+## Fechamento humano da D0.5D — 29/09/2026
+
+**PASS completo.** Após a correção do transporte de streaming, o gate humano repetiu o objetivo **“Planeje como investigar e corrigir um botão de uma aplicação Tauri que não responde ao clique. Não execute nenhuma alteração.”**. A UI retornou um `PlanV1` válido e coerente com sete passos encadeados, riscos explícitos, nenhuma pergunta obrigatória e capabilities apenas declarativas para execução futura. Nenhum comando ou alteração foi executado pelo Planner.
+
+A validação pós-turno confirmou cleanup e ausência de efeito sobre o checkout: `git status --short` retornou vazio e `pgrep -af 'codex app-server --stdio'` também retornou vazio. Assim, isolamento, inferência estruturada, validação de `PlanV1` e cleanup passaram no runtime real.
+
+A auditoria independente do commit `ecd92032ff20004cd6791b1118d1b74fa9880955` aprovou a correção do streaming: o limite artificial de 256 mensagens e a perda de frames por `try_send` foram removidos do Planner, mantendo limites explícitos de 64 KiB por mensagem, 512 KiB por sessão e 8192 frames. Requests do servidor continuam fail-closed e não recebem resposta. D0.5D está encerrada em **PASS completo** e a PR #7 está pronta para integração por squash na `main`. O próximo checkpoint é **D0.5E — cancelamento, recovery e eventos reais**.

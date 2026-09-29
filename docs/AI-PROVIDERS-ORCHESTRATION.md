@@ -468,5 +468,7 @@ fronteira de segurança estão em [LR-7D0.5](LR-7D05-CODEX-AGENT-BRIDGE.md).
 **D0.5C — PASS técnico e integrada à `main` em 29/09/2026:** `AgentBackend`, seus tipos próprios e
 `AgentRegistry` agora existem como fundação genérica, independentes de
 `CognitiveProvider`/`ProviderRegistry`. Nenhum backend real, registro de
-produção ou UI foi adicionado. **D0.5D é a primeira integração concreta**, com
-`CodexAgentBackend` real restrito a Planner read-only + `PlanV1`.
+produção ou UI foi adicionado. **D0.5D fechou em PASS completo após auditoria e gate humano**, com
+`CodexAgentBackend` real restrito a Planner read-only + `PlanV1`; a integração segue pela PR #7. O próximo checkpoint é D0.5E — cancelamento, recovery e eventos reais.
+
+**D0.5D — CANDIDATA AO GATE HUMANO:** o `CodexAgentBackend` de produção propõe `PlanV1` via thread efêmera do app-server, com outputSchema e validação determinística pelo Luna Core. A thread usa cwd temporário fora do projeto, sandbox read-only, `approvalPolicy=never`, nenhuma environment, ferramentas dinâmicas ou workspace roots, ShellTool desabilitado, web desabilitada e MCPs efetivos desabilitados após `config/read`. Somente `planning` e `structured_output` são capabilities do backend. O diagnóstico em IA e modelos exibe o plano validado, sem executar seus passos. Cancelamento remoto e progresso real pertencem à D0.5E; Conversation, Summary e Scheduler permanecem independentes.

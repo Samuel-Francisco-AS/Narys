@@ -17,6 +17,12 @@ pub struct AgentRegistry {
 }
 
 impl AgentRegistry {
+    pub fn production() -> Self {
+        let mut registry = Self::default();
+        registry.register(crate::agents::codex::backend::production_config(),
+            Arc::new(crate::agents::codex::backend::CodexAgentBackend)).expect("unique codex backend");
+        registry
+    }
     pub fn register(
         &mut self,
         config: AgentConfig,
@@ -86,6 +92,16 @@ mod tests {
 
     fn backend() -> Arc<MockAgentBackend> {
         MockAgentBackend::new("mock result")
+    }
+
+    #[test]
+    fn production_registry_contains_only_codex_with_two_capabilities() {
+        let registry = AgentRegistry::production();
+        assert_eq!(registry.configs().len(), 1);
+        let entry = registry.get("codex").unwrap();
+        assert!(entry.config.capabilities.planning && entry.config.capabilities.structured_output);
+        assert!(!entry.config.capabilities.repository_read && !entry.config.capabilities.file_write
+            && !entry.config.capabilities.command_execution && !entry.config.capabilities.tool_use);
     }
 
     #[test]
