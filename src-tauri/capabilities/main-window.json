@@ -32,6 +32,6 @@
     "allow-resume-conversation-session",
     "allow-list-conversation-history",
     "allow-get-conversation-history-session",
-    "allow-start-gemini-task"
+    "allow-start-conversation-task"
   ]
 }
