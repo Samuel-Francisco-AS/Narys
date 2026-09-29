@@ -35,20 +35,26 @@ impl AgentBackend for CodexAgentBackend {
 }
 
 struct PlannerDir(PathBuf);
+
+fn planner_path_outside_checkout(planner_path: &Path, repo_root: &Path) -> bool {
+    !planner_path.starts_with(repo_root)
+}
+
 impl PlannerDir {
     fn create() -> Result<Self, AgentError> {
         let root = std::env::temp_dir().canonicalize().map_err(|_| AgentError::Unavailable)?;
-        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize().map_err(|_| AgentError::Unavailable)?;
-        if root.starts_with(&repo) || repo.starts_with(&root) && root != Path::new("/tmp") {
-            // A temporary root containing the checkout is not a safe planner location.
-            return Err(AgentError::Unavailable);
-        }
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent()
+            .ok_or(AgentError::Unavailable)?.canonicalize().map_err(|_| AgentError::Unavailable)?;
         let mut random = [0u8; 16];
         getrandom::fill(&mut random).map_err(|_| AgentError::Unavailable)?;
         let suffix: String = random.iter().map(|byte| format!("{byte:02x}")).collect();
         let path = root.join(format!("luna-planner-{suffix}"));
+        if !planner_path_outside_checkout(&path, &repo_root) { return Err(AgentError::Unavailable); }
         fs::create_dir(&path).map_err(|_| AgentError::Unavailable)?;
-        Ok(Self(path))
+        let directory = Self(path);
+        let final_path = directory.0.canonicalize().map_err(|_| AgentError::Unavailable)?;
+        if !planner_path_outside_checkout(&final_path, &repo_root) { return Err(AgentError::Unavailable); }
+        Ok(directory)
     }
 }
 impl Drop for PlannerDir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
@@ -85,9 +91,10 @@ fn thread_start_params(cwd: &Path, mcp_names: &[String]) -> Value {
 fn effective_thread(result: &Value, cwd: &Path) -> Result<String, AgentError> {
     if result.pointer("/sandbox/type").and_then(Value::as_str) != Some("readOnly")
         || result.pointer("/sandbox/networkAccess").is_some_and(|v| v.as_bool() != Some(false))
-        || result.get("approvalPolicy").is_some_and(|v| v.as_str() != Some("never"))
-        || result.pointer("/activePermissionProfile/id").is_some_and(|v| v.as_str() != Some(":read-only"))
-        || result.get("runtimeWorkspaceRoots").is_some_and(|v| v.as_array().is_none_or(|a| !a.is_empty()))
+        || result.get("approvalPolicy").and_then(Value::as_str) != Some("never")
+        || result.get("activePermissionProfile").is_some_and(|profile| profile.get("id").and_then(Value::as_str) != Some(":read-only"))
+        || result.get("runtimeWorkspaceRoots").and_then(Value::as_array).is_none_or(|roots| !roots.is_empty())
+        || result.get("instructionSources").and_then(Value::as_array).is_none_or(|sources| !sources.is_empty())
         || result.get("cwd").and_then(Value::as_str) != cwd.to_str() {
         return Err(AgentError::Protocol);
     }
@@ -186,6 +193,10 @@ fn run_session(session: &mut CodexAppServerSession, cwd: &Path, objective: &str)
 mod tests {
     use super::*;
     use std::sync::Arc;
+    fn safe_thread_response() -> Value {
+        json!({"sandbox":{"type":"readOnly","networkAccess":false},"approvalPolicy":"never",
+            "cwd":"/tmp/luna-test","runtimeWorkspaceRoots":[],"instructionSources":[],"thread":{"id":"t"}})
+    }
     #[test] fn production_only_planning_and_structured() { let c=production_config().capabilities; assert!(c.planning && c.structured_output); assert!(!c.repository_read && !c.file_write && !c.command_execution && !c.tool_use); }
     #[tokio::test] async fn trait_object_rejects_and_cancels_without_spawn() {
         let backend: Arc<dyn AgentBackend> = Arc::new(CodexAgentBackend);
@@ -205,10 +216,53 @@ mod tests {
         assert_eq!(p["ephemeral"],true); assert!(p.get("model").is_none() && p.get("modelProvider").is_none());
         assert!(!p.to_string().contains("Assistente-3D"));
     }
-    #[test] fn effective_thread_rejects_unsafe() {
-        let cwd=Path::new("/tmp/luna-test"); let mut r=json!({"sandbox":{"type":"readOnly"},"approvalPolicy":"never","cwd":"/tmp/luna-test","thread":{"id":"t"}});
-        assert_eq!(effective_thread(&r,cwd).unwrap(),"t"); r["sandbox"]["type"]=json!("workspaceWrite"); assert!(effective_thread(&r,cwd).is_err());
-        r["sandbox"]["type"]=json!("readOnly"); r["approvalPolicy"]=json!("on-request"); assert!(effective_thread(&r,cwd).is_err());
+    #[test] fn safe_thread_response_allows_turn_construction() {
+        let cwd=Path::new("/tmp/luna-test");
+        let id=effective_thread(&safe_thread_response(),cwd).unwrap();
+        assert_eq!(turn_start_params(&id,"objective")["threadId"],"t");
+    }
+    #[test] fn instruction_sources_must_be_present_and_empty_without_path_leak() {
+        let cwd=Path::new("/tmp/luna-test");
+        let mut response=safe_thread_response();
+        response.as_object_mut().unwrap().remove("instructionSources");
+        assert_eq!(effective_thread(&response,cwd),Err(AgentError::Protocol));
+        let private_path="/private/codex-home/AGENTS.md";
+        response["instructionSources"]=json!([{"path":private_path}]);
+        let error=effective_thread(&response,cwd).unwrap_err();
+        assert_eq!(error,AgentError::Protocol);
+        assert!(!error.to_string().contains(private_path));
+        assert!(!error.code().contains(private_path));
+    }
+    #[test] fn effective_thread_requires_all_security_fields() {
+        let cwd=Path::new("/tmp/luna-test");
+        for field in ["sandbox","approvalPolicy","cwd","runtimeWorkspaceRoots","instructionSources","thread"] {
+            let mut response=safe_thread_response(); response.as_object_mut().unwrap().remove(field);
+            assert_eq!(effective_thread(&response,cwd),Err(AgentError::Protocol),"missing {field}");
+        }
+        for (field,value) in [
+            ("sandbox",json!({"type":"workspaceWrite"})),
+            ("approvalPolicy",json!("on-request")),
+            ("cwd",json!("/other")),
+            ("runtimeWorkspaceRoots",json!(["/repo"])),
+            ("instructionSources",json!([{"path":"/private/AGENTS.md"}])),
+            ("thread",json!({"id":""})),
+        ] {
+            let mut response=safe_thread_response(); response[field]=value;
+            assert_eq!(effective_thread(&response,cwd),Err(AgentError::Protocol),"invalid {field}");
+        }
+        let mut response=safe_thread_response(); response["sandbox"]["networkAccess"]=json!(true);
+        assert_eq!(effective_thread(&response,cwd),Err(AgentError::Protocol));
+        let mut response=safe_thread_response(); response["activePermissionProfile"]=json!({"id":":workspace"});
+        assert_eq!(effective_thread(&response,cwd),Err(AgentError::Protocol));
+        response["activePermissionProfile"]=json!({"id":":read-only"});
+        assert_eq!(effective_thread(&response,cwd).unwrap(),"t");
+    }
+    #[test] fn planner_path_must_be_outside_entire_checkout() {
+        let repo=Path::new("/repo");
+        assert!(planner_path_outside_checkout(Path::new("/tmp/luna-planner-X"),repo));
+        assert!(!planner_path_outside_checkout(Path::new("/repo/tmp/luna-planner-X"),repo));
+        assert!(!planner_path_outside_checkout(Path::new("/repo/luna-planner-X"),repo));
+        assert!(planner_path_outside_checkout(Path::new("/workspace/luna-planner-X"),Path::new("/workspace/repo")));
     }
     #[test] fn turn_request_has_schema_and_no_tools() { let p=turn_start_params("thread", "objective"); assert_eq!(p["threadId"],"thread"); assert!(p["input"][0]["text"].as_str().unwrap().contains("objective")); assert!(p.get("outputSchema").is_some()); assert!(p.get("tools").is_none()); }
     #[test] fn completed_item_and_turn_correlation() {
