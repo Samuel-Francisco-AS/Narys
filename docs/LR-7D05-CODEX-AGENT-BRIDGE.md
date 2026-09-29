@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A — PASS completo e integrada à `main` em 29/09/2026. D0.5B é o próximo checkpoint.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A — PASS completo e integrada à `main` em 29/09/2026. D0.5B — candidata ao gate humano.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -45,7 +45,43 @@ interface oferece apenas consulta inicial e atualização manual.
 - seção experimental em **IA e modelos**;
 - testes unitários sem conta, internet, quota ou chamada de modelo.
 
-## Explicitamente não implementado
+## D0.5B — candidata ao gate humano
+
+O comando read-only `probe_codex_app_server`, disponível apenas à capability
+`settings-ai`, inicia diretamente `codex app-server --stdio` sem shell. Ele abre
+stdin, stdout e stderr como pipes, envia uma linha JSON `initialize` com ID
+único e `clientInfo` (`assistente-3d`, `Assistente-3D`, versão do aplicativo),
+correlaciona a resposta pelo ID e valida o envelope de sucesso ou erro. Pode
+ignorar até 32 notificações bem formadas intercaladas. Somente após uma
+resposta válida envia `{"method":"initialized"}`. O formato foi conferido no
+help e no JSON Schema gerado pelo CLI local `0.158.0`; o código não fixa essa
+versão nem opta por `experimentalApi`.
+
+O probe é efêmero: fecha stdin após o handshake, aguarda saída por até 2 s e,
+se necessário, mata e recolhe o processo com `wait`. O prazo do handshake é
+8 s. Leitura incremental de stdout limita cada linha a 64 KiB e todo o probe
+a 256 KiB, com canal de 8 mensagens; stderr é drenado em paralelo com retenção
+máxima de 4 KiB. Stderr nunca é interpretado como protocolo, logado ou enviado
+à UI. Erros de parse, EOF, timeout, ID divergente e rejeição encerram o
+processo antes de retornar.
+
+A resposta `initialize` é validada, mas `codexHome` e `userAgent` são
+descartados. Somente plataformas reconhecidas por lista fechada chegam ao
+frontend, junto com os booleanos `launched`/`initialized` e um código de
+diagnóstico fechado. Não há raw stdout/stderr, caminho local, token, payload
+de autenticação ou ID de conta no resultado. A UI oferece apenas um botão de
+teste manual, sem polling nem inicialização automática no startup.
+
+Não ocorre `thread/start`, `turn/start`, prompt, inferência, ferramenta,
+alteração de login ou consumo deliberado de quota. D0.5C+ ficam responsáveis
+por `AgentBackend`, registry, planner, cancelamento/recovery, eventos e gate
+real; esta etapa não mantém processo residente.
+
+Os testes automatizados usam mensagens e streams simulados, sem exigir Codex,
+conta, rede ou quota. Um teste marcado `ignored` permite validar manualmente
+o handshake local sem inferência.
+
+## Explicitamente não implementado em D0.5A
 
 Não há login/logout, token ou API key na UI; seleção de modelo; app-server,
 JSON-RPC/JSONL, threads, turns, streaming de eventos, planner, sandbox,

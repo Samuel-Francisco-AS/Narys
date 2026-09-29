@@ -137,3 +137,11 @@ A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode 
 fora do contrato `CognitiveProvider`; app-server e a arquitetura
 `AgentBackend` começam somente nos checkpoints D0.5B+. Veja [a especificação
 D0.5](docs/LR-7D05-CODEX-AGENT-BRIDGE.md).
+
+### LR-7D0.5B — ponte de diagnóstico do app-server
+
+**Candidata ao gate humano.** A janela IA oferece um teste manual que inicia
+`codex app-server --stdio`, conclui `initialize`/`initialized` e encerra o
+processo. A resposta mostra somente estado, plataforma segura e diagnóstico
+sanitizado. Nenhuma chamada de modelo é feita. Veja [a especificação
+D0.5](docs/LR-7D05-CODEX-AGENT-BRIDGE.md).
