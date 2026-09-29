@@ -416,7 +416,7 @@ mod tests {
 
   #[test]
   fn chat_policy_is_snapshot_for_each_request() {
-    use crate::cognition::policy::{CognitiveRole, ThinkingLevel};
+    use crate::cognition::policy::{CognitiveRole, RoutingMode, ThinkingLevel};
     use crate::cognition::types::ContextMetadata;
     let identity: crate::persistence::identity::IdentityInput = serde_json::from_value(serde_json::json!({
       "version":"test","canonicalName":"Luna","presentation":"neutral","primaryLanguage":"pt-BR",
@@ -430,19 +430,32 @@ mod tests {
     let context = || ContextBundle { identity: identity.clone(), relevant_memories: vec![], recent_messages: vec![],
       metadata: ContextMetadata { identity_version: "test".into(), memory_count: 0, recent_message_count: 0 } };
     let mut policy = CognitiveRolePolicy { role: CognitiveRole::Conversation, provider_id: "gemini".into(),
-      model: "gemini-custom".into(), thinking_level: Some(ThinkingLevel::High), max_output_tokens: Some(8192), max_provider_calls: 3, retry_enabled: true, max_retries: 1, retry_backoff_ms: 1500, history_max_messages: 8, history_max_bytes: 12288, summary_input_max_bytes: 32768 };
+      model: "gemini-custom".into(), thinking_level: Some(ThinkingLevel::High), routing_mode: RoutingMode::Fixed,
+      fallback_provider_id: Some("groq".into()), fallback_model: Some("openai/gpt-oss-20b".into()),
+      fallback_thinking_level: Some(ThinkingLevel::Low), max_output_tokens: Some(8192), max_provider_calls: 3,
+      retry_enabled: true, max_retries: 1, retry_backoff_ms: 1500, history_max_messages: 8, history_max_bytes: 12288,
+      summary_input_max_bytes: 32768 };
     let first_timeouts = crate::persistence::gemini_settings::GeminiTimeouts::default();
-    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, first_timeouts.into());
-    policy.model = "gemini-new".into(); policy.thinking_level = None; policy.max_output_tokens = None; policy.max_provider_calls = 1;
+    let groq_timeouts = crate::cognition::types::ProviderTimeouts { request_timeout_ms: 30_000, stream_idle_timeout_ms: 12_000 };
+    let (first_budget, first) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, first_timeouts.into(), groq_timeouts);
+    policy.model = "gemini-new".into(); policy.thinking_level = None; policy.max_output_tokens = None; policy.max_provider_calls = 2;
+    policy.routing_mode = RoutingMode::Preferred;
     let next_timeouts = crate::persistence::gemini_settings::GeminiTimeouts { request_timeout_ms: 60_000, stream_idle_timeout_ms: 20_000 };
-    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, next_timeouts.into());
+    let (next_budget, next) = chat_budget_and_request("Oi".into(), vec![], context(), &policy, next_timeouts.into(), groq_timeouts);
     assert_eq!(first.selection, ProviderSelection::Fixed("gemini".into()));
     assert_eq!((first.targets[0].invocation.model.as_str(), first.targets[0].invocation.thinking_level, first.max_output_tokens, first_budget.max_provider_calls),
       ("gemini-custom", Some(ThinkingLevel::High), Some(8192), 3));
-    assert_eq!((next.targets[0].invocation.model.as_str(), next.targets[0].invocation.thinking_level, next.max_output_tokens, next_budget.max_provider_calls),
-      ("gemini-new", None, None, 1));
+    assert_eq!(next.selection, ProviderSelection::Preferred("gemini".into()));
+    assert_eq!(next.targets.len(), 2);
+    assert_eq!((next.targets[0].provider_id.as_str(), next.targets[0].invocation.model.as_str(), next.targets[0].invocation.thinking_level),
+      ("gemini", "gemini-new", None));
+    assert_eq!((next.targets[1].provider_id.as_str(), next.targets[1].invocation.model.as_str(), next.targets[1].invocation.thinking_level),
+      ("groq", "openai/gpt-oss-20b", Some(ThinkingLevel::Low)));
+    assert_eq!(next.max_output_tokens, None);
+    assert_eq!(next_budget.max_provider_calls, 2);
     assert_eq!(first.targets[0].invocation.timeouts, Some(first_timeouts.into()));
     assert_eq!(next.targets[0].invocation.timeouts, Some(next_timeouts.into()));
+    assert_eq!(next.targets[1].invocation.timeouts, Some(groq_timeouts));
   }
 
   #[test]
