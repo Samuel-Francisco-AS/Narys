@@ -132,8 +132,13 @@ fn effective_thread(result: &Value, cwd: &Path) -> Result<String, PlannerPreflig
     if result.get("instructionSources").and_then(Value::as_array).is_none_or(|sources| !sources.is_empty()) {
         return Err(PlannerInstructionSourcesRejected);
     }
-    if result.get("activePermissionProfile").is_some_and(|profile| profile.get("id").and_then(Value::as_str) != Some(":read-only")) {
-        return Err(PlannerPermissionProfileRejected);
+    // Provenance only: this flow does not preserve a custom profile. The
+    // effective sandbox and isolation above remain the security authority.
+    if let Some(profile) = result.get("activePermissionProfile") {
+        let metadata = profile.as_object().ok_or(PlannerPermissionProfileRejected)?;
+        if metadata.get("id").is_some_and(|id| id.as_str().is_none_or(str::is_empty)) {
+            return Err(PlannerPermissionProfileRejected);
+        }
     }
     result.pointer("/thread/id").and_then(Value::as_str).filter(|id| !id.is_empty())
         .map(str::to_owned).ok_or(PlannerThreadIdInvalid)
@@ -429,10 +434,40 @@ mod tests {
         }
         let mut response=safe_thread_response(); response["sandbox"]["networkAccess"]=json!(true);
         assert_eq!(effective_thread(&response,cwd),Err(PlannerSandboxRejected));
-        let mut response=safe_thread_response(); response["activePermissionProfile"]=json!({"id":":workspace"});
-        assert_eq!(effective_thread(&response,cwd),Err(PlannerPermissionProfileRejected));
-        response["activePermissionProfile"]=json!({"id":":read-only"});
-        assert_eq!(effective_thread(&response,cwd).unwrap(),"t");
+    }
+    #[test] fn permission_profile_provenance_accepts_absent_and_arbitrary_valid_ids() {
+        let cwd=Path::new("/tmp/luna-test");
+        assert_eq!(effective_thread(&safe_thread_response(),cwd).unwrap(),"t");
+        for profile in [json!({}),json!({"id":":read-only"}),json!({"id":"custom-safe-profile"})] {
+            let mut response=safe_thread_response(); response["activePermissionProfile"]=profile;
+            assert_eq!(effective_thread(&response,cwd).unwrap(),"t");
+        }
+    }
+    #[test] fn malformed_permission_profile_provenance_is_rejected_without_exposure() {
+        use PlannerPreflightDiagnosticCode::PlannerPermissionProfileRejected;
+        let cwd=Path::new("/tmp/luna-test");
+        for profile in [json!(null),json!([]),json!("private-profile-payload"),json!(42),json!(false),
+            json!({"id":""}),json!({"id":null}),json!({"id":42})] {
+            let mut response=safe_thread_response(); response["activePermissionProfile"]=profile;
+            let code=effective_thread(&response,cwd).unwrap_err();
+            assert_eq!(code,PlannerPermissionProfileRejected);
+            assert_eq!(serde_json::to_value(PlannerPreflightProbe{ready:false,diagnostic_code:Some(code)}).unwrap(),
+                json!({"ready":false,"diagnosticCode":"planner_permission_profile_rejected"}));
+        }
+    }
+    #[test] fn permission_profile_cannot_override_effective_security() {
+        use PlannerPreflightDiagnosticCode::*;
+        let cwd=Path::new("/tmp/luna-test");
+        for (field,value,expected) in [
+            ("sandbox",json!({"type":"workspaceWrite"}),PlannerSandboxRejected),
+            ("sandbox",json!({"type":"readOnly","networkAccess":true}),PlannerSandboxRejected),
+            ("approvalPolicy",json!("on-request"),PlannerApprovalPolicyRejected),
+        ] {
+            let mut response=safe_thread_response();
+            response["activePermissionProfile"]=json!({"id":"custom-safe-profile"});
+            response[field]=value;
+            assert_eq!(effective_thread(&response,cwd),Err(expected));
+        }
     }
     #[test] fn planner_path_must_be_outside_entire_checkout() {
         let repo=Path::new("/repo");
