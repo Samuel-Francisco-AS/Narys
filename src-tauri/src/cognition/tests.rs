@@ -107,7 +107,10 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
   let result=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |e| { events.push(e); Ok(()) }));
   assert_eq!(result.unwrap().provider_id,"mock-fallback");
   assert_eq!(primary.calls(),1); assert_eq!(fallback.calls(),1);
-  assert!(events.iter().any(|e|matches!(e,SchedulerEvent::Fallback { .. })));
+  assert!(events.iter().any(|event| matches!(event,
+    SchedulerEvent::Fallback { from, to, reason_code }
+      if from == "mock-primary" && to == "mock-fallback" && *reason_code == "rate_limited"
+  )));
   assert!(scheduler.status().iter().any(|s|s.id=="mock-primary" && s.cooldown_ms>0));
   let next=tauri::async_runtime::block_on(scheduler.run(request(&db),budget(3),&cancelled,&mut |_| Ok(()))).unwrap();
   assert_eq!(next.usage.provider_calls,1); assert_eq!(primary.calls(),1); assert_eq!(fallback.calls(),2);
