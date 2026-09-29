@@ -114,7 +114,7 @@ falha do sink. Não há mock em produção, exposição na UI ou gate humano nes
 etapa. Codex ainda não implementa `AgentBackend`; D0.5D será a primeira
 integração concreta, com Planner read-only e `PlanV1`.
 
-## Explicitamente não implementado até D0.5C
+## Estado até D0.5C (histórico)
 
 A ponte diagnóstica de app-server/stdio já existe desde D0.5B, mas ainda não há
 backend agentivo real sobre ela. Não há login/logout, token ou API key na UI;
@@ -204,3 +204,19 @@ A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf
 ## Fechamento de integração da D0.5C — 29/09/2026
 
 A PR #6 foi integrada à `main` por squash no commit `663610cacff526558b353e22c6d6292ea7a5c0f4`. A D0.5C está oficialmente encerrada em PASS técnico, sem gate humano artificial. O próximo checkpoint é **D0.5D — primeiro `CodexAgentBackend` real + Planner read-only + `PlanV1`**, mantendo o Luna Core como autoridade sobre validação e execução.
+
+## D0.5D — CANDIDATA AO GATE HUMANO
+
+`CodexAgentBackend` é o primeiro backend agentivo de produção, registrado como `codex` em `AgentRegistry`. Suas únicas capabilities são `planning` e `structured_output`; leitura de repositório, escrita, execução de comandos e uso de ferramentas permanecem false. O módulo `planner` escolhe explicitamente esse ID, consome o contrato `AgentBackend` e valida o `PlanV1` antes de devolver uma estrutura sanitizada ao diagnóstico em **IA e modelos**. Não há integração com `CognitiveProvider`, `ProviderRegistry`, Scheduler ou TaskRegistry.
+
+Cada chamada cria um diretório temporário fora do checkout e inicia um processo `codex app-server --stdio` nesse cwd. O transporte reutiliza framing, limites, drenagem de stderr e cleanup da D0.5B. O Planner declara `capabilities.experimentalApi=true` no initialize para os campos de isolamento presentes no schema local `--experimental`; o probe D0.5B mantém seu initialize original. O fluxo é `initialize` → `initialized` → `config/read` → `thread/start` → `turn/start` com `outputSchema` → notificações `item/completed` e `turn/completed` → `thread/unsubscribe` → EOF → wait ou kill+wait. IDs de request são únicos e correlacionados; request do servidor com ID, inclusive approval/tool, falha fechada. O processo nunca é daemon persistente. O frontend não recebe protocolo, caminhos, IDs, configuração, stdout ou stderr.
+
+O `thread/start` usa `ephemeral=true`, `approvalPolicy=never`, `sandbox=read-only`, `environments=[]`, `dynamicTools=[]`, `runtimeWorkspaceRoots=[]` e `selectedCapabilityRoots=[]`. O `config/read` com o cwd isolado precede a criação da thread; os nomes de `mcp_servers` efetivos são sobrepostos com `enabled=false`. A configuração da thread também usa `default_permissions=:read-only`, `web_search=disabled`, `features.shell_tool=false`, `features.unified_exec=false` e desabilita code mode, apps, plugins, skills, multi-agent, ferramentas de permissões, request-user-input e update-plan, entre outras superfícies do padrão `temporary_structured_request` da tag `rust-v0.158.0`. Antes do turn, o Core rejeita sandbox efetivo que não seja `readOnly`, approval policy incompatível, perfil efetivo incompatível ou cwd divergente. O objetivo é enviado apenas como dado textual junto a instruções estáticas; não inclui repo, home, identidade, memória, histórico ou secrets.
+
+Referência de protocolo e isolamento: [temporary_structured_request.rs na tag rust-v0.158.0](https://github.com/openai/codex/blob/rust-v0.158.0/codex-rs/tui/src/temporary_structured_request.rs). Os campos foram conferidos também no schema gerado pelo CLI local com `codex app-server generate-json-schema --experimental`; a versão do CLI não é codificada no backend.
+
+`PlanV1` contém `version=1`, `objective`, `steps[{id,description,requiredCapabilities,dependsOn}]`, `risks`, `needsUserInput` e `questions`. O enum fechado de capabilities aceita `planning`, `repository_read`, `file_write`, `command_execution`, `tool_use` e `structured_output` apenas como requisitos propostos de passos futuros. A validação Rust rejeita campos desconhecidos, JSON inválido ou acima de 16 KiB, objetivo vazio ou acima de 2048 bytes, zero ou mais de 16 passos, IDs duplicados, dependências desconhecidas, próprias ou cíclicas, descrições ou IDs fora dos limites, mais de oito riscos/perguntas, texto longo e inconsistência entre `needsUserInput` e `questions`. Não há reparo automático de JSON e nenhum passo é executado.
+
+O handshake e cada request preparatória têm limite de 8 s; o turno tem 60 s; shutdown espera 2 s antes de kill+wait. Mensagens do protocolo são limitadas a 64 KiB, tráfego total do Planner a 512 KiB, 256 mensagens e 128 notificações pendentes. Somente `agentMessage` da thread/turn correta é candidato a resposta; o último é aceito apenas após `turn/completed` com status `completed`. Itens de comando, alteração de arquivo, MCP, ferramenta ou qualquer tipo não permitido falham fechados. Não há chamada real ao modelo no gate automático. O teste real na UI está reservado para depois da auditoria independente.
+
+Cancelamento remoto, `turn/interrupt`, observabilidade de progresso, eventos reais, persistência e recuperação ficam para D0.5E+. O Planner atual apenas rejeita cancelamento já marcado antes do início.

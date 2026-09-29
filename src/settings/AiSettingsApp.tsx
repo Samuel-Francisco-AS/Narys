@@ -13,6 +13,7 @@ type ProbeEvent = { type: 'selected'; providerId: string; attempt: number } | { 
 type ProbeResult = { text: string; providerId: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; retries: number; fallbacks: number } }
 type CodexRuntimeStatus = { installed: boolean; version: string | null; authenticated: boolean; authKind: 'chatgpt' | 'api_key' | 'other' | 'unknown' | 'none'; available: boolean; diagnosticCode: 'codex_not_installed' | 'codex_not_authenticated' | 'codex_status_timeout' | 'codex_status_failed' | 'codex_status_unrecognized' | null }
 type CodexAppServerProbe = { launched: boolean; initialized: boolean; platformFamily: 'unix' | 'windows' | null; platformOs: 'linux' | 'macos' | 'windows' | null; diagnosticCode: string | null }
+type PlanV1 = { version: 1; objective: string; steps: { id: string; description: string; requiredCapabilities: string[]; dependsOn: string[] }[]; risks: string[]; needsUserInput: boolean; questions: string[] }
 const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
@@ -169,6 +170,10 @@ export default function AiSettingsApp() {
   const [codexBusy, setCodexBusy] = useState(false)
   const [codexAppServer, setCodexAppServer] = useState<CodexAppServerProbe | null>(null)
   const [codexAppServerBusy, setCodexAppServerBusy] = useState(false)
+  const [plannerObjective, setPlannerObjective] = useState('')
+  const [plannerResult, setPlannerResult] = useState<PlanV1 | null>(null)
+  const [plannerBusy, setPlannerBusy] = useState(false)
+  const [plannerError, setPlannerError] = useState('')
   async function refresh() { setSettings(await invoke<Settings>('get_ai_settings')) }
   async function refreshCodex() {
     setCodexBusy(true)
@@ -182,6 +187,12 @@ export default function AiSettingsApp() {
     try { setCodexAppServer(await invoke<CodexAppServerProbe>('probe_codex_app_server')) }
     catch { setCodexAppServer({ launched: false, initialized: false, platformFamily: null, platformOs: null, diagnosticCode: 'codex_app_server_spawn_failed' }) }
     finally { setCodexAppServerBusy(false) }
+  }
+  async function probeCodexPlanner() {
+    setPlannerBusy(true); setPlannerResult(null); setPlannerError('')
+    try { setPlannerResult(await invoke<PlanV1>('probe_codex_planner', { objective: plannerObjective })) }
+    catch { setPlannerError('O Planner não retornou um plano válido. Verifique o runtime e tente novamente.') }
+    finally { setPlannerBusy(false) }
   }
   useEffect(() => {
     void refresh().catch(() => setError('Não foi possível carregar as configurações.'))
@@ -233,7 +244,7 @@ export default function AiSettingsApp() {
       </section>
       <section className="settings-card" aria-labelledby="codex-status-title">
         <p className="settings-kicker">EXPERIMENTAL · AGENT RUNTIME</p><h2 id="codex-status-title">Codex</h2>
-        <p>Observa somente o runtime local e o estado de autenticação reportado pelo próprio CLI. Nenhum login, logout ou chamada de modelo é executado pelo aplicativo.</p>
+        <p>O status consulta somente o runtime local e a autenticação reportada pelo CLI. O teste separado do Planner faz uma chamada de modelo para propor um plano; nenhum passo é executado.</p>
         <div className="codex-status-grid">
           <span>Runtime</span><strong>{codex?.installed ? 'disponível' : codex ? 'não encontrado' : 'consultando…'}</strong>
           <span>Versão</span><strong>{codex?.version ?? '—'}</strong>
@@ -250,6 +261,17 @@ export default function AiSettingsApp() {
         </div>
         {codexAppServer?.diagnosticCode && <small>Diagnóstico: {codexAppServer.diagnosticCode}</small>}
         <div className="settings-actions"><button type="button" disabled={codexAppServerBusy} onClick={() => void probeCodexAppServer()}>{codexAppServerBusy ? 'Testando…' : 'Testar app-server'}</button></div>
+        <h3>Planner experimental</h3>
+        <p>Propõe um plano estruturado para diagnóstico. O plano não é executado.</p>
+        <label>Objetivo <textarea value={plannerObjective} maxLength={2048} onChange={event => setPlannerObjective(event.target.value)} rows={4} /></label>
+        <div className="settings-actions"><button type="button" disabled={plannerBusy || !plannerObjective.trim()} onClick={() => void probeCodexPlanner()}>{plannerBusy ? 'Aguardando plano…' : 'Testar Planner'}</button></div>
+        {plannerError && <p role="alert">{plannerError}</p>}
+        {plannerResult && <div role="status" className="planner-result">
+          <p><strong>Objetivo:</strong> {plannerResult.objective}</p>
+          <ol>{plannerResult.steps.map(step => <li key={step.id}><strong>{step.id}:</strong> {step.description}<br />Dependências: {step.dependsOn.join(', ') || 'nenhuma'}<br />Capabilities: {step.requiredCapabilities.join(', ') || 'nenhuma'}</li>)}</ol>
+          <p><strong>Riscos:</strong> {plannerResult.risks.join('; ') || 'nenhum'}</p>
+          <p><strong>Perguntas:</strong> {plannerResult.questions.join('; ') || 'nenhuma'}</p>
+        </div>}
       </section>
       <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} providers={settings.providers} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
       <section className="settings-card"><h2>Parâmetros avançados</h2>

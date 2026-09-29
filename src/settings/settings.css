@@ -9,7 +9,7 @@ body:has(.settings-page) { overflow: auto; }
 .settings-card { margin: 0 0 16px; padding: 20px; border: 1px solid #3c4761; border-radius: 14px; background: #1a2335; }
 .settings-page label { display: grid; gap: 5px; font-weight: 650; }
 .settings-page small { color: #acb9ce; font-size: 11px; font-weight: 400; }
-.settings-page input, .settings-page select { width: 100%; padding: 9px; border: 1px solid #63708d; border-radius: 7px; background-color: #101a2b; color: #f3f4fb; font: inherit; }
+.settings-page input, .settings-page select, .settings-page textarea { width: 100%; padding: 9px; border: 1px solid #63708d; border-radius: 7px; background-color: #101a2b; color: #f3f4fb; font: inherit; }
 .settings-page select {
   color-scheme: dark;
   appearance: none;
@@ -23,7 +23,7 @@ body:has(.settings-page) { overflow: auto; }
 .settings-page select option { background-color: #101a2b; color: #f3f4fb; }
 .settings-page button { padding: 9px 12px; border: 1px solid #938bca; border-radius: 8px; background: #59558e; color: white; cursor: pointer; font: inherit; }
 .settings-page button:disabled { opacity: .45; cursor: default; }
-.settings-page button:focus-visible, .settings-page input:focus-visible, .settings-page select:focus-visible { outline: 2px solid #c7bbff; outline-offset: 2px; }
+.settings-page button:focus-visible, .settings-page input:focus-visible, .settings-page select:focus-visible, .settings-page textarea:focus-visible { outline: 2px solid #c7bbff; outline-offset: 2px; }
 .settings-fields { display: grid; gap: 16px; }
 .settings-actions { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
 .settings-actions span { color: #a7e4bb; }
@@ -40,3 +40,5 @@ body:has(.settings-page) { overflow: auto; }
 .settings-page .settings-warning { color: #f5d58c; }
 .codex-status-grid { display: grid; grid-template-columns: minmax(120px, 180px) 1fr; gap: 8px 16px; margin: 16px 0 4px; }
 .codex-status-grid span { color: #acb9ce; }
+.planner-result { overflow-wrap: anywhere; }
+.planner-result li { margin-bottom: 10px; }
