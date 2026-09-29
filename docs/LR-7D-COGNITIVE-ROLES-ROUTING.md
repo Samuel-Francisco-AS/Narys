@@ -1,6 +1,6 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 — auditoria remota independente PASS; gate humano pendente. LR-7D1/D2/D3 planejadas.**
+Estado: **LR-7D0 — PASS técnico + auditoria independente + gate humano. Pronta para integração. LR-7D1/D2/D3 planejadas.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ## Princípio central
@@ -50,7 +50,7 @@ Dívida intencional deixada pela LR-7C:
 
 ### Auditoria independente da Luna — 29/09/2026
 
-**PASS para gate humano; ainda não é PASS final da LR-7D0.**
+**PASS da auditoria independente. O gate humano foi concluído posteriormente com sucesso.**
 
 A revisão remota confirmou:
 - `main` permaneceu em `a427586c4c5027cdf6e4f92b230a6de44f6035f9`; a candidata está isolada em `lr-7d0-provider-neutral-routing`;
@@ -70,7 +70,7 @@ Observações não bloqueantes:
 1. o catálogo de integração atual associa cada provider a um `SecretKey`; isso atende Gemini/Groq, mas futuros providers OAuth/local poderão exigir abstração de autenticação mais ampla;
 2. Gemini não anuncia `defaultModel` no catálogo. A configuração persistida atual é preservada e a troca Gemini ↔ Groq funciona, mas após reinício com Gemini totalmente fora dos targets ativos a UI pode exigir que o usuário informe novamente o model ao reativá-lo.
 
-O fechamento depende do gate humano descrito abaixo.
+O gate humano descrito abaixo foi executado em 29/09/2026 e aprovado.
 
 ### Objetivo
 
@@ -153,6 +153,23 @@ Conversation e Summary devem poder escolher pela interface qualquer **Cognitive 
 - migrations/reopen;
 - testes específicos para primary/fallback invertidos;
 - nenhum teste pode depender de chamada externa.
+
+### Gate humano — PASS em 29/09/2026
+
+Validação manual com o aplicativo Tauri e credenciais reais:
+
+- a interface exibiu timeouts independentes para Gemini e Groq;
+- Conversation permitiu alternar o provider primário entre Gemini e Groq;
+- o fallback pôde ser invertido entre Groq → Gemini e Gemini → Groq apenas por configuração;
+- as escolhas persistiram após restart;
+- Conversation continuou funcional após a troca de provider;
+- Summary foi configurado para Groq em modo Fixed e gerou título/resumo válido, persistido corretamente no histórico;
+- o histórico permaneceu íntegro;
+- Gemini apresentou HTTP 429/cooldown durante parte da validação; isso foi tratado como condição externa do provider e não como regressão da LR-7D0.
+
+Com isso, o gate de arquitetura foi satisfeito: trocar Gemini ↔ Groq como provider de Conversation e escolher Groq para Summary exigiu somente configuração pela interface.
+
+**LR-7D0 = PASS completo.**
 
 ### Gate humano
 
