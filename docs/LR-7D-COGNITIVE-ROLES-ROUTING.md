@@ -74,11 +74,13 @@ Conversation e Summary devem poder escolher pela interface qualquer **Cognitive 
    - dropdowns devem ser derivados dos providers retornados pelo backend, não de opções hardcoded no React;
    - expor metadados úteis por provider, no mínimo: id, display name, configured, capabilities relevantes e thinking suportado;
    - provider não configurado deve aparecer como indisponível/explicado ou ser rejeitado de forma clara;
-   - modelo continua configurável por target; não inventar model discovery se a API não fornecer isso.
+   - modelo continua configurável por target; não inventar model discovery se a API não fornecer isso;
+   - a seção hoje chamada “Timeouts globais do Gemini” deve virar configuração **por provider**, no mínimo Gemini e Groq, com persistência/restart e sem compartilhar valores silenciosamente.
 
 5. **Runtime config genérica**
    - evitar funções que recebam parâmetros chamados `gemini_timeouts`/`groq_timeouts` como contrato permanente;
    - resolver configuração de invocação pelo `provider_id`;
+   - resolver timeouts/configuração técnica do provider por um mecanismo genérico e extensível;
    - não copiar model/thinking/timeout de um provider para outro;
    - provider desconhecido, desabilitado, sem credencial ou incompatível deve falhar fechado e com erro sanitizado.
 
