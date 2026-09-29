@@ -1,6 +1,6 @@
 # LR-7C — distribuição real Gemini ↔ Groq
 
-Estado: **gate humano principal observado; revalidação técnica pendente após correção de grounding.**
+Estado: **PASS técnico revalidado; fallback real observado; reteste humano de grounding pendente.**
 
 A LR-7C ativa a primeira rota real multi-provider do produto sem antecipar o Rate Limit Manager da LR-8.
 
@@ -115,3 +115,18 @@ O gate final da LR-7 exige ao menos uma tarefa real que use os dois providers se
 A causa foi identificada: os adapters não forneciam ao modelo o provider/modelo da execução atual, então a resposta tentou inferir esse dado pelo histórico da sessão. O runtime e a UI estavam corretos.
 
 Correção aplicada: Gemini e Groq agora recebem metadado técnico explícito de execução atual (provider/modelo), separado da identidade da Luna, com instrução para não inferir provider pelo histórico nem inventar rota anterior. Como houve mudança Rust após o PASS técnico anterior, os gates técnicos devem ser reexecutados antes do fechamento.
+
+
+## Revalidação técnica após grounding — 28/09/2026
+
+Após adicionar metadado técnico de execução atual aos adapters Gemini e Groq:
+
+- `npm run typecheck`: PASS;
+- `npm run build`: PASS;
+- `cargo check --manifest-path src-tauri/Cargo.toml`: PASS;
+- `cargo test --manifest-path src-tauri/Cargo.toml`: **90/90 PASS**;
+- `cargo check --release --manifest-path src-tauri/Cargo.toml`: PASS;
+- `git diff --check origin/main...HEAD`: PASS;
+- `git status`: worktree clean.
+
+Permanece apenas o reteste humano para confirmar que a resposta textual do provider atual fica coerente com a rota operacional observada.
