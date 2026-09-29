@@ -223,4 +223,23 @@ O handshake e cada request preparatória têm limite de 8 s; o turno tem 60 s; s
 
 Cancelamento remoto, `turn/interrupt`, observabilidade de progresso, eventos reais, persistência e recuperação ficam para D0.5E+. O Planner atual apenas rejeita cancelamento já marcado antes do início.
 
+## Auditoria independente da Luna — D0.5D FIX diagnóstica — 29/09/2026
+
+**PASS técnico para preflight humano sem inferência.**
+
+A revisão remota confirmou que:
+
+- `PreparedPlannerSession::prepare` é o caminho único de preparação usado tanto pelo preflight quanto pelo Planner real;
+- a preparação executa diretório temporário, spawn, initialize, `config/read`, descoberta MCP, `thread/start` e validação efetiva;
+- o preflight encerra a thread/processo após essa preparação e **não constrói nem envia `turn/start`**;
+- somente o Planner real chama `run_turn` depois de uma preparação bem-sucedida;
+- os diagnósticos públicos são um enum fechado por estágio e a resposta pública contém apenas `ready` e `diagnosticCode`;
+- paths, payloads, stdout/stderr, Codex home, MCP names e IDs não aparecem na resposta pública;
+- a UI mantém whitelist tanto dos códigos de preflight quanto dos `AgentError` do Planner real;
+- cleanup continua obrigatório em sucesso e falha.
+
+Os gates foram executados pelo Codex e reportados como PASS, com 148 testes Rust no total (147 PASS + 1 manual ignored). A auditoria da Luna foi revisão independente do código remoto, não uma segunda execução local desses comandos.
+
+O próximo gate humano deve executar apenas **Testar isolamento**. Somente se o preflight retornar `ready=true` deve ser repetida a chamada real de Planner.
+
 **FIX diagnóstica do gate humano:** a preparação foi centralizada em `PreparedPlannerSession::prepare`, que executa diretório temporário, spawn, initialize, `config/read`, descoberta MCP, `thread/start` e `effective_thread`. O preflight em **IA e modelos** usa essa mesma preparação e encerra a thread com `thread/unsubscribe` e shutdown sem construir ou enviar `turn/start`; só o Planner real inicia o turno após a preparação. A resposta pública do preflight contém exclusivamente `ready` e `diagnosticCode`, de enum fechado: `planner_spawn_failed`, `planner_initialize_failed`, `planner_config_read_failed`, `planner_mcp_config_invalid`, `planner_thread_start_failed`, `planner_sandbox_rejected`, `planner_approval_policy_rejected`, `planner_cwd_rejected`, `planner_workspace_roots_rejected`, `planner_instruction_sources_rejected`, `planner_permission_profile_rejected`, `planner_thread_id_invalid` ou `planner_cleanup_failed`. Nenhum path, ID, payload ou mensagem bruta atravessa essa resposta. O Planner real continua exibindo somente os códigos fechados de `AgentError`.
