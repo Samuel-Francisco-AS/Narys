@@ -1,6 +1,6 @@
 # Groq Provider — LR-7B
 
-Estado: implementação candidata ao gate técnico/humano. A LR-7B adiciona Groq como segundo provider real sem ativar ainda distribuição automática Gemini ↔ Groq.
+Estado: **PASS técnico + PASS humano em 28/09/2026.** A LR-7B adiciona Groq como segundo provider real sem ativar ainda distribuição automática Gemini ↔ Groq.
 
 ## Contrato
 
@@ -29,14 +29,31 @@ Campos de reasoning recebidos no stream são ignorados; somente `choices[0].delt
 
 Gemini permanece prioridade 1 e Groq prioridade 2 no Registry real, mas Conversation e Summary continuam com policy `Fixed("gemini")`. A janela IA oferece um diagnóstico explícito `Fixed("groq")`, que não persiste conversa nem muda policies. LR-7C fará a primeira distribuição/fallback real entre os dois providers.
 
-## Gate humano
+## Validação final — 28/09/2026
 
-1. Abrir “IA e modelos”.
-2. Inserir a chave Groq e salvar.
-3. Confirmar “Groq · Configurado”.
-4. Clicar “Testar Groq”.
-5. Confirmar stream textual, provider `groq` e usage.
-6. Fechar/reabrir o app e confirmar que a credencial continua configurada.
-7. Confirmar que a conversa normal continua usando Gemini.
+**Gate técnico: PASS.**
+
+- `npm run typecheck`: PASS;
+- `npm run build`: PASS, mantendo apenas o warning já conhecido de chunk acima de 500 kB;
+- `cargo check --manifest-path src-tauri/Cargo.toml`: PASS;
+- `cargo test --manifest-path src-tauri/Cargo.toml`: **89/89 testes PASS**;
+- `cargo check --release --manifest-path src-tauri/Cargo.toml`: PASS;
+- `git diff --check origin/main...HEAD`: PASS.
+
+Os gates Rust foram executados no Fedora com `cargo 1.98.1` / `rustc 1.98.1` instalados pelo sistema. O MSRV declarado `rust-version = 1.77.2` não foi revalidado com a toolchain exata nesta rodada e permanece uma limitação documental não bloqueante.
+
+**Gate humano: PASS.**
+
+- chave Groq cadastrada pela janela “IA e modelos” e armazenada no SecretStore;
+- diagnóstico real `Fixed(groq)` concluiu por streaming com `openai/gpt-oss-20b`;
+- usage real observado: **126 input + 22 output = 148 total tokens**;
+- após fechar/reabrir o Tauri, Groq permaneceu como “Configurado” sem reinserir a chave;
+- Conversation e Summary permaneceram `Fixed(gemini)` com o modelo Gemini configurado;
+- uma conversa normal após restart tentou Gemini, recebeu HTTP 429 e entrou em cooldown;
+- apesar de Groq estar disponível, o Scheduler respeitou `Fixed(gemini)` e não fez fallback oculto.
+
+A resposta Gemini pós-restart não concluiu por rate limit remoto; isso não bloqueia a LR-7B porque o objetivo desta etapa é provar o segundo provider real isolado e preservar a policy Fixed existente. A distribuição/fallback real Gemini ↔ Groq fica explicitamente para a LR-7C.
 
 A implementação não faz request Groq no startup.
+
+**LR-7B = PASS completo.**
