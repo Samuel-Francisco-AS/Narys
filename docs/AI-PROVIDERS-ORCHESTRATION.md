@@ -465,7 +465,7 @@ consulta o executável Codex e o estado de autenticação reportado por
 `codex login status`. **D0.5B também está integrada em PASS**, com ponte efêmera Rust ↔ `codex app-server --stdio` para handshake diagnóstico sem inferência. Conversation/Summary permanecem inalterados; `AgentBackend` e registry genérico começam apenas em D0.5C. O contrato e a
 fronteira de segurança estão em [LR-7D0.5](LR-7D05-CODEX-AGENT-BRIDGE.md).
 
-**D0.5C — candidata à auditoria técnica:** `AgentBackend`, seus tipos próprios e
+**D0.5C — PASS técnico após auditoria independente:** `AgentBackend`, seus tipos próprios e
 `AgentRegistry` agora existem como fundação genérica, independentes de
 `CognitiveProvider`/`ProviderRegistry`. Nenhum backend real, registro de
 produção ou UI foi adicionado; Codex continua reservado para a integração
