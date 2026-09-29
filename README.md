@@ -124,3 +124,7 @@ A LR-7A/LR-7A-FIX fechou a fundação multi-provider e a **LR-7B passou os gates
 ### LR-7C — distribuição real
 
 A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode usar `Preferred(Gemini)` com fallback Groq explicitamente configurado, enquanto Summary permanece `Fixed(Gemini)`. Foram validados Gemini saudável → Gemini, Gemini 429 → Groq na mesma tarefa e Gemini já em cooldown → Groq direto, com rota real exposta na UI e grounding correto de provider/modelo. Veja [LR-7C — distribuição real](docs/LR-7C-DISTRIBUTION.md).
+
+### LR-7D — papéis cognitivos e roteamento configurável
+
+Planejada em 28/09/2026. A próxima subtrilha remove Gemini como provider estruturalmente privilegiado e torna providers/modelos/rotas configuráveis por papel. LR-7D0 será executada pelo Codex e auditada pela Luna; depois entram Orchestrator/Planner configurável, fallback chain/Auto/affinity e task graph mínimo. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
