@@ -1,0 +1,238 @@
+# LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
+
+Estado: **PLANEJADA em 28/09/2026.**  
+Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
+
+## Princípio central
+
+A Luna não possui uma "LLM principal" fixa.
+
+O **Luna Core (Rust)** mantém identidade, sessão, memória, permissões, budgets, TaskState e autoridade sobre execução. Cognitive Providers como Gemini e Groq são recursos substituíveis usados por papéis cognitivos configuráveis.
+
+Uma futura LLM escolhida como **Orchestrator/Planner** pode propor decomposição, seleção de workers e consolidação, mas não recebe autoridade para ignorar permissões, budgets, capabilities ou decisões do Core.
+
+## Estado herdado da LR-7C
+
+Já existe:
+- Gemini e Groq como Cognitive Providers reais;
+- `Fixed` e `Preferred`;
+- fallback antes do primeiro chunk;
+- cooldown compartilhado e overflow;
+- model/thinking por target;
+- observabilidade `from → to → reason`;
+- configuração persistida para Conversation/Summary;
+- gate real Gemini saudável → Gemini;
+- gate real Gemini 429 → Groq na mesma tarefa;
+- gate real Gemini em cooldown → Groq direto.
+
+Dívida intencional deixada pela LR-7C:
+- policy ainda valida primário como Gemini;
+- fallback de Conversation ainda valida Groq;
+- Summary ainda é efetivamente Gemini;
+- UI ainda contém textos/opções Gemini → Groq;
+- runtime conhece timeouts por provider de forma parcialmente estática;
+- não existe papel cognitivo Orchestrator;
+- não existe fallback chain;
+- `Auto`, score, affinity e task graph ainda não são produto.
+
+---
+
+## LR-7D0 — providers genéricos por papel + remoção dos hardcodes
+
+### Objetivo
+
+Eliminar Gemini como provider estruturalmente privilegiado.
+
+Conversation e Summary devem poder escolher pela interface qualquer **Cognitive Provider registrado e compatível**, atualmente Gemini ou Groq, sem alterar código.
+
+### Requisitos
+
+1. **Policy genérica**
+   - remover validações `provider_id == "gemini"`;
+   - remover validações `fallback_provider_id == "groq"`;
+   - `Fixed` aceita um provider registrado/compatível;
+   - `Preferred` aceita primary + fallback diferentes e compatíveis;
+   - fallback não pode ser o mesmo target do primary;
+   - nenhuma policy deve assumir nomes comerciais para decidir semântica.
+
+2. **Conversation genérica**
+   - deve funcionar em pelo menos:
+     - Fixed(Gemini);
+     - Fixed(Groq);
+     - Preferred(Gemini → Groq);
+     - Preferred(Groq → Gemini);
+   - model/thinking/timeouts continuam específicos de cada target;
+   - retry/fallback/cancelamento mantêm as regras da LR-7C.
+
+3. **Summary genérico**
+   - remover a amarra Gemini;
+   - permitir Fixed(Gemini) ou Fixed(Groq);
+   - Preferred para Summary só deve ser habilitado se a implementação puder preservar o contrato de output/claim/recovery sem regressão; caso contrário pode permanecer Fixed nesta subfase, mas o provider Fixed deve ser configurável;
+   - mudança de provider não pode alterar mensagens da conversa nem violar o worker oportunista.
+
+4. **Settings/Registry como fonte**
+   - dropdowns devem ser derivados dos providers retornados pelo backend, não de opções hardcoded no React;
+   - expor metadados úteis por provider, no mínimo: id, display name, configured, capabilities relevantes e thinking suportado;
+   - provider não configurado deve aparecer como indisponível/explicado ou ser rejeitado de forma clara;
+   - modelo continua configurável por target; não inventar model discovery se a API não fornecer isso.
+
+5. **Runtime config genérica**
+   - evitar funções que recebam parâmetros chamados `gemini_timeouts`/`groq_timeouts` como contrato permanente;
+   - resolver configuração de invocação pelo `provider_id`;
+   - não copiar model/thinking/timeout de um provider para outro;
+   - provider desconhecido, desabilitado, sem credencial ou incompatível deve falhar fechado e com erro sanitizado.
+
+6. **UI**
+   - remover textos como “Fixed · somente Gemini” e “Gemini → Groq” como regra estrutural;
+   - mostrar Primary e Fallback por nome real escolhido;
+   - warnings de retry/budget devem usar nomes dinâmicos;
+   - preservar credenciais separadas e nunca devolver secrets ao frontend.
+
+7. **Migração**
+   - preservar configurações existentes da LR-7C;
+   - nenhum upgrade pode trocar provider do usuário silenciosamente;
+   - database schema/version deve ser testado em upgrade e reopen.
+
+### Fora de escopo da LR-7D0
+
+- novo provider externo;
+- papel Orchestrator em uso real;
+- fallback chain com 3+ targets;
+- `Auto` na UI;
+- score;
+- affinity;
+- task graph;
+- paralelismo;
+- Rate Limit Manager LR-8;
+- ferramentas/agentes especialistas;
+- Luna Voice.
+
+### Gate técnico
+
+- typecheck;
+- build;
+- cargo check;
+- cargo test;
+- cargo check --release;
+- diff check;
+- migrations/reopen;
+- testes específicos para primary/fallback invertidos;
+- nenhum teste pode depender de chamada externa.
+
+### Gate humano
+
+Com Gemini e Groq configurados:
+
+1. Conversation Fixed(Gemini) → Gemini responde.
+2. Conversation Fixed(Groq) → Groq responde.
+3. Preferred(Gemini → Groq) → Gemini saudável continua preferido.
+4. Preferred(Groq → Gemini) → Groq saudável continua preferido.
+5. Summary Fixed(Gemini) continua funcionando.
+6. Summary Fixed(Groq) gera título/resumo válido sem corromper sessão.
+7. restart preserva todas as escolhas.
+8. UI não contém conceito implícito de “Gemini principal”.
+
+### Gate de arquitetura
+
+Trocar Gemini ↔ Groq como primary/fallback em Conversation e como provider Fixed de Summary exige **somente configuração**, sem alteração de código.
+
+---
+
+## LR-7D1 — papel cognitivo Orchestrator/Planner
+
+### Objetivo
+
+Adicionar uma policy persistida `orchestrator` configurável pela interface.
+
+O usuário escolhe provider, model, thinking, output/context budget, timeout/retry e routing compatível.
+
+### Regra de autoridade
+
+A LLM Orchestrator **não executa ferramentas diretamente por autoridade própria**. Ela produz plano/decisões estruturadas; o Luna Core valida:
+- schema;
+- capabilities;
+- dependências;
+- budgets;
+- permissões;
+- cancelamento;
+- política do usuário.
+
+Nenhum papel decorativo: `orchestrator` só entra na UI quando existir um caminho real de runtime que o utilize.
+
+### Gate
+
+Trocar Orchestrator entre Gemini e Groq pela UI muda a próxima operação de planejamento real sem alterar identidade, permissões ou estado da Luna.
+
+---
+
+## LR-7D2 — fallback chain + Auto/score + affinity
+
+### Objetivo
+
+Evoluir de `primary + fallback` para rota ordenada e seleção automática controlada.
+
+Exemplo:
+
+```text
+Conversation
+mode = Preferred
+1. Groq / model A
+2. Gemini / model B
+3. futuro provider / model C
+```
+
+### Modos
+
+- `Fixed`: exatamente um target;
+- `Preferred`: cadeia ordenada definida pelo usuário;
+- `Auto`: Scheduler escolhe apenas entre targets explicitamente permitidos pelo usuário.
+
+### Score inicial
+
+Sem antecipar LR-8 completo, considerar apenas sinais realmente disponíveis:
+- capability/suitability;
+- enabled/configured;
+- cooldown/health;
+- prioridade/policy do usuário;
+- estimated context-transfer cost;
+- affinity da tarefa/sessão.
+
+RPM/TPM/RPD/TPD, token bucket, queue e circuit breaker completo ficam na LR-8.
+
+### Affinity
+
+Evitar troca de provider quando o custo de transferir contexto/continuidade superar o ganho esperado, salvo falha/cooldown/policy explícita.
+
+### Gate
+
+Uma mesma configuração permite trocar a ordem dos providers e o Scheduler respeita a preferência/affinity sem hardcodes comerciais.
+
+---
+
+## LR-7D3 — task graph mínimo + subtarefas independentes
+
+### Objetivo
+
+Permitir que uma tarefa complexa seja decomposta em unidades independentes, sem construir ainda o sistema multiagente completo.
+
+### Regras
+
+- somente paralelizar subtarefas declaradamente independentes;
+- uma única TaskId raiz;
+- subtarefas possuem IDs/estado/eventos reais;
+- cancelamento raiz propaga;
+- eventos exibidos ao usuário correspondem a trabalho real;
+- nenhum diálogo fictício entre agentes;
+- resultados estruturados retornam ao Core para consolidação;
+- budgets globais e por subtarefa são respeitados.
+
+### Gate final LR-7
+
+Uma tarefa real:
+1. cria pelo menos duas subtarefas independentes;
+2. usa Gemini e Groq em trabalho útil;
+3. registra exatamente qual provider fez cada unidade;
+4. consolida um único resultado;
+5. preserva identidade, sessão, estado e cancelamento.
+
+Após esse gate, **LR-7 pode ser declarada encerrada** e LR-8 assume o Rate Limit Manager completo.
