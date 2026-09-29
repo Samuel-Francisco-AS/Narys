@@ -1,5 +1,6 @@
 mod luna;
 mod cognition;
+mod agents;
 mod persistence;
 mod security;
 
@@ -81,6 +82,7 @@ pub fn run() {
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::groq_commands::groq_status, cognition::groq_commands::groq_set_api_key,
     cognition::groq_commands::groq_delete_api_key, cognition::groq_commands::groq_probe,
+    agents::codex::get_codex_runtime_status,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
     cognition::gemini_commands::close_conversation_session, cognition::gemini_commands::resume_conversation_session,
     cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
@@ -98,6 +100,7 @@ pub fn run() {
     cognition::gemini_commands::gemini_delete_api_key, cognition::gemini_commands::gemini_conversation,
     cognition::groq_commands::groq_status, cognition::groq_commands::groq_set_api_key,
     cognition::groq_commands::groq_delete_api_key, cognition::groq_commands::groq_probe,
+    agents::codex::get_codex_runtime_status,
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
     cognition::gemini_commands::close_conversation_session, cognition::gemini_commands::resume_conversation_session,
     cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,

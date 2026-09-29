@@ -11,6 +11,7 @@ type ProviderInfo = { id: string; displayName: string; configured: boolean; enab
 type Settings = { providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
 type ProbeEvent = { type: 'selected'; providerId: string; attempt: number } | { type: 'chunk'; text: string }
 type ProbeResult = { text: string; providerId: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; retries: number; fallbacks: number } }
+type CodexRuntimeStatus = { installed: boolean; version: string | null; authenticated: boolean; authKind: 'chatgpt' | 'api_key' | 'other' | 'unknown' | 'none'; available: boolean; diagnosticCode: 'codex_not_installed' | 'codex_not_authenticated' | 'codex_status_timeout' | 'codex_status_failed' | 'codex_status_unrecognized' | null }
 const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
@@ -163,8 +164,19 @@ export default function AiSettingsApp() {
   const [probing, setProbing] = useState(false)
   const [probeOutput, setProbeOutput] = useState('')
   const [probeResult, setProbeResult] = useState<ProbeResult | null>(null)
+  const [codex, setCodex] = useState<CodexRuntimeStatus | null>(null)
+  const [codexBusy, setCodexBusy] = useState(false)
   async function refresh() { setSettings(await invoke<Settings>('get_ai_settings')) }
-  useEffect(() => { void refresh().catch(() => setError('Não foi possível carregar as configurações.')) }, [])
+  async function refreshCodex() {
+    setCodexBusy(true)
+    try { setCodex(await invoke<CodexRuntimeStatus>('get_codex_runtime_status')) }
+    catch { setError('Não foi possível consultar o runtime Codex.') }
+    finally { setCodexBusy(false) }
+  }
+  useEffect(() => {
+    void refresh().catch(() => setError('Não foi possível carregar as configurações.'))
+    void refreshCodex()
+  }, [])
   async function credential(provider: 'gemini' | 'groq', action: 'set' | 'delete') {
     setBusy(true); setError(''); setNotice('')
     const command = `${provider}_${action === 'set' ? 'set_api_key' : 'delete_api_key'}`
@@ -208,6 +220,18 @@ export default function AiSettingsApp() {
         <div className="settings-actions"><button disabled={probing || !groq?.configured} onClick={() => void probeGroq()}>{probing ? 'Executando…' : 'Testar Groq'}</button></div>
         {probeOutput && <p aria-live="polite"><strong>Stream:</strong> {probeOutput}</p>}
         {probeResult && <p role="status">Provider: {probeResult.providerId} · input {probeResult.usage.inputTokens} · output {probeResult.usage.outputTokens} · total {probeResult.usage.totalTokens ?? '—'} tokens.</p>}
+      </section>
+      <section className="settings-card" aria-labelledby="codex-status-title">
+        <p className="settings-kicker">EXPERIMENTAL · AGENT RUNTIME</p><h2 id="codex-status-title">Codex</h2>
+        <p>Observa somente o runtime local e o estado de autenticação reportado pelo próprio CLI. Nenhum login, logout ou chamada de modelo é executado pelo aplicativo.</p>
+        <div className="codex-status-grid">
+          <span>Runtime</span><strong>{codex?.installed ? 'disponível' : codex ? 'não encontrado' : 'consultando…'}</strong>
+          <span>Versão</span><strong>{codex?.version ?? '—'}</strong>
+          <span>Autenticação</span><strong>{codex ? ({ chatgpt: 'ChatGPT', api_key: 'API key', other: 'outro método', unknown: 'desconhecida', none: 'não autenticado' }[codex.authKind]) : '—'}</strong>
+          <span>Estado</span><strong>{codex?.available ? 'disponível' : codex ? 'indisponível' : '—'}</strong>
+        </div>
+        {codex?.diagnosticCode && <small>Diagnóstico: {codex.diagnosticCode}</small>}
+        <div className="settings-actions"><button type="button" disabled={codexBusy} onClick={() => void refreshCodex()}>{codexBusy ? 'Atualizando…' : 'Atualizar status'}</button></div>
       </section>
       <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} providers={settings.providers} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
       <section className="settings-card"><h2>Parâmetros avançados</h2>

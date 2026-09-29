@@ -38,3 +38,5 @@ body:has(.settings-page) { overflow: auto; }
 .settings-page fieldset > small { display: block; margin-top: 8px; }
 
 .settings-page .settings-warning { color: #f5d58c; }
+.codex-status-grid { display: grid; grid-template-columns: minmax(120px, 180px) 1fr; gap: 8px 16px; margin: 16px 0 4px; }
+.codex-status-grid span { color: #acb9ce; }
