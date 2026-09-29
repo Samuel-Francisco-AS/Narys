@@ -21,11 +21,11 @@ export function Composer({ state, visible, onExited, onDraft, onSend, onCancel, 
     onTransitionEnd={(event) => { if (!visible && event.target === event.currentTarget && event.propertyName === 'opacity') onExited() }}>
     <textarea ref={input} value={state.draft} onChange={(event) => onDraft(event.target.value)} onKeyDown={onKeyDown} placeholder="Mensagem para Luna…" aria-label="Mensagem para Luna" rows={2} />
     <div className="composer-actions">
-      <span role="status">{state.assistantStreaming ? 'Luna está escrevendo…' : cooldownSeconds > 0 ? `Gemini em cooldown: ${cooldownSeconds}s` : ''}</span>
+      <span role="status">{state.assistantStreaming ? 'Luna está escrevendo…' : cooldownSeconds > 0 ? `Provider em cooldown: ${cooldownSeconds}s · a rota será reavaliada ao enviar` : ''}</span>
       {!panelOpen && <button type="button" onClick={onPanel}>Conversas</button>}
       <button type="button" aria-label="Configurações" title="Configurações" onClick={onSettings}>⚙</button>
       {state.activeTaskId !== null && <button type="button" onClick={onCancel}>Cancelar</button>}
-      <button type="button" className="send-button" disabled={!state.draft.trim() || state.assistantStreaming || cooldownSeconds > 0} onClick={onSend}>Enviar</button>
+      <button type="button" className="send-button" disabled={!state.draft.trim() || state.assistantStreaming} onClick={onSend}>Enviar</button>
     </div>
     {state.error && <p className="conversation-error" role="alert">{state.error}</p>}
   </section>
