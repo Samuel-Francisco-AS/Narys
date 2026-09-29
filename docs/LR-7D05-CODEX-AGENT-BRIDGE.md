@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A candidata ao gate humano**. Esta mini-trilha prepara a descoberta
+Estado: **D0.5A — PASS completo em 29/09/2026; pronta para integração.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -55,7 +55,7 @@ Gemini/Groq, Conversation e Summary.
 
 ## Auditoria independente da Luna — 29/09/2026
 
-**PASS para gate humano; D0.5A ainda não é PASS final.**
+**PASS da auditoria independente e do gate humano.**
 
 A revisão remota confirmou que:
 
@@ -71,12 +71,10 @@ A revisão remota confirmou que:
 
 Os gates locais foram executados pelo Copilot e reportados como PASS, com 104 testes Rust. A auditoria da Luna foi revisão independente do código remoto, não uma segunda execução local desses comandos.
 
-O fechamento depende do gate humano com o runtime Codex real.
+O gate humano foi concluído em 29/09/2026 com o runtime Codex real: a UI detectou `codex-cli 0.158.0`, autenticação `ChatGPT` e estado disponível; refresh manual e restart preservaram o diagnóstico correto. A referência externa `codex --version` / `codex login status` coincidiu com o estado mostrado pelo aplicativo.
 
 ## Gates
 
 O gate técnico desta candidata é `npm run typecheck`, `npm run build`,
 `cargo check`, `cargo test`, `cargo check --release` e `git diff --check`.
-O gate humano permanece pendente: o usuário e a Luna devem confirmar detecção,
-versão, autenticação sem exposição de segredo, refresh e estados sem runtime/
-sem autenticação após reinício.
+O gate humano foi concluído: detecção, versão, autenticação ChatGPT, refresh e persistência após restart foram validados sem exposição de segredo. Os estados negativos permanecem cobertos por testes automatizados; não foi necessário desautenticar ou remover o runtime real do usuário.
