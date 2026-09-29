@@ -12,6 +12,7 @@ type Settings = { providerTimeouts: Record<string, Timeouts>; providers: Provide
 type ProbeEvent = { type: 'selected'; providerId: string; attempt: number } | { type: 'chunk'; text: string }
 type ProbeResult = { text: string; providerId: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; retries: number; fallbacks: number } }
 type CodexRuntimeStatus = { installed: boolean; version: string | null; authenticated: boolean; authKind: 'chatgpt' | 'api_key' | 'other' | 'unknown' | 'none'; available: boolean; diagnosticCode: 'codex_not_installed' | 'codex_not_authenticated' | 'codex_status_timeout' | 'codex_status_failed' | 'codex_status_unrecognized' | null }
+type CodexAppServerProbe = { launched: boolean; initialized: boolean; platformFamily: 'unix' | 'windows' | null; platformOs: 'linux' | 'macos' | 'windows' | null; diagnosticCode: string | null }
 const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
@@ -166,12 +167,21 @@ export default function AiSettingsApp() {
   const [probeResult, setProbeResult] = useState<ProbeResult | null>(null)
   const [codex, setCodex] = useState<CodexRuntimeStatus | null>(null)
   const [codexBusy, setCodexBusy] = useState(false)
+  const [codexAppServer, setCodexAppServer] = useState<CodexAppServerProbe | null>(null)
+  const [codexAppServerBusy, setCodexAppServerBusy] = useState(false)
   async function refresh() { setSettings(await invoke<Settings>('get_ai_settings')) }
   async function refreshCodex() {
     setCodexBusy(true)
     try { setCodex(await invoke<CodexRuntimeStatus>('get_codex_runtime_status')) }
     catch { setError('Não foi possível consultar o runtime Codex.') }
     finally { setCodexBusy(false) }
+  }
+  async function probeCodexAppServer() {
+    setCodexAppServerBusy(true)
+    setCodexAppServer(null)
+    try { setCodexAppServer(await invoke<CodexAppServerProbe>('probe_codex_app_server')) }
+    catch { setCodexAppServer({ launched: false, initialized: false, platformFamily: null, platformOs: null, diagnosticCode: 'codex_app_server_spawn_failed' }) }
+    finally { setCodexAppServerBusy(false) }
   }
   useEffect(() => {
     void refresh().catch(() => setError('Não foi possível carregar as configurações.'))
@@ -232,6 +242,14 @@ export default function AiSettingsApp() {
         </div>
         {codex?.diagnosticCode && <small>Diagnóstico: {codex.diagnosticCode}</small>}
         <div className="settings-actions"><button type="button" disabled={codexBusy} onClick={() => void refreshCodex()}>{codexBusy ? 'Atualizando…' : 'Atualizar status'}</button></div>
+        <h3>App-server</h3>
+        <p>O teste inicia o processo, conclui o handshake e o encerra. Nenhuma chamada de modelo é feita.</p>
+        <div className="codex-status-grid">
+          <span>Estado</span><strong>{codexAppServer?.initialized ? 'conectado' : codexAppServer ? 'indisponível' : 'não testado'}</strong>
+          <span>Plataforma</span><strong>{codexAppServer?.platformOs ? ({ linux: 'Linux', macos: 'macOS', windows: 'Windows' }[codexAppServer.platformOs]) : '—'}</strong>
+        </div>
+        {codexAppServer?.diagnosticCode && <small>Diagnóstico: {codexAppServer.diagnosticCode}</small>}
+        <div className="settings-actions"><button type="button" disabled={codexAppServerBusy} onClick={() => void probeCodexAppServer()}>{codexAppServerBusy ? 'Testando…' : 'Testar app-server'}</button></div>
       </section>
       <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} providers={settings.providers} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
       <section className="settings-card"><h2>Parâmetros avançados</h2>

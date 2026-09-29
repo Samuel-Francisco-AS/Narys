@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. A trilha **UIP-0 → UIP-7** está encerrada em PASS funcional. **LR-7A/FIX fechou a fundação multi-provider, LR-7B integrou Groq como segundo provider real, LR-7C fechou a primeira distribuição real Gemini ↔ Groq, LR-7D0 removeu Gemini como provider estruturalmente privilegiado e LR-7D0.5A integrou descoberta segura do runtime/autenticação Codex. O próximo checkpoint é D0.5B — Rust ↔ Codex app-server. LR-8 permanece separada para Rate Limit Manager e telemetria avançada.** O trabalho artístico de Blender segue independente. **Após o fechamento da UIP-2 e antes da UIP-3, a Idle procedural foi substituída por uma Idle manual exportada do Blender; isso cria uma nova baseline de asset/performance para as medições seguintes.** Consulte [gate final UIP-7](docs/UIP-7-FINAL-PERFORMANCE.md), [integração da Idle manual](docs/MANUAL-IDLE-INTEGRATION.md), [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
+**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. A trilha **UIP-0 → UIP-7** está encerrada em PASS funcional. **LR-7A/FIX fechou a fundação multi-provider, LR-7B integrou Groq como segundo provider real, LR-7C fechou a primeira distribuição real Gemini ↔ Groq, LR-7D0 removeu Gemini como provider estruturalmente privilegiado, LR-7D0.5A integrou descoberta segura do runtime/autenticação Codex e LR-7D0.5B fechou a ponte efêmera Rust ↔ Codex app-server. D0.5B está em PASS completo e pronta para integração; D0.5C vem depois do merge. LR-8 permanece separada para Rate Limit Manager e telemetria avançada.** O trabalho artístico de Blender segue independente. **Após o fechamento da UIP-2 e antes da UIP-3, a Idle procedural foi substituída por uma Idle manual exportada do Blender; isso cria uma nova baseline de asset/performance para as medições seguintes.** Consulte [gate final UIP-7](docs/UIP-7-FINAL-PERFORMANCE.md), [integração da Idle manual](docs/MANUAL-IDLE-INTEGRATION.md), [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## Direção arquitetural pós-M0
 
@@ -136,4 +136,12 @@ A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode 
 `codex login status` com timeout, sem ler ou expor credenciais. Codex permanece
 fora do contrato `CognitiveProvider`; app-server e a arquitetura
 `AgentBackend` começam somente nos checkpoints D0.5B+. Veja [a especificação
+D0.5](docs/LR-7D05-CODEX-AGENT-BRIDGE.md).
+
+### LR-7D0.5B — ponte de diagnóstico do app-server
+
+**PASS completo em 29/09/2026.** A janela IA oferece um teste manual que inicia
+`codex app-server --stdio`, conclui `initialize`/`initialized` e encerra o
+processo. A resposta mostra somente estado, plataforma segura e diagnóstico
+sanitizado. Nenhuma chamada de modelo é feita. Veja [a especificação
 D0.5](docs/LR-7D05-CODEX-AGENT-BRIDGE.md).
