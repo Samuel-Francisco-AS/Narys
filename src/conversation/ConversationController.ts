@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cancelTask, lunaCoreAvailable } from '../luna/taskClient'
-import { startConversationTask } from '../luna/geminiTaskClient'
+import { startConversationTask } from '../luna/conversationTaskClient'
 import { closeSession, conversationRoutingStatus, createSession, getSession, resumeConversationSession } from './conversationClient'
 import type { ConversationSession, ConversationState } from './types'
 
