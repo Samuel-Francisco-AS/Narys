@@ -436,7 +436,7 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 
 1. MockProvider local para testar Scheduler sem gastar cota.
 2. Gemini como primeiro provider geral.
-3. Groq como segundo provider para provar distribuição real na LR-7B.
+3. Groq como segundo provider real isolado na LR-7B; distribuição/fallback Gemini ↔ Groq é provada na LR-7C.
 4. Rate Limit Manager completo.
 5. OpenAI-compatible adapter + Cloudflare Workers AI.
 6. OpenRouter/Cohere/Hugging Face como experimentos/fallback.
@@ -453,4 +453,4 @@ Essa ordem pode mudar por bloqueio técnico, mas a primeira prova de arquitetura
 **LR-7A-FIX (28/09/2026):** o routing era provider-aware, mas parâmetros de invocação ainda eram únicos por request. `ProviderTaskRequest` agora carrega targets com configuração individual; ao selecionar um target, o Scheduler constrói um `ProviderRequest` contendo apenas a configuração daquele provider. Target sem configuração única e válida falha fechado, sem reutilizar model, thinking ou timeouts de outro. A configuração Gemini persistida permanece `Fixed("gemini")` e seu handle de timeouts pertence ao estado Gemini específico. Groq permanece LR-7B; nenhum gate real multi-provider foi executado. LR-8 segue separada.
 
 
-**LR-7B candidata (28/09/2026):** Groq entra como Cognitive Provider real de prioridade 2 usando `openai/gpt-oss-20b`. O adapter possui configuração/timeout/credencial próprios e fronteira outbound explícita. A integração não antecipa LR-7C: policies de produto seguem `Fixed(gemini)`, e Groq é exercitado por diagnóstico `Fixed(groq)`. Quotas atuais não são hardcoded; LR-8 continua responsável por rate-limit manager/telemetria avançada.
+**LR-7B fechada (28/09/2026): PASS técnico + humano.** Groq entrou como Cognitive Provider real de prioridade 2 usando `openai/gpt-oss-20b`. O adapter possui configuração/timeout/credencial próprios e fronteira outbound explícita. O diagnóstico real `Fixed(groq)` concluiu por streaming com usage observado de 126 tokens de entrada, 22 de saída e 148 total; a credencial persistiu após restart. Conversation/Summary permaneceram `Fixed(gemini)`, e um 429 real do Gemini confirmou que o Scheduler não faz fallback oculto quando a policy é Fixed. Distribuição/overflow real fica para LR-7C. Quotas atuais não são hardcoded; LR-8 continua responsável por rate-limit manager/telemetria avançada.
