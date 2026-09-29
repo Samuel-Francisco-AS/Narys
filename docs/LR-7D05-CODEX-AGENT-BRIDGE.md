@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A — PASS completo e integrada à `main` em 29/09/2026. D0.5B — PASS completo; pronta para integração. D0.5C é o próximo checkpoint após o merge.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A e D0.5B — PASS completo e integradas à `main` em 29/09/2026. D0.5C — `AgentBackend` + registry genérico — é o próximo checkpoint.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -138,3 +138,7 @@ O gate humano foi concluído em 29/09/2026: três probes consecutivos pela UI re
 O gate técnico desta candidata é `npm run typecheck`, `npm run build`,
 `cargo check`, `cargo test`, `cargo check --release` e `git diff --check`.
 O gate humano foi concluído: detecção, versão, autenticação ChatGPT, refresh e persistência após restart foram validados sem exposição de segredo. Os estados negativos permanecem cobertos por testes automatizados; não foi necessário desautenticar ou remover o runtime real do usuário.
+
+## Fechamento de integração da D0.5B — 29/09/2026
+
+A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf4ef590a22c97ab`. A D0.5B está oficialmente encerrada em PASS completo. O próximo checkpoint da mini-trilha é **D0.5C — contrato `AgentBackend` + registry genérico**, mantendo Codex separado dos `CognitiveProvider`s.
