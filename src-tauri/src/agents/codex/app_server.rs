@@ -1,9 +1,10 @@
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
+  collections::VecDeque,
   io::{self, Read, Write},
   process::{Child, Command, Stdio},
-  sync::{atomic::{AtomicU64, Ordering}, mpsc::{self, Receiver, RecvTimeoutError, SyncSender}},
+  sync::{atomic::{AtomicU64, Ordering}, mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender}},
   thread::{self, JoinHandle},
   time::{Duration, Instant},
 };
@@ -13,6 +14,10 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 const MAX_MESSAGE_BYTES: usize = 64 * 1024;
 const MAX_PROBE_BYTES: usize = 256 * 1024;
 const MAX_PLANNER_PROTOCOL_BYTES: usize = 512 * 1024;
+// Independently bound queue metadata: charge at least 64 bytes per frame
+// against the existing session budget, permitting at most 8192 frames.
+const FRAME_METADATA_ALLOWANCE: usize = 64;
+const MAX_PLANNER_FRAMES: usize = MAX_PLANNER_PROTOCOL_BYTES / FRAME_METADATA_ALLOWANCE;
 const MAX_STDERR_BYTES: usize = 4 * 1024;
 const MAX_NOTIFICATIONS: usize = 32;
 // Reserve one additional slot for the initialize response after the permitted notifications.
@@ -29,6 +34,7 @@ pub enum CodexAppServerDiagnosticCode {
   CodexAppServerInitializeRejected,
   CodexAppServerClosed,
   CodexAppServerShutdownFailed,
+  CodexAppServerUnexpectedServerRequest,
 }
 
 #[derive(Debug, Serialize)]
@@ -48,6 +54,31 @@ impl CodexAppServerProbe {
 }
 
 enum Frame { Line(Vec<u8>), TooLarge, ReadFailed }
+
+enum FrameSender { Probe(SyncSender<Frame>), Planner(Sender<Frame>) }
+impl From<SyncSender<Frame>> for FrameSender {
+  fn from(sender: SyncSender<Frame>) -> Self { Self::Probe(sender) }
+}
+impl FrameSender {
+  fn enqueue(&self, frame: Frame) -> bool {
+    match self {
+      Self::Probe(sender) => sender.try_send(frame).is_ok(),
+      // Unbounded channel API, but the producer caps wire bytes AND frames.
+      // No wait for a consumer: shutdown can join even without draining.
+      Self::Planner(sender) => sender.send(frame).is_ok(),
+    }
+  }
+}
+
+fn frame_channel(max_total: usize) -> (FrameSender, Receiver<Frame>) {
+  if max_total == MAX_PROBE_BYTES {
+    let (sender,receiver) = mpsc::sync_channel(FRAME_CHANNEL_CAPACITY);
+    (FrameSender::Probe(sender),receiver)
+  } else {
+    let (sender,receiver) = mpsc::channel();
+    (FrameSender::Planner(sender),receiver)
+  }
+}
 
 struct CodexAppServerProcess {
   child: Child,
@@ -73,8 +104,7 @@ impl CodexAppServerProcess {
         return Err(io::Error::other("app-server pipes unavailable"));
       }
     };
-    let capacity = if max_total == MAX_PROBE_BYTES { FRAME_CHANNEL_CAPACITY } else { 257 };
-    let (sender, receiver) = mpsc::sync_channel(capacity);
+    let (sender, receiver) = frame_channel(max_total);
     let stdout_reader = thread::spawn(move || read_frames_limited(stdout, sender, max_total));
     let stderr_reader = thread::spawn(move || drain_stderr(stderr));
     Ok((Self { child, stdout_reader: Some(stdout_reader), stderr_reader: Some(stderr_reader) }, receiver))
@@ -118,26 +148,31 @@ fn read_frames<R: Read>(mut stdout: R, sender: SyncSender<Frame>) {
   read_frames_limited(&mut stdout, sender, MAX_PROBE_BYTES)
 }
 
-fn read_frames_limited<R: Read>(mut stdout: R, sender: SyncSender<Frame>, max_total: usize) {
+fn read_frames_limited<R: Read>(mut stdout: R, sender: impl Into<FrameSender>, max_total: usize) {
+  let sender = sender.into();
+  let max_frames = match &sender { FrameSender::Planner(_) => max_total / FRAME_METADATA_ALLOWANCE, FrameSender::Probe(_) => usize::MAX };
   let mut pending = Vec::new();
   let mut total = 0usize;
+  let mut frames = 0usize;
   let mut buffer = [0u8; 4096];
   loop {
     match stdout.read(&mut buffer) {
-      Ok(0) => { if !pending.is_empty() { let _ = sender.try_send(Frame::ReadFailed); } break; }
+      Ok(0) => { if !pending.is_empty() { sender.enqueue(Frame::ReadFailed); } break; }
       Ok(size) => {
         total += size;
-        if total > max_total { let _ = sender.try_send(Frame::TooLarge); break; }
+        if total > max_total { sender.enqueue(Frame::TooLarge); break; }
         for byte in &buffer[..size] {
           if *byte == b'\n' {
-            if sender.try_send(Frame::Line(std::mem::take(&mut pending))).is_err() { return; }
+            if frames >= max_frames { sender.enqueue(Frame::TooLarge); return; }
+            frames += 1;
+            if !sender.enqueue(Frame::Line(std::mem::take(&mut pending))) { return; }
           } else {
+            if pending.len() >= MAX_MESSAGE_BYTES { sender.enqueue(Frame::TooLarge); return; }
             pending.push(*byte);
-            if pending.len() > MAX_MESSAGE_BYTES { let _ = sender.try_send(Frame::TooLarge); return; }
           }
         }
       }
-      Err(_) => { let _ = sender.try_send(Frame::ReadFailed); break; }
+      Err(_) => { sender.enqueue(Frame::ReadFailed); break; }
     }
   }
 }
@@ -169,9 +204,12 @@ fn planner_initialize_params() -> Value {
 // answers server-originated requests, including approvals and dynamic tool calls.
 pub(super) struct CodexAppServerSession {
   process: CodexAppServerProcess,
+  stream: CodexRpcStream,
+}
+
+pub(super) struct CodexRpcStream {
   receiver: Receiver<Frame>,
-  pending: Vec<Value>,
-  messages: usize,
+  pending: VecDeque<Value>,
 }
 
 enum RpcReply { Notification(Value), Result(Value) }
@@ -180,9 +218,10 @@ fn classify_rpc(message: Value, expected_id: u64) -> Result<RpcReply, CodexAppSe
   use CodexAppServerDiagnosticCode::CodexAppServerProtocolError;
   let object = message.as_object().ok_or(CodexAppServerProtocolError)?;
   if let Some(method) = object.get("method") {
-    if object.contains_key("id") || !method.is_string() || object.contains_key("result") || object.contains_key("error") {
+    if !method.is_string() || object.contains_key("result") || object.contains_key("error") {
       return Err(CodexAppServerProtocolError);
     }
+    reject_server_request(object)?;
     return Ok(RpcReply::Notification(message));
   }
   if object.get("id").and_then(Value::as_u64) != Some(expected_id) || object.contains_key("error") {
@@ -192,12 +231,12 @@ fn classify_rpc(message: Value, expected_id: u64) -> Result<RpcReply, CodexAppSe
 }
 
 fn await_reply(mut receive: impl FnMut() -> Result<Value, CodexAppServerDiagnosticCode>,
-  expected_id: u64, pending: &mut Vec<Value>) -> Result<Value, CodexAppServerDiagnosticCode> {
+  expected_id: u64, pending: &mut VecDeque<Value>) -> Result<Value, CodexAppServerDiagnosticCode> {
   loop {
     match classify_rpc(receive()?, expected_id)? {
       RpcReply::Notification(value) => {
-        if pending.len() >= 128 { return Err(CodexAppServerDiagnosticCode::CodexAppServerProtocolError); }
-        pending.push(value);
+        if pending.len() >= MAX_PLANNER_FRAMES { return Err(CodexAppServerDiagnosticCode::CodexAppServerProtocolError); }
+        pending.push_back(value);
       }
       RpcReply::Result(value) => return Ok(value),
     }
@@ -208,7 +247,7 @@ impl CodexAppServerSession {
   pub(super) fn spawn(cwd: &std::path::Path) -> Result<Self, CodexAppServerDiagnosticCode> {
     let (process, receiver) = CodexAppServerProcess::spawn_at(Some(cwd), MAX_PLANNER_PROTOCOL_BYTES)
       .map_err(|_| CodexAppServerDiagnosticCode::CodexAppServerSpawnFailed)?;
-    Ok(Self { process, receiver, pending: Vec::new(), messages: 0 })
+    Ok(Self { process, stream: CodexRpcStream { receiver, pending: VecDeque::new() } })
   }
 
   pub(super) fn initialize(&mut self, deadline: Instant) -> Result<(), CodexAppServerDiagnosticCode> {
@@ -222,6 +261,28 @@ impl CodexAppServerSession {
   pub(super) fn request(&mut self, method: &str, params: Value, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
     let id = NEXT_REQUEST_ID.fetch_add(1, Ordering::Relaxed);
     self.process.write_message(&json!({"id":id,"method":method,"params":params}))?;
+    self.stream.await_response(id, deadline)
+  }
+
+  pub(super) fn next_notification(&mut self, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
+    self.stream.next_notification(deadline)
+  }
+
+  pub(super) fn shutdown(&mut self) -> Result<(), CodexAppServerDiagnosticCode> { self.process.shutdown() }
+}
+
+fn reject_server_request(object: &serde_json::Map<String,Value>) -> Result<(), CodexAppServerDiagnosticCode> {
+  if let Some(id) = object.get("id") {
+    if id.is_string() || id.as_i64().is_some() || id.as_u64().is_some() {
+      return Err(CodexAppServerDiagnosticCode::CodexAppServerUnexpectedServerRequest);
+    }
+    return Err(CodexAppServerDiagnosticCode::CodexAppServerProtocolError);
+  }
+  Ok(())
+}
+
+impl CodexRpcStream {
+  pub(super) fn await_response(&mut self, id: u64, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
     let mut pending = std::mem::take(&mut self.pending);
     let result = await_reply(|| self.receive(deadline), id, &mut pending);
     self.pending = pending;
@@ -229,24 +290,28 @@ impl CodexAppServerSession {
   }
 
   pub(super) fn next_notification(&mut self, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
-    if !self.pending.is_empty() { return Ok(self.pending.remove(0)); }
+    if let Some(value) = self.pending.pop_front() { return Ok(value); }
     let value = self.receive(deadline)?;
     let object = value.as_object().ok_or(CodexAppServerDiagnosticCode::CodexAppServerProtocolError)?;
-    if object.get("method").and_then(Value::as_str).is_none() || object.contains_key("id")
+    if object.get("method").and_then(Value::as_str).is_none()
       || object.contains_key("result") || object.contains_key("error") {
       return Err(CodexAppServerDiagnosticCode::CodexAppServerProtocolError);
     }
+    reject_server_request(object)?;
     Ok(value)
   }
 
   fn receive(&mut self, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
-    use CodexAppServerDiagnosticCode::*;
-    self.messages += 1;
-    if self.messages > 256 { return Err(CodexAppServerProtocolError); }
     receive_value(&self.receiver, deadline)
   }
+}
 
-  pub(super) fn shutdown(&mut self) -> Result<(), CodexAppServerDiagnosticCode> { self.process.shutdown() }
+#[cfg(test)]
+pub(super) fn test_planner_stream(input: &[u8]) -> CodexRpcStream {
+  let (sender,receiver) = frame_channel(MAX_PLANNER_PROTOCOL_BYTES);
+  // Intentionally finish the producer before consuming to reproduce bursts.
+  read_frames_limited(input,sender,MAX_PLANNER_PROTOCOL_BYTES);
+  CodexRpcStream { receiver, pending: VecDeque::new() }
 }
 
 fn receive_value(receiver: &Receiver<Frame>, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
@@ -334,6 +399,87 @@ pub async fn probe_codex_app_server() -> Result<CodexAppServerProbe, String> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test] fn regression_planner_burst_preserves_1024_frames() {
+    let input=b"{\"method\":\"item/agentMessage/delta\",\"params\":{\"delta\":\"x\"}}\n".repeat(1024);
+    let (sender,receiver)=frame_channel(MAX_PLANNER_PROTOCOL_BYTES);
+    read_frames_limited(&input[..],sender,MAX_PLANNER_PROTOCOL_BYTES);
+    assert_eq!(receiver.into_iter().filter(|frame| matches!(frame,Frame::Line(_))).count(),1024);
+  }
+
+  #[test] fn regression_planner_receives_more_than_256_notifications() {
+    let input=b"{\"method\":\"item/agentMessage/delta\",\"params\":{\"delta\":\"x\"}}\n".repeat(1024);
+    let mut stream=test_planner_stream(&input);
+    for _ in 0..1024 { stream.next_notification(Instant::now()+Duration::from_secs(1)).unwrap(); }
+  }
+
+  #[test] fn planner_pending_rpc_reply_preserves_large_interleaved_burst() {
+    let mut input=b"{\"method\":\"item/agentMessage/delta\",\"params\":{\"delta\":\"x\"}}\n".repeat(2048);
+    input.extend_from_slice(b"{\"id\":7,\"result\":{\"ok\":true}}\n");
+    let mut stream=test_planner_stream(&input);
+    assert_eq!(stream.await_response(7,Instant::now()+Duration::from_secs(1)).unwrap()["ok"],true);
+    for _ in 0..2048 { assert_eq!(stream.next_notification(Instant::now()+Duration::from_secs(1)).unwrap()["method"],"item/agentMessage/delta"); }
+    assert!(matches!(stream.next_notification(Instant::now()+Duration::from_secs(1)),Err(CodexAppServerDiagnosticCode::CodexAppServerClosed)));
+  }
+
+  #[test] fn planner_queue_frame_budget_and_undrained_reader_completion() {
+    assert_eq!(MAX_PLANNER_FRAMES,MAX_PLANNER_PROTOCOL_BYTES/FRAME_METADATA_ALLOWANCE);
+    let input=b"{}\n".repeat(MAX_PLANNER_FRAMES+1);
+    assert!(input.len()<MAX_PLANNER_PROTOCOL_BYTES);
+    let (sender,receiver)=frame_channel(MAX_PLANNER_PROTOCOL_BYTES);
+    let (done_sender,done_receiver)=mpsc::channel();
+    let reader=thread::spawn(move || { read_frames_limited(&input[..],sender,MAX_PLANNER_PROTOCOL_BYTES); done_sender.send(()).unwrap(); });
+    // Keep the consumer alive but don't drain it. Reader must not await capacity.
+    done_receiver.recv_timeout(Duration::from_secs(2)).unwrap();
+    reader.join().unwrap();
+    for _ in 0..MAX_PLANNER_FRAMES { assert!(matches!(receiver.recv().unwrap(),Frame::Line(_))); }
+    assert!(matches!(receiver.recv().unwrap(),Frame::TooLarge));
+    assert!(receiver.recv().is_err());
+  }
+
+  #[test] fn planner_message_and_total_wire_byte_budgets_fail_closed() {
+    let (sender,receiver)=frame_channel(MAX_PLANNER_PROTOCOL_BYTES);
+    read_frames_limited(&vec![b'a';MAX_MESSAGE_BYTES+1][..],sender,MAX_PLANNER_PROTOCOL_BYTES);
+    assert!(matches!(receiver.recv().unwrap(),Frame::TooLarge));
+    let (sender,receiver)=frame_channel(MAX_PLANNER_PROTOCOL_BYTES);
+    let input=[vec![b'a';4095],vec![b'\n']].concat().repeat(MAX_PLANNER_PROTOCOL_BYTES/4096+1);
+    read_frames_limited(&input[..],sender,MAX_PLANNER_PROTOCOL_BYTES);
+    let frames:Vec<_>=receiver.into_iter().collect();
+    assert!(matches!(frames.last(),Some(Frame::TooLarge)));
+    assert!(frames.iter().filter(|f|matches!(f,Frame::Line(_))).count()<MAX_PLANNER_FRAMES);
+    // Exact per-message limit remains accepted by framing.
+    let (sender,receiver)=frame_channel(MAX_PLANNER_PROTOCOL_BYTES);
+    let mut input=vec![b'a';MAX_MESSAGE_BYTES]; input.push(b'\n');
+    read_frames_limited(&input[..],sender,MAX_PLANNER_PROTOCOL_BYTES);
+    assert!(matches!(receiver.recv().unwrap(),Frame::Line(line) if line.len()==MAX_MESSAGE_BYTES));
+  }
+
+  #[test] fn planner_eof_read_failure_and_malformed_json_fail_closed() {
+    use CodexAppServerDiagnosticCode::*;
+    for (input,expected) in [(b"".as_slice(),CodexAppServerClosed),(b"{",CodexAppServerProtocolError),
+        (b"not json\n",CodexAppServerProtocolError)] {
+      let mut stream=test_planner_stream(input);
+      assert_eq!(stream.next_notification(Instant::now()+Duration::from_secs(1)).unwrap_err(),expected);
+    }
+    struct FailedReader;
+    impl Read for FailedReader { fn read(&mut self,_:&mut [u8])->io::Result<usize> { Err(io::Error::other("synthetic")) } }
+    let (sender,receiver)=frame_channel(MAX_PLANNER_PROTOCOL_BYTES);
+    read_frames_limited(FailedReader,sender,MAX_PLANNER_PROTOCOL_BYTES);
+    assert_eq!(receive_value(&receiver,Instant::now()+Duration::from_secs(1)).unwrap_err(),CodexAppServerProtocolError);
+  }
+
+  #[test] fn server_request_has_distinct_closed_code_and_unsolicited_response_is_rejected() {
+    use CodexAppServerDiagnosticCode::*;
+    let request=json!({"id":"server-request","method":"item/commandExecution/requestApproval","params":{"private":"payload"}});
+    assert!(matches!(classify_rpc(request.clone(),7),Err(CodexAppServerUnexpectedServerRequest)));
+    let mut wire=request.to_string(); wire.push('\n');
+    let mut stream=test_planner_stream(wire.as_bytes());
+    assert_eq!(stream.next_notification(Instant::now()+Duration::from_secs(1)).unwrap_err(),CodexAppServerUnexpectedServerRequest);
+    for raw in [b"{\"id\":7,\"result\":{}}\n".as_slice(),b"{\"id\":7,\"error\":{\"message\":\"private\"}}\n",
+        b"{\"method\":\"request\",\"id\":null,\"params\":{}}\n"] {
+      assert_eq!(test_planner_stream(raw).next_notification(Instant::now()+Duration::from_secs(1)).unwrap_err(),CodexAppServerProtocolError);
+    }
+  }
 
   fn response(id: u64) -> Vec<u8> {
     format!(r#"{{"id":{id},"result":{{"codexHome":"/private/home/sam/.codex","userAgent":"codex-cli/0.158.0","platformFamily":"unix","platformOs":"linux"}}}}"#).into_bytes()
@@ -431,11 +577,11 @@ mod tests {
     let mut messages = std::collections::VecDeque::from([
       json!({"method":"config/warning","params":{}}), json!({"id":7,"result":{"ok":true}})
     ]);
-    let mut pending = Vec::new();
+    let mut pending = VecDeque::new();
     let result = await_reply(|| messages.pop_front().ok_or(CodexAppServerDiagnosticCode::CodexAppServerClosed), 7, &mut pending).unwrap();
     assert_eq!(result["ok"],true); assert_eq!(pending.len(),1);
     let mut messages = std::collections::VecDeque::from([json!({"id":8,"result":{}})]);
-    assert!(await_reply(|| messages.pop_front().ok_or(CodexAppServerDiagnosticCode::CodexAppServerClosed), 7, &mut Vec::new()).is_err());
+    assert!(await_reply(|| messages.pop_front().ok_or(CodexAppServerDiagnosticCode::CodexAppServerClosed), 7, &mut VecDeque::new()).is_err());
   }
 
   #[test] fn transport_eof_and_timeout_fail_closed() {

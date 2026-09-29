@@ -475,6 +475,7 @@ fn run_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, objective:
     loop {
         let notification = session.next_notification(deadline).map_err(|code| match code {
             CodexAppServerDiagnosticCode::CodexAppServerHandshakeTimeout => PlannerTurnTimeout,
+            CodexAppServerDiagnosticCode::CodexAppServerUnexpectedServerRequest => PlannerTurnUnexpectedNotification,
             _ => PlannerTurnTransportFailed,
         })?;
         if inspect_notification(&notification, thread_id, turn_id, &mut answer)? { break; }
@@ -623,6 +624,72 @@ mod tests {
     fn completed_turn(status: &str) -> Value {
         json!({"method":"turn/completed","params":{"threadId":"t","turn":{"id":"v","status":status}}})
     }
+
+    struct WireTurnProtocol {
+        stream: super::super::app_server::CodexRpcStream,
+        calls: Vec<&'static str>,
+    }
+    impl WireTurnProtocol {
+        fn new(tail: &[u8]) -> Self {
+            let mut input=b"{\"id\":7,\"result\":{\"turn\":{\"id\":\"v\"}}}\n".to_vec();
+            input.extend_from_slice(tail);
+            Self { stream:super::super::app_server::test_planner_stream(&input),calls:vec![] }
+        }
+    }
+    impl PlannerProtocol for WireTurnProtocol {
+        fn initialize(&mut self,_:Instant)->Result<(),()> { panic!("already prepared") }
+        fn request(&mut self,method:&str,_:Value,deadline:Instant)->Result<Value,()> {
+            match method {
+                "turn/start" => { self.calls.push("turn/start"); self.stream.await_response(7,deadline).map_err(|_| ()) }
+                "thread/unsubscribe" => { self.calls.push("thread/unsubscribe"); Ok(json!({})) }
+                _ => panic!("unexpected request; server requests must never be answered"),
+            }
+        }
+        fn shutdown(&mut self)->Result<(),()> { self.calls.push("shutdown"); Ok(()) }
+    }
+    impl PlannerTurnProtocol for WireTurnProtocol {
+        fn next_notification(&mut self,deadline:Instant)->Result<Value,CodexAppServerDiagnosticCode> {
+            self.stream.next_notification(deadline)
+        }
+    }
+    fn append_frame(wire:&mut Vec<u8>,value:Value) { wire.extend_from_slice(value.to_string().as_bytes()); wire.push(b'\n'); }
+
+    #[test] fn regression_thousands_of_wire_deltas_complete_valid_plan_and_cleanup() {
+        let mut wire=Vec::new();
+        append_frame(&mut wire,json!({"method":"turn/started","params":{"threadId":"t","turn":{"id":"v","status":"inProgress","items":[]}}}));
+        append_frame(&mut wire,json!({"method":"item/started","params":{"threadId":"t","turnId":"v","startedAtMs":1,
+            "item":{"type":"agentMessage","id":"a","text":""}}}));
+        for _ in 0..1000 {
+            for (method,extra) in [("item/agentMessage/delta",json!({})),
+                ("item/reasoning/textDelta",json!({"contentIndex":0})),("item/reasoning/summaryTextDelta",json!({"summaryIndex":0}))] {
+                let mut params=json!({"threadId":"t","turnId":"v","itemId":"a","delta":"x"});
+                params.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+                append_frame(&mut wire,json!({"method":method,"params":params}));
+            }
+        }
+        let mut final_item=agent_message(&valid_plan().to_string());
+        final_item["params"]["completedAtMs"]=json!(2); final_item["params"]["item"]["id"]=json!("a");
+        append_frame(&mut wire,final_item); append_frame(&mut wire,completed_turn("completed"));
+        assert!(wire.len()<512*1024);
+        let mut transport=WireTurnProtocol::new(&wire);
+        let output=run_prepared_turn(&mut transport,"t","Objetivo").unwrap();
+        assert_eq!(serde_json::to_value(PlanV1::parse(&output).unwrap()).unwrap(),valid_plan());
+        assert_eq!(transport.calls,["turn/start","thread/unsubscribe","shutdown"]);
+    }
+
+    #[test] fn wire_failures_and_server_requests_still_cleanup_without_reply() {
+        use PlannerTurnDiagnosticCode::*;
+        let mut total=Vec::new();
+        for _ in 0..140 { append_frame(&mut total,json!({"method":"item/agentMessage/delta","params":{"delta":"x".repeat(4096)}})); }
+        for (wire,expected) in [(Vec::new(),PlannerTurnTransportFailed),(b"not json\n".to_vec(),PlannerTurnTransportFailed),
+            (b"{\"id\":8,\"result\":{}}\n".to_vec(),PlannerTurnTransportFailed),
+            (b"{\"method\":\"item/tool/request\",\"id\":8,\"params\":{}}\n".to_vec(),PlannerTurnUnexpectedNotification),
+            (vec![b'a';64*1024+1],PlannerTurnTransportFailed),(total,PlannerTurnTransportFailed)] {
+            let mut transport=WireTurnProtocol::new(&wire);
+            assert_eq!(run_prepared_turn(&mut transport,"t","Objetivo"),Err(expected));
+            assert_eq!(transport.calls,["turn/start","thread/unsubscribe","shutdown"]);
+        }
+    }
     fn assert_turn_failure(mut fake: FakeTurnProtocol, expected: PlannerTurnDiagnosticCode) {
         assert_eq!(run_prepared_turn(&mut fake,"t","Objetivo"),Err(expected));
         assert!(fake.calls.ends_with(&["thread/unsubscribe","shutdown"]));
@@ -644,7 +711,8 @@ mod tests {
         use CodexAppServerDiagnosticCode::*;
         use PlannerTurnDiagnosticCode::*;
         for (transport,expected) in [(CodexAppServerClosed,PlannerTurnTransportFailed),
-            (CodexAppServerProtocolError,PlannerTurnTransportFailed),(CodexAppServerHandshakeTimeout,PlannerTurnTimeout)] {
+            (CodexAppServerProtocolError,PlannerTurnTransportFailed),(CodexAppServerHandshakeTimeout,PlannerTurnTimeout),
+            (CodexAppServerUnexpectedServerRequest,PlannerTurnUnexpectedNotification)] {
             let mut fake=FakeTurnProtocol::valid(); fake.notifications=vec![Err(transport)].into();
             assert_turn_failure(fake,expected);
         }
