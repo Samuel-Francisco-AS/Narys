@@ -21,3 +21,8 @@ pub async fn probe_codex_planner(
 ) -> Result<crate::agents::planner::PlanV1, String> {
   crate::agents::planner::plan(registry.inner(), objective).await.map_err(|error| error.code().to_string())
 }
+
+#[tauri::command]
+pub async fn probe_codex_planner_preflight() -> backend::PlannerPreflightProbe {
+  backend::probe_preflight().await
+}

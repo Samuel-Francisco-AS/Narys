@@ -14,6 +14,17 @@ type ProbeResult = { text: string; providerId: string; usage: { providerCalls: n
 type CodexRuntimeStatus = { installed: boolean; version: string | null; authenticated: boolean; authKind: 'chatgpt' | 'api_key' | 'other' | 'unknown' | 'none'; available: boolean; diagnosticCode: 'codex_not_installed' | 'codex_not_authenticated' | 'codex_status_timeout' | 'codex_status_failed' | 'codex_status_unrecognized' | null }
 type CodexAppServerProbe = { launched: boolean; initialized: boolean; platformFamily: 'unix' | 'windows' | null; platformOs: 'linux' | 'macos' | 'windows' | null; diagnosticCode: string | null }
 type PlanV1 = { version: 1; objective: string; steps: { id: string; description: string; requiredCapabilities: string[]; dependsOn: string[] }[]; risks: string[]; needsUserInput: boolean; questions: string[] }
+const plannerPreflightCodes = [
+  'planner_spawn_failed', 'planner_initialize_failed', 'planner_config_read_failed', 'planner_mcp_config_invalid',
+  'planner_thread_start_failed', 'planner_sandbox_rejected', 'planner_approval_policy_rejected', 'planner_cwd_rejected',
+  'planner_workspace_roots_rejected', 'planner_instruction_sources_rejected', 'planner_permission_profile_rejected',
+  'planner_thread_id_invalid', 'planner_cleanup_failed',
+] as const
+type PlannerPreflightCode = typeof plannerPreflightCodes[number]
+type PlannerPreflightProbe = { ready: boolean; diagnosticCode: PlannerPreflightCode | null }
+const plannerErrorCodes = ['cancelled', 'unsupported_capability', 'invalid_request', 'unavailable', 'protocol_error', 'backend_failed', 'event_sink_closed'] as const
+const isPlannerErrorCode = (value: unknown): value is typeof plannerErrorCodes[number] => typeof value === 'string' && (plannerErrorCodes as readonly string[]).includes(value)
+const isPlannerPreflightCode = (value: unknown): value is PlannerPreflightCode => typeof value === 'string' && (plannerPreflightCodes as readonly string[]).includes(value)
 const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
@@ -174,6 +185,8 @@ export default function AiSettingsApp() {
   const [plannerResult, setPlannerResult] = useState<PlanV1 | null>(null)
   const [plannerBusy, setPlannerBusy] = useState(false)
   const [plannerError, setPlannerError] = useState('')
+  const [plannerPreflight, setPlannerPreflight] = useState<PlannerPreflightProbe | null>(null)
+  const [plannerPreflightBusy, setPlannerPreflightBusy] = useState(false)
   async function refresh() { setSettings(await invoke<Settings>('get_ai_settings')) }
   async function refreshCodex() {
     setCodexBusy(true)
@@ -191,8 +204,16 @@ export default function AiSettingsApp() {
   async function probeCodexPlanner() {
     setPlannerBusy(true); setPlannerResult(null); setPlannerError('')
     try { setPlannerResult(await invoke<PlanV1>('probe_codex_planner', { objective: plannerObjective })) }
-    catch { setPlannerError('O Planner não retornou um plano válido. Verifique o runtime e tente novamente.') }
+    catch (cause) { setPlannerError(isPlannerErrorCode(cause) ? `Planner falhou: ${cause}` : 'Planner falhou: erro desconhecido') }
     finally { setPlannerBusy(false) }
+  }
+  async function probeCodexPlannerPreflight() {
+    setPlannerPreflightBusy(true); setPlannerPreflight(null)
+    try {
+      const probe = await invoke<PlannerPreflightProbe>('probe_codex_planner_preflight')
+      setPlannerPreflight({ ready: probe.ready === true, diagnosticCode: isPlannerPreflightCode(probe.diagnosticCode) ? probe.diagnosticCode : null })
+    } catch { setPlannerPreflight({ ready: false, diagnosticCode: null }) }
+    finally { setPlannerPreflightBusy(false) }
   }
   useEffect(() => {
     void refresh().catch(() => setError('Não foi possível carregar as configurações.'))
@@ -263,8 +284,10 @@ export default function AiSettingsApp() {
         <div className="settings-actions"><button type="button" disabled={codexAppServerBusy} onClick={() => void probeCodexAppServer()}>{codexAppServerBusy ? 'Testando…' : 'Testar app-server'}</button></div>
         <h3>Planner experimental</h3>
         <p>Propõe um plano estruturado para diagnóstico. O plano não é executado.</p>
+        <div className="settings-actions"><button type="button" disabled={plannerPreflightBusy || plannerBusy} onClick={() => void probeCodexPlannerPreflight()}>{plannerPreflightBusy ? 'Testando isolamento…' : 'Testar isolamento'}</button></div>
+        {plannerPreflight && <p role="status">Isolamento: {plannerPreflight.ready ? 'pronto' : 'bloqueado'}{plannerPreflight.diagnosticCode && <> · Diagnóstico: {plannerPreflight.diagnosticCode}</>}</p>}
         <label>Objetivo <textarea value={plannerObjective} maxLength={2048} onChange={event => setPlannerObjective(event.target.value)} rows={4} /></label>
-        <div className="settings-actions"><button type="button" disabled={plannerBusy || !plannerObjective.trim()} onClick={() => void probeCodexPlanner()}>{plannerBusy ? 'Aguardando plano…' : 'Testar Planner'}</button></div>
+        <div className="settings-actions"><button type="button" disabled={plannerBusy || plannerPreflightBusy || !plannerObjective.trim()} onClick={() => void probeCodexPlanner()}>{plannerBusy ? 'Aguardando plano…' : 'Testar Planner'}</button></div>
         {plannerError && <p role="alert">{plannerError}</p>}
         {plannerResult && <div role="status" className="planner-result">
           <p><strong>Objetivo:</strong> {plannerResult.objective}</p>

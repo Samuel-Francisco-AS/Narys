@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-probe-codex-planner-preflight"
+description = "Enables the probe_codex_planner_preflight command without any pre-configured scope."
+commands.allow = ["probe_codex_planner_preflight"]
+
+[[permission]]
+identifier = "deny-probe-codex-planner-preflight"
+description = "Denies the probe_codex_planner_preflight command without any pre-configured scope."
+commands.deny = ["probe_codex_planner_preflight"]

@@ -17,6 +17,7 @@
     "allow-get-codex-runtime-status",
     "allow-probe-codex-app-server",
     "allow-probe-codex-planner",
+    "allow-probe-codex-planner-preflight",
     "allow-gemini-set-api-key",
     "allow-gemini-delete-api-key",
     "allow-groq-status",
