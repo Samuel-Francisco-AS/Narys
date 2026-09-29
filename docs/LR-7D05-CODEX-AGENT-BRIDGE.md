@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A — PASS completo em 29/09/2026; pronta para integração.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A — PASS completo e integrada à `main` em 29/09/2026. D0.5B é o próximo checkpoint.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
