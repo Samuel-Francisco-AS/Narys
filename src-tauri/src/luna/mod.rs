@@ -87,7 +87,7 @@ pub fn conversation_routing_status(db: State<'_, Database>, runtime: State<'_, A
   let statuses = runtime.scheduler.status();
   let state = |provider_id: &str| ConversationProviderState {
     provider_id: provider_id.to_owned(),
-    configured: provider_configured(&store, provider_id),
+    configured: provider_configured(store.inner().as_ref(), provider_id),
     cooldown_ms: statuses.iter().find(|status| status.id == provider_id).map(|status| status.cooldown_ms).unwrap_or(0),
   };
   Ok(ConversationRoutingStatus {
