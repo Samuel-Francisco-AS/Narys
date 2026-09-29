@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { startGeminiTask } from './geminiTaskClient'
+import { startConversationTask } from './geminiTaskClient'
 import { createSession, getSession } from '../conversation/conversationClient'
 import { cancelTask, lunaCoreAvailable } from './taskClient'
 import type { CognitiveResult, TaskEvent, TaskId, TaskState } from './types'
@@ -47,7 +47,7 @@ export default function GeminiPanel({ onAnimationIntent }: { onAnimationIntent: 
     setBusy(true); setError(''); setStream(''); setResult(null); setEvents([]); setState('pending')
     try {
       if (sessionId.current === null) sessionId.current = await createSession()
-      const id = await startGeminiTask(sessionId.current, message, (event: TaskEvent) => {
+      const id = await startConversationTask(sessionId.current, message, (event: TaskEvent) => {
         if (run !== generation.current) return
         if (event.state === 'pending' || event.state === 'running') active.current = event.taskId
         setState(event.state)
