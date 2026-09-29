@@ -119,7 +119,8 @@ pub async fn plan(registry: &Arc<AgentRegistry>, objective: String) -> Result<Pl
     let cancelled = AtomicBool::new(false);
     let mut sink = |_| Ok(());
     let result = entry.backend.execute(&request, &cancelled, &mut sink).await?;
-    PlanV1::parse(&result.output)
+    PlanV1::parse(&result.output).map_err(|_| AgentError::PlannerDiagnostic(
+        super::codex::backend::PlannerDiagnosticCode::Turn(super::codex::backend::PlannerTurnDiagnosticCode::PlannerPlanInvalid)))
 }
 
 #[cfg(test)]

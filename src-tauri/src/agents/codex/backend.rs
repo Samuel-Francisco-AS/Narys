@@ -4,7 +4,7 @@ use serde::Serialize;
 use serde_json::{json, Map, Value};
 
 use crate::agents::{backend::{AgentBackend, AgentFuture}, planner::{self, PlanV1}, types::{AgentCapabilities, AgentConfig, AgentError, AgentEvent, AgentRequest, AgentResult}};
-use super::app_server::CodexAppServerSession;
+use super::app_server::{CodexAppServerDiagnosticCode, CodexAppServerSession};
 
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(8);
 const TURN_TIMEOUT: Duration = Duration::from_secs(60);
@@ -28,6 +28,71 @@ pub enum PlannerPreflightDiagnosticCode {
     PlannerPermissionProfileRejected,
     PlannerThreadIdInvalid,
     PlannerCleanupFailed,
+}
+
+impl PlannerPreflightDiagnosticCode {
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::PlannerSpawnFailed => "planner_spawn_failed",
+            Self::PlannerInitializeFailed => "planner_initialize_failed",
+            Self::PlannerConfigReadFailed => "planner_config_read_failed",
+            Self::PlannerMcpConfigInvalid => "planner_mcp_config_invalid",
+            Self::PlannerThreadStartFailed => "planner_thread_start_failed",
+            Self::PlannerSandboxRejected => "planner_sandbox_rejected",
+            Self::PlannerApprovalPolicyRejected => "planner_approval_policy_rejected",
+            Self::PlannerCwdRejected => "planner_cwd_rejected",
+            Self::PlannerWorkspaceRootsRejected => "planner_workspace_roots_rejected",
+            Self::PlannerInstructionSourcesRejected => "planner_instruction_sources_rejected",
+            Self::PlannerPermissionProfileRejected => "planner_permission_profile_rejected",
+            Self::PlannerThreadIdInvalid => "planner_thread_id_invalid",
+            Self::PlannerCleanupFailed => "planner_cleanup_failed",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlannerTurnDiagnosticCode {
+    PlannerTurnStartFailed,
+    PlannerTurnIdInvalid,
+    PlannerTurnTransportFailed,
+    PlannerTurnTimeout,
+    PlannerTurnUnexpectedNotification,
+    PlannerTurnUnexpectedItem,
+    PlannerTurnFailed,
+    PlannerResponseMissing,
+    PlannerPlanInvalid,
+    PlannerCleanupFailed,
+}
+
+impl PlannerTurnDiagnosticCode {
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::PlannerTurnStartFailed => "planner_turn_start_failed",
+            Self::PlannerTurnIdInvalid => "planner_turn_id_invalid",
+            Self::PlannerTurnTransportFailed => "planner_turn_transport_failed",
+            Self::PlannerTurnTimeout => "planner_turn_timeout",
+            Self::PlannerTurnUnexpectedNotification => "planner_turn_unexpected_notification",
+            Self::PlannerTurnUnexpectedItem => "planner_turn_unexpected_item",
+            Self::PlannerTurnFailed => "planner_turn_failed",
+            Self::PlannerResponseMissing => "planner_response_missing",
+            Self::PlannerPlanInvalid => "planner_plan_invalid",
+            Self::PlannerCleanupFailed => "planner_cleanup_failed",
+        }
+    }
+}
+
+// Only closed codes cross AgentBackend; no payload is stored in this error.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PlannerDiagnosticCode {
+    Preparation(PlannerPreflightDiagnosticCode),
+    Turn(PlannerTurnDiagnosticCode),
+}
+
+impl PlannerDiagnosticCode {
+    pub fn code(self) -> &'static str {
+        match self { Self::Preparation(code) => code.code(), Self::Turn(code) => code.code() }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -54,7 +119,7 @@ impl AgentBackend for CodexAgentBackend {
             }
             let objective = request.objective.clone();
             let output = tauri::async_runtime::spawn_blocking(move || run_planner(&objective))
-                .await.map_err(|_| AgentError::BackendFailed)??;
+                .await.map_err(|_| AgentError::BackendFailed)?.map_err(AgentError::PlannerDiagnostic)?;
             Ok(AgentResult { output })
         })
     }
@@ -161,45 +226,53 @@ fn configured_mcp_names(result: &Value) -> Result<Vec<String>, PlannerPreflightD
     }
 }
 
-fn inspect_notification(value: &Value, thread_id: &str, turn_id: &str, answer: &mut Option<String>) -> Result<bool, AgentError> {
-    let method = value.get("method").and_then(Value::as_str).ok_or(AgentError::Protocol)?;
-    let params = value.get("params").ok_or(AgentError::Protocol)?;
+fn inspect_notification(value: &Value, thread_id: &str, turn_id: &str, answer: &mut Option<String>) -> Result<bool, PlannerTurnDiagnosticCode> {
+    use PlannerTurnDiagnosticCode::*;
+    if value.get("id").is_some() { return Err(PlannerTurnUnexpectedNotification); }
+    let method = value.get("method").and_then(Value::as_str).ok_or(PlannerTurnUnexpectedNotification)?;
+    let params = value.get("params").ok_or(PlannerTurnUnexpectedNotification)?;
     let lower = method.to_ascii_lowercase();
     if ["approval", "permission", "command", "filechange", "mcp", "tool", "exec", "patch", "web"].iter()
-        .any(|word| lower.contains(word)) { return Err(AgentError::Protocol); }
+        .any(|word| lower.contains(word)) { return Err(PlannerTurnUnexpectedNotification); }
     if method == "item/completed" || method == "item/started" || method == "item/updated" {
-        let item = params.get("item").ok_or(AgentError::Protocol)?;
+        let item = params.get("item").ok_or(PlannerTurnUnexpectedItem)?;
         if !matches!(item.get("type").and_then(Value::as_str), Some("agentMessage" | "reasoning" | "userMessage")) {
-            return Err(AgentError::Protocol);
+            return Err(PlannerTurnUnexpectedItem);
         }
         if params.get("threadId").and_then(Value::as_str) != Some(thread_id)
             || params.get("turnId").and_then(Value::as_str) != Some(turn_id) { return Ok(false); }
         match item.get("type").and_then(Value::as_str) {
             Some("agentMessage") if method == "item/completed" => {
-                let text = item.get("text").and_then(Value::as_str).ok_or(AgentError::Protocol)?;
-                if text.len() > planner::MAX_PLAN_BYTES { return Err(AgentError::Protocol); }
+                let text = item.get("text").and_then(Value::as_str).ok_or(PlannerTurnUnexpectedItem)?;
+                if text.len() > planner::MAX_PLAN_BYTES { return Err(PlannerPlanInvalid); }
                 *answer = Some(text.to_owned());
             }
             Some("agentMessage" | "reasoning" | "userMessage") => {},
-            _ => return Err(AgentError::Protocol),
+            _ => return Err(PlannerTurnUnexpectedItem),
         }
     } else if method == "turn/completed" {
         if params.get("threadId").and_then(Value::as_str) != Some(thread_id) { return Ok(false); }
-        let turn = params.get("turn").ok_or(AgentError::Protocol)?;
-        if turn.get("id").and_then(Value::as_str) != Some(turn_id)
-            || turn.get("status").and_then(Value::as_str) != Some("completed") { return Err(AgentError::Protocol); }
+        let turn = params.get("turn").ok_or(PlannerTurnUnexpectedNotification)?;
+        if turn.get("id").and_then(Value::as_str) != Some(turn_id) { return Err(PlannerTurnUnexpectedNotification); }
+        if turn.get("status").and_then(Value::as_str) != Some("completed") { return Err(PlannerTurnFailed); }
         if turn.get("items").and_then(Value::as_array).is_some_and(|items| items.iter().any(|item|
             !matches!(item.get("type").and_then(Value::as_str), Some("agentMessage" | "reasoning" | "userMessage")))) {
-            return Err(AgentError::Protocol);
+            return Err(PlannerTurnUnexpectedItem);
         }
         return Ok(true);
-    } else if lower.contains("request") || method == "error" || method == "turn/failed" { return Err(AgentError::Protocol); }
+    } else if method == "error" || method == "turn/failed" { return Err(PlannerTurnFailed); }
+    else if lower.contains("request") { return Err(PlannerTurnUnexpectedNotification); }
     Ok(false)
 }
 
 trait PlannerProtocol {
     fn initialize(&mut self, deadline: Instant) -> Result<(), ()>;
     fn request(&mut self, method: &str, params: Value, deadline: Instant) -> Result<Value, ()>;
+    fn shutdown(&mut self) -> Result<(), ()>;
+}
+
+trait PlannerTurnProtocol: PlannerProtocol {
+    fn next_notification(&mut self, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode>;
 }
 
 impl PlannerProtocol for CodexAppServerSession {
@@ -208,6 +281,13 @@ impl PlannerProtocol for CodexAppServerSession {
     }
     fn request(&mut self, method: &str, params: Value, deadline: Instant) -> Result<Value, ()> {
         CodexAppServerSession::request(self, method, params, deadline).map_err(|_| ())
+    }
+    fn shutdown(&mut self) -> Result<(), ()> { CodexAppServerSession::shutdown(self).map_err(|_| ()) }
+}
+
+impl PlannerTurnProtocol for CodexAppServerSession {
+    fn next_notification(&mut self, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
+        CodexAppServerSession::next_notification(self, deadline)
     }
 }
 
@@ -226,7 +306,7 @@ fn prepare_thread<T: PlannerProtocol>(transport: &mut T, cwd: &Path, created_thr
     effective_thread(&thread, cwd)
 }
 
-fn cleanup_session(session: &mut CodexAppServerSession, thread_id: Option<&str>)
+fn cleanup_session<T: PlannerProtocol>(session: &mut T, thread_id: Option<&str>)
     -> Result<(), PlannerPreflightDiagnosticCode> {
     let detach_failed = thread_id.is_some_and(|id| session.request("thread/unsubscribe",
         json!({"threadId":id}), Instant::now() + HANDSHAKE_TIMEOUT).is_err());
@@ -241,18 +321,37 @@ struct PreparedPlannerSession {
     thread_id: String,
 }
 
+struct PlannerPreparationFailure {
+    primary: PlannerPreflightDiagnosticCode,
+    cleanup_failed: bool,
+}
+
+impl PlannerPreparationFailure {
+    fn preflight_code(self) -> PlannerPreflightDiagnosticCode {
+        if self.cleanup_failed { PlannerPreflightDiagnosticCode::PlannerCleanupFailed } else { self.primary }
+    }
+    // A real Planner preparation/security failure takes precedence over cleanup.
+    fn planner_code(self) -> PlannerDiagnosticCode { PlannerDiagnosticCode::Preparation(self.primary) }
+}
+
 impl PreparedPlannerSession {
     fn prepare() -> Result<Self, PlannerPreflightDiagnosticCode> {
-        let directory = PlannerDir::create().map_err(|_| PlannerPreflightDiagnosticCode::PlannerSpawnFailed)?;
+        Self::prepare_detailed().map_err(PlannerPreparationFailure::preflight_code)
+    }
+
+    fn prepare_detailed() -> Result<Self, PlannerPreparationFailure> {
+        let spawn_failure = || PlannerPreparationFailure {
+            primary: PlannerPreflightDiagnosticCode::PlannerSpawnFailed, cleanup_failed: false,
+        };
+        let directory = PlannerDir::create().map_err(|_| spawn_failure())?;
         let mut session = CodexAppServerSession::spawn(&directory.0)
-            .map_err(|_| PlannerPreflightDiagnosticCode::PlannerSpawnFailed)?;
+            .map_err(|_| spawn_failure())?;
         let mut created_thread_id = None;
         match prepare_thread(&mut session, &directory.0, &mut created_thread_id) {
             Ok(thread_id) => Ok(Self { _directory: directory, session, thread_id }),
             Err(code) => {
-                if cleanup_session(&mut session, created_thread_id.as_deref()).is_err() {
-                    Err(PlannerPreflightDiagnosticCode::PlannerCleanupFailed)
-                } else { Err(code) }
+                let cleanup_failed = cleanup_session(&mut session, created_thread_id.as_deref()).is_err();
+                Err(PlannerPreparationFailure { primary: code, cleanup_failed })
             }
         }
     }
@@ -278,44 +377,175 @@ fn run_preflight() -> PlannerPreflightProbe {
     }
 }
 
-fn preparation_agent_error(code: PlannerPreflightDiagnosticCode) -> AgentError {
-    match code {
-        PlannerPreflightDiagnosticCode::PlannerSpawnFailed => AgentError::Unavailable,
-        PlannerPreflightDiagnosticCode::PlannerCleanupFailed => AgentError::BackendFailed,
-        _ => AgentError::Protocol,
-    }
+fn run_planner(objective: &str) -> Result<String, PlannerDiagnosticCode> {
+    let mut prepared = PreparedPlannerSession::prepare_detailed().map_err(PlannerPreparationFailure::planner_code)?;
+    run_prepared_turn(&mut prepared.session, &prepared.thread_id, objective).map_err(PlannerDiagnosticCode::Turn)
 }
 
-fn run_planner(objective: &str) -> Result<String, AgentError> {
-    let mut prepared = PreparedPlannerSession::prepare().map_err(preparation_agent_error)?;
-    let result = run_turn(&mut prepared.session, &prepared.thread_id, objective);
-    let cleanup = prepared.cleanup();
+fn run_prepared_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, objective: &str)
+    -> Result<String, PlannerTurnDiagnosticCode> {
+    let result = run_turn(session, thread_id, objective);
+    // Always unsubscribe and shut down, including after a rejected turn.
+    let cleanup = cleanup_session(session, Some(thread_id));
     match (result, cleanup) {
         (Ok(output), Ok(())) => Ok(output),
         (Err(error), _) => Err(error),
-        (Ok(_), Err(_)) => Err(AgentError::BackendFailed),
+        (Ok(_), Err(_)) => Err(PlannerTurnDiagnosticCode::PlannerCleanupFailed),
     }
 }
 
-fn run_turn(session: &mut CodexAppServerSession, thread_id: &str, objective: &str) -> Result<String, AgentError> {
-    let protocol = |_| AgentError::Protocol;
+fn run_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, objective: &str) -> Result<String, PlannerTurnDiagnosticCode> {
+    use PlannerTurnDiagnosticCode::*;
     let turn = session.request("turn/start", turn_start_params(thread_id, objective),
-        Instant::now() + HANDSHAKE_TIMEOUT).map_err(protocol)?;
-    let turn_id = turn.pointer("/turn/id").and_then(Value::as_str).filter(|id| !id.is_empty()).ok_or(AgentError::Protocol)?;
+        Instant::now() + HANDSHAKE_TIMEOUT).map_err(|_| PlannerTurnStartFailed)?;
+    let turn_id = turn.pointer("/turn/id").and_then(Value::as_str).filter(|id| !id.is_empty()).ok_or(PlannerTurnIdInvalid)?;
     let deadline = Instant::now() + TURN_TIMEOUT;
     let mut answer = None;
     loop {
-        let notification = session.next_notification(deadline).map_err(protocol)?;
+        let notification = session.next_notification(deadline).map_err(|code| match code {
+            CodexAppServerDiagnosticCode::CodexAppServerHandshakeTimeout => PlannerTurnTimeout,
+            _ => PlannerTurnTransportFailed,
+        })?;
         if inspect_notification(&notification, thread_id, turn_id, &mut answer)? { break; }
     }
-    let plan = PlanV1::parse(answer.as_deref().ok_or(AgentError::Protocol)?)?;
-    serde_json::to_string(&plan).map_err(|_| AgentError::Protocol)
+    let plan = PlanV1::parse(answer.as_deref().ok_or(PlannerResponseMissing)?).map_err(|_| PlannerPlanInvalid)?;
+    serde_json::to_string(&plan).map_err(|_| PlannerPlanInvalid)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::Arc;
+
+    struct FakeTurnProtocol {
+        calls: Vec<&'static str>,
+        start: Result<Value, ()>,
+        notifications: std::collections::VecDeque<Result<Value, CodexAppServerDiagnosticCode>>,
+        detach_failed: bool,
+        shutdown_failed: bool,
+    }
+    impl FakeTurnProtocol {
+        fn with_notifications(notifications: Vec<Value>) -> Self {
+            Self { calls: vec![], start: Ok(json!({"turn":{"id":"v"}})),
+                notifications: notifications.into_iter().map(Ok).collect(), detach_failed:false, shutdown_failed:false }
+        }
+        fn valid() -> Self {
+            Self::with_notifications(vec![agent_message(&valid_plan().to_string()), completed_turn("completed")])
+        }
+    }
+    impl PlannerProtocol for FakeTurnProtocol {
+        fn initialize(&mut self, _: Instant) -> Result<(), ()> { panic!("turn reused preparation unexpectedly") }
+        fn request(&mut self, method: &str, _: Value, _: Instant) -> Result<Value, ()> {
+            match method {
+                "turn/start" => { self.calls.push("turn/start"); self.start.clone() }
+                "thread/unsubscribe" => { self.calls.push("thread/unsubscribe"); if self.detach_failed { Err(()) } else { Ok(json!({})) } }
+                _ => panic!("unexpected turn request"),
+            }
+        }
+        fn shutdown(&mut self) -> Result<(), ()> {
+            self.calls.push("shutdown"); if self.shutdown_failed { Err(()) } else { Ok(()) }
+        }
+    }
+    impl PlannerTurnProtocol for FakeTurnProtocol {
+        fn next_notification(&mut self, _: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
+            self.calls.push("notification");
+            self.notifications.pop_front().unwrap_or(Err(CodexAppServerDiagnosticCode::CodexAppServerClosed))
+        }
+    }
+    fn valid_plan() -> Value {
+        json!({"version":1,"objective":"Objetivo","steps":[{"id":"a","description":"Passo",
+            "requiredCapabilities":["planning"],"dependsOn":[]}],"risks":[],"needsUserInput":false,"questions":[]})
+    }
+    fn agent_message(text: &str) -> Value {
+        json!({"method":"item/completed","params":{"threadId":"t","turnId":"v",
+            "item":{"type":"agentMessage","text":text}}})
+    }
+    fn completed_turn(status: &str) -> Value {
+        json!({"method":"turn/completed","params":{"threadId":"t","turn":{"id":"v","status":status}}})
+    }
+    fn assert_turn_failure(mut fake: FakeTurnProtocol, expected: PlannerTurnDiagnosticCode) {
+        assert_eq!(run_prepared_turn(&mut fake,"t","Objetivo"),Err(expected));
+        assert!(fake.calls.ends_with(&["thread/unsubscribe","shutdown"]));
+        let public=AgentError::PlannerDiagnostic(PlannerDiagnosticCode::Turn(expected)).code();
+        assert_eq!(serde_json::to_value(expected).unwrap(),json!(public));
+        assert!(!public.contains("private") && !public.contains("payload") && !public.contains('/'));
+    }
+    #[test] fn turn_start_failure_and_invalid_id_are_distinct() {
+        let mut fake=FakeTurnProtocol::valid(); fake.start=Err(());
+        assert_turn_failure(fake,PlannerTurnDiagnosticCode::PlannerTurnStartFailed);
+        for response in [json!({}),json!({"turn":{}}),json!({"turn":{"id":""}}),json!({"turn":{"id":42}})] {
+            let mut fake=FakeTurnProtocol::valid(); fake.start=Ok(response);
+            assert_turn_failure(fake,PlannerTurnDiagnosticCode::PlannerTurnIdInvalid);
+        }
+    }
+    #[test] fn turn_transport_closed_protocol_and_timeout_have_closed_diagnostics() {
+        use CodexAppServerDiagnosticCode::*;
+        use PlannerTurnDiagnosticCode::*;
+        for (transport,expected) in [(CodexAppServerClosed,PlannerTurnTransportFailed),
+            (CodexAppServerProtocolError,PlannerTurnTransportFailed),(CodexAppServerHandshakeTimeout,PlannerTurnTimeout)] {
+            let mut fake=FakeTurnProtocol::valid(); fake.notifications=vec![Err(transport)].into();
+            assert_turn_failure(fake,expected);
+        }
+    }
+    #[test] fn forbidden_items_have_item_diagnostic_and_cleanup() {
+        for kind in ["commandExecution","fileChange","mcpToolCall","dynamicToolCall","webSearch","unknown"] {
+            let item=json!({"method":"item/started","params":{"threadId":"t","turnId":"v",
+                "item":{"type":kind,"payload":"/private/raw"}}});
+            assert_turn_failure(FakeTurnProtocol::with_notifications(vec![item]),PlannerTurnDiagnosticCode::PlannerTurnUnexpectedItem);
+            let mut done=completed_turn("completed"); done["params"]["turn"]["items"]=json!([{"type":kind}]);
+            assert_turn_failure(FakeTurnProtocol::with_notifications(vec![done]),PlannerTurnDiagnosticCode::PlannerTurnUnexpectedItem);
+        }
+    }
+    #[test] fn forbidden_notifications_and_server_requests_have_closed_diagnostics() {
+        for value in [json!({"method":"item/commandExecution/outputDelta","params":{"payload":"/private/raw"}}),
+            json!({"method":"item/tool/call","id":42,"params":{"payload":"/private/raw"}}),
+            json!({"method":"approval/request","params":{}}),json!({"method":"request","params":{}}),
+            json!({"method":"item/completed"})] {
+            assert_turn_failure(FakeTurnProtocol::with_notifications(vec![value]),PlannerTurnDiagnosticCode::PlannerTurnUnexpectedNotification);
+        }
+    }
+    #[test] fn failed_turn_and_missing_response_are_distinct() {
+        for status in ["failed","interrupted","cancelled","unknown"] {
+            assert_turn_failure(FakeTurnProtocol::with_notifications(vec![completed_turn(status)]),PlannerTurnDiagnosticCode::PlannerTurnFailed);
+        }
+        for method in ["error","turn/failed"] {
+            assert_turn_failure(FakeTurnProtocol::with_notifications(vec![json!({"method":method,"params":{"message":"/private/raw"}})]),
+                PlannerTurnDiagnosticCode::PlannerTurnFailed);
+        }
+        assert_turn_failure(FakeTurnProtocol::with_notifications(vec![completed_turn("completed")]),PlannerTurnDiagnosticCode::PlannerResponseMissing);
+    }
+    #[test] fn invalid_plan_never_exposes_response_or_repairs_json() {
+        let mut semantic=valid_plan(); semantic["version"]=json!(2);
+        for raw in ["/private/raw payload".into(),"```json\n{}\n```".into(),"{}".into(),semantic.to_string(),"x".repeat(planner::MAX_PLAN_BYTES+1)] {
+            assert_turn_failure(FakeTurnProtocol::with_notifications(vec![agent_message(&raw),completed_turn("completed")]),
+                PlannerTurnDiagnosticCode::PlannerPlanInvalid);
+        }
+    }
+    #[test] fn valid_plan_and_lifecycle_notifications_succeed_then_cleanup() {
+        let mut fake=FakeTurnProtocol::valid();
+        fake.notifications.push_front(Ok(json!({"method":"turn/started","params":{"threadId":"t","turn":{"id":"v"}}})));
+        fake.notifications.push_front(Ok(json!({"method":"item/started","params":{"threadId":"t","turnId":"v","item":{"type":"reasoning"}}})));
+        let output=run_prepared_turn(&mut fake,"t","Objetivo").unwrap();
+        assert_eq!(serde_json::to_value(PlanV1::parse(&output).unwrap()).unwrap(),valid_plan());
+        assert!(fake.calls.ends_with(&["thread/unsubscribe","shutdown"]));
+    }
+    #[test] fn cleanup_failure_cannot_turn_a_failed_or_successful_turn_into_success() {
+        for (detach,shutdown) in [(true,false),(false,true),(true,true)] {
+            let mut fake=FakeTurnProtocol::valid(); fake.detach_failed=detach; fake.shutdown_failed=shutdown;
+            assert_turn_failure(fake,PlannerTurnDiagnosticCode::PlannerCleanupFailed);
+            let mut fake=FakeTurnProtocol::valid(); fake.start=Err(()); fake.detach_failed=detach; fake.shutdown_failed=shutdown;
+            assert_turn_failure(fake,PlannerTurnDiagnosticCode::PlannerTurnStartFailed);
+        }
+    }
+    #[test] fn preparation_failure_precedes_cleanup_only_for_real_planner() {
+        for cleanup_failed in [false,true] {
+            let failure=PlannerPreparationFailure { primary:PlannerPreflightDiagnosticCode::PlannerSandboxRejected,cleanup_failed };
+            assert_eq!(failure.planner_code().code(),"planner_sandbox_rejected");
+            let failure=PlannerPreparationFailure { primary:PlannerPreflightDiagnosticCode::PlannerSandboxRejected,cleanup_failed };
+            assert_eq!(failure.preflight_code(),if cleanup_failed { PlannerPreflightDiagnosticCode::PlannerCleanupFailed }
+                else { PlannerPreflightDiagnosticCode::PlannerSandboxRejected });
+        }
+    }
 
     struct FakePlannerProtocol {
         calls: Vec<&'static str>,
@@ -337,6 +567,10 @@ mod tests {
                 "thread/start" => { self.calls.push("thread/start"); if self.fail_at == Some("thread/start") { Err(()) } else { Ok(self.thread.clone()) } }
                 _ => panic!("preflight attempted an unexpected request"),
             }
+        }
+        fn shutdown(&mut self) -> Result<(), ()> {
+            self.calls.push("shutdown");
+            if self.fail_at == Some("shutdown") { Err(()) } else { Ok(()) }
         }
     }
     fn safe_thread_response() -> Value {

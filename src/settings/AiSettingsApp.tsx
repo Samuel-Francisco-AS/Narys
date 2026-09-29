@@ -22,7 +22,13 @@ const plannerPreflightCodes = [
 ] as const
 type PlannerPreflightCode = typeof plannerPreflightCodes[number]
 type PlannerPreflightProbe = { ready: boolean; diagnosticCode: PlannerPreflightCode | null }
-const plannerErrorCodes = ['cancelled', 'unsupported_capability', 'invalid_request', 'unavailable', 'protocol_error', 'backend_failed', 'event_sink_closed'] as const
+const plannerErrorCodes = [
+  'cancelled', 'unsupported_capability', 'invalid_request', 'unavailable', 'protocol_error', 'backend_failed', 'event_sink_closed',
+  ...plannerPreflightCodes,
+  'planner_turn_start_failed', 'planner_turn_id_invalid', 'planner_turn_transport_failed', 'planner_turn_timeout',
+  'planner_turn_unexpected_notification', 'planner_turn_unexpected_item', 'planner_turn_failed',
+  'planner_response_missing', 'planner_plan_invalid',
+] as const
 const isPlannerErrorCode = (value: unknown): value is typeof plannerErrorCodes[number] => typeof value === 'string' && (plannerErrorCodes as readonly string[]).includes(value)
 const isPlannerPreflightCode = (value: unknown): value is PlannerPreflightCode => typeof value === 'string' && (plannerPreflightCodes as readonly string[]).includes(value)
 const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo' }
