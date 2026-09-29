@@ -93,9 +93,9 @@ impl CognitiveRolePolicy {
         if !Self::valid_model(&self.model) {
             return Err("model_invalid");
         }
-        match (&self.fallback_provider_id, &self.fallback_model) {
-            (None, None) => {}
-            (Some(provider), Some(model))
+        match (&self.fallback_provider_id, &self.fallback_model, self.fallback_thinking_level) {
+            (None, None, None) => {}
+            (Some(provider), Some(model), _)
                 if Self::valid_provider_id(provider) && Self::valid_model(model) => {}
             _ => return Err("fallback_config_invalid"),
         }
