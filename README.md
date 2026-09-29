@@ -132,7 +132,7 @@ A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode 
 
 ### LR-7D0.5A — descoberta segura do Codex
 
-**Candidata ao gate humano.** O Luna Core pode observar `codex --version` e
+**PASS completo em 29/09/2026.** O Luna Core pode observar `codex --version` e
 `codex login status` com timeout, sem ler ou expor credenciais. Codex permanece
 fora do contrato `CognitiveProvider`; app-server e a arquitetura
 `AgentBackend` começam somente nos checkpoints D0.5B+. Veja [a especificação
