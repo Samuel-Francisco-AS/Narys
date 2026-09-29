@@ -127,4 +127,4 @@ A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode 
 
 ### LR-7D — papéis cognitivos e roteamento configurável
 
-Planejada em 28/09/2026. A próxima subtrilha remove Gemini como provider estruturalmente privilegiado e torna providers/modelos/rotas configuráveis por papel. LR-7D0 será executada pelo Codex e auditada pela Luna; depois entram Orchestrator/Planner configurável, fallback chain/Auto/affinity e task graph mínimo. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
+**LR-7D0 fechada em PASS completo em 29/09/2026.** Gemini e Groq agora podem ser escolhidos por configuração como providers de Conversation, com primary/fallback invertíveis, e Summary Fixed pode usar qualquer um dos dois; timeouts são independentes e as escolhas persistem após restart. Próximas etapas: Orchestrator/Planner configurável, fallback chain/Auto/affinity e task graph mínimo. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).

@@ -1,14 +1,14 @@
 use super::{
     policy::{self, CognitiveRole, CognitiveRolePolicy},
-    summary::SummaryWorker,
+    summary::SummaryWorker, catalog, ProviderRuntime, ProviderTimeoutHandles,
 };
 use crate::{
     persistence::{
         database::Database,
-        gemini_settings::{self, GeminiTimeouts},
+        provider_timeouts,
         general_settings::{self, GeneralSettings},
     },
-    security::secrets::{SecretKey, SecretStore},
+    security::secrets::SecretStore,
 };
 use serde::Serialize;
 use std::sync::Arc;
@@ -63,55 +63,38 @@ pub async fn update_general_settings(
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AiProviderInfo {
-    id: &'static str,
-    display_name: &'static str,
-    configured: bool,
-    supported_thinking_levels: [&'static str; 3],
-}
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AiSettings {
-    providers: Vec<AiProviderInfo>,
+    providers: Vec<catalog::ProviderInfo>,
     roles: Vec<CognitiveRolePolicy>,
     credential_store_available: bool,
-    provider_timeouts: GeminiTimeouts,
+    provider_timeouts: std::collections::HashMap<String, super::types::ProviderTimeouts>,
 }
 
 #[tauri::command]
 pub async fn get_ai_settings(
     db: State<'_, Database>,
     store: State<'_, Arc<SecretStore>>,
+    runtime: State<'_, Arc<ProviderRuntime>>,
 ) -> Result<AiSettings, String> {
     let db = db.inner().clone();
     let store = store.inner().clone();
+    let statuses = runtime.scheduler.status();
     tauri::async_runtime::spawn_blocking(move || {
         let conn = db.open().map_err(|e| e.code())?;
         let roles = vec![
             policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?,
             policy::load(&conn, CognitiveRole::Summary).map_err(|e| e.code())?,
         ];
-        let provider_timeouts = gemini_settings::load(&conn).map_err(|e| e.code())?;
-        let gemini_credential = store.get_secret(SecretKey::GeminiApiKey);
-        let groq_credential = store.get_secret(SecretKey::GroqApiKey);
+        let mut timeouts = std::collections::HashMap::new();
+        for status in statuses.iter().filter(|status| catalog::integration(&status.id).is_some()) {
+            timeouts.insert(status.id.clone(), provider_timeouts::load(&conn, &status.id).map_err(|e| e.code())?);
+        }
+        let credential_store_available = catalog::INTEGRATIONS.iter().all(|item| store.get_secret(item.secret).is_ok());
         Ok::<_, &'static str>(AiSettings {
-            providers: vec![
-                AiProviderInfo {
-                    id: "gemini",
-                    display_name: "Gemini",
-                    configured: gemini_credential.as_ref().is_ok_and(|value| value.is_some()),
-                    supported_thinking_levels: ["low", "medium", "high"],
-                },
-                AiProviderInfo {
-                    id: "groq",
-                    display_name: "Groq",
-                    configured: groq_credential.as_ref().is_ok_and(|value| value.is_some()),
-                    supported_thinking_levels: ["low", "medium", "high"],
-                },
-            ],
+            providers: catalog::infos(&statuses, &store),
             roles,
-            credential_store_available: gemini_credential.is_ok() && groq_credential.is_ok(),
-            provider_timeouts,
+            credential_store_available,
+            provider_timeouts: timeouts,
         })
     })
     .await
@@ -120,22 +103,25 @@ pub async fn get_ai_settings(
 }
 
 #[tauri::command]
-pub async fn update_gemini_timeouts(
+pub async fn update_provider_timeouts(
     db: State<'_, Database>,
-    gemini: State<'_, Arc<super::gemini::GeminiTimeoutState>>,
-    timeouts: GeminiTimeouts,
-) -> Result<GeminiTimeouts, String> {
-    timeouts.validate().map_err(str::to_owned)?;
+    handles: State<'_, Arc<ProviderTimeoutHandles>>,
+    provider_id: String,
+    timeouts: super::types::ProviderTimeouts,
+) -> Result<super::types::ProviderTimeouts, String> {
+    let handle = handles.0.get(&provider_id).ok_or("provider_unavailable")?.clone();
+    let value = timeouts;
     let db = db.inner().clone();
+    let id = provider_id;
     let saved = tauri::async_runtime::spawn_blocking(move || {
         let conn = db.open().map_err(|e| e.code())?;
-        gemini_settings::save(&conn, &timeouts).map_err(|e| e.code())?;
-        Ok::<_, &'static str>(timeouts)
+        provider_timeouts::save(&conn, &id, value).map_err(|e| e.code())?;
+        Ok::<_, &'static str>(value)
     })
     .await
     .map_err(|_| "worker_failed".to_string())?
     .map_err(str::to_owned)?;
-    *gemini.timeouts.write().unwrap_or_else(|p| p.into_inner()) = saved.into();
+    *handle.write().unwrap_or_else(|p| p.into_inner()) = saved;
     Ok(saved)
 }
 
@@ -143,9 +129,12 @@ pub async fn update_gemini_timeouts(
 pub async fn update_cognitive_role_policy(
     db: State<'_, Database>,
     worker: State<'_, Arc<SummaryWorker>>,
+    runtime: State<'_, Arc<ProviderRuntime>>,
+    store: State<'_, Arc<SecretStore>>,
     policy: CognitiveRolePolicy,
 ) -> Result<CognitiveRolePolicy, String> {
     policy.validate().map_err(str::to_owned)?;
+    catalog::validate_policy(&policy, &runtime.scheduler.status(), &store).map_err(str::to_owned)?;
     let db = db.inner().clone();
     let saved = tauri::async_runtime::spawn_blocking(move || {
         let mut conn = db.open().map_err(|e| e.code())?;

@@ -58,8 +58,6 @@ impl MinimalOutboundContext {
   }
 }
 
-pub struct GeminiTimeoutState { pub timeouts: Arc<RwLock<ProviderTimeouts>> }
-
 pub struct GeminiProvider { config: GeminiConfig, client: Client, secrets: Arc<SecretStore>, timeouts: Arc<RwLock<ProviderTimeouts>> }
 impl GeminiProvider {
   pub fn new(config: GeminiConfig, secrets: Arc<SecretStore>) -> Result<Self, ProviderError> {

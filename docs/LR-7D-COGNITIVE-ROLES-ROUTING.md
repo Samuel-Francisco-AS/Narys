@@ -1,6 +1,6 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **PLANEJADA em 28/09/2026.**  
+Estado: **LR-7D0 — PASS técnico + auditoria independente + gate humano. Pronta para integração. LR-7D1/D2/D3 planejadas.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ## Princípio central
@@ -38,6 +38,39 @@ Dívida intencional deixada pela LR-7C:
 ---
 
 ## LR-7D0 — providers genéricos por papel + remoção dos hardcodes
+
+### Implementação candidata
+
+- A persistência valida apenas a estrutura da policy. O boundary de settings e o início da conversa validam o provider contra o catálogo, Registry, capabilities e estado da credencial. Provider desconhecido, indisponível ou sem credencial falha fechado.
+- Conversation monta targets por `provider_id`, cada qual com model, thinking e timeouts próprios. `Fixed` aceita Gemini ou Groq; `Preferred` aceita as duas ordens com targets diferentes. O Scheduler continua responsável por cooldown, retry, fallback anterior ao primeiro chunk e cancelamento, sem regras por marca.
+- Summary permanece `Fixed`, com Gemini ou Groq configurável. O worker consulta a policy escolhida para disponibilidade e resolve timeouts pelo provider antes da chamada; claim, recovery, validação de JSON e persistência continuam sob o Core.
+- `get_ai_settings` oferece metadados seguros derivados dos providers registrados. A UI usa esses dados para as opções, capabilities, thinking e disponibilidade. Credenciais seguem separadas no Stronghold e só o indicador `configured` é exposto.
+- A migration 007 adiciona `provider_timeout_settings`, copia o timeout Gemini existente e semeia Groq com os defaults já usados pelo adapter (45 s request, 15 s idle). A tabela Gemini antiga é preservada para upgrade não destrutivo.
+- A mudança não ativa novos providers, Orchestrator, fallback chain, Auto, task graph nem o Rate Limit Manager da LR-8. A aprovação depende da auditoria independente e do gate humano.
+
+### Auditoria independente da Luna — 29/09/2026
+
+**PASS da auditoria independente. O gate humano foi concluído posteriormente com sucesso.**
+
+A revisão remota confirmou:
+- `main` permaneceu em `a427586c4c5027cdf6e4f92b230a6de44f6035f9`; a candidata está isolada em `lr-7d0-provider-neutral-routing`;
+- a policy persistida valida estrutura sem assumir Gemini/Groq;
+- catálogo/Registry/settings fazem a validação concreta de provider, capability, thinking e credencial;
+- Conversation constrói targets/timeouts por `provider_id` e cobre as duas ordens de Preferred;
+- Summary permanece Fixed, mas aceita Gemini ou Groq;
+- a UI de roteamento deriva providers do backend e remove Gemini/Groq da semântica genérica;
+- migration 007 copia os timeouts Gemini existentes, cria defaults Groq equivalentes aos defaults já usados pelo adapter e preserva policies no upgrade v6 → v7;
+- testes cobrem reopen e isolamento de timeouts;
+- permissions/capabilities do novo comando de timeout seguem restritas à janela de IA;
+- LR-7D1/D2/D3 e LR-8 não foram antecipadas.
+
+Os gates `typecheck/build/cargo check/cargo test 96/96/release/diff check` foram executados pelo Codex e reportados como PASS; a auditoria da Luna foi uma revisão independente do código remoto, não uma segunda execução local desses comandos.
+
+Observações não bloqueantes:
+1. o catálogo de integração atual associa cada provider a um `SecretKey`; isso atende Gemini/Groq, mas futuros providers OAuth/local poderão exigir abstração de autenticação mais ampla;
+2. Gemini não anuncia `defaultModel` no catálogo. A configuração persistida atual é preservada e a troca Gemini ↔ Groq funciona, mas após reinício com Gemini totalmente fora dos targets ativos a UI pode exigir que o usuário informe novamente o model ao reativá-lo.
+
+O gate humano descrito abaixo foi executado em 29/09/2026 e aprovado.
 
 ### Objetivo
 
@@ -120,6 +153,23 @@ Conversation e Summary devem poder escolher pela interface qualquer **Cognitive 
 - migrations/reopen;
 - testes específicos para primary/fallback invertidos;
 - nenhum teste pode depender de chamada externa.
+
+### Gate humano — PASS em 29/09/2026
+
+Validação manual com o aplicativo Tauri e credenciais reais:
+
+- a interface exibiu timeouts independentes para Gemini e Groq;
+- Conversation permitiu alternar o provider primário entre Gemini e Groq;
+- o fallback pôde ser invertido entre Groq → Gemini e Gemini → Groq apenas por configuração;
+- as escolhas persistiram após restart;
+- Conversation continuou funcional após a troca de provider;
+- Summary foi configurado para Groq em modo Fixed e gerou título/resumo válido, persistido corretamente no histórico;
+- o histórico permaneceu íntegro;
+- Gemini apresentou HTTP 429/cooldown durante parte da validação; isso foi tratado como condição externa do provider e não como regressão da LR-7D0.
+
+Com isso, o gate de arquitetura foi satisfeito: trocar Gemini ↔ Groq como provider de Conversation e escolher Groq para Summary exigiu somente configuração pela interface.
+
+**LR-7D0 = PASS completo.**
 
 ### Gate humano
 

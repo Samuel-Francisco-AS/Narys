@@ -86,10 +86,14 @@ impl CognitiveRolePolicy {
     }
 
     fn valid_provider_id(value: &str) -> bool {
-        matches!(value, "gemini" | "groq")
+        !value.is_empty() && value.len() <= 64 && value.trim() == value
+            && value.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-' || byte == b'_')
     }
 
     fn validate_integrity(&self) -> Result<(), &'static str> {
+        if !Self::valid_provider_id(&self.provider_id) {
+            return Err("provider_id_invalid");
+        }
         if !Self::valid_model(&self.model) {
             return Err("model_invalid");
         }
@@ -114,13 +118,6 @@ impl CognitiveRolePolicy {
     pub fn validate(&self) -> Result<(), &'static str> {
         self.validate_integrity()?;
 
-        // LR-7C keeps the persisted primary role provider on Gemini. The new
-        // explicit fallback target is Groq for Conversation only. This avoids
-        // silently broadening Summary behavior before its own gate.
-        if self.provider_id != "gemini" {
-            return Err("provider_unavailable");
-        }
-
         match self.routing_mode {
             RoutingMode::Fixed => Ok(()),
             RoutingMode::Preferred => {
@@ -130,7 +127,7 @@ impl CognitiveRolePolicy {
                 if self.max_provider_calls < 2 {
                     return Err("fallback_budget_invalid");
                 }
-                if self.fallback_provider_id.as_deref() != Some("groq")
+                if self.fallback_provider_id.as_deref().is_none_or(|id| !Self::valid_provider_id(id))
                     || self.fallback_model.as_deref().map_or(true, |model| !Self::valid_model(model))
                     || self.fallback_provider_id.as_deref() == Some(self.provider_id.as_str())
                 {
@@ -367,7 +364,8 @@ mod tests {
 
         let mut bad = original.clone();
         bad.provider_id = "unknown".into();
-        assert!(save(&mut conn, &bad).is_err());
+        assert!(bad.validate().is_ok()); // Persistence validates structure only.
+        assert!(crate::cognition::catalog::validate_registered("unknown", bad.thinking_level, &[]).is_err());
 
         bad = original.clone();
         bad.model = "\u{0007}".into();
@@ -400,5 +398,35 @@ mod tests {
         assert!(save(&mut conn, &summary).is_err());
 
         assert_eq!(load(&conn, CognitiveRole::Conversation).unwrap(), original);
+    }
+
+    #[test]
+    fn provider_order_is_structural_and_summary_stays_fixed() {
+        let dir = std::env::temp_dir().join(format!("lr7d-policy-{}-{}", std::process::id(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = Database::for_test(dir.join("test.sqlite3"));
+        let conn = db.open().unwrap();
+        let mut conversation = load(&conn, CognitiveRole::Conversation).unwrap();
+        for primary in ["gemini", "groq"] {
+            conversation.provider_id = primary.into();
+            conversation.routing_mode = RoutingMode::Fixed;
+            assert!(conversation.validate().is_ok());
+            conversation.routing_mode = RoutingMode::Preferred;
+            conversation.fallback_provider_id = Some(if primary == "gemini" { "groq" } else { "gemini" }.into());
+            conversation.fallback_model = Some("target-specific-model".into());
+            assert!(conversation.validate().is_ok());
+            conversation.fallback_provider_id = Some(primary.into());
+            assert_eq!(conversation.validate(), Err("fallback_config_invalid"));
+        }
+        let mut summary = load(&conn, CognitiveRole::Summary).unwrap();
+        for provider in ["gemini", "groq"] {
+            summary.provider_id = provider.into();
+            assert!(summary.validate().is_ok());
+        }
+        summary.routing_mode = RoutingMode::Preferred;
+        summary.fallback_provider_id = Some("gemini".into());
+        summary.fallback_model = Some("model".into());
+        summary.max_provider_calls = 2;
+        assert_eq!(summary.validate(), Err("routing_mode_unavailable"));
     }
 }
