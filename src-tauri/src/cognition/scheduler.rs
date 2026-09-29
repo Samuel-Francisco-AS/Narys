@@ -7,7 +7,7 @@ pub enum SchedulerEvent {
   Selected { provider_id: String, attempt: u32 },
   Chunk { provider_id: String, text: String },
   Retry { provider_id: String, reason_code: &'static str },
-  Fallback { from: String, reason_code: &'static str },
+  Fallback { from: String, to: String, reason_code: &'static str },
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -134,7 +134,7 @@ impl Scheduler {
               return Err(SchedulerError::Provider(error));
             }
             if index + 1 < candidates.len() {
-              on_event(SchedulerEvent::Fallback { from: entry.config.id.clone(), reason_code: error.code() })
+              on_event(SchedulerEvent::Fallback { from: entry.config.id.clone(), to: candidates[index + 1].config.id.clone(), reason_code: error.code() })
                 .map_err(|_| { cancelled.store(true, Ordering::Release); SchedulerError::EventSinkClosed })?;
               usage.fallbacks += 1;
             }
