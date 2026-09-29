@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS técnico, auditoria independente e gate humano concluídos; pronta para integração pela PR #7. Próximo checkpoint: D0.5E — cancelamento, recovery e eventos reais.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. Próximo checkpoint: D0.5E — cancelamento, recovery e eventos reais.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -205,7 +205,7 @@ A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf
 
 A PR #6 foi integrada à `main` por squash no commit `663610cacff526558b353e22c6d6292ea7a5c0f4`. A D0.5C está oficialmente encerrada em PASS técnico, sem gate humano artificial. O próximo checkpoint é **D0.5D — primeiro `CodexAgentBackend` real + Planner read-only + `PlanV1`**, mantendo o Luna Core como autoridade sobre validação e execução.
 
-## D0.5D — CANDIDATA AO GATE HUMANO
+## D0.5D — PASS completo
 
 `CodexAgentBackend` é o primeiro backend agentivo de produção, registrado como `codex` em `AgentRegistry`. Suas únicas capabilities são `planning` e `structured_output`; leitura de repositório, escrita, execução de comandos e uso de ferramentas permanecem false. O módulo `planner` escolhe explicitamente esse ID, consome o contrato `AgentBackend` e valida o `PlanV1` antes de devolver uma estrutura sanitizada ao diagnóstico em **IA e modelos**. Não há integração com `CognitiveProvider`, `ProviderRegistry`, Scheduler ou TaskRegistry.
 
@@ -221,7 +221,7 @@ Referência de protocolo e isolamento: [temporary_structured_request.rs na tag r
 
 `PlanV1` contém `version=1`, `objective`, `steps[{id,description,requiredCapabilities,dependsOn}]`, `risks`, `needsUserInput` e `questions`. O enum fechado de capabilities aceita `planning`, `repository_read`, `file_write`, `command_execution`, `tool_use` e `structured_output` apenas como requisitos propostos de passos futuros. A validação Rust rejeita campos desconhecidos, JSON inválido ou acima de 16 KiB, objetivo vazio ou acima de 2048 bytes, zero ou mais de 16 passos, IDs duplicados, dependências desconhecidas, próprias ou cíclicas, descrições ou IDs fora dos limites, mais de oito riscos/perguntas, texto longo e inconsistência entre `needsUserInput` e `questions`. Não há reparo automático de JSON e nenhum passo é executado.
 
-O handshake e cada request preparatória têm limite de 8 s; o turno tem 60 s; shutdown espera 2 s antes de kill+wait. Mensagens do protocolo são limitadas a 64 KiB e tráfego total do Planner a 512 KiB. O produtor também limita frames a 8192 por sessão, derivados do budget existente dividido por 64 bytes de allowance de metadata por frame; até um marcador terminal adicional pode ser enfileirado. A fila pendente de RPC compartilha esse teto. Não há limite de 256 mensagens recebidas nem de 128 notificações intercaladas. Somente `agentMessage` da thread/turn correta é candidato a resposta; o último é aceito apenas após `turn/completed` com status `completed`. Itens de comando, alteração de arquivo, MCP, ferramenta ou qualquer tipo não permitido falham fechados. Não há chamada real ao modelo no gate automático. O teste real na UI está reservado para depois da auditoria independente.
+O handshake e cada request preparatória têm limite de 8 s; o turno tem 60 s; shutdown espera 2 s antes de kill+wait. Mensagens do protocolo são limitadas a 64 KiB e tráfego total do Planner a 512 KiB. O produtor também limita frames a 8192 por sessão, derivados do budget existente dividido por 64 bytes de allowance de metadata por frame; até um marcador terminal adicional pode ser enfileirado. A fila pendente de RPC compartilha esse teto. Não há limite de 256 mensagens recebidas nem de 128 notificações intercaladas. Somente `agentMessage` da thread/turn correta é candidato a resposta; o último é aceito apenas após `turn/completed` com status `completed`. Itens de comando, alteração de arquivo, MCP, ferramenta ou qualquer tipo não permitido falham fechados. Não há chamada real ao modelo no gate automático. O teste real na UI foi executado após auditoria independente e passou.
 
 Cancelamento remoto, `turn/interrupt`, observabilidade de progresso, eventos reais, persistência e recuperação ficam para D0.5E+. O Planner atual apenas rejeita cancelamento já marcado antes do início.
 
@@ -298,4 +298,9 @@ Nove testes novos cobrem regressões de contagem/rajada, 2048 notificações ant
 
 A validação pós-turno confirmou cleanup e ausência de efeito sobre o checkout: `git status --short` retornou vazio e `pgrep -af 'codex app-server --stdio'` também retornou vazio. Assim, isolamento, inferência estruturada, validação de `PlanV1` e cleanup passaram no runtime real.
 
-A auditoria independente do commit `ecd92032ff20004cd6791b1118d1b74fa9880955` aprovou a correção do streaming: o limite artificial de 256 mensagens e a perda de frames por `try_send` foram removidos do Planner, mantendo limites explícitos de 64 KiB por mensagem, 512 KiB por sessão e 8192 frames. Requests do servidor continuam fail-closed e não recebem resposta. D0.5D está encerrada em **PASS completo** e a PR #7 está pronta para integração por squash na `main`. O próximo checkpoint é **D0.5E — cancelamento, recovery e eventos reais**.
+A auditoria independente do commit `ecd92032ff20004cd6791b1118d1b74fa9880955` aprovou a correção do streaming: o limite artificial de 256 mensagens e a perda de frames por `try_send` foram removidos do Planner, mantendo limites explícitos de 64 KiB por mensagem, 512 KiB por sessão e 8192 frames. Requests do servidor continuam fail-closed e não recebem resposta. D0.5D está encerrada em **PASS completo** e foi integrada por squash à `main` pela PR #7. O próximo checkpoint é **D0.5E — cancelamento, recovery e eventos reais**.
+
+
+## Fechamento de integração da D0.5D — 29/09/2026
+
+A PR #7 foi integrada à `main` por squash no commit `d8591b93518a96e7a6c2cb94eba2d1c92194c455`. A D0.5D está oficialmente encerrada em **PASS completo**, com auditoria independente, gate humano real, `PlanV1` válido e cleanup pós-turno sem processo `codex app-server --stdio` residual. O próximo checkpoint é **D0.5E — cancelamento, recovery e eventos reais**.
