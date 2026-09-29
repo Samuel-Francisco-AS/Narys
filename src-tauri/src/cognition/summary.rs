@@ -139,7 +139,14 @@ impl SummaryWorker {
             .open()
             .and_then(|conn| policy::load(&conn, CognitiveRole::Summary))
         {
-            Ok(policy) => policy,
+            Ok(policy) => {
+                if policy.validate().is_err() {
+                    eprintln!("[Summary] policy code=invalid");
+                    self.defer_claim(claimed.id);
+                    return ProcessOutcome::Transient;
+                }
+                policy
+            },
             Err(_) => {
                 eprintln!("[Summary] policy code=read_failed");
                 self.defer_claim(claimed.id);
@@ -535,6 +542,10 @@ mod tests {
             provider_id: "gemini".into(),
             model: "gemini-summary".into(),
             thinking_level: Some(super::super::policy::ThinkingLevel::Low),
+            routing_mode: super::super::policy::RoutingMode::Fixed,
+            fallback_provider_id: None,
+            fallback_model: None,
+            fallback_thinking_level: None,
             max_output_tokens: Some(512),
             max_provider_calls: 1,
             retry_enabled: false,

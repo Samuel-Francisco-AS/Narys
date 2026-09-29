@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-start-conversation-task"
+description = "Enables the start_conversation_task command without any pre-configured scope."
+commands.allow = ["start_conversation_task"]
+
+[[permission]]
+identifier = "deny-start-conversation-task"
+description = "Denies the start_conversation_task command without any pre-configured scope."
+commands.deny = ["start_conversation_task"]

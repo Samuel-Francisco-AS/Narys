@@ -3,11 +3,13 @@ mod task;
 
 use std::sync::Arc;
 
+use serde::Serialize;
 use tauri::{ipc::Channel, State};
 use crate::persistence::database::Database;
 use crate::persistence::conversation;
 use crate::cognition::ProviderRuntime;
-use crate::cognition::policy::{self, CognitiveRole};
+use crate::cognition::policy::{self, CognitiveRole, RoutingMode};
+use crate::security::secrets::{SecretKey, SecretStore};
 use crate::cognition::gemini_commands::CurrentRunSessions;
 #[cfg(debug_assertions)]
 use crate::cognition::{CognitionRuntime, DiagnosticScenario, scheduler::ProviderStatus};
@@ -51,14 +53,67 @@ pub fn cognition_provider_status(cognition: State<'_, Arc<CognitionRuntime>>) ->
   cognition.status()
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationProviderState {
+  provider_id: String,
+  configured: bool,
+  cooldown_ms: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationRoutingStatus {
+  routing_mode: RoutingMode,
+  primary: ConversationProviderState,
+  fallback: Option<ConversationProviderState>,
+}
+
+fn provider_configured(store: &SecretStore, provider_id: &str) -> bool {
+  let key = match provider_id {
+    "gemini" => SecretKey::GeminiApiKey,
+    "groq" => SecretKey::GroqApiKey,
+    _ => return false,
+  };
+  store.get_secret(key).ok().flatten().is_some()
+}
+
 #[tauri::command]
-pub fn start_gemini_task(registry: State<'_, Arc<TaskRegistry>>, db: State<'_, Database>,
-  runtime: State<'_, Arc<ProviderRuntime>>, gemini: State<'_, Arc<crate::cognition::gemini::GeminiTimeoutState>>, sessions: State<'_, CurrentRunSessions>, session_id: i64, message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
-  if message.trim().is_empty() || message.len() > 4096 { return Err("gemini_input_invalid".into()); }
+pub async fn conversation_routing_status(db: State<'_, Database>, runtime: State<'_, Arc<ProviderRuntime>>,
+  store: State<'_, Arc<SecretStore>>) -> Result<ConversationRoutingStatus, String> {
+  let db = db.inner().clone();
+  let store = store.inner().clone();
+  let statuses = runtime.scheduler.status();
+  tauri::async_runtime::spawn_blocking(move || {
+    let conn = db.open().map_err(|e| e.code().to_owned())?;
+    let policy = policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code().to_owned())?;
+    policy.validate().map_err(str::to_owned)?;
+    let state = |provider_id: &str| ConversationProviderState {
+      provider_id: provider_id.to_owned(),
+      configured: provider_configured(store.as_ref(), provider_id),
+      cooldown_ms: statuses.iter().find(|status| status.id == provider_id).map(|status| status.cooldown_ms).unwrap_or(0),
+    };
+    Ok(ConversationRoutingStatus {
+      routing_mode: policy.routing_mode,
+      primary: state(&policy.provider_id),
+      fallback: if policy.routing_mode == RoutingMode::Preferred {
+        policy.fallback_provider_id.as_deref().map(state)
+      } else { None },
+    })
+  }).await.map_err(|_| "worker_failed".to_owned())?
+}
+
+#[tauri::command]
+pub fn start_conversation_task(registry: State<'_, Arc<TaskRegistry>>, db: State<'_, Database>,
+  runtime: State<'_, Arc<ProviderRuntime>>, gemini: State<'_, Arc<crate::cognition::gemini::GeminiTimeoutState>>,
+  groq: State<'_, Arc<crate::cognition::groq::GroqTimeoutState>>, sessions: State<'_, CurrentRunSessions>,
+  session_id: i64, message: String, channel: Channel<TaskEvent>) -> Result<TaskId, String> {
+  if message.trim().is_empty() || message.len() > 4096 { return Err("conversation_input_invalid".into()); }
   let current_run = sessions.0.lock().map_err(|_| "session_registry_failed")?;
   if session_id <= 0 || !current_run.contains(&session_id) { return Err("session_invalid".into()); }
   let conn = db.open().map_err(|e| e.code())?;
   if !conversation::is_active_session(&conn, session_id).map_err(|e| e.code())? { return Err("session_invalid".into()); }
   let policy = policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?;
-  runtime::start_gemini(registry.inner().clone(), db.inner().clone(), runtime.inner().clone(), gemini.inner().clone(), session_id, message, policy, channel)
+  runtime::start_conversation(registry.inner().clone(), db.inner().clone(), runtime.inner().clone(),
+    gemini.inner().clone(), groq.inner().clone(), session_id, message, policy, channel)
 }

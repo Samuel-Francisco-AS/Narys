@@ -9,3 +9,7 @@ export const closeSession = (sessionId: number) => invoke<void>('close_conversat
 export const resumeConversationSession = (targetSessionId: number, currentSessionId: number | null) =>
   invoke<ConversationSession>('resume_conversation_session', { targetSessionId, currentSessionId })
 export const geminiStatus = () => invoke<{ configured: boolean; credentialStoreAvailable: boolean; cooldownMs: number }>('gemini_status')
+
+export type ConversationProviderState = { providerId: string; configured: boolean; cooldownMs: number }
+export type ConversationRoutingStatus = { routingMode: 'fixed' | 'preferred'; primary: ConversationProviderState; fallback: ConversationProviderState | null }
+export const conversationRoutingStatus = () => invoke<ConversationRoutingStatus>('conversation_routing_status')

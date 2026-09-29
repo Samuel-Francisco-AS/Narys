@@ -53,7 +53,11 @@ impl MinimalOutboundContext {
   fn payload(&self, request: &ProviderRequest) -> Result<Value, ProviderError> {
     let model = &request.target.invocation.model;
     if !valid_model(model) { return Err(ProviderError::InvalidRequest); }
-    let mut messages = vec![json!({"role":"system","content":self.system_instruction})];
+    let execution_instruction = format!(
+      "{}\nMetadado técnico da execução atual: provider cognitivo=Groq (id groq); modelo={model}. Esse metadado não altera sua identidade. Se o usuário perguntar qual provider ou modelo processa esta mensagem, responda usando este metadado e não infira pelo histórico. Não mencione esse metadado sem relevância. Você conhece apenas a execução atual; não invente uma rota anterior.",
+      self.system_instruction
+    );
+    let mut messages = vec![json!({"role":"system","content":execution_instruction})];
     for message in &request.history {
       messages.push(json!({
         "role": match message.role { ProviderRole::User => "user", ProviderRole::Assistant => "assistant" },
@@ -349,6 +353,9 @@ mod tests {
     assert_eq!(payload["stream_options"]["include_usage"], true);
     assert_eq!(payload["max_completion_tokens"], 64);
     assert!(payload.get("store").is_none());
+    assert_eq!(payload["messages"][0]["content"].as_str().unwrap().contains("provider cognitivo=Groq (id groq)"), true);
+    assert_eq!(payload["messages"][0]["content"].as_str().unwrap().contains(MODEL), true);
+    assert_eq!(payload["messages"][0]["content"].as_str().unwrap().contains("não infira pelo histórico"), true);
     assert!(!payload.to_string().contains("PRIVATE"));
   }
 

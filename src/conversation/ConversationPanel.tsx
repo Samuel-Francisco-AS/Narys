@@ -70,6 +70,7 @@ export function ConversationPanel({ state, mode, historyId, onMode, onHistoryId,
       {state.messages.length === 0 && !state.assistantStreaming && <p className="conversation-empty">Sua conversa aparece aqui.</p>}
       {state.messages.map((message) => <article key={message.id} className={`conversation-message ${message.role}`}><strong>{message.role === 'user' ? 'Você' : 'Luna'}</strong><p>{message.content}</p></article>)}
       {state.assistantStreaming && <article className="conversation-message assistant"><strong>Luna <span className="streaming-indicator">· escrevendo</span></strong><p>{state.preview || '…'}</p></article>}
+      {state.providerRoute && <p className="conversation-notice" role="status">{state.providerRoute}</p>}
       {state.error && <p className="conversation-error" role="status">{state.error}</p>}
       {notice && <p className="conversation-notice" role="status">{notice}</p>}
     </div>}

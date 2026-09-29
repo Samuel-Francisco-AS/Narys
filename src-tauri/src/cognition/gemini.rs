@@ -49,7 +49,11 @@ impl MinimalOutboundContext {
     let mut generation_config = json!({"thinking_summaries":"none"});
     if let Some(limit) = max_output_tokens { generation_config["max_output_tokens"] = json!(limit); }
     if let Some(level) = thinking_level { generation_config["thinking_level"] = json!(level.as_str()); }
-    json!({"model":model,"store":false,"stream":true,"system_instruction":self.system_instruction,
+    let execution_instruction = format!(
+      "{}\nMetadado técnico da execução atual: provider cognitivo=Gemini (id gemini); modelo={model}. Esse metadado não altera sua identidade. Se o usuário perguntar qual provider ou modelo processa esta mensagem, responda usando este metadado e não infira pelo histórico. Não mencione esse metadado sem relevância. Você conhece apenas a execução atual; não invente uma rota anterior.",
+      self.system_instruction
+    );
+    json!({"model":model,"store":false,"stream":true,"system_instruction":execution_instruction,
       "input":input,"generation_config":generation_config})
   }
 }
@@ -381,6 +385,10 @@ mod tests {
     assert!(defaults["generation_config"].get("max_output_tokens").is_none());
     assert!(defaults["generation_config"].get("thinking_level").is_none());
     assert_eq!(defaults["store"], false);
+    let system = defaults["system_instruction"].as_str().unwrap();
+    assert!(system.contains("provider cognitivo=Gemini (id gemini)"));
+    assert!(system.contains("gemini-custom"));
+    assert!(system.contains("não infira pelo histórico"));
     let explicit = outbound.payload("gemini-custom", "Oi", &[], Some(8192), Some(ThinkingLevel::High));
     assert_eq!(explicit["generation_config"]["max_output_tokens"], 8192);
     assert_eq!(explicit["generation_config"]["thinking_level"], "high");

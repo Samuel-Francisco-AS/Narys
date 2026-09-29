@@ -10,5 +10,6 @@ export type ConversationState = {
   assistantStreaming: boolean
   activeTaskId: number | null
   providerCooldownUntil: number | null
+  providerRoute: string | null
   error: string | null
 }

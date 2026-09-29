@@ -79,7 +79,7 @@ pub fn run() {
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
     cognition::gemini_commands::close_conversation_session, cognition::gemini_commands::resume_conversation_session,
     cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
-    luna::start_gemini_task,
+    luna::conversation_routing_status, luna::start_conversation_task,
   ]);
   #[cfg(not(debug_assertions))]
   let builder = builder.invoke_handler(tauri::generate_handler![
@@ -96,7 +96,7 @@ pub fn run() {
     cognition::gemini_commands::create_conversation_session, cognition::gemini_commands::get_conversation_session,
     cognition::gemini_commands::close_conversation_session, cognition::gemini_commands::resume_conversation_session,
     cognition::gemini_commands::list_conversation_history, cognition::gemini_commands::get_conversation_history_session,
-    luna::start_gemini_task,
+    luna::conversation_routing_status, luna::start_conversation_task,
   ]);
   builder
     .run(tauri::generate_context!())

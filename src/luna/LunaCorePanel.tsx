@@ -33,7 +33,7 @@ function eventLabel(event: TaskEvent): string {
     case 'provider_selected': return `${event.provider_id}: tentativa ${event.attempt}`
     case 'provider_chunk': return `Chunk: ${event.chunk}`
     case 'provider_retry': return `${event.provider_id}: retry (${event.reason_code})`
-    case 'provider_fallback': return `${event.provider_id}: fallback (${event.reason_code})`
+    case 'provider_fallback': return `${event.from_provider_id} → ${event.to_provider_id}: fallback (${event.reason_code})`
     case 'task_result_ready': return `Resultado: ${event.result.providerId}`
   }
 }

@@ -34,7 +34,7 @@ pub enum TaskEventKind {
   ProviderSelected { provider_id: String, attempt: u32 },
   ProviderChunk { provider_id: String, chunk: String },
   ProviderRetry { provider_id: String, reason_code: String },
-  ProviderFallback { provider_id: String, reason_code: String },
+  ProviderFallback { from_provider_id: String, to_provider_id: String, reason_code: String },
   TaskResultReady { result: crate::cognition::types::TaskResult },
 }
 

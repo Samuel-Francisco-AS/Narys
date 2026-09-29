@@ -29,7 +29,7 @@ fn assert_sqlite_integrity(conn: &rusqlite::Connection) {
 #[test]
 fn migration_empty_and_twice() {
   let (db,_) = fixture(); let conn=db.open().unwrap();
-  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,5);
+  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,6);
   assert_sqlite_integrity(&conn);
   drop(conn); assert_sqlite_integrity(&db.open().unwrap());
 }
@@ -41,7 +41,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
   conn.execute("INSERT INTO conversation_sessions(kind,status,title) VALUES ('product','closed','Antes da policy')", []).unwrap();
   migrations::apply(&conn).unwrap();
   let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-  assert_eq!(version, 5);
+  assert_eq!(version, 6);
   let title: String = conn.query_row("SELECT title FROM conversation_sessions WHERE id=1", [], |r| r.get(0)).unwrap();
   assert_eq!(title, "Antes da policy");
   let rows: Vec<(String, String, Option<String>, Option<i64>, i64)> = conn.prepare(
@@ -451,7 +451,7 @@ fn migration_004_preserves_v3_policy_and_seeds_advanced_defaults() {
   conn.execute("UPDATE cognitive_role_policies SET model='gemini-custom',max_provider_calls=4,max_output_tokens=NULL WHERE role='conversation'", []).unwrap();
   migrations::apply(&conn).unwrap();
   let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-  assert_eq!(version, 5);
+  assert_eq!(version, 6);
   let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
   let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
   assert_eq!(conversation.model, "gemini-custom");
@@ -493,10 +493,36 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
   conn.execute("UPDATE cognitive_role_policies SET model='gemini-custom' WHERE role='conversation'", []).unwrap();
   migrations::apply(&conn).unwrap();
   let version: i64 = conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap();
-  assert_eq!(version,5);
+  assert_eq!(version,6);
   assert_eq!(super::general_settings::load(&conn).unwrap().active_fps,45);
   assert_eq!(crate::cognition::policy::load(&conn,crate::cognition::policy::CognitiveRole::Conversation).unwrap().model,"gemini-custom");
   assert_eq!(super::gemini_settings::load(&conn).unwrap().request_timeout_ms,45_000);
+  assert_sqlite_integrity(&conn);
+}
+
+#[test]
+fn migration_006_preserves_fixed_behavior_and_seeds_groq_fallback_config() {
+  use crate::cognition::policy::{self, CognitiveRole, RoutingMode, ThinkingLevel};
+  let conn = rusqlite::Connection::open_in_memory().unwrap();
+  conn.execute_batch(&format!("{} {} {} {} {} PRAGMA user_version=5;",
+    include_str!("../../migrations/001_initial_persistence.sql"),
+    include_str!("../../migrations/002_conversation_history.sql"),
+    include_str!("../../migrations/003_cognitive_role_policy.sql"),
+    include_str!("../../migrations/004_cognitive_retry_and_general_settings.sql"),
+    include_str!("../../migrations/005_gemini_provider_timeouts.sql"))).unwrap();
+  conn.execute("UPDATE cognitive_role_policies SET model='gemini-custom',max_provider_calls=4 WHERE role='conversation'", []).unwrap();
+  migrations::apply(&conn).unwrap();
+  let version: i64 = conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap();
+  assert_eq!(version,6);
+  let conversation = policy::load(&conn,CognitiveRole::Conversation).unwrap();
+  let summary = policy::load(&conn,CognitiveRole::Summary).unwrap();
+  assert_eq!(conversation.model,"gemini-custom");
+  assert_eq!(conversation.routing_mode,RoutingMode::Fixed);
+  assert_eq!(conversation.fallback_provider_id.as_deref(),Some("groq"));
+  assert_eq!(conversation.fallback_model.as_deref(),Some("openai/gpt-oss-20b"));
+  assert_eq!(conversation.fallback_thinking_level,Some(ThinkingLevel::Low));
+  assert_eq!(summary.routing_mode,RoutingMode::Fixed);
+  assert!(summary.fallback_provider_id.is_none());
   assert_sqlite_integrity(&conn);
 }
 
