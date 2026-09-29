@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A e D0.5B — PASS completo e integradas à `main` em 29/09/2026. D0.5C — PASS técnico após auditoria independente; pronta para integração.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — CodexAgentBackend real + Planner read-only + PlanV1 — é o próximo checkpoint.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -199,4 +199,8 @@ O gate humano foi concluído: detecção, versão, autenticação ChatGPT, refre
 
 ## Fechamento de integração da D0.5B — 29/09/2026
 
-A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf4ef590a22c97ab`. A D0.5B está oficialmente encerrada em PASS completo. D0.5C é uma candidata à auditoria técnica, mantendo Codex separado dos `CognitiveProvider`s; D0.5D será a primeira integração real.
+A PR #5 foi integrada à `main` por squash no commit `c2262c4ba71aaf8cc5a4de3fcf4ef590a22c97ab`. A D0.5B está oficialmente encerrada em PASS completo. D0.5C foi posteriormente auditada e integrada; D0.5D será a primeira integração agentiva real.
+
+## Fechamento de integração da D0.5C — 29/09/2026
+
+A PR #6 foi integrada à `main` por squash no commit `663610cacff526558b353e22c6d6292ea7a5c0f4`. A D0.5C está oficialmente encerrada em PASS técnico, sem gate humano artificial. O próximo checkpoint é **D0.5D — primeiro `CodexAgentBackend` real + Planner read-only + `PlanV1`**, mantendo o Luna Core como autoridade sobre validação e execução.
