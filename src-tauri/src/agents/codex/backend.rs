@@ -134,11 +134,15 @@ fn effective_thread(result: &Value, cwd: &Path) -> Result<String, PlannerPreflig
     }
     // Provenance only: this flow does not preserve a custom profile. The
     // effective sandbox and isolation above remain the security authority.
-    if let Some(profile) = result.get("activePermissionProfile") {
-        let metadata = profile.as_object().ok_or(PlannerPermissionProfileRejected)?;
-        if metadata.get("id").is_some_and(|id| id.as_str().is_none_or(str::is_empty)) {
-            return Err(PlannerPermissionProfileRejected);
+    match result.get("activePermissionProfile") {
+        None => {},
+        Some(Value::Null) => {},
+        Some(Value::Object(metadata)) => {
+            if metadata.get("id").is_some_and(|id| id.as_str().is_none_or(str::is_empty)) {
+                return Err(PlannerPermissionProfileRejected);
+            }
         }
+        Some(_) => return Err(PlannerPermissionProfileRejected),
     }
     result.pointer("/thread/id").and_then(Value::as_str).filter(|id| !id.is_empty())
         .map(str::to_owned).ok_or(PlannerThreadIdInvalid)
@@ -438,7 +442,7 @@ mod tests {
     #[test] fn permission_profile_provenance_accepts_absent_and_arbitrary_valid_ids() {
         let cwd=Path::new("/tmp/luna-test");
         assert_eq!(effective_thread(&safe_thread_response(),cwd).unwrap(),"t");
-        for profile in [json!({}),json!({"id":":read-only"}),json!({"id":"custom-safe-profile"})] {
+        for profile in [json!(null),json!({}),json!({"id":":read-only"}),json!({"id":"custom-safe-profile"})] {
             let mut response=safe_thread_response(); response["activePermissionProfile"]=profile;
             assert_eq!(effective_thread(&response,cwd).unwrap(),"t");
         }
@@ -446,7 +450,7 @@ mod tests {
     #[test] fn malformed_permission_profile_provenance_is_rejected_without_exposure() {
         use PlannerPreflightDiagnosticCode::PlannerPermissionProfileRejected;
         let cwd=Path::new("/tmp/luna-test");
-        for profile in [json!(null),json!([]),json!("private-profile-payload"),json!(42),json!(false),
+        for profile in [json!([]),json!("private-profile-payload"),json!(42),json!(false),
             json!({"id":""}),json!({"id":null}),json!({"id":42})] {
             let mut response=safe_thread_response(); response["activePermissionProfile"]=profile;
             let code=effective_thread(&response,cwd).unwrap_err();
