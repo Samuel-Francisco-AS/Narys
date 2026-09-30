@@ -1,5 +1,4 @@
 use serde::Serialize;
-use serde_json::Value;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -59,10 +58,14 @@ fn model_contract() -> String {
 }
 
 fn parse_model_output(raw: &str) -> Result<PlanV1, &'static str> {
-    let value: Value =
-        serde_json::from_str(raw).map_err(|_| "orchestrator_json_syntax_invalid")?;
+    if raw.len() > crate::agents::planner::MAX_PLAN_BYTES {
+        return Err("orchestrator_plan_semantic_invalid");
+    }
+    if serde_json::from_str::<serde_json::Value>(raw).is_err() {
+        return Err("orchestrator_json_syntax_invalid");
+    }
     let plan: PlanV1 =
-        serde_json::from_value(value).map_err(|_| "orchestrator_plan_shape_invalid")?;
+        serde_json::from_str(raw).map_err(|_| "orchestrator_plan_shape_invalid")?;
     plan.validate()
         .map_err(|_| "orchestrator_plan_semantic_invalid")?;
     Ok(plan)
@@ -428,6 +431,41 @@ mod tests {
         assert!(PlanV1::parse(&format!("prefix {}", valid_plan())).is_err());
         assert!(PlanV1::parse(&format!("{} suffix", valid_plan())).is_err());
         assert!(PlanV1::parse(r#"{"version":1,"objective":"Objetivo","steps":[],"risks":[],"needsUserInput":false,"questions":[]}"#).is_err());
+    }
+
+    #[test]
+    fn model_output_acceptance_matches_plan_parse_boundary() {
+        let valid = valid_plan();
+        let corpus = [
+            valid.clone(),
+            "{".into(),
+            format!("```json\n{valid}\n```"),
+            format!("prefix {valid}"),
+            format!("{valid} suffix"),
+            format!(r#"{{"version":1,"objective":"Objetivo","steps":[{{"id":"a","description":"Passo","requiredCapabilities":["planning"],"dependsOn":[]}}],"risks":[],"needsUserInput":false,"questions":[],"extra":1}}"#),
+            format!(r#"{{"version":1,"version":1,"objective":"Objetivo","steps":[{{"id":"a","description":"Passo","requiredCapabilities":["planning"],"dependsOn":[]}}],"risks":[],"needsUserInput":false,"questions":[]}}"#),
+            format!(r#"{{"version":1,"objective":"Objetivo","steps":[{{"id":"a","id":"a","description":"Passo","requiredCapabilities":["planning"],"dependsOn":[]}}],"risks":[],"needsUserInput":false,"questions":[]}}"#),
+            valid.replace("planning", "unknown"),
+            r#"{"version":1,"objective":"Objetivo","steps":[],"risks":[],"needsUserInput":false,"questions":[]}"#.into(),
+            valid.replace(r#""dependsOn":[]}"#, r#""dependsOn":["a"]}"#),
+            r#"{"version":1,"objective":"Objetivo","steps":[{"id":"a","description":"A","requiredCapabilities":[],"dependsOn":["b"]},{"id":"b","description":"B","requiredCapabilities":[],"dependsOn":["a"]}],"risks":[],"needsUserInput":false,"questions":[]}"#.into(),
+            valid.replace(
+                "\"needsUserInput\":false,\"questions\":[]",
+                "\"needsUserInput\":true,\"questions\":[]",
+            ),
+            format!(
+                "{}{valid}",
+                " ".repeat(crate::agents::planner::MAX_PLAN_BYTES - valid.len() + 1)
+            ),
+        ];
+
+        for raw in corpus {
+            assert_eq!(
+                parse_model_output(&raw).is_ok(),
+                PlanV1::parse(&raw).is_ok(),
+                "parser acceptance diverged for input: {raw:?}"
+            );
+        }
     }
 
     #[test]
