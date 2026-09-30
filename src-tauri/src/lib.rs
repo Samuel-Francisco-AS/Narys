@@ -78,25 +78,16 @@ pub fn run() {
             let runtime = cognition::ProviderRuntime::new(providers);
             let scheduler = runtime.scheduler.clone();
             let available_secrets = secrets.clone();
-            let available_db = db.clone();
             let available_scheduler = scheduler.clone();
-            let available = std::sync::Arc::new(move || {
-                available_db
-                    .open()
-                    .ok()
-                    .and_then(|conn| {
-                        cognition::policy::load(&conn, cognition::policy::CognitiveRole::Summary)
-                            .ok()
-                    })
-                    .is_some_and(|policy| {
-                        cognition::catalog::validate_policy(
-                            &policy,
-                            &available_scheduler.status(),
-                            &available_secrets,
-                        )
-                        .is_ok()
-                    })
-            });
+            let available =
+                std::sync::Arc::new(move |policy: &cognition::policy::CognitiveRolePolicy| {
+                    cognition::catalog::validate_policy(
+                        policy,
+                        &available_scheduler.status(),
+                        &available_secrets,
+                    )
+                    .is_ok()
+                });
             let worker = cognition::summary::SummaryWorker::start(
                 db.clone(),
                 scheduler,

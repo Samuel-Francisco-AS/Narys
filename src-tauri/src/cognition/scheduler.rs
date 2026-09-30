@@ -7,7 +7,7 @@ use super::{
 };
 use serde::Serialize;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet, VecDeque},
     sync::{
         atomic::{AtomicBool, Ordering},
         Mutex,
@@ -20,6 +20,8 @@ pub enum SchedulerEvent {
     Selected {
         provider_id: String,
         attempt: u32,
+        routing_reason: &'static str,
+        score: Option<u32>,
     },
     Chunk {
         provider_id: String,
@@ -45,15 +47,73 @@ pub struct ProviderStatus {
     pub cooldown_ms: u64,
 }
 
+// Policy position is primary; registry priority is deliberately secondary.
+const POLICY_POSITION_WEIGHT: u32 = 100;
+const REGISTRY_PRIORITY_CAP: u32 = 32;
+const AFFINITY_BASE: u32 = 50;
+const AFFINITY_PER_KIB: u32 = 25;
+const AFFINITY_CAP: u32 = 500;
+const CONTEXT_KIB: usize = 1024;
+const MAX_AFFINITIES: usize = 256;
+const MAX_AFFINITY_KEY_BYTES: usize = 128;
+
+#[derive(Default)]
+struct Affinities(VecDeque<(String, String)>);
+impl Affinities {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.0
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, id)| id.as_str())
+    }
+    fn remember(&mut self, key: &str, provider: &str) {
+        self.0.retain(|(k, _)| k != key);
+        if self.0.len() == MAX_AFFINITIES {
+            self.0.pop_front();
+        }
+        self.0.push_back((key.into(), provider.into()));
+    }
+}
+
+fn auto_score(
+    count: usize,
+    ordinal: usize,
+    priority: u16,
+    affinity: bool,
+    bytes: usize,
+) -> (u32, u32) {
+    let policy = (count.saturating_sub(ordinal) as u32).saturating_mul(POLICY_POSITION_WEIGHT);
+    let registry = REGISTRY_PRIORITY_CAP - u32::from(priority).min(REGISTRY_PRIORITY_CAP);
+    let affinity = if affinity && bytes > 0 {
+        let kib = bytes / CONTEXT_KIB + usize::from(bytes % CONTEXT_KIB != 0);
+        AFFINITY_BASE
+            .saturating_add(
+                u32::try_from(kib)
+                    .unwrap_or(u32::MAX)
+                    .saturating_mul(AFFINITY_PER_KIB),
+            )
+            .min(AFFINITY_CAP)
+    } else {
+        0
+    };
+    (
+        policy.saturating_add(registry).saturating_add(affinity),
+        affinity,
+    )
+}
+
 pub struct Scheduler {
     registry: ProviderRegistry,
     cooldowns: Mutex<HashMap<String, Instant>>,
+    affinities: Mutex<Affinities>,
 }
+
 impl Scheduler {
     pub fn new(registry: ProviderRegistry) -> Self {
         Self {
             registry,
             cooldowns: Mutex::new(HashMap::new()),
+            affinities: Mutex::new(Affinities::default()),
         }
     }
     fn cooling(&self, id: &str) -> bool {
@@ -109,51 +169,106 @@ impl Scheduler {
         cancelled: &AtomicBool,
         on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
     ) -> Result<TaskResult, SchedulerError> {
+        if cancelled.load(Ordering::Acquire) {
+            return Err(SchedulerError::Cancelled);
+        }
         let output_limit = match (budget.max_output_tokens, request.max_output_tokens) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (Some(a), None) | (None, Some(a)) => Some(a),
             (None, None) => None,
         };
         let mut usage = SchedulerUsage::default();
-        let mut last_error = None;
-        let mut eligible = self.registry.eligible(&request.required_capabilities);
-        match &request.selection {
-            ProviderSelection::Fixed(id) => eligible.retain(|entry| &entry.config.id == id),
-            ProviderSelection::Preferred(id) => eligible.sort_by_key(|entry| {
-                (
-                    &entry.config.id != id,
-                    entry.config.priority,
-                    entry.config.id.clone(),
-                )
-            }),
-            ProviderSelection::Auto => {}
+        let mut last_error: Option<ProviderError> = None;
+        let mut last_provider: Option<String> = None;
+        if request.targets.is_empty()
+            || request.targets.len() > super::policy::MAX_TARGETS
+            || request
+                .affinity_key
+                .as_ref()
+                .is_some_and(|key| key.is_empty() || key.len() > MAX_AFFINITY_KEY_BYTES)
+        {
+            return Err(SchedulerError::InvalidTargetConfig);
         }
-        if matches!(request.selection, ProviderSelection::Preferred(_)) {
-            eligible.retain(|entry| {
-                request
-                    .targets
-                    .iter()
-                    .any(|target| target.provider_id == entry.config.id)
+        let mut ids = HashSet::new();
+        // Validate every authorized invocation before starting any provider call.
+        for target in &request.targets {
+            if !target.invocation.valid() || !ids.insert(&target.provider_id) {
+                return Err(SchedulerError::InvalidTargetConfig);
+            }
+        }
+        let affinity = request.affinity_key.as_deref().and_then(|key| {
+            self.affinities
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .get(key)
+                .map(str::to_owned)
+        });
+        let mut eligible = Vec::new();
+        let mut candidates = Vec::new();
+        for (ordinal, target) in request.targets.iter().enumerate() {
+            if let ProviderSelection::Fixed(id) = &request.selection {
+                if &target.provider_id != id {
+                    continue;
+                }
+            }
+            let entry = self
+                .registry
+                .get(&target.provider_id)
+                .ok_or(SchedulerError::NoProvider)?;
+            if !entry.config.enabled
+                || !entry
+                    .config
+                    .capabilities
+                    .supports(&request.required_capabilities)
+            {
+                return Err(SchedulerError::NoProvider);
+            }
+            eligible.push(entry);
+            if self.cooling(&entry.config.id) {
+                continue;
+            }
+            // Hard gates precede score; no registry-only provider can enter this list.
+            let (score, affinity_score) = auto_score(
+                request.targets.len(),
+                ordinal,
+                entry.config.priority,
+                affinity.as_deref() == Some(entry.config.id.as_str()),
+                request.estimated_context_bytes,
+            );
+            // Retain ordinal independently from incidental registry order.
+            candidates.push((entry, target, ordinal, score, affinity_score));
+        }
+        if matches!(request.selection, ProviderSelection::Auto) {
+            candidates.sort_by(|a, b| {
+                b.3.cmp(&a.3)
+                    .then(a.2.cmp(&b.2))
+                    .then(a.0.config.id.cmp(&b.0.config.id))
             });
         }
-        let candidates: Vec<_> = eligible
-            .iter()
-            .copied()
-            .filter(|entry| !self.cooling(&entry.config.id))
-            .collect();
+        // Attribute Auto affinity only when its bonus changes the winning selection.
+        let affinity_winner = if matches!(request.selection, ProviderSelection::Auto) {
+            let without = candidates.iter().max_by(|a, b| {
+                (a.3 - a.4)
+                    .cmp(&(b.3 - b.4))
+                    .then(b.2.cmp(&a.2))
+                    .then(b.0.config.id.cmp(&a.0.config.id))
+            });
+            candidates
+                .first()
+                .zip(without)
+                .is_some_and(|(winner, base)| winner.4 > 0 && winner.2 != base.2)
+        } else {
+            false
+        };
         let mut used_any = false;
-        for (index, entry) in candidates.iter().enumerate() {
+        for (index, (entry, target, _, score, _)) in candidates.iter().enumerate() {
             if cancelled.load(Ordering::Acquire) {
                 return Err(SchedulerError::Cancelled);
             }
-            let mut matching = request
-                .targets
-                .iter()
-                .filter(|target| target.provider_id == entry.config.id);
-            let target = matching
-                .next()
-                .filter(|target| target.invocation.valid() && matching.next().is_none())
-                .ok_or(SchedulerError::InvalidTargetConfig)?;
+            // Shared cooldown may have changed since initial candidate resolution.
+            if self.cooling(&entry.config.id) {
+                continue;
+            }
             used_any = true;
             let mut attempt = 0;
             loop {
@@ -164,6 +279,20 @@ impl Scheduler {
                     || output_limit.is_some_and(|limit| usage.output_tokens >= limit)
                 {
                     return Err(SchedulerError::BudgetExceeded);
+                }
+                if attempt == 0 {
+                    if let (Some(from), Some(error)) = (&last_provider, &last_error) {
+                        on_event(SchedulerEvent::Fallback {
+                            from: from.clone(),
+                            to: entry.config.id.clone(),
+                            reason_code: error.code(),
+                        })
+                        .map_err(|_| {
+                            cancelled.store(true, Ordering::Release);
+                            SchedulerError::EventSinkClosed
+                        })?;
+                        usage.fallbacks += 1;
+                    }
                 }
                 attempt += 1;
                 usage.provider_calls += 1;
@@ -176,6 +305,13 @@ impl Scheduler {
                 on_event(SchedulerEvent::Selected {
                     provider_id: entry.config.id.clone(),
                     attempt,
+                    routing_reason: match request.selection {
+                        ProviderSelection::Fixed(_) => "fixed",
+                        ProviderSelection::Preferred => "preferred_order",
+                        ProviderSelection::Auto if index == 0 && affinity_winner => "auto_affinity",
+                        ProviderSelection::Auto => "auto_score",
+                    },
+                    score: matches!(request.selection, ProviderSelection::Auto).then_some(*score),
                 })
                 .map_err(|_| {
                     cancelled.store(true, Ordering::Release);
@@ -203,7 +339,7 @@ impl Scheduler {
                     history: request.history.clone(),
                     context: request.context.clone(),
                     max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens),
-                    target: target.clone(),
+                    target: (*target).clone(),
                     attempt,
                 };
                 // Keep the same structured context across retry/fallback; adapters decide serialization.
@@ -233,6 +369,12 @@ impl Scheduler {
                         } else {
                             response.text
                         };
+                        if let Some(key) = request.affinity_key.as_deref() {
+                            self.affinities
+                                .lock()
+                                .unwrap_or_else(|p| p.into_inner())
+                                .remember(key, &entry.config.id);
+                        }
                         return Ok(TaskResult {
                             text,
                             provider_id: entry.config.id.clone(),
@@ -263,7 +405,11 @@ impl Scheduler {
                                 .unwrap_or_else(|p| p.into_inner())
                                 .insert(
                                     entry.config.id.clone(),
-                                    Instant::now() + Duration::from_millis(ms),
+                                    Instant::now()
+                                        .checked_add(Duration::from_millis(ms))
+                                        .unwrap_or_else(|| {
+                                            Instant::now() + Duration::from_secs(86_400)
+                                        }),
                                 );
                             #[cfg(debug_assertions)]
                             eprintln!(
@@ -346,18 +492,7 @@ impl Scheduler {
                         {
                             return Err(SchedulerError::Provider(error));
                         }
-                        if index + 1 < candidates.len() {
-                            on_event(SchedulerEvent::Fallback {
-                                from: entry.config.id.clone(),
-                                to: candidates[index + 1].config.id.clone(),
-                                reason_code: error.code(),
-                            })
-                            .map_err(|_| {
-                                cancelled.store(true, Ordering::Release);
-                                SchedulerError::EventSinkClosed
-                            })?;
-                            usage.fallbacks += 1;
-                        }
+                        last_provider = Some(entry.config.id.clone());
                         last_error = Some(error);
                         break;
                     }
@@ -393,5 +528,28 @@ impl Scheduler {
                 },
             )))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn affinity_storage_evicts_oldest_success_and_refreshes_bounded_entries() {
+        let mut entries = Affinities::default();
+        for n in 0..MAX_AFFINITIES {
+            entries.remember(&format!("s{n}"), "a");
+        }
+        entries.remember("s0", "b");
+        entries.remember("new", "c");
+        assert_eq!(entries.0.len(), MAX_AFFINITIES);
+        assert_eq!(entries.get("s0"), Some("b"));
+        assert_eq!(entries.get("s1"), None);
+        assert_eq!(entries.get("new"), Some("c"));
+    }
+    #[test]
+    fn affinity_score_is_bounded_even_for_maximum_context_size() {
+        assert_eq!(auto_score(8, 7, u16::MAX, true, usize::MAX), (600, 500));
+        assert_eq!(auto_score(2, 1, 32, true, 0), (100, 0));
     }
 }

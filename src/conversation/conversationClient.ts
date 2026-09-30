@@ -11,5 +11,5 @@ export const resumeConversationSession = (targetSessionId: number, currentSessio
 export const geminiStatus = () => invoke<{ configured: boolean; credentialStoreAvailable: boolean; cooldownMs: number }>('gemini_status')
 
 export type ConversationProviderState = { providerId: string; displayName: string; configured: boolean; cooldownMs: number }
-export type ConversationRoutingStatus = { routingMode: 'fixed' | 'preferred'; primary: ConversationProviderState; fallback: ConversationProviderState | null }
+export type ConversationRoutingStatus = { routingMode: 'fixed' | 'preferred' | 'auto'; targets: ConversationProviderState[] }
 export const conversationRoutingStatus = () => invoke<ConversationRoutingStatus>('conversation_routing_status')

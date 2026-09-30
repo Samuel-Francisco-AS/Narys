@@ -10,7 +10,7 @@ pub type ProviderId = String;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderSelection {
     Fixed(ProviderId),
-    Preferred(ProviderId),
+    Preferred,
     Auto,
 }
 
@@ -101,6 +101,9 @@ pub struct ProviderTaskRequest {
     pub max_output_tokens: Option<u32>,
     pub selection: ProviderSelection,
     pub targets: Vec<ProviderTarget>,
+    /// Runtime-only continuity key; never copied into ProviderRequest.
+    pub affinity_key: Option<String>,
+    pub estimated_context_bytes: usize,
     pub required_capabilities: ProviderCapabilities,
 }
 

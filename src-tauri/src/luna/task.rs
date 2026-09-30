@@ -43,6 +43,8 @@ pub enum TaskEventKind {
     ProviderSelected {
         provider_id: String,
         attempt: u32,
+        routing_reason: String,
+        score: Option<u32>,
     },
     ProviderChunk {
         provider_id: String,

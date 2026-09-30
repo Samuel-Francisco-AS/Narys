@@ -716,7 +716,7 @@ Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáve
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7A/FIX → LR-7D0 fechadas em PASS** e **LR-7D0.5A → LR-7D0.5F encerradas e integradas em PASS completo**, a trilha já possui Gemini + Groq reais, fallback/overflow funcional, seleção configurável de provider e Codex como `AgentBackend` real com planejamento estruturado read-only, cancelamento, eventos factuais e recovery de lifecycle validados no runtime real. A próxima evolução funcional é **LR-7D2 — fallback chain + Auto/score + affinity**, pois a LR-7D1 foi fechada em PASS completo após auditoria e gate humano em 30/09/2026. LR-8 permanece separada para Rate Limit Manager e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7A/FIX → LR-7D0 fechadas em PASS** e **LR-7D0.5A → LR-7D0.5F encerradas e integradas em PASS completo**, a trilha já possui Gemini + Groq reais, fallback/overflow funcional, seleção configurável de provider e Codex como `AgentBackend` real com planejamento estruturado read-only, cancelamento, eventos factuais e recovery de lifecycle validados no runtime real. A LR-7D1 foi fechada em PASS completo após auditoria e gate humano em 30/09/2026 e integrada pela PR #10. A LR-7D2 está implementada / candidata ao gate; a próxima ação é auditoria independente e gate humano, antes de iniciar LR-7D3. LR-8 permanece separada para Rate Limit Manager e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
@@ -760,4 +760,19 @@ Groq, responsividade e cancelamento em `running` com Groq/Gemini foram
 validados. No gate final, Gemini respondeu HTTP 503 `service_unavailable` com
 `Retry-After` de 30 s; o tratamento de erro/cooldown foi correto, mas essa
 rodada não é registrada como sucesso Gemini → `PlanV1`. D2/D3, LR-8 e novas
-permissões do Codex permanecem adiadas. Próximo checkpoint: **LR-7D2**.
+permissões do Codex permanecem adiadas. LR-7D2 agora está implementada / candidata ao gate, conforme atualização abaixo.
+
+## LR-7D2 — implementada / candidata ao gate
+
+A branch `lr-7d2-smart-routing`, criada da main com PR #10 integrada, entrega
+migration 009 / schema 9, lista ordenada de targets, Preferred chain e Auto com
+score determinístico e affinity de Conversation por sessão (256 entradas em
+memória, limpa no restart). Os três papéis usam configuração individual por
+target; a UI edita a ordem e os eventos mostram motivo/score factual. Luna Core
+continua autoridade; Orchestrator propõe somente PlanV1 e Summary preserva o
+histórico. Nenhuma ferramenta, task graph, paralelismo ou LR-8 foi antecipada.
+
+Próxima ação: auditoria independente da PR e gate humano Gemini/Groq descritos
+em [LR-7D2-SMART-ROUTING.md](LR-7D2-SMART-ROUTING.md). Não declarar D2 PASS completo
+antes de ambos. **LR-7D3 é o próximo checkpoint somente após fechar a D2**.
+Blender, identidade/memória e fronteira Codex permanecem independentes.

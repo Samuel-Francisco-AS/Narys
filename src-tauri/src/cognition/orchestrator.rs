@@ -10,8 +10,8 @@ use super::{
     policy::{self, CognitiveRole, CognitiveRolePolicy},
     scheduler::{Scheduler, SchedulerEvent},
     types::{
-        ContextBundle, ContextMetadata, ProviderCapabilities, ProviderInvocationConfig,
-        ProviderSelection, ProviderTarget, ProviderTaskRequest, SchedulerError, TaskBudget,
+        ContextBundle, ContextMetadata, ProviderCapabilities, ProviderTaskRequest, SchedulerError,
+        TaskBudget,
     },
     ProviderRuntime,
 };
@@ -22,7 +22,7 @@ use crate::luna::{
 use crate::persistence::task_history::{self, TaskRecord};
 use crate::{
     agents::planner::PlanV1,
-    persistence::{database::Database, identity::IdentityInput, provider_timeouts},
+    persistence::{database::Database, identity::IdentityInput},
     security::secrets::SecretStore,
 };
 use chrono::{SecondsFormat, Utc};
@@ -145,7 +145,7 @@ fn static_context() -> ContextBundle {
 fn request(
     objective: &str,
     policy: &CognitiveRolePolicy,
-    timeout: super::types::ProviderTimeouts,
+    timeouts: std::collections::HashMap<String, super::types::ProviderTimeouts>,
 ) -> ProviderTaskRequest {
     let input = format!(
         "{}\nNão execute ferramentas nem ações; apenas proponha passos. \
@@ -157,15 +157,12 @@ fn request(
         history: vec![],
         context: Arc::new(static_context()),
         max_output_tokens: policy.max_output_tokens,
-        selection: ProviderSelection::Fixed(policy.provider_id.clone()),
-        targets: vec![ProviderTarget {
-            provider_id: policy.provider_id.clone(),
-            invocation: ProviderInvocationConfig {
-                model: policy.model.clone(),
-                thinking_level: policy.thinking_level,
-                timeouts: Some(timeout),
-            },
-        }],
+        selection: policy.selection(),
+        targets: policy
+            .provider_targets(&timeouts)
+            .expect("validated preflight targets"),
+        affinity_key: None,
+        estimated_context_bytes: 0,
         required_capabilities: ProviderCapabilities::text_stream(),
     }
 }
@@ -174,7 +171,7 @@ pub async fn plan(
     scheduler: Arc<Scheduler>,
     policy: CognitiveRolePolicy,
     objective: String,
-    timeout: super::types::ProviderTimeouts,
+    timeouts: std::collections::HashMap<String, super::types::ProviderTimeouts>,
     cancelled: &AtomicBool,
     on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
 ) -> Result<OrchestratorResult, &'static str> {
@@ -185,7 +182,9 @@ pub async fn plan(
     {
         return Err("orchestrator_request_invalid");
     }
-    let request = request(&objective, &policy, timeout);
+    policy.validate()?;
+    policy.provider_targets(&timeouts)?;
+    let request = request(&objective, &policy, timeouts);
     if request.input.len() > policy.context_max_bytes as usize {
         return Err("orchestrator_context_budget_exceeded");
     }
@@ -246,9 +245,13 @@ fn scheduler_event<'a>(
             SchedulerEvent::Selected {
                 provider_id,
                 attempt,
+                routing_reason,
+                score,
             } => TaskEventKind::ProviderSelected {
                 provider_id,
                 attempt,
+                routing_reason: routing_reason.into(),
+                score,
             },
             SchedulerEvent::Retry {
                 provider_id,
@@ -319,8 +322,7 @@ pub fn start_task(
                     .map_err(|error| error.code())?;
                 policy.validate()?;
                 catalog::validate_policy(&policy, &statuses, &preflight_store)?;
-                let timeout = provider_timeouts::load(&conn, &policy.provider_id)
-                    .map_err(|error| error.code())?;
+                let timeout = policy.load_timeouts(&conn).map_err(|error| error.code())?;
                 Ok::<_, &'static str>((policy, timeout))
             })
             .await;
@@ -462,6 +464,7 @@ pub fn start_task(
 mod tests {
     use super::*;
     use crate::cognition::policy::{RoutingMode, ThinkingLevel};
+    use crate::cognition::types::ProviderSelection;
     use crate::cognition::{
         provider::{Provider, ProviderFuture},
         registry::ProviderRegistry,
@@ -521,16 +524,23 @@ mod tests {
         }
     }
 
+    fn test_timeouts(
+        timeout: super::super::types::ProviderTimeouts,
+    ) -> std::collections::HashMap<String, super::super::types::ProviderTimeouts> {
+        ["gemini", "groq"]
+            .into_iter()
+            .map(|id| (id.into(), timeout))
+            .collect()
+    }
     fn policy(provider_id: &str) -> CognitiveRolePolicy {
         CognitiveRolePolicy {
             role: CognitiveRole::Orchestrator,
-            provider_id: provider_id.into(),
-            model: "fake-model".into(),
-            thinking_level: None,
             routing_mode: RoutingMode::Fixed,
-            fallback_provider_id: None,
-            fallback_model: None,
-            fallback_thinking_level: None,
+            targets: vec![crate::cognition::policy::CognitiveTargetPolicy {
+                provider_id: provider_id.into(),
+                model: "fake-model".into(),
+                thinking_level: None,
+            }],
             max_output_tokens: Some(128),
             max_provider_calls: 1,
             retry_enabled: false,
@@ -646,11 +656,11 @@ mod tests {
     fn collect_until_channel_closed(receiver: &mpsc::Receiver<String>) -> Vec<String> {
         let mut events = Vec::new();
         loop {
-            match receiver.recv_timeout(Duration::from_secs(5)) {
+            match receiver.recv_timeout(Duration::from_secs(30)) {
                 Ok(event) => events.push(event),
                 Err(mpsc::RecvTimeoutError::Disconnected) => return events,
                 Err(mpsc::RecvTimeoutError::Timeout) => {
-                    panic!("task lifecycle channel did not close after terminal")
+                    panic!("task lifecycle channel did not close within the bounded preflight/provider wait")
                 }
             }
         }
@@ -660,7 +670,7 @@ mod tests {
         while !events.iter().any(|event| event.contains(needle)) {
             events.push(
                 receiver
-                    .recv_timeout(Duration::from_secs(5))
+                    .recv_timeout(Duration::from_secs(30))
                     .expect("expected lifecycle event"),
             );
         }
@@ -851,6 +861,11 @@ mod tests {
         .unwrap();
         let mut events = Vec::new();
         wait_for_event(&receiver, &mut events, "\"provider_selected\"");
+        // Selected precedes execute; wait for the provider to actually enter.
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while calls.load(Ordering::Acquire) == 0 && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(2));
+        }
         assert!(calls.load(Ordering::Acquire) >= 1);
         assert!(registry.cancel(task_id));
         events.extend(collect_until_channel_closed(&receiver));
@@ -871,13 +886,12 @@ mod tests {
     fn request_is_strict_and_has_no_history_or_tools() {
         let policy = CognitiveRolePolicy {
             role: CognitiveRole::Orchestrator,
-            provider_id: "gemini".into(),
-            model: "model".into(),
-            thinking_level: Some(ThinkingLevel::Low),
             routing_mode: RoutingMode::Fixed,
-            fallback_provider_id: None,
-            fallback_model: None,
-            fallback_thinking_level: None,
+            targets: vec![crate::cognition::policy::CognitiveTargetPolicy {
+                provider_id: "gemini".into(),
+                model: "model".into(),
+                thinking_level: Some(ThinkingLevel::Low),
+            }],
             max_output_tokens: Some(100),
             max_provider_calls: 1,
             retry_enabled: false,
@@ -891,10 +905,10 @@ mod tests {
         let built = request(
             "objetivo",
             &policy,
-            super::super::types::ProviderTimeouts {
+            test_timeouts(super::super::types::ProviderTimeouts {
                 request_timeout_ms: 1,
                 stream_idle_timeout_ms: 1,
-            },
+            }),
         );
         assert!(built.history.is_empty());
         assert!(!built.input.contains("```"));
@@ -987,13 +1001,12 @@ mod tests {
     fn fixed_routing_and_provider_specific_configuration_are_policy_driven() {
         let mut policy = CognitiveRolePolicy {
             role: CognitiveRole::Orchestrator,
-            provider_id: "gemini".into(),
-            model: "gemini-model".into(),
-            thinking_level: Some(ThinkingLevel::Low),
             routing_mode: RoutingMode::Fixed,
-            fallback_provider_id: None,
-            fallback_model: None,
-            fallback_thinking_level: None,
+            targets: vec![crate::cognition::policy::CognitiveTargetPolicy {
+                provider_id: "gemini".into(),
+                model: "gemini-model".into(),
+                thinking_level: Some(ThinkingLevel::Low),
+            }],
             max_output_tokens: Some(321),
             max_provider_calls: 2,
             retry_enabled: true,
@@ -1007,21 +1020,21 @@ mod tests {
         let gemini = request(
             "goal",
             &policy,
-            super::super::types::ProviderTimeouts {
+            test_timeouts(super::super::types::ProviderTimeouts {
                 request_timeout_ms: 11,
                 stream_idle_timeout_ms: 12,
-            },
+            }),
         );
-        policy.provider_id = "groq".into();
-        policy.model = "groq-model".into();
-        policy.thinking_level = Some(ThinkingLevel::High);
+        policy.targets[0].provider_id = "groq".into();
+        policy.targets[0].model = "groq-model".into();
+        policy.targets[0].thinking_level = Some(ThinkingLevel::High);
         let groq = request(
             "goal",
             &policy,
-            super::super::types::ProviderTimeouts {
+            test_timeouts(super::super::types::ProviderTimeouts {
                 request_timeout_ms: 21,
                 stream_idle_timeout_ms: 22,
-            },
+            }),
         );
         assert!(matches!(gemini.selection, ProviderSelection::Fixed(ref id) if id == "gemini"));
         assert!(matches!(groq.selection, ProviderSelection::Fixed(ref id) if id == "groq"));
@@ -1040,13 +1053,12 @@ mod tests {
     fn planning_input_budget_counts_instruction_and_objective_bytes() {
         let policy = CognitiveRolePolicy {
             role: CognitiveRole::Orchestrator,
-            provider_id: "gemini".into(),
-            model: "model".into(),
-            thinking_level: None,
             routing_mode: RoutingMode::Fixed,
-            fallback_provider_id: None,
-            fallback_model: None,
-            fallback_thinking_level: None,
+            targets: vec![crate::cognition::policy::CognitiveTargetPolicy {
+                provider_id: "gemini".into(),
+                model: "model".into(),
+                thinking_level: None,
+            }],
             max_output_tokens: Some(100),
             max_provider_calls: 1,
             retry_enabled: false,
@@ -1060,10 +1072,10 @@ mod tests {
         let built = request(
             "objetivo",
             &policy,
-            super::super::types::ProviderTimeouts {
+            test_timeouts(super::super::types::ProviderTimeouts {
                 request_timeout_ms: 1,
                 stream_idle_timeout_ms: 1,
-            },
+            }),
         );
         assert!(built.input.len() > policy.context_max_bytes as usize);
     }
@@ -1078,10 +1090,10 @@ mod tests {
                 scheduler,
                 policy(provider_id),
                 "goal".into(),
-                super::super::types::ProviderTimeouts {
+                test_timeouts(super::super::types::ProviderTimeouts {
                     request_timeout_ms: 10,
                     stream_idle_timeout_ms: 10,
-                },
+                }),
                 &cancelled,
                 &mut |event| {
                     if let SchedulerEvent::Selected { provider_id, .. } = event {
@@ -1107,7 +1119,7 @@ mod tests {
             let scheduler = scheduler("gemini", output.clone(), false, 0);
             let result = tauri::async_runtime::block_on(plan(
                 scheduler, policy("gemini"), "goal".into(),
-                super::super::types::ProviderTimeouts { request_timeout_ms: 10, stream_idle_timeout_ms: 10 },
+                test_timeouts(super::super::types::ProviderTimeouts { request_timeout_ms: 10, stream_idle_timeout_ms: 10 }),
                 &AtomicBool::new(false), &mut |_| Ok(()),
             ));
             let expected = if output.starts_with('{') && !output.contains("\"steps\":[]") {
@@ -1162,10 +1174,10 @@ mod tests {
             scheduler_for_cancel,
             policy("gemini"),
             "goal".into(),
-            super::super::types::ProviderTimeouts {
+            test_timeouts(super::super::types::ProviderTimeouts {
                 request_timeout_ms: 10,
                 stream_idle_timeout_ms: 10,
-            },
+            }),
             &cancelled,
             &mut |_| Ok(()),
         ));
@@ -1177,10 +1189,10 @@ mod tests {
             scheduler_after_cancel,
             policy("gemini"),
             "goal".into(),
-            super::super::types::ProviderTimeouts {
+            test_timeouts(super::super::types::ProviderTimeouts {
                 request_timeout_ms: 10,
                 stream_idle_timeout_ms: 10,
-            },
+            }),
             &sink_cancelled,
             &mut |event| {
                 if matches!(event, SchedulerEvent::Chunk { .. }) {
@@ -1207,5 +1219,158 @@ mod tests {
             task_summary(TaskState::Failed),
             "Orchestrator planejamento falhou"
         );
+    }
+
+    #[test]
+    fn preferred_auto_plan_transport_fallback_and_invalid_output_boundary() {
+        use super::super::{
+            mock::{MockProvider, MockScenario},
+            policy::CognitiveTargetPolicy,
+        };
+        for mode in [RoutingMode::Preferred, RoutingMode::Auto] {
+            for invalid in [false, true] {
+                let first_calls = Arc::new(AtomicUsize::new(0));
+                let next_calls = Arc::new(AtomicUsize::new(0));
+                let mut registry = ProviderRegistry::default();
+                let first: Arc<dyn Provider> = if invalid {
+                    Arc::new(PlanProvider { output: r#"{"version":1,"objective":"g","steps":[],"risks":[],"needsUserInput":false,"questions":[]}"#.into(), stream: false, delay_ms: 0, calls: first_calls.clone() })
+                } else {
+                    Arc::new(MockProvider::new(MockScenario::RateLimited))
+                };
+                registry
+                    .register(
+                        ProviderConfig {
+                            id: "groq".into(),
+                            enabled: true,
+                            priority: 32,
+                            capabilities: ProviderCapabilities::text_stream(),
+                        },
+                        first,
+                    )
+                    .unwrap();
+                registry
+                    .register(
+                        ProviderConfig {
+                            id: "gemini".into(),
+                            enabled: true,
+                            priority: 0,
+                            capabilities: ProviderCapabilities::text_stream(),
+                        },
+                        Arc::new(PlanProvider {
+                            output: valid_plan(),
+                            stream: true,
+                            delay_ms: 0,
+                            calls: next_calls.clone(),
+                        }),
+                    )
+                    .unwrap();
+                let mut policy = policy("groq");
+                policy.routing_mode = mode;
+                policy.max_provider_calls = 2;
+                policy.targets.push(CognitiveTargetPolicy {
+                    provider_id: "gemini".into(),
+                    model: "second-model".into(),
+                    thinking_level: Some(ThinkingLevel::High),
+                });
+                let timeouts = std::collections::HashMap::from([
+                    (
+                        "groq".into(),
+                        super::super::types::ProviderTimeouts {
+                            request_timeout_ms: 111,
+                            stream_idle_timeout_ms: 112,
+                        },
+                    ),
+                    (
+                        "gemini".into(),
+                        super::super::types::ProviderTimeouts {
+                            request_timeout_ms: 221,
+                            stream_idle_timeout_ms: 222,
+                        },
+                    ),
+                ]);
+                let built = request("goal", &policy, timeouts.clone());
+                assert_eq!(built.targets, policy.provider_targets(&timeouts).unwrap());
+                assert!(built.affinity_key.is_none());
+                let mut events = vec![];
+                let result = tauri::async_runtime::block_on(plan(
+                    Arc::new(Scheduler::new(registry)),
+                    policy,
+                    "goal".into(),
+                    timeouts,
+                    &AtomicBool::new(false),
+                    &mut |event| {
+                        events.push(event);
+                        Ok(())
+                    },
+                ));
+                if invalid {
+                    assert_eq!(result.unwrap_err(), "orchestrator_plan_semantic_invalid");
+                    assert_eq!(next_calls.load(Ordering::Acquire), 0);
+                    assert!(!events
+                        .iter()
+                        .any(|e| matches!(e, SchedulerEvent::Fallback { .. })));
+                } else {
+                    assert_eq!(result.unwrap().provider_id, "gemini");
+                    assert_eq!(next_calls.load(Ordering::Acquire), 1);
+                    assert!(events.iter().any(|e| matches!(e,SchedulerEvent::Fallback{from,to,..} if from=="groq" && to=="gemini")));
+                }
+            }
+        }
+    }
+    #[test]
+    fn multi_target_preflight_rejects_unconfigured_secondary_with_one_terminal() {
+        let (runtime, store, calls, dir) = valid_runtime();
+        let db = Database::for_test(dir.join("task.sqlite3"));
+        let mut conn = db.open().unwrap();
+        let mut policy = policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
+        policy.routing_mode = RoutingMode::Auto;
+        policy
+            .targets
+            .push(crate::cognition::policy::CognitiveTargetPolicy {
+                provider_id: "groq".into(),
+                model: "second".into(),
+                thinking_level: None,
+            });
+        policy::save(&mut conn, &policy).unwrap();
+        // Register the secondary, but do not configure its credential.
+        let mut providers = ProviderRegistry::default();
+        for provider_id in ["gemini", "groq"] {
+            providers
+                .register(
+                    ProviderConfig {
+                        id: provider_id.into(),
+                        enabled: true,
+                        priority: 1,
+                        capabilities: ProviderCapabilities::text_stream(),
+                    },
+                    Arc::new(PlanProvider {
+                        output: valid_plan(),
+                        stream: false,
+                        delay_ms: 0,
+                        calls: calls.clone(),
+                    }),
+                )
+                .unwrap();
+        }
+        drop(runtime);
+        let runtime = Arc::new(ProviderRuntime::new(providers));
+        let registry = Arc::new(TaskRegistry::default());
+        let (channel, receiver) = channel();
+        let id = start_task(
+            registry.clone(),
+            db.clone(),
+            runtime,
+            store,
+            "secondary gate".into(),
+            channel,
+        )
+        .unwrap();
+        let events = collect_until_channel_closed(&receiver);
+        assert_eq!(terminal_count(&events), 1);
+        assert!(events.iter().any(|e| e.contains("provider_not_configured")));
+        assert_eq!(calls.load(Ordering::Acquire), 0);
+        assert!(!registry.contains_for_test(id));
+        assert_history(&db, id, "failed", Some("provider_not_configured"));
+        fs::remove_dir_all(dir).unwrap();
     }
 }

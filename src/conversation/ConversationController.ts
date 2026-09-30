@@ -48,32 +48,34 @@ export function useConversationController() {
       messages: current.current.messages.filter((item) => item.id !== -run), error })
     try {
       const routing = await conversationRoutingStatus()
-      const providerLabel = (providerId: string) => [routing.primary, routing.fallback].find(provider => provider?.providerId === providerId)?.displayName ?? providerId
-      if (!routing.primary.configured) throw new Error(`Configure a chave ${providerLabel(routing.primary.providerId)} em Configurações → IA e modelos antes de conversar.`)
-      if (routing.routingMode === 'preferred' && routing.fallback && !routing.fallback.configured) throw new Error(`Configure a chave ${providerLabel(routing.fallback.providerId)} do fallback em Configurações → IA e modelos antes de conversar.`)
-      const fallbackReady = routing.routingMode === 'preferred' && routing.fallback?.configured === true && routing.fallback.cooldownMs === 0
-      if (routing.primary.cooldownMs > 0 && !fallbackReady) {
-        const fallbackWait = routing.fallback?.cooldownMs ?? 0
-        const wait = fallbackWait > 0 ? Math.min(routing.primary.cooldownMs, fallbackWait) : routing.primary.cooldownMs
+      const providerLabel = (providerId: string) => routing.targets.find(provider => provider.providerId === providerId)?.displayName ?? providerId
+      for (const target of routing.targets) {
+        if (!target.configured) throw new Error(`Configure a chave ${providerLabel(target.providerId)} em Configurações → IA e modelos antes de conversar.`)
+      }
+      const ready = routing.targets.filter(target => target.cooldownMs === 0)
+      if (ready.length === 0) {
+        const wait = Math.min(...routing.targets.map(target => target.cooldownMs))
         rollback(taskFailure('provider_unavailable', wait), wait); busy.current = false; return false
       }
-      if (routing.primary.cooldownMs > 0 && fallbackReady && routing.fallback) {
-        change({ providerRoute: `${providerLabel(routing.primary.providerId)} em cooldown · ${providerLabel(routing.fallback.providerId)} elegível` })
-      }
+      if (routing.targets[0]?.cooldownMs > 0) change({ providerRoute: `Targets elegíveis: ${ready.map(target => providerLabel(target.providerId)).join(' → ')}` })
       if (id === null) id = await createSession()
       if (run !== generation.current) return false
       const sessionId = id
       change({ sessionId })
       let terminal = false
+      let selectionDetail = ''
       const taskId = await startConversationTask(sessionId, message, (event) => {
         if (run !== generation.current) return
         if (event.state === 'pending' || event.state === 'running') change({ activeTaskId: event.taskId })
-        if (event.type === 'provider_selected') change({ providerRoute: `Provider ativo: ${providerLabel(event.provider_id)} · tentativa ${event.attempt}` })
+        if (event.type === 'provider_selected') {
+          selectionDetail = `${event.routing_reason} · score ${event.score ?? '—'} · tentativa ${event.attempt}`
+          change({ providerRoute: `Provider ativo: ${providerLabel(event.provider_id)} · ${selectionDetail}` })
+        }
         if (event.type === 'provider_fallback') change({ providerRoute: `Fallback real: ${providerLabel(event.from_provider_id)} → ${providerLabel(event.to_provider_id)} · ${event.reason_code}` })
         if (event.type === 'provider_chunk') change({ preview: current.current.preview + event.chunk })
         if (event.type === 'task_result_ready') {
           const providers = event.result.usage.providersUsed.map(providerLabel).join(' → ')
-          change({ providerRoute: `Resposta concluída por ${providerLabel(event.result.providerId)}${providers ? ` · rota ${providers}` : ''}` })
+          change({ providerRoute: `Resposta concluída por ${providerLabel(event.result.providerId)} · ${selectionDetail}${providers ? ` · rota ${providers}` : ''}` })
         }
         if (event.type === 'task_completed' || event.type === 'task_cancelled' || event.type === 'task_failed') {
           terminal = true
@@ -86,8 +88,8 @@ export function useConversationController() {
             busy.current = false
             void conversationRoutingStatus().then(status => {
               if (run !== generation.current) return
-              const cooldowns = [status.primary.cooldownMs, status.fallback?.cooldownMs ?? 0].filter(value => value > 0)
-              const wait = cooldowns.length > 0 ? Math.min(...cooldowns) : 0
+              const allCooling = status.targets.length > 0 && status.targets.every(target => target.cooldownMs > 0)
+              const wait = allCooling ? Math.min(...status.targets.map(target => target.cooldownMs)) : 0
               rollback(taskFailure(event.detail, wait), wait)
             }).catch(() => {
               if (run === generation.current) rollback(taskFailure(event.detail))

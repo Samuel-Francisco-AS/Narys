@@ -118,12 +118,8 @@ pub fn validate_policy(
     store: &SecretStore,
 ) -> Result<(), &'static str> {
     validate_policy_registered(policy, statuses)?;
-    validate_target(&policy.provider_id, policy.thinking_level, statuses, store)?;
-    if let Some(id) = policy.fallback_provider_id.as_deref() {
-        // Fixed policies may retain a dormant fallback from an earlier route.
-        if policy.routing_mode == super::policy::RoutingMode::Preferred {
-            validate_target(id, policy.fallback_thinking_level, statuses, store)?;
-        }
+    for target in &policy.targets {
+        validate_target(&target.provider_id, target.thinking_level, statuses, store)?;
     }
     Ok(())
 }
@@ -133,13 +129,8 @@ pub fn validate_policy_registered(
     statuses: &[ProviderStatus],
 ) -> Result<(), &'static str> {
     policy.validate()?;
-    validate_registered(&policy.provider_id, policy.thinking_level, statuses)?;
-    if policy.routing_mode == super::policy::RoutingMode::Preferred {
-        let id = policy
-            .fallback_provider_id
-            .as_deref()
-            .ok_or("fallback_config_invalid")?;
-        validate_registered(id, policy.fallback_thinking_level, statuses)?;
+    for target in &policy.targets {
+        validate_registered(&target.provider_id, target.thinking_level, statuses)?;
     }
     Ok(())
 }
@@ -197,5 +188,87 @@ mod tests {
         let gemini = integration("gemini").unwrap();
         assert_eq!(gemini.default_model, Some(super::super::gemini::MODEL));
         assert!(!gemini.default_model.unwrap().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod route_tests {
+    use super::*;
+    use crate::cognition::policy::{CognitiveRole, CognitiveTargetPolicy, RoutingMode};
+    use crate::persistence::database::Database;
+    use crate::security::secrets::{SecretError, UnlockKeyStore};
+    use std::sync::Mutex;
+    #[derive(Default)]
+    struct Keys(Mutex<Option<Vec<u8>>>);
+    impl UnlockKeyStore for Keys {
+        fn load(&self) -> Result<Option<Vec<u8>>, SecretError> {
+            Ok(self.0.lock().unwrap().clone())
+        }
+        fn store(&self, key: &[u8]) -> Result<(), SecretError> {
+            *self.0.lock().unwrap() = Some(key.to_vec());
+            Ok(())
+        }
+        fn delete(&self) -> Result<(), SecretError> {
+            *self.0.lock().unwrap() = None;
+            Ok(())
+        }
+    }
+    #[test]
+    fn validates_every_target_credentials_and_ignores_cooldown_for_saving() {
+        let dir = std::env::temp_dir().join(format!(
+            "d2-catalog-{}-{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap()
+        ));
+        let db = Database::for_test(dir.join("policy.sqlite3"));
+        let mut conn = db.open().unwrap();
+        let mut policy =
+            crate::cognition::policy::load(&conn, CognitiveRole::Conversation).unwrap();
+        policy.routing_mode = RoutingMode::Auto;
+        policy.targets.push(CognitiveTargetPolicy {
+            provider_id: "groq".into(),
+            model: "groq-own".into(),
+            thinking_level: None,
+        });
+        let mut statuses: Vec<_> = ["gemini", "groq"]
+            .into_iter()
+            .map(|id| ProviderStatus {
+                id: id.into(),
+                enabled: true,
+                priority: 1,
+                capabilities: ProviderCapabilities::text_stream(),
+                cooldown_ms: 60000,
+            })
+            .collect();
+        let store = SecretStore::with_key_store(dir.clone(), std::sync::Arc::new(Keys::default()));
+        store
+            .set_secret(SecretKey::GeminiApiKey, b"synthetic")
+            .unwrap();
+        assert_eq!(
+            validate_policy(&policy, &statuses, &store),
+            Err("provider_not_configured")
+        );
+        store
+            .set_secret(SecretKey::GroqApiKey, b"synthetic")
+            .unwrap();
+        assert_eq!(validate_policy(&policy, &statuses, &store), Ok(()));
+        crate::cognition::policy::save(&mut conn, &policy).unwrap();
+        statuses[1].enabled = false;
+        assert_eq!(
+            validate_policy_registered(&policy, &statuses),
+            Err("provider_unavailable")
+        );
+        statuses[1].enabled = true;
+        statuses[1].capabilities = ProviderCapabilities::default();
+        assert_eq!(
+            validate_policy_registered(&policy, &statuses),
+            Err("provider_unavailable")
+        );
+        policy.targets[1].provider_id = "unknown".into();
+        assert_eq!(
+            validate_policy_registered(&policy, &statuses),
+            Err("provider_unavailable")
+        );
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

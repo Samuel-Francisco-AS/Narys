@@ -162,6 +162,8 @@ pub async fn groq_probe(
                 timeouts: Some(timeouts),
             },
         }],
+        affinity_key: None,
+        estimated_context_bytes: 0,
         required_capabilities: ProviderCapabilities::text_stream(),
     };
     let cancelled = AtomicBool::new(false);
@@ -179,6 +181,7 @@ pub async fn groq_probe(
                     SchedulerEvent::Selected {
                         provider_id,
                         attempt,
+                        ..
                     } => Some(GroqProbeEvent::Selected {
                         provider_id,
                         attempt,

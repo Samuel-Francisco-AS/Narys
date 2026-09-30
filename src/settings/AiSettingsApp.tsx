@@ -4,8 +4,9 @@ import './settings.css'
 
 type Thinking = 'low' | 'medium' | 'high' | null
 type Role = 'conversation' | 'summary' | 'orchestrator'
-type Routing = 'fixed' | 'preferred'
-type Policy = { role: Role; providerId: string; model: string; thinkingLevel: Thinking; routingMode: Routing; fallbackProviderId: string | null; fallbackModel: string | null; fallbackThinkingLevel: Thinking; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number; contextMaxBytes: number }
+type Routing = 'fixed' | 'preferred' | 'auto'
+type Target = { providerId: string; model: string; thinkingLevel: Thinking }
+type Policy = { role: Role; routingMode: Routing; targets: Target[]; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number; contextMaxBytes: number }
 type Timeouts = { requestTimeoutMs: number; streamIdleTimeoutMs: number }
 type ProviderInfo = { id: string; displayName: string; configured: boolean; enabled: boolean; capabilities: { textGeneration: boolean; streaming: boolean }; supportedThinkingLevels: Thinking[]; defaultModel: string | null }
 type Settings = { providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
@@ -15,7 +16,7 @@ type CodexRuntimeStatus = { installed: boolean; version: string | null; authenti
 type CodexAppServerProbe = { launched: boolean; initialized: boolean; platformFamily: 'unix' | 'windows' | null; platformOs: 'linux' | 'macos' | 'windows' | null; diagnosticCode: string | null }
 type PlanV1 = { version: 1; objective: string; steps: { id: string; description: string; requiredCapabilities: string[]; dependsOn: string[] }[]; risks: string[]; needsUserInput: boolean; questions: string[] }
 type OrchestratorResult = { providerId: string; plan: PlanV1; usage: { providerCalls: number; outputTokens: number; retries: number; fallbacks: number } }
-type OrchestratorEvent = { taskId: number; sequence: number; state: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'; type: 'task_started' | 'provider_selected' | 'provider_retry' | 'provider_fallback' | 'provider_output_observed' | 'orchestrator_plan_ready' | 'task_completed' | 'task_cancelled' | 'task_failed'; provider_id?: string; attempt?: number; result?: OrchestratorResult; detail?: string; reason_code?: string; from_provider_id?: string; to_provider_id?: string }
+type OrchestratorEvent = { taskId: number; sequence: number; state: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'; type: 'task_started' | 'provider_selected' | 'provider_retry' | 'provider_fallback' | 'provider_output_observed' | 'orchestrator_plan_ready' | 'task_completed' | 'task_cancelled' | 'task_failed'; provider_id?: string; attempt?: number; routing_reason?: string; score?: number | null; result?: OrchestratorResult; detail?: string; reason_code?: string; from_provider_id?: string; to_provider_id?: string }
 const plannerPreflightCodes = [
   'planner_spawn_failed', 'planner_initialize_failed', 'planner_config_read_failed', 'planner_mcp_config_invalid',
   'planner_thread_start_failed', 'planner_sandbox_rejected', 'planner_approval_policy_rejected', 'planner_cwd_rejected',
@@ -38,21 +39,32 @@ const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
 function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers: ProviderInfo[]; onSaved: (policy: Policy) => void }) {
   const [policy, setPolicy] = useState(initial)
-  const targetConfigs = useRef<Record<string, { model: string; thinking: Thinking }>>({
-    [initial.providerId]: { model: initial.model, thinking: initial.thinkingLevel },
-    ...(initial.fallbackProviderId && initial.fallbackModel ? { [initial.fallbackProviderId]: { model: initial.fallbackModel, thinking: initial.fallbackThinkingLevel } } : {}),
-  })
-  const primary = providers.find(provider => provider.id === policy.providerId)
-  const fallback = providers.find(provider => provider.id === policy.fallbackProviderId)
   const usable = (provider: ProviderInfo | undefined) => Boolean(provider?.enabled && provider.configured && provider.capabilities.textGeneration && provider.capabilities.streaming)
-  function chooseProvider(target: 'primary' | 'fallback', id: string) {
-    targetConfigs.current[policy.providerId] = { model: policy.model, thinking: policy.thinkingLevel }
-    if (policy.fallbackProviderId && policy.fallbackProviderId !== policy.providerId && policy.fallbackModel) targetConfigs.current[policy.fallbackProviderId] = { model: policy.fallbackModel, thinking: policy.fallbackThinkingLevel }
-    const config = targetConfigs.current[id] ?? { model: providers.find(provider => provider.id === id)?.defaultModel ?? '', thinking: null }
-    setPolicy(current => target === 'primary'
-      ? { ...current, providerId: id, model: config.model, thinkingLevel: config.thinking,
-          ...(current.fallbackProviderId === id ? { fallbackProviderId: null, fallbackModel: null, fallbackThinkingLevel: null } : {}) }
-      : { ...current, fallbackProviderId: id, fallbackModel: config.model, fallbackThinkingLevel: config.thinking })
+  const targetConfigs = useRef<Record<string, Target>>(Object.fromEntries(initial.targets.map(target => [target.providerId, target])))
+  const available = providers.filter(provider => !policy.targets.some(target => target.providerId === provider.id))
+  function newTarget(id: string): Target {
+    return targetConfigs.current[id] ?? { providerId: id, model: providers.find(provider => provider.id === id)?.defaultModel ?? '', thinkingLevel: null }
+  }
+  function replaceTarget(index: number, target: Target) {
+    setPolicy(current => ({ ...current, targets: current.targets.map((item, i) => i === index ? target : item) }))
+  }
+  function changeProvider(index: number, id: string) {
+    targetConfigs.current[policy.targets[index].providerId] = policy.targets[index]
+    replaceTarget(index, newTarget(id))
+  }
+  function moveTarget(index: number, offset: number) {
+    setPolicy(current => {
+      const targets = [...current.targets]
+      ;[targets[index], targets[index + offset]] = [targets[index + offset], targets[index]]
+      return { ...current, targets }
+    })
+  }
+  function changeMode(routingMode: Routing) {
+    policy.targets.forEach(target => { targetConfigs.current[target.providerId] = target })
+    let targets = policy.targets
+    if (routingMode === 'fixed') targets = targets.slice(0, 1)
+    else if (targets.length < 2 && available[0]) targets = [...targets, newTarget(available[0].id)]
+    setPolicy(current => ({ ...current, routingMode, targets }))
   }
   const [customOutput, setCustomOutput] = useState(String(initial.maxOutputTokens ?? 4096))
   const [calls, setCalls] = useState(String(initial.maxProviderCalls))
@@ -68,17 +80,15 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   async function save() {
     const maxProviderCalls = numberValue(calls)
     const maxOutputTokens = policy.maxOutputTokens === null ? null : numberValue(customOutput)
-    if (!policy.model.trim() || policy.model !== policy.model.trim() || policy.model.length > 128 || /[\u0000-\u001f\u007f]/.test(policy.model)) { setError('Modelo inválido. Use um identificador sem controles, até 128 caracteres.'); return }
-    if (!usable(primary)) { setError('Configure uma credencial para o provider primário compatível antes de salvar.'); return }
-    if (policy.thinkingLevel && !primary?.supportedThinkingLevels.includes(policy.thinkingLevel)) { setError('Thinking indisponível no provider primário.'); return }
-    if (policy.routingMode === 'preferred') {
-      const fallbackModel = policy.fallbackModel ?? ''
-      if (initial.role !== 'conversation' || !fallback || policy.fallbackProviderId === policy.providerId || !fallbackModel.trim() || fallbackModel !== fallbackModel.trim() || fallbackModel.length > 128 || /[\u0000-\u001f\u007f]/.test(fallbackModel)) { setError('Escolha um fallback diferente do primário e um modelo válido.'); return }
-      if (!usable(fallback)) { setError('Configure uma credencial para o fallback compatível antes de salvar.'); return }
-      if (policy.fallbackThinkingLevel && !fallback.supportedThinkingLevels.includes(policy.fallbackThinkingLevel)) { setError('Thinking indisponível no fallback.'); return }
+    if (policy.targets.length < (policy.routingMode === 'fixed' ? 1 : 2) || policy.targets.length > 8 || (policy.routingMode === 'fixed' && policy.targets.length !== 1) || new Set(policy.targets.map(target => target.providerId)).size !== policy.targets.length) { setError('Quantidade de targets inválida para este modo.'); return }
+    for (const target of policy.targets) {
+      const provider = providers.find(item => item.id === target.providerId)
+      if (!usable(provider)) { setError('Configure uma credencial para cada provider habilitado e compatível antes de salvar.'); return }
+      if (!target.model.trim() || target.model !== target.model.trim() || new TextEncoder().encode(target.model).length > 128 || /[\u0000-\u001f\u007f]/.test(target.model)) { setError('Modelo inválido: use até 128 bytes, sem controles.'); return }
+      if (target.thinkingLevel && !provider?.supportedThinkingLevels.includes(target.thinkingLevel)) { setError('Thinking indisponível neste target.'); return }
     }
     if (!Number.isSafeInteger(maxProviderCalls) || maxProviderCalls < 1 || maxProviderCalls > 4294967295) { setError('Max provider calls deve estar entre 1 e 4294967295.'); return }
-    if (policy.routingMode === 'preferred' && maxProviderCalls < 2) { setError('Fallback real exige pelo menos 2 provider calls por tarefa.'); return }
+    if (policy.routingMode !== 'fixed' && maxProviderCalls < 2) { setError('Fallback real exige pelo menos 2 provider calls por tarefa.'); return }
     if (maxOutputTokens !== null && (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > 4294967295)) { setError('O limite de output deve estar entre 1 e 4294967295.'); return }
     const maxRetries = numberValue(retries), retryBackoffMs = numberValue(backoff)
     const historyMaxMessages = numberValue(historyMessages), historyMaxBytes = numberValue(historyBytes)
@@ -95,28 +105,24 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   return <section className="settings-card role-card" aria-label={labels[initial.role]}>
     <div className="role-header"><div><p className="settings-kicker">PAPEL COGNITIVO</p><h2>{labels[initial.role]}</h2></div><span>{initial.role}</span></div>
     <div className="settings-fields">
-      <label>Provider primário<select value={policy.providerId} onChange={event => chooseProvider('primary', event.target.value)}>{providers.map(provider => <option key={provider.id} value={provider.id}>{provider.displayName}{!usable(provider) ? ' · indisponível' : ''}</option>)}</select></label>
-      {!usable(primary) && <p className="settings-warning">Provider primário indisponível ou sem credencial.</p>}
-      <label>Modelo <small>Identificador do provider · default da integração: {primary?.defaultModel ?? '—'}</small><input value={policy.model} maxLength={128} onChange={event => setPolicy({ ...policy, model: event.target.value })} /></label>
-      <label>Thinking<select value={policy.thinkingLevel ?? ''} onChange={event => setPolicy({ ...policy, thinkingLevel: (event.target.value || null) as Thinking })}>
-        <option value="">Padrão do provider</option>{primary?.supportedThinkingLevels.filter((level): level is Exclude<Thinking, null> => level !== null).map(level => <option key={level} value={level}>{level}</option>)}
-      </select></label>
-      {initial.role === 'conversation' && <fieldset><legend>Roteamento</legend>
-        <label>Modo<select value={policy.routingMode} onChange={event => setPolicy({ ...policy, routingMode: event.target.value as Routing })}>
-          <option value="fixed">Fixed · somente o provider primário</option>
-          <option value="preferred">Preferred · primário → fallback quando elegível</option>
-        </select></label>
-        {policy.routingMode === 'preferred' && <>
-          <label>Fallback<select value={policy.fallbackProviderId ?? ''} onChange={event => chooseProvider('fallback', event.target.value)}><option value="">Selecione</option>{providers.filter(provider => provider.id !== policy.providerId).map(provider => <option key={provider.id} value={provider.id}>{provider.displayName}{!usable(provider) ? ' · indisponível' : ''}</option>)}</select></label>
-          {policy.fallbackProviderId === policy.providerId && <p className="settings-warning">O fallback deve ser diferente do primário.</p>}
-          <label>Modelo do fallback<input value={policy.fallbackModel ?? ''} maxLength={128} onChange={event => setPolicy({ ...policy, fallbackModel: event.target.value })} /></label>
-          <label>Thinking do fallback<select value={policy.fallbackThinkingLevel ?? ''} onChange={event => setPolicy({ ...policy, fallbackThinkingLevel: (event.target.value || null) as Thinking })}>
-            <option value="">Padrão do provider</option>{fallback?.supportedThinkingLevels.filter((level): level is Exclude<Thinking, null> => level !== null).map(level => <option key={level} value={level}>{level}</option>)}
-          </select></label>
-          <small>Fallback só acontece antes do primeiro chunk e apenas para erros elegíveis/cooldown. Autenticação, quota terminal, request inválido e falha após chunk não trocam de provider.</small>
-          {!usable(fallback) && <p className="settings-warning">Fallback indisponível ou sem credencial.</p>}
-        </>}
-      </fieldset>}
+      <fieldset><legend>Roteamento</legend>
+        <label>Modo<select value={policy.routingMode} onChange={event => changeMode(event.target.value as Routing)}><option value="fixed">Fixed</option><option value="preferred" disabled={providers.length < 2}>Preferred</option><option value="auto" disabled={providers.length < 2}>Auto</option></select></label>
+        {policy.routingMode === 'fixed' && <small>Usa exatamente o único target definido.</small>}
+        {policy.routingMode === 'preferred' && <small>usa a ordem definida acima; falhas elegíveis podem avançar antes do primeiro chunk.</small>}
+        {policy.routingMode === 'auto' && <small>a Luna escolhe apenas entre os targets autorizados acima, considerando preferência, disponibilidade e continuidade da sessão.</small>}
+        <ol>{policy.targets.map((target, index) => {
+          const provider = providers.find(item => item.id === target.providerId)
+          return <li key={target.providerId}><fieldset><legend>Target {index + 1}</legend>
+            <label>Provider<select value={target.providerId} onChange={event => changeProvider(index, event.target.value)}>{providers.filter(item => item.id === target.providerId || !policy.targets.some(other => other.providerId === item.id)).map(item => <option key={item.id} value={item.id}>{item.displayName}{!usable(item) ? ' · indisponível' : ''}</option>)}</select></label>
+            {!usable(provider) && <p className="settings-warning">Provider desabilitado, incompatível ou sem credencial.</p>}
+            <label>Modelo <small>Default: {provider?.defaultModel ?? '—'}</small><input value={target.model} maxLength={128} onChange={event => replaceTarget(index, { ...target, model: event.target.value })} /></label>
+            <label>Thinking<select value={target.thinkingLevel ?? ''} onChange={event => replaceTarget(index, { ...target, thinkingLevel: (event.target.value || null) as Thinking })}><option value="">Padrão do provider</option>{provider?.supportedThinkingLevels.filter((level): level is Exclude<Thinking, null> => level !== null).map(level => <option key={level} value={level}>{level}</option>)}</select></label>
+            <div className="settings-actions"><button type="button" aria-label={`Mover target ${index + 1} para cima`} disabled={index === 0} onClick={() => moveTarget(index, -1)}>↑</button><button type="button" aria-label={`Mover target ${index + 1} para baixo`} disabled={index === policy.targets.length - 1} onClick={() => moveTarget(index, 1)}>↓</button><button type="button" disabled={policy.targets.length <= (policy.routingMode === 'fixed' ? 1 : 2)} onClick={() => { targetConfigs.current[target.providerId] = target; setPolicy({ ...policy, targets: policy.targets.filter((_, i) => i !== index) }) }}>Remover</button></div>
+          </fieldset></li>
+        })}</ol>
+        <label>Adicionar target<select value="" disabled={policy.routingMode === 'fixed' || policy.targets.length >= 8 || available.length === 0} onChange={event => setPolicy({ ...policy, targets: [...policy.targets, newTarget(event.target.value)] })}><option value="">Selecione provider ainda não usado</option>{available.map(provider => <option key={provider.id} value={provider.id}>{provider.displayName}{!usable(provider) ? ' · indisponível' : ''}</option>)}</select></label>
+        {numberValue(calls) < policy.targets.length && <p className="settings-warning">Max provider calls pode impedir percorrer todos os targets.</p>}
+      </fieldset>
       <fieldset><legend>Output</legend>
         <label className="radio"><input type="radio" checked={policy.maxOutputTokens === null} onChange={() => setPolicy({ ...policy, maxOutputTokens: null })} />Padrão do provider / sem limite adicional da Luna</label>
         <label className="radio"><input type="radio" checked={policy.maxOutputTokens !== null} onChange={() => setPolicy({ ...policy, maxOutputTokens: numberValue(customOutput) || 1 })} />Limite personalizado</label>
@@ -128,9 +134,9 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
         <label className="radio"><input type="checkbox" checked={policy.retryEnabled} onChange={event => setPolicy({ ...policy, retryEnabled: event.target.checked })} />Retry automático para falhas transitórias</label>
         <label>Tentativas extras<input type="number" min="0" value={retries} onChange={event => setRetries(event.target.value)} /></label>
         <label>Backoff inicial (ms)<input type="number" min="0" value={backoff} onChange={event => setBackoff(event.target.value)} /></label>
-        <small>O retry só ocorre antes do primeiro trecho e para Timeout/Unavailable sem Retry-After. Rate limit e Unavailable com Retry-After entram em cooldown; em Preferred, podem seguir ao fallback se ainda houver orçamento.</small>
+        <small>O retry só ocorre antes do primeiro trecho e para Timeout/Unavailable sem Retry-After. Rate limit e Unavailable com Retry-After entram em cooldown; em Preferred/Auto, podem seguir ao próximo target se ainda houver orçamento.</small>
         {numberValue(retries) + 1 > numberValue(calls) && <p className="settings-warning">Seu orçamento total permite menos tentativas do que o número de retries configurado.</p>}
-        {policy.routingMode === 'preferred' && policy.retryEnabled && numberValue(retries) > 0 && numberValue(calls) <= numberValue(retries) + 1 && <p className="settings-warning">Um timeout pode consumir todo o orçamento em retries do primário antes do fallback. Aumente Max provider calls se quiser reservar uma chamada para fallback.</p>}
+        {policy.routingMode !== 'fixed' && policy.retryEnabled && numberValue(retries) > 0 && numberValue(calls) < 1 + (policy.targets.length - 1) * (numberValue(retries) + 1) && <p className="settings-warning">Retries podem consumir o orçamento antes de alcançar todos os targets. Aumente Max provider calls para reservar chamadas para fallback.</p>}
       </fieldset>
       {initial.role === 'conversation' && <fieldset><legend>Histórico enviado</legend>
         <label>Máximo de mensagens anteriores<input type="number" min="0" value={historyMessages} onChange={event => setHistoryMessages(event.target.value)} /></label>
@@ -206,6 +212,7 @@ export default function AiSettingsApp() {
   const [orchestratorBusy, setOrchestratorBusy] = useState(false)
   const [orchestratorError, setOrchestratorError] = useState('')
   const [orchestratorTaskId, setOrchestratorTaskId] = useState<number | null>(null)
+  const [orchestratorRoute, setOrchestratorRoute] = useState('')
   const [orchestratorState, setOrchestratorState] = useState<OrchestratorEvent['state'] | null>(null)
   const orchestratorTaskRef = useRef<number | null>(null)
   const orchestratorTerminalRef = useRef(false)
@@ -238,9 +245,10 @@ export default function AiSettingsApp() {
     finally { setPlannerPreflightBusy(false) }
   }
   async function runOrchestrator() {
-    orchestratorTerminalRef.current = false; setOrchestratorBusy(true); setOrchestratorResult(null); setOrchestratorError(''); setOrchestratorState('pending')
+    orchestratorTerminalRef.current = false; setOrchestratorBusy(true); setOrchestratorResult(null); setOrchestratorError(''); setOrchestratorState('pending'); setOrchestratorRoute('')
     try {
       const channel = new Channel<OrchestratorEvent>(event => {
+        if (event.type === 'provider_selected') setOrchestratorRoute(`${event.provider_id} · ${event.routing_reason} · score ${event.score ?? '—'} · tentativa ${event.attempt}`)
         setOrchestratorTaskId(event.taskId); setOrchestratorState(event.state)
         if (event.type === 'orchestrator_plan_ready' && event.result) setOrchestratorResult(event.result)
         if (event.type === 'task_failed') setOrchestratorError(`Planejamento falhou: ${event.detail ?? 'erro sanitizado'}`)
@@ -296,7 +304,7 @@ export default function AiSettingsApp() {
     {settings ? <>
       <section className="settings-card"><h2>Providers disponíveis</h2>
         <p>{settings.providers.map(provider => `${provider.displayName} · ${provider.configured ? 'Configurado' : 'Não configurado'}`).join(' · ')} · Cofre {settings.credentialStoreAvailable ? 'disponível' : 'indisponível'}</p>
-        <p>Conversa permite Fixed ou Preferred com primário e fallback configurados. Resumo usa Fixed com o provider escolhido.</p>
+        <p>Cada papel permite Fixed, Preferred e Auto sobre targets autorizados.</p>
         <label>Chave API Gemini <input type="password" autoComplete="off" value={geminiKey} onChange={event => setGeminiKey(event.target.value)} placeholder="Definir ou substituir chave Gemini" /></label>
         <div className="settings-actions"><button disabled={busy || !geminiKey.trim()} onClick={() => void credential('gemini', 'set')}>Guardar Gemini</button><button disabled={busy || !gemini?.configured} onClick={() => void credential('gemini', 'delete')}>Remover Gemini</button></div>
         <label>Chave API Groq <input type="password" autoComplete="off" value={groqKey} onChange={event => setGroqKey(event.target.value)} placeholder="Definir ou substituir chave Groq" /></label>
@@ -348,7 +356,7 @@ export default function AiSettingsApp() {
         <p>Executa uma operação real com a policy persistida do Orchestrator. O Core valida o PlanV1; nenhum passo ou ferramenta é executado.</p>
         <label>Objetivo controlado<textarea value={orchestratorObjective} maxLength={2048} onChange={event => setOrchestratorObjective(event.target.value)} rows={3} /></label>
         <div className="settings-actions"><button type="button" disabled={orchestratorBusy || !orchestratorObjective.trim()} onClick={() => void runOrchestrator()}>{orchestratorBusy ? 'Planejando…' : 'Executar planejamento real'}</button><button type="button" disabled={!orchestratorBusy || orchestratorTaskRef.current === null} onClick={() => void cancelOrchestrator()}>Cancelar</button></div>
-        <p role="status">TaskId: {orchestratorTaskId ?? '—'} · Estado: {orchestratorState ?? 'sem tarefa'}</p>
+        <p role="status">TaskId: {orchestratorTaskId ?? '—'} · Estado: {orchestratorState ?? 'sem tarefa'} · {orchestratorRoute}</p>
         {orchestratorError && <p role="alert" className="settings-error">{orchestratorError}</p>}
         {orchestratorResult && <div role="status" className="planner-result"><p><strong>Provider efetivamente usado:</strong> {orchestratorResult.providerId}</p><p><strong>Calls:</strong> {orchestratorResult.usage.providerCalls} · <strong>Output:</strong> {orchestratorResult.usage.outputTokens} tokens</p><p><strong>Objetivo:</strong> {orchestratorResult.plan.objective}</p><ol>{orchestratorResult.plan.steps.map(step => <li key={step.id}><strong>{step.id}:</strong> {step.description}<br />Dependências: {step.dependsOn.join(', ') || 'nenhuma'}<br />Capabilities: {step.requiredCapabilities.join(', ') || 'nenhuma'}</li>)}</ol><p><strong>Riscos:</strong> {orchestratorResult.plan.risks.join('; ') || 'nenhum'}</p><p><strong>Perguntas:</strong> {orchestratorResult.plan.questions.join('; ') || 'nenhuma'}</p></div>}
       </section>
@@ -358,7 +366,7 @@ export default function AiSettingsApp() {
         <p>Timeout HTTP total e idle do stream: configuráveis por provider. Conexão: 8 s — configuração dos adapters atuais.</p>
         <p>Histórico de conversa enviado: configurável em Conversa. Summary input budget: configurável em Resumo. Orchestrator input budget: bytes UTF-8 da instrução fixa mais objetivo enviados ao provider. Retry: configurável por papel.</p>
         <p>Preparação de resumo: até 256 mensagens candidatas mais a primeira fala do usuário; leitura local limitada a 8193 caracteres por mensagem. Título gerado: até 70 caracteres; resumo: até 1200. Limites técnicos desta versão.</p>
-        <p>Fallback: Conversa expõe Fixed ou Preferred entre providers compatíveis. Resumo e Orchestrator permanecem Fixed. Auto, affinity e task graph não estão disponíveis.</p>
+        <p>Fixed usa um target; Preferred segue a ordem; Auto usa score determinístico e continuidade de sessão na Conversa. Task graph permanece adiado.</p>
         <p>Cada target usa seu próprio modelo, thinking e timeouts. Temperature, top-p e tools ainda não são expostos.</p>
         <p>Segurança, isolamento de sessão e segredos fora do React são invariantes do aplicativo. O adapter Gemini envia <code>store:false</code>; o adapter Groq não envia parâmetros não suportados pelo endpoint Chat Completions.</p>
       </section>

@@ -126,8 +126,7 @@ pub struct ConversationProviderState {
 #[serde(rename_all = "camelCase")]
 pub struct ConversationRoutingStatus {
     routing_mode: RoutingMode,
-    primary: ConversationProviderState,
-    fallback: Option<ConversationProviderState>,
+    targets: Vec<ConversationProviderState>,
 }
 
 #[tauri::command]
@@ -160,12 +159,11 @@ pub async fn conversation_routing_status(
         };
         Ok(ConversationRoutingStatus {
             routing_mode: policy.routing_mode,
-            primary: state(&policy.provider_id),
-            fallback: if policy.routing_mode == RoutingMode::Preferred {
-                policy.fallback_provider_id.as_deref().map(state)
-            } else {
-                None
-            },
+            targets: policy
+                .targets
+                .iter()
+                .map(|target| state(&target.provider_id))
+                .collect(),
         })
     })
     .await
@@ -197,22 +195,7 @@ pub fn start_conversation_task(
     let policy = policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?;
     crate::cognition::catalog::validate_policy(&policy, &runtime.scheduler.status(), &store)
         .map_err(str::to_owned)?;
-    let mut timeouts = std::collections::HashMap::new();
-    timeouts.insert(
-        policy.provider_id.clone(),
-        crate::persistence::provider_timeouts::load(&conn, &policy.provider_id)
-            .map_err(|e| e.code())?,
-    );
-    if policy.routing_mode == RoutingMode::Preferred {
-        let id = policy
-            .fallback_provider_id
-            .as_deref()
-            .ok_or("fallback_config_invalid")?;
-        timeouts.insert(
-            id.to_owned(),
-            crate::persistence::provider_timeouts::load(&conn, id).map_err(|e| e.code())?,
-        );
-    }
+    let timeouts = policy.load_timeouts(&conn).map_err(|e| e.code())?;
     runtime::start_conversation(
         registry.inner().clone(),
         db.inner().clone(),

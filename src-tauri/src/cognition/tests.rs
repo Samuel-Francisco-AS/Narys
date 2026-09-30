@@ -85,54 +85,30 @@ fn context(db: &Database) -> super::types::ContextBundle {
     )
     .unwrap()
 }
-fn request(db: &Database) -> ProviderTaskRequest {
+fn request(db: &Database, ids: &[&str]) -> ProviderTaskRequest {
     ProviderTaskRequest {
         input: "synthetic".into(),
         history: vec![],
         context: Arc::new(context(db)),
         max_output_tokens: Some(30),
         selection: ProviderSelection::Auto,
-        targets: [
-            "a",
-            "alternative",
-            "b",
-            "disabled",
-            "enabled",
-            "fallback",
-            "first",
-            "fixed",
-            "gemini",
-            "groq",
-            "healthy",
-            "limited",
-            "mock-fallback",
-            "mock-primary",
-            "no-stream",
-            "normal",
-            "only",
-            "other",
-            "preferred",
-            "primary",
-            "second",
-            "selected",
-            "stream",
-            "terminal",
-            "timeout",
-            "transient",
-        ]
-        .into_iter()
-        .map(|id| ProviderTarget {
-            provider_id: id.into(),
-            invocation: ProviderInvocationConfig {
-                model: "mock".into(),
-                thinking_level: None,
-                timeouts: None,
-            },
-        })
-        .collect(),
+        targets: ids
+            .iter()
+            .map(|id| ProviderTarget {
+                provider_id: (*id).into(),
+                invocation: ProviderInvocationConfig {
+                    model: "mock".into(),
+                    thinking_level: None,
+                    timeouts: None,
+                },
+            })
+            .collect(),
+        affinity_key: None,
+        estimated_context_bytes: 0,
         required_capabilities: ProviderCapabilities::text_stream(),
     }
 }
+
 fn entry(
     id: &str,
     priority: u16,
@@ -324,7 +300,7 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
     let cancelled = AtomicBool::new(false);
     let mut events = vec![];
     let result = tauri::async_runtime::block_on(scheduler.run(
-        request(&db),
+        request(&db, &["mock-primary", "mock-fallback"]),
         budget(3),
         &cancelled,
         &mut |e| {
@@ -344,7 +320,7 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
         .iter()
         .any(|s| s.id == "mock-primary" && s.cooldown_ms > 0));
     let next = tauri::async_runtime::block_on(scheduler.run(
-        request(&db),
+        request(&db, &["mock-primary", "mock-fallback"]),
         budget(3),
         &cancelled,
         &mut |_| Ok(()),
@@ -374,7 +350,7 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
     );
     assert_eq!(
         tauri::async_runtime::block_on(Scheduler::new(registry).run(
-            request(&db),
+            request(&db, &["a", "b"]),
             budget(1),
             &cancelled,
             &mut |_| Ok(())
@@ -396,7 +372,7 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
         &mut registry,
     );
     let retry = tauri::async_runtime::block_on(Scheduler::new(registry).run(
-        request(&db),
+        request(&db, &["timeout"]),
         budget(2),
         &cancelled,
         &mut |_| Ok(()),
@@ -416,7 +392,7 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
         &mut registry,
     );
     let recovered = tauri::async_runtime::block_on(Scheduler::new(registry).run(
-        request(&db),
+        request(&db, &["transient"]),
         budget(2),
         &cancelled,
         &mut |_| Ok(()),
@@ -455,9 +431,10 @@ fn preferred_groq_precedes_higher_priority_gemini_and_falls_back_to_it() {
             &mut registry,
         );
         let scheduler = Scheduler::new(registry);
-        let mut route = request(&db);
-        route.selection = ProviderSelection::Preferred("groq".into());
-        assert!(matches!(&route.selection, ProviderSelection::Preferred(id) if id == "groq"));
+        let mut route = request(&db, &["gemini", "groq"]);
+        route.selection = ProviderSelection::Preferred;
+        route.targets.sort_by_key(|t| t.provider_id != "groq");
+        assert_eq!(route.selection, ProviderSelection::Preferred);
         route
             .targets
             .retain(|target| target.provider_id == "groq" || target.provider_id == "gemini");
@@ -499,7 +476,7 @@ fn mock_streaming_cancellation_and_error_classes() {
     let scheduler = Scheduler::new(registry);
     let mut chunks = vec![];
     let result = tauri::async_runtime::block_on(scheduler.run(
-        request(&db),
+        request(&db, &["stream"]),
         budget(1),
         &cancelled,
         &mut |e| {
@@ -518,7 +495,7 @@ fn mock_streaming_cancellation_and_error_classes() {
         signal.store(true, Ordering::Release)
     });
     let stopped = tauri::async_runtime::block_on(scheduler.run(
-        request(&db),
+        request(&db, &["stream"]),
         budget(2),
         &cancelled,
         &mut |_| Ok(()),
@@ -541,7 +518,7 @@ fn mock_streaming_cancellation_and_error_classes() {
         let signal = AtomicBool::new(false);
         assert_eq!(
             tauri::async_runtime::block_on(Scheduler::new(registry).run(
-                request(&db),
+                request(&db, &["only"]),
                 budget(2),
                 &signal,
                 &mut |_| Ok(())
@@ -578,7 +555,7 @@ fn disabled_provider_is_never_called_and_output_budget_is_respected() {
     );
     let signal = AtomicBool::new(false);
     let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
-        request(&db),
+        request(&db, &["enabled"]),
         TaskBudget {
             max_provider_calls: 1,
             max_output_tokens: Some(2),
@@ -626,7 +603,7 @@ fn cancellation_prevents_fallback_and_normal_is_deterministic() {
     });
     assert_eq!(
         tauri::async_runtime::block_on(scheduler.run(
-            request(&db),
+            request(&db, &["primary", "fallback"]),
             budget(3),
             &signal,
             &mut |_| Ok(())
@@ -647,7 +624,7 @@ fn cancellation_prevents_fallback_and_normal_is_deterministic() {
         &mut registry,
     );
     let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
-        request(&db),
+        request(&db, &["normal"]),
         budget(1),
         &signal,
         &mut |_| Ok(()),
@@ -691,7 +668,7 @@ fn event_sink_failure_stops_before_provider_during_stream_and_before_retry() {
         let signal = AtomicBool::new(false);
         let mut chunks = 0;
         let failure = tauri::async_runtime::block_on(scheduler.run(
-            request(&db),
+            request(&db, &["primary", "fallback"]),
             budget(3),
             &signal,
             &mut |event| match event {
@@ -733,7 +710,12 @@ fn transient_mocks_repeat_per_task_with_same_runtime_and_cooldown_persists() {
         let result = tauri::async_runtime::block_on(
             runtime
                 .scheduler(super::DiagnosticScenario::TimeoutRetry)
-                .run(request(&db), budget(3), &signal, &mut |_| Ok(())),
+                .run(
+                    request(&db, &["mock-primary", "mock-fallback"]),
+                    budget(3),
+                    &signal,
+                    &mut |_| Ok(()),
+                ),
         )
         .unwrap();
         assert_eq!(result.usage.provider_calls, 2);
@@ -751,7 +733,7 @@ fn transient_mocks_repeat_per_task_with_same_runtime_and_cooldown_persists() {
     let scheduler = Scheduler::new(registry);
     for _ in 0..2 {
         let result = tauri::async_runtime::block_on(scheduler.run(
-            request(&db),
+            request(&db, &["transient"]),
             budget(2),
             &signal,
             &mut |_| Ok(()),
@@ -763,13 +745,23 @@ fn transient_mocks_repeat_per_task_with_same_runtime_and_cooldown_persists() {
     let a = tauri::async_runtime::block_on(
         runtime
             .scheduler(super::DiagnosticScenario::RateLimitFallback)
-            .run(request(&db), budget(3), &signal, &mut |_| Ok(())),
+            .run(
+                request(&db, &["mock-primary", "mock-fallback"]),
+                budget(3),
+                &signal,
+                &mut |_| Ok(()),
+            ),
     )
     .unwrap();
     let b = tauri::async_runtime::block_on(
         runtime
             .scheduler(super::DiagnosticScenario::RateLimitFallback)
-            .run(request(&db), budget(3), &signal, &mut |_| Ok(())),
+            .run(
+                request(&db, &["mock-primary", "mock-fallback"]),
+                budget(3),
+                &signal,
+                &mut |_| Ok(()),
+            ),
     )
     .unwrap();
     assert_eq!(a.provider_id, "mock-fallback");
@@ -847,7 +839,7 @@ fn partial_stream_failure_does_not_retry_or_fallback() {
         let mut chunks = Vec::new();
         let mut retries = 0;
         let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
-            request(&db),
+            request(&db, &["primary", "fallback"]),
             budget(3),
             &signal,
             &mut |event| {
@@ -938,7 +930,7 @@ fn scheduler_retries_only_transient_errors_before_a_chunk() {
         let signal = AtomicBool::new(false);
         let mut retries = 0;
         let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
-            request(&db),
+            request(&db, &["only"]),
             budget(2),
             &signal,
             &mut |event| {
@@ -988,7 +980,7 @@ fn explicit_provider_and_unbounded_output() {
     );
     let scheduler = Scheduler::new(registry);
     let signal = AtomicBool::new(false);
-    let mut selected_request = request(&db);
+    let mut selected_request = request(&db, &["first", "selected"]);
     selected_request.selection = ProviderSelection::Fixed("selected".into());
     selected_request.max_output_tokens = None;
     let result = tauri::async_runtime::block_on(scheduler.run(
@@ -1005,7 +997,7 @@ fn explicit_provider_and_unbounded_output() {
     assert!(result.usage.output_tokens > 0);
     assert_eq!(unwanted.calls(), 0);
     assert_eq!(selected.calls(), 1);
-    let mut missing = request(&db);
+    let mut missing = request(&db, &["first", "selected"]);
     missing.selection = ProviderSelection::Fixed("missing".into());
     assert_eq!(
         tauri::async_runtime::block_on(scheduler.run(missing, budget(1), &signal, &mut |_| Ok(())))
@@ -1175,7 +1167,7 @@ fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
         let scheduler = Scheduler::new(registry);
         let signal = AtomicBool::new(false);
         let result = tauri::async_runtime::block_on(scheduler.run_with_retry(
-            request(&db),
+            request(&db, &["gemini"]),
             budget(calls),
             RetryPolicy {
                 enabled: true,
@@ -1201,7 +1193,7 @@ fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
             assert!(scheduler.status()[0].cooldown_ms > 0);
             assert_eq!(
                 tauri::async_runtime::block_on(scheduler.run_with_retry(
-                    request(&db),
+                    request(&db, &["gemini"]),
                     budget(4),
                     RetryPolicy {
                         enabled: true,
@@ -1268,7 +1260,7 @@ fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
         .unwrap();
     let signal = AtomicBool::new(false);
     let disabled = tauri::async_runtime::block_on(Scheduler::new(registry).run_with_retry(
-        request(&db),
+        request(&db, &["gemini"]),
         budget(4),
         RetryPolicy {
             enabled: false,
@@ -1322,8 +1314,11 @@ fn selection_modes_cooldown_and_transient_fallback() {
     );
     let scheduler = Scheduler::new(registry);
     let signal = AtomicBool::new(false);
-    let mut selected = request(&db);
-    selected.selection = ProviderSelection::Preferred("preferred".into());
+    let mut selected = request(&db, &["first", "preferred", "alternative"]);
+    selected.selection = ProviderSelection::Preferred;
+    selected
+        .targets
+        .sort_by_key(|t| t.provider_id != "preferred");
     let result = tauri::async_runtime::block_on(scheduler.run(
         selected,
         budget(2),
@@ -1338,8 +1333,11 @@ fn selection_modes_cooldown_and_transient_fallback() {
         (preferred.calls(), first.calls(), alternative.calls()),
         (1, 1, 0)
     );
-    let mut selected = request(&db);
-    selected.selection = ProviderSelection::Preferred("preferred".into());
+    let mut selected = request(&db, &["first", "preferred", "alternative"]);
+    selected.selection = ProviderSelection::Preferred;
+    selected
+        .targets
+        .sort_by_key(|t| t.provider_id != "preferred");
     let result = tauri::async_runtime::block_on(scheduler.run(
         selected,
         budget(1),
@@ -1350,7 +1348,7 @@ fn selection_modes_cooldown_and_transient_fallback() {
     assert_eq!(result.provider_id, "first");
     assert_eq!(preferred.calls(), 1);
     let result = tauri::async_runtime::block_on(scheduler.run(
-        request(&db),
+        request(&db, &["first", "preferred", "alternative"]),
         budget(1),
         &signal,
         &mut |_| Ok(()),
@@ -1358,7 +1356,7 @@ fn selection_modes_cooldown_and_transient_fallback() {
     .unwrap();
     assert_eq!(result.provider_id, "first");
     assert_eq!(preferred.calls(), 1);
-    let mut fixed = request(&db);
+    let mut fixed = request(&db, &["first", "preferred", "alternative"]);
     fixed.selection = ProviderSelection::Fixed("preferred".into());
     assert_eq!(
         tauri::async_runtime::block_on(scheduler.run(fixed, budget(2), &signal, &mut |_| Ok(())))
@@ -1394,7 +1392,7 @@ fn fixed_transient_error_never_calls_alternative_and_preferred_healthy_wins() {
     );
     let scheduler = Scheduler::new(registry);
     let signal = AtomicBool::new(false);
-    let mut selected = request(&db);
+    let mut selected = request(&db, &["other", "fixed"]);
     selected.selection = ProviderSelection::Fixed("fixed".into());
     assert_eq!(
         tauri::async_runtime::block_on(scheduler.run(
@@ -1427,8 +1425,9 @@ fn fixed_transient_error_never_calls_alternative_and_preferred_healthy_wins() {
         healthy.clone(),
         &mut registry,
     );
-    let mut selected = request(&db);
-    selected.selection = ProviderSelection::Preferred("healthy".into());
+    let mut selected = request(&db, &["other", "healthy"]);
+    selected.selection = ProviderSelection::Preferred;
+    selected.targets.sort_by_key(|t| t.provider_id != "healthy");
     let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
         selected,
         budget(2),
@@ -1468,8 +1467,9 @@ fn unavailable_retry_after_falls_back_only_with_budget_and_auth_is_generic() {
     );
     let scheduler = Scheduler::new(registry);
     let signal = AtomicBool::new(false);
-    let mut selected = request(&db);
-    selected.selection = ProviderSelection::Preferred("limited".into());
+    let mut selected = request(&db, &["limited", "other"]);
+    selected.selection = ProviderSelection::Preferred;
+    selected.targets.sort_by_key(|t| t.provider_id != "limited");
     let result = tauri::async_runtime::block_on(scheduler.run(
         selected,
         budget(2),
@@ -1505,7 +1505,7 @@ fn unavailable_retry_after_falls_back_only_with_budget_and_auth_is_generic() {
     );
     assert_eq!(
         tauri::async_runtime::block_on(Scheduler::new(registry).run(
-            request(&db),
+            request(&db, &["limited", "other"]),
             budget(1),
             &signal,
             &mut |_| Ok(())
@@ -1537,7 +1537,7 @@ fn unavailable_retry_after_falls_back_only_with_budget_and_auth_is_generic() {
     );
     assert_eq!(
         tauri::async_runtime::block_on(Scheduler::new(registry).run(
-            request(&db),
+            request(&db, &["terminal", "other"]),
             budget(2),
             &signal,
             &mut |_| Ok(())
@@ -1645,9 +1645,13 @@ fn target_configuration_isolated_across_fixed_preferred_and_fallback() {
     );
     let b_config = target("b", "model-b", None, 201);
     let configure = |selection| {
-        let mut req = request(&db);
+        let mut req = request(&db, &["a", "b"]);
         req.selection = selection;
-        req.targets = vec![a_config.clone(), b_config.clone()];
+        req.targets = if matches!(req.selection, ProviderSelection::Preferred) {
+            vec![b_config.clone(), a_config.clone()]
+        } else {
+            vec![a_config.clone(), b_config.clone()]
+        };
         req
     };
 
@@ -1669,7 +1673,7 @@ fn target_configuration_isolated_across_fixed_preferred_and_fallback() {
     let b = inspector(None, false);
     let scheduler = make_scheduler(a.clone(), b.clone());
     let result = tauri::async_runtime::block_on(scheduler.run(
-        configure(ProviderSelection::Preferred("b".into())),
+        configure(ProviderSelection::Preferred),
         budget(2),
         &signal,
         &mut |_| Ok(()),
@@ -1718,7 +1722,9 @@ fn target_configuration_isolated_across_fixed_preferred_and_fallback() {
     assert_eq!(
         tauri::async_runtime::block_on(scheduler.run(missing, budget(2), &signal, &mut |_| Ok(())))
             .unwrap_err(),
-        SchedulerError::InvalidTargetConfig
+        SchedulerError::Provider(ProviderError::RateLimited {
+            retry_after_ms: Some(3000)
+        })
     );
     assert_eq!(a.seen.lock().unwrap().len(), 1);
     assert!(b.seen.lock().unwrap().is_empty());
@@ -1764,3 +1770,6 @@ fn target_configuration_isolated_across_fixed_preferred_and_fallback() {
     assert!(b.seen.lock().unwrap().is_empty());
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[path = "smart_routing_tests.rs"]
+mod smart_routing;

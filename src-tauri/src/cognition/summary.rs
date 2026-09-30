@@ -2,8 +2,8 @@ use super::{
     policy::{self, CognitiveRole, CognitiveRolePolicy},
     scheduler::Scheduler,
     types::{
-        ContextBundle, ContextMetadata, ProviderCapabilities, ProviderInvocationConfig,
-        ProviderSelection, ProviderTarget, ProviderTaskRequest, SchedulerError, TaskBudget,
+        ContextBundle, ContextMetadata, ProviderCapabilities, ProviderTaskRequest, SchedulerError,
+        TaskBudget,
     },
 };
 use crate::{
@@ -38,7 +38,7 @@ pub struct SummaryWorker {
     db: Database,
     scheduler: Arc<Scheduler>,
     registry: Arc<TaskRegistry>,
-    available: Arc<dyn Fn() -> bool + Send + Sync>,
+    available: Arc<dyn Fn(&CognitiveRolePolicy) -> bool + Send + Sync>,
     notify: Notify,
     kicks: AtomicU64,
     role: CognitiveRole,
@@ -48,7 +48,7 @@ impl SummaryWorker {
         db: Database,
         scheduler: Arc<Scheduler>,
         registry: Arc<TaskRegistry>,
-        available: Arc<dyn Fn() -> bool + Send + Sync>,
+        available: Arc<dyn Fn(&CognitiveRolePolicy) -> bool + Send + Sync>,
     ) -> Arc<Self> {
         let worker = Arc::new(Self {
             db,
@@ -103,9 +103,16 @@ impl SummaryWorker {
             // Missing credentials are a temporary configuration state. Leave pending
             // untouched and wait for a future kick, without creating a failure record.
             let available = self.available.clone();
-            let ready = tauri::async_runtime::spawn_blocking(move || available())
-                .await
-                .unwrap_or(false);
+            let db_policy = self.db.clone();
+            let ready = tauri::async_runtime::spawn_blocking(move || {
+                db_policy
+                    .open()
+                    .ok()
+                    .and_then(|conn| policy::load(&conn, CognitiveRole::Summary).ok())
+                    .is_some_and(|policy| available(&policy))
+            })
+            .await
+            .unwrap_or(false);
             if !ready {
                 return false;
             }
@@ -153,9 +160,18 @@ impl SummaryWorker {
                 return ProcessOutcome::Transient;
             }
         };
-        let timeouts = match self.db.open().and_then(|conn| {
-            crate::persistence::provider_timeouts::load(&conn, &policy.provider_id)
-        }) {
+        // Revalidate the exact snapshot used below, even if settings changed
+        // between opportunistic readiness and claiming this session.
+        let available = self.available.clone();
+        let snapshot = policy.clone();
+        if !tauri::async_runtime::spawn_blocking(move || available(&snapshot))
+            .await
+            .unwrap_or(false)
+        {
+            self.defer_claim(claimed.id);
+            return ProcessOutcome::Transient;
+        }
+        let timeouts = match self.db.open().and_then(|conn| policy.load_timeouts(&conn)) {
             Ok(timeouts) => timeouts,
             Err(_) => {
                 eprintln!("[Summary] timeouts code=read_failed");
@@ -358,7 +374,7 @@ fn summary_request(
     messages: &[ConversationMessage],
     already_truncated: bool,
     policy: &CognitiveRolePolicy,
-    timeouts: super::types::ProviderTimeouts,
+    timeouts: std::collections::HashMap<String, super::types::ProviderTimeouts>,
 ) -> ProviderTaskRequest {
     // Static synthetic identity satisfies the current provider contract without
     // loading private identity, memories or any global recent conversation.
@@ -386,15 +402,12 @@ fn summary_request(
         history: vec![],
         context: Arc::new(context),
         max_output_tokens: policy.max_output_tokens,
-        selection: ProviderSelection::Fixed(policy.provider_id.clone()),
-        targets: vec![ProviderTarget {
-            provider_id: policy.provider_id.clone(),
-            invocation: ProviderInvocationConfig {
-                model: policy.model.clone(),
-                thinking_level: policy.thinking_level,
-                timeouts: Some(timeouts),
-            },
-        }],
+        selection: policy.selection(),
+        targets: policy
+            .provider_targets(&timeouts)
+            .expect("validated summary targets"),
+        affinity_key: None,
+        estimated_context_bytes: 0,
         required_capabilities: ProviderCapabilities::text_stream(),
     }
 }
@@ -425,6 +438,7 @@ fn parse_output(raw: &str) -> Result<SummaryOutput, ()> {
 mod tests {
     use super::*;
     use crate::cognition::types::ProviderRequest;
+    use crate::cognition::types::ProviderSelection;
     use crate::cognition::{
         provider::{Provider, ProviderFuture},
         registry::ProviderRegistry,
@@ -540,8 +554,8 @@ mod tests {
         let id = add_session(&db, "GROQ-SUMMARY-71");
         let mut conn = db.open().unwrap();
         let mut policy = policy::load(&conn, CognitiveRole::Summary).unwrap();
-        policy.provider_id = "groq".into();
-        policy.model = "openai/gpt-oss-20b".into();
+        policy.targets[0].provider_id = "groq".into();
+        policy.targets[0].model = "openai/gpt-oss-20b".into();
         policy::save(&mut conn, &policy).unwrap();
         let before = conversation::history_session(&conn, id)
             .unwrap()
@@ -577,7 +591,7 @@ mod tests {
             db,
             scheduler,
             registry,
-            available: Arc::new(|| true),
+            available: Arc::new(|_| true),
             notify: Notify::new(),
             kicks: AtomicU64::new(0),
             role: CognitiveRole::Summary,
@@ -587,13 +601,12 @@ mod tests {
     fn summary_request_uses_its_own_role_policy() {
         let policy = CognitiveRolePolicy {
             role: CognitiveRole::Summary,
-            provider_id: "gemini".into(),
-            model: "gemini-summary".into(),
-            thinking_level: Some(super::super::policy::ThinkingLevel::Low),
             routing_mode: super::super::policy::RoutingMode::Fixed,
-            fallback_provider_id: None,
-            fallback_model: None,
-            fallback_thinking_level: None,
+            targets: vec![crate::cognition::policy::CognitiveTargetPolicy {
+                provider_id: "gemini".into(),
+                model: "gemini-summary".into(),
+                thinking_level: Some(super::super::policy::ThinkingLevel::Low),
+            }],
             max_output_tokens: Some(512),
             max_provider_calls: 1,
             retry_enabled: false,
@@ -608,7 +621,10 @@ mod tests {
             &[],
             false,
             &policy,
-            crate::persistence::gemini_settings::GeminiTimeouts::default().into(),
+            std::collections::HashMap::from([(
+                "gemini".into(),
+                crate::persistence::gemini_settings::GeminiTimeouts::default().into(),
+            )]),
         );
         assert_eq!(request.selection, ProviderSelection::Fixed("gemini".into()));
         assert_eq!(request.targets.len(), 1);
@@ -785,7 +801,7 @@ mod tests {
         let first = registry.foreground_guard_for_test(10);
         let second = registry.foreground_guard_for_test(11);
         let worker =
-            SummaryWorker::start(db.clone(), scheduler, registry.clone(), Arc::new(|| true));
+            SummaryWorker::start(db.clone(), scheduler, registry.clone(), Arc::new(|_| true));
         worker.kick();
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         assert!(registry.has_foreground_provider_work());
@@ -860,7 +876,7 @@ mod tests {
             db.clone(),
             Arc::new(Scheduler::new(providers)),
             registry.clone(),
-            Arc::new(|| true),
+            Arc::new(|_| true),
         );
         tokio::time::timeout(std::time::Duration::from_secs(2), fake.entered.notified())
             .await
@@ -916,6 +932,91 @@ mod tests {
         });
         tokio::task::yield_now().await;
         assert_eq!(fake.requests.lock().unwrap().len(), 1);
+    }
+    #[tokio::test]
+    async fn preferred_auto_summary_preserve_claim_and_reject_invalid_json_without_fallback() {
+        use super::super::policy::{CognitiveTargetPolicy, RoutingMode};
+        for mode in [RoutingMode::Preferred, RoutingMode::Auto] {
+            for invalid in [false, true] {
+                let (db, fake, scheduler, registry) = fixture();
+                let mut conn = db.open().unwrap();
+                let mut policy = policy::load(&conn, CognitiveRole::Summary).unwrap();
+                policy.routing_mode = mode;
+                policy.max_provider_calls = 2;
+                policy.retry_enabled = false;
+                policy.targets = vec![
+                    CognitiveTargetPolicy {
+                        provider_id: "groq".into(),
+                        model: "summary-groq".into(),
+                        thinking_level: None,
+                    },
+                    CognitiveTargetPolicy {
+                        provider_id: "gemini".into(),
+                        model: "summary-gemini".into(),
+                        thinking_level: Some(super::super::policy::ThinkingLevel::High),
+                    },
+                ];
+                policy::save(&mut conn, &policy).unwrap();
+                let timeouts = policy.load_timeouts(&conn).unwrap();
+                let request = summary_request(&[], false, &policy, timeouts.clone());
+                assert_eq!(request.targets, policy.provider_targets(&timeouts).unwrap());
+                assert_eq!(request.selection, policy.selection());
+                assert!(request.affinity_key.is_none());
+                if !invalid {
+                    fake.responses
+                        .lock()
+                        .unwrap()
+                        .push_back(Err(ProviderError::RateLimited {
+                            retry_after_ms: Some(30000),
+                        }));
+                }
+                fake.responses.lock().unwrap().push_back(Ok(if invalid {
+                    r#"{"title":"valid","summary":""}"#.into()
+                } else {
+                    r#"{"title":"Metadados","summary":"Resumo factual."}"#.into()
+                }));
+                let id = add_session(&db, "isolated-transcript");
+                let before = conversation::history_session(&conn, id)
+                    .unwrap()
+                    .unwrap()
+                    .messages;
+                let claim = conversation::claim_next_pending_summary(&mut conn)
+                    .unwrap()
+                    .unwrap();
+                let worker = worker(db.clone(), scheduler, registry);
+                assert_eq!(worker.process(claim).await, ProcessOutcome::Continue);
+                let after = conversation::history_session(&conn, id).unwrap().unwrap();
+                assert_eq!(
+                    after.summary_status,
+                    if invalid { "failed" } else { "completed" }
+                );
+                assert_eq!(
+                    fake.requests.lock().unwrap().len(),
+                    if invalid { 1 } else { 2 }
+                );
+                assert_eq!(
+                    after
+                        .messages
+                        .iter()
+                        .map(|m| &m.content)
+                        .collect::<Vec<_>>(),
+                    before.iter().map(|m| &m.content).collect::<Vec<_>>()
+                );
+            }
+        }
+    }
+    #[tokio::test]
+    async fn summary_revalidates_snapshot_before_any_provider_request() {
+        let (db, fake, scheduler, registry) = fixture();
+        add_session(&db, "claim");
+        let mut conn = db.open().unwrap();
+        let claim = conversation::claim_next_pending_summary(&mut conn)
+            .unwrap()
+            .unwrap();
+        let mut worker = worker(db, scheduler, registry);
+        worker.available = Arc::new(|_| false);
+        assert_eq!(worker.process(claim).await, ProcessOutcome::Transient);
+        assert!(fake.requests.lock().unwrap().is_empty());
     }
 }
 

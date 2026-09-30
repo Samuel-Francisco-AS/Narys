@@ -22,7 +22,7 @@ export type TaskEvent = TaskEventBase & (
   | { type: 'task_cancelled' }
   | { type: 'task_failed'; detail: string }
   | { type: 'context_built'; memory_count: number; recent_message_count: number }
-  | { type: 'provider_selected'; provider_id: string; attempt: number }
+  | { type: 'provider_selected'; provider_id: string; attempt: number; routing_reason: 'fixed' | 'preferred_order' | 'auto_score' | 'auto_affinity'; score: number | null }
   | { type: 'provider_chunk'; provider_id: string; chunk: string }
   | { type: 'provider_retry'; provider_id: string; reason_code: string }
   | { type: 'provider_fallback'; from_provider_id: string; to_provider_id: string; reason_code: string }

@@ -1,6 +1,8 @@
+#[cfg(test)]
+use super::types::ProviderCapabilities;
 use super::{
     provider::Provider,
-    types::{ProviderCapabilities, ProviderConfig, ProviderId},
+    types::{ProviderConfig, ProviderId},
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -28,6 +30,7 @@ impl ProviderRegistry {
     pub fn get(&self, id: &str) -> Option<&ProviderEntry> {
         self.entries.get(id)
     }
+    #[cfg(test)]
     pub fn eligible(&self, required: &ProviderCapabilities) -> Vec<&ProviderEntry> {
         let mut entries: Vec<_> = self
             .entries

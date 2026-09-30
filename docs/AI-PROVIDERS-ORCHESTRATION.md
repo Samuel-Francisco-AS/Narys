@@ -480,9 +480,23 @@ produção ou UI foi adicionado. **D0.5D fechou em PASS completo após auditoria
 O Orchestrator é um papel cognitivo persistido, não um provider novo nem um
 agente especialista. Ele usa Gemini ou Groq por `provider_id` via Scheduler,
 com modelo, thinking, output budget, input budget de planejamento, timeout por provider e retry
-configuráveis. Nesta fase o routing é somente `Fixed`; fallback chain e `Auto`
-ficam para D2.
+configuráveis. Na D1 o routing era somente `Fixed`; a D2 candidata usa a mesma infraestrutura
+de targets para Fixed/Preferred/Auto, preservando a validação estrita após sucesso.
 
 As APIs atuais não são anunciadas como structured output nativo. O runtime usa
 JSON textual estrito e valida a resposta com o contrato único `PlanV1` do Luna
 Core. Markdown, texto extra e reparos são rejeitados.
+
+## LR-7D2 — roteamento autorizado / candidata ao gate
+
+A migration 009 (schema 9) substitui primary/fallback por targets ordenados,
+com configuração individual e orçamento/retry por papel. Fixed usa um target;
+Preferred segue a ordem explícita; Auto aplica gates e score somente ao conjunto
+autorizado. Score: `(N-ordinal)*100 + 32-min(priority,32)` mais, quando há
+continuidade válida, `min(500,50+ceil(contextBytes/1024)*25)`. Não há preços,
+latência histórica ou quotas fictícias. Affinity de Conversation é por sessão,
+bounded (256), in-memory e não altera Fixed/Preferred. Summary/Orchestrator
+não inventam continuidade. Credenciais são verificadas por target no preflight,
+nunca persistidas no SQLite ou devolvidas ao frontend. JSON/PlanV1 inválido após
+sucesso não dispara fallback de provider. LR-8 e task graph continuam posteriores.
+[Detalhes e gate humano pendente](LR-7D2-SMART-ROUTING.md).

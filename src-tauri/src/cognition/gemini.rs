@@ -701,6 +701,8 @@ mod tests {
             max_output_tokens: request.max_output_tokens,
             selection: crate::cognition::types::ProviderSelection::Fixed("gemini".into()),
             targets: vec![request.target],
+            affinity_key: None,
+            estimated_context_bytes: 0,
             required_capabilities: ProviderCapabilities::text_stream(),
         }
     }
@@ -1823,6 +1825,8 @@ mod tests {
                         timeouts: None,
                     },
                 }],
+                affinity_key: None,
+                estimated_context_bytes: 0,
                 required_capabilities: ProviderCapabilities::text_stream(),
             },
             TaskBudget {

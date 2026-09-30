@@ -49,7 +49,7 @@ fn migration_empty_and_twice() {
     let v: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(v, 8);
+    assert_eq!(v, 9);
     assert_sqlite_integrity(&conn);
     drop(conn);
     assert_sqlite_integrity(&db.open().unwrap());
@@ -69,7 +69,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 8);
+    assert_eq!(version, 9);
     let title: String = conn
         .query_row(
             "SELECT title FROM conversation_sessions WHERE id=1",
@@ -79,7 +79,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
         .unwrap();
     assert_eq!(title, "Antes da policy");
     let rows: Vec<(String, String, Option<String>, Option<i64>, i64)> = conn.prepare(
-    "SELECT role,model,thinking_level,max_output_tokens,max_provider_calls FROM cognitive_role_policies ORDER BY role").unwrap()
+    "SELECT p.role,t.model,t.thinking_level,p.max_output_tokens,p.max_provider_calls FROM cognitive_role_policies p JOIN cognitive_role_targets t ON t.role=p.role AND t.position=0 ORDER BY p.role").unwrap()
     .query_map([], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap().map(Result::unwrap).collect();
     assert_eq!(
         rows,
@@ -1045,10 +1045,10 @@ fn migration_004_preserves_v3_policy_and_seeds_advanced_defaults() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 8);
+    assert_eq!(version, 9);
     let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
-    assert_eq!(conversation.model, "gemini-custom");
+    assert_eq!(conversation.targets[0].model, "gemini-custom");
     assert_eq!(conversation.max_provider_calls, 4);
     assert_eq!(conversation.max_output_tokens, None);
     assert_eq!(
@@ -1155,7 +1155,7 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 8);
+    assert_eq!(version, 9);
     assert_eq!(super::general_settings::load(&conn).unwrap().active_fps, 45);
     assert_eq!(
         crate::cognition::policy::load(
@@ -1163,7 +1163,8 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
             crate::cognition::policy::CognitiveRole::Conversation
         )
         .unwrap()
-        .model,
+        .targets[0]
+            .model,
         "gemini-custom"
     );
     assert_eq!(
@@ -1193,22 +1194,14 @@ fn migration_006_preserves_fixed_behavior_and_seeds_groq_fallback_config() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 8);
+    assert_eq!(version, 9);
     let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
-    assert_eq!(conversation.model, "gemini-custom");
+    assert_eq!(conversation.targets[0].model, "gemini-custom");
     assert_eq!(conversation.routing_mode, RoutingMode::Fixed);
-    assert_eq!(conversation.fallback_provider_id.as_deref(), Some("groq"));
-    assert_eq!(
-        conversation.fallback_model.as_deref(),
-        Some("openai/gpt-oss-20b")
-    );
-    assert_eq!(
-        conversation.fallback_thinking_level,
-        Some(ThinkingLevel::Low)
-    );
     assert_eq!(summary.routing_mode, RoutingMode::Fixed);
-    assert!(summary.fallback_provider_id.is_none());
+    assert_eq!(summary.targets.len(), 1);
+    assert_eq!(conversation.targets.len(), 1);
     assert_sqlite_integrity(&conn);
 }
 
@@ -1239,14 +1232,14 @@ fn migration_007_preserves_v6_policy_and_gemini_timeout() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        8
+        9
     );
     let before = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
-    assert_eq!(before.model, "custom-gemini");
+    assert_eq!(before.targets[0].model, "custom-gemini");
     assert_eq!(before.max_provider_calls, 4);
     assert_eq!(before.routing_mode, RoutingMode::Preferred);
-    assert_eq!(before.thinking_level, Some(ThinkingLevel::High));
+    assert_eq!(before.targets[0].thinking_level, Some(ThinkingLevel::High));
     assert_eq!(
         provider_timeouts::load(&conn, "gemini").unwrap(),
         ProviderTimeouts {
