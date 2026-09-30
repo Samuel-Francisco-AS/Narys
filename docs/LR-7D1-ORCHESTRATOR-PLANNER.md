@@ -74,6 +74,12 @@ preflight continua validando policy, catálogo e timeouts; seus erros seguem o
 fluxo factual de histórico e evento terminal, e o cancelamento verificado antes
 do planejamento continua impedindo `OrchestratorPlanReady`.
 
+Foi adicionada cobertura de lifecycle de `start_task` para retorno do `TaskId`
+antes do preflight, falha de preflight, cancelamento durante preflight e
+cancelamento após o provider iniciar. Os testes verificam eventos, histórico,
+ausência de plano publicado, chamadas ao provider e remoção do registry; não há
+novo comportamento funcional nesta cobertura.
+
 O gate humano precisa ser repetido apenas para confirmar a troca Groq ↔ Gemini,
 o cancelamento pela janela `settings-ai` e a responsividade no início. O estado
 permanece **CANDIDATA À REAUDITORIA / GATE HUMANO**.

@@ -90,6 +90,11 @@ impl TaskRegistry {
     }
   }
 
+  #[cfg(test)]
+  pub fn contains_for_test(&self, id: TaskId) -> bool {
+    self.active.lock().unwrap_or_else(|poison| poison.into_inner()).contains_key(&id)
+  }
+
   fn remove(&self, id: TaskId) {
     self.active.lock().unwrap_or_else(|poison| poison.into_inner()).remove(&id);
   }

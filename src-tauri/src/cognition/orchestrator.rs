@@ -24,6 +24,8 @@ use crate::{
 use crate::luna::{runtime::TaskRegistry, task::{TaskEvent, TaskEventKind, TaskId, TaskState}};
 use crate::persistence::task_history::{self, TaskRecord};
 use chrono::{SecondsFormat, Utc};
+#[cfg(test)]
+use std::sync::{Condvar, Mutex, OnceLock};
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,6 +36,33 @@ pub struct OrchestratorResult {
 }
 
 const TASK_KIND: &str = "orchestrator_planning";
+
+#[cfg(test)]
+struct PreflightGate {
+    entered: Mutex<bool>,
+    released: Mutex<bool>,
+    cv: Condvar,
+}
+
+#[cfg(test)]
+static PREFLIGHT_GATE: OnceLock<Mutex<Option<Arc<PreflightGate>>>> = OnceLock::new();
+#[cfg(test)]
+static PREFLIGHT_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+#[cfg(test)]
+fn wait_for_test_preflight_gate() {
+    let gate = PREFLIGHT_GATE.get().and_then(|slot| slot.lock().unwrap().clone());
+    let Some(gate) = gate else { return };
+    *gate.entered.lock().unwrap() = true;
+    gate.cv.notify_all();
+    let mut released = gate.released.lock().unwrap();
+    while !*released {
+        released = gate.cv.wait(released).unwrap();
+    }
+}
+
+#[cfg(not(test))]
+fn wait_for_test_preflight_gate() {}
 
 fn model_contract() -> String {
     let schema = serde_json::to_string(&crate::agents::planner::output_schema())
@@ -237,6 +266,7 @@ pub fn start_task(
             (TaskState::Failed, None)
         } else {
             let mut events = scheduler_event(&channel, id, &mut sequence, &cancelled);
+            wait_for_test_preflight_gate();
             let preflight = tauri::async_runtime::spawn_blocking(move || {
                 let conn = preflight_db.open().map_err(|error| error.code())?;
                 let policy = policy::load(&conn, CognitiveRole::Orchestrator).map_err(|error| error.code())?;
@@ -349,12 +379,15 @@ mod tests {
         registry::ProviderRegistry,
         types::{ProviderChunk, ProviderConfig, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage},
     };
-    use std::time::Duration;
+    use crate::persistence::database::Database;
+    use crate::security::secrets::{SecretError, SecretKey, SecretStore, UnlockKeyStore};
+    use std::{fs, path::PathBuf, sync::{atomic::AtomicUsize, mpsc, Condvar, Mutex}, time::{Duration, SystemTime, UNIX_EPOCH}};
 
     struct PlanProvider {
         output: String,
         stream: bool,
         delay_ms: u64,
+        calls: Arc<AtomicUsize>,
     }
 
     impl Provider for PlanProvider {
@@ -365,6 +398,7 @@ mod tests {
             on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
         ) -> ProviderFuture<'a> {
             Box::pin(async move {
+                self.calls.fetch_add(1, Ordering::Relaxed);
                 let deadline = tokio::time::Instant::now() + Duration::from_millis(self.delay_ms);
                 while tokio::time::Instant::now() < deadline {
                     if cancelled.load(Ordering::Acquire) {
@@ -399,12 +433,229 @@ mod tests {
     }
 
     fn scheduler(provider_id: &str, output: String, stream: bool, delay_ms: u64) -> Arc<Scheduler> {
+        scheduler_with_calls(provider_id, output, stream, delay_ms).0
+    }
+
+    fn scheduler_with_calls(
+        provider_id: &str, output: String, stream: bool, delay_ms: u64,
+    ) -> (Arc<Scheduler>, Arc<AtomicUsize>) {
+        let calls = Arc::new(AtomicUsize::new(0));
         let mut registry = ProviderRegistry::default();
         registry.register(
             ProviderConfig { id: provider_id.into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() },
-            Arc::new(PlanProvider { output, stream, delay_ms }),
+            Arc::new(PlanProvider { output, stream, delay_ms, calls: calls.clone() }),
         ).unwrap();
-        Arc::new(Scheduler::new(registry))
+        (Arc::new(Scheduler::new(registry)), calls)
+    }
+
+    #[derive(Default)]
+    struct TestKeys(Mutex<Option<Vec<u8>>>);
+
+    impl UnlockKeyStore for TestKeys {
+        fn load(&self) -> Result<Option<Vec<u8>>, SecretError> {
+            Ok(self.0.lock().unwrap().clone())
+        }
+        fn store(&self, key: &[u8]) -> Result<(), SecretError> {
+            *self.0.lock().unwrap() = Some(key.to_vec());
+            Ok(())
+        }
+        fn delete(&self) -> Result<(), SecretError> {
+            *self.0.lock().unwrap() = None;
+            Ok(())
+        }
+    }
+
+    fn test_dir(label: &str) -> PathBuf {
+        let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!("orchestrator-lifecycle-{label}-{}-{stamp}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn empty_runtime() -> Arc<ProviderRuntime> {
+        Arc::new(ProviderRuntime::new(ProviderRegistry::default()))
+    }
+
+    fn valid_runtime() -> (Arc<ProviderRuntime>, Arc<SecretStore>, Arc<AtomicUsize>, PathBuf) {
+        let dir = test_dir("provider");
+        let store = Arc::new(SecretStore::with_key_store(dir.clone(), Arc::new(TestKeys::default())));
+        store.set_secret(SecretKey::GeminiApiKey, b"test-secret").unwrap();
+        let (scheduler, calls) = scheduler_with_calls("gemini", valid_plan(), true, 5_000);
+        (Arc::new(ProviderRuntime { scheduler }), store, calls, dir)
+    }
+
+    fn channel() -> (Channel<TaskEvent>, mpsc::Receiver<String>) {
+        let (sender, receiver) = mpsc::channel();
+        let channel = Channel::new(move |body| {
+            if let tauri::ipc::InvokeResponseBody::Json(json) = body {
+                sender.send(json).map_err(|_| std::io::Error::other("test channel closed"))?;
+            }
+            Ok(())
+        });
+        (channel, receiver)
+    }
+
+    fn collect_until_terminal(receiver: &mpsc::Receiver<String>) -> Vec<String> {
+        let mut events = Vec::new();
+        loop {
+            let event = receiver.recv_timeout(Duration::from_secs(5)).expect("task lifecycle event");
+            let terminal = event.contains("\"task_completed\"")
+                || event.contains("\"task_cancelled\"")
+                || event.contains("\"task_failed\"");
+            events.push(event);
+            if terminal {
+                return events;
+            }
+        }
+    }
+
+    fn wait_for_event(receiver: &mpsc::Receiver<String>, events: &mut Vec<String>, needle: &str) {
+        while !events.iter().any(|event| event.contains(needle)) {
+            events.push(receiver.recv_timeout(Duration::from_secs(5)).expect("expected lifecycle event"));
+        }
+    }
+
+    fn terminal_count(events: &[String]) -> usize {
+        events.iter().filter(|event| {
+            event.contains("\"task_completed\"")
+                || event.contains("\"task_cancelled\"")
+                || event.contains("\"task_failed\"")
+        }).count()
+    }
+
+    fn assert_history(db: &Database, task_id: TaskId, state: &str, error_code: Option<&str>) {
+        let conn = db.open().unwrap();
+        let row: (String, Option<String>) = conn.query_row(
+            "SELECT state,error_code FROM task_records WHERE task_id=?1",
+            [task_id.0],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(row.0, state);
+        assert_eq!(row.1.as_deref(), error_code);
+    }
+
+    fn install_preflight_gate() -> Arc<PreflightGate> {
+        let gate = Arc::new(PreflightGate {
+            entered: Mutex::new(false),
+            released: Mutex::new(false),
+            cv: Condvar::new(),
+        });
+        *PREFLIGHT_GATE.get_or_init(|| Mutex::new(None)).lock().unwrap() = Some(gate.clone());
+        gate
+    }
+
+    fn wait_for_gate(gate: &PreflightGate) {
+        let mut entered = gate.entered.lock().unwrap();
+        while !*entered {
+            entered = gate.cv.wait(entered).unwrap();
+        }
+    }
+
+    fn release_gate(gate: &PreflightGate) {
+        *gate.released.lock().unwrap() = true;
+        gate.cv.notify_all();
+        *PREFLIGHT_GATE.get().unwrap().lock().unwrap() = None;
+    }
+
+    #[test]
+    fn start_task_returns_task_id_before_preflight_and_keeps_task_active() {
+        let _serial = PREFLIGHT_TEST_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap();
+        let dir = test_dir("returns-before-preflight");
+        let db = Database::for_test(dir.clone().join("task.sqlite3"));
+        let registry = Arc::new(TaskRegistry::default());
+        let gate = install_preflight_gate();
+        let (channel, receiver) = channel();
+
+        let task_id = start_task(
+            registry.clone(), db.clone(), empty_runtime(),
+            Arc::new(SecretStore::with_key_store(dir.clone(), Arc::new(TestKeys::default()))),
+            "goal".into(), channel,
+        ).unwrap();
+
+        wait_for_gate(&gate);
+        assert!(registry.contains_for_test(task_id));
+        release_gate(&gate);
+
+        let events = collect_until_terminal(&receiver);
+        assert_eq!(terminal_count(&events), 1);
+        assert!(events.iter().any(|event| event.contains("\"task_started\"")));
+        assert!(events.iter().any(|event| event.contains("\"task_failed\"")));
+        assert!(!registry.contains_for_test(task_id));
+        assert_history(&db, task_id, "failed", Some("provider_unavailable"));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn start_task_preflight_failure_finishes_without_provider_or_plan() {
+        let dir = test_dir("preflight-failure");
+        let db = Database::for_test(dir.clone().join("task.sqlite3"));
+        let registry = Arc::new(TaskRegistry::default());
+        let (channel, receiver) = channel();
+
+        let task_id = start_task(
+            registry.clone(), db.clone(), empty_runtime(),
+            Arc::new(SecretStore::with_key_store(dir.clone(), Arc::new(TestKeys::default()))),
+            "goal".into(), channel,
+        ).unwrap();
+        let events = collect_until_terminal(&receiver);
+
+        assert_eq!(terminal_count(&events), 1);
+        assert!(events.iter().any(|event| event.contains("\"task_started\"")));
+        assert!(events.iter().any(|event| event.contains("\"task_failed\"")));
+        assert!(!events.iter().any(|event| event.contains("\"orchestrator_plan_ready\"")));
+        assert!(!registry.contains_for_test(task_id));
+        assert_history(&db, task_id, "failed", Some("provider_unavailable"));
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn start_task_cancel_during_preflight_finishes_cancelled_without_provider_or_plan() {
+        let _serial = PREFLIGHT_TEST_LOCK.get_or_init(|| Mutex::new(())).lock().unwrap();
+        let dir = test_dir("cancel-preflight");
+        let db = Database::for_test(dir.clone().join("task.sqlite3"));
+        let registry = Arc::new(TaskRegistry::default());
+        let gate = install_preflight_gate();
+        let (channel, receiver) = channel();
+
+        let task_id = start_task(
+            registry.clone(), db.clone(), empty_runtime(),
+            Arc::new(SecretStore::with_key_store(dir.clone(), Arc::new(TestKeys::default()))),
+            "goal".into(), channel,
+        ).unwrap();
+        wait_for_gate(&gate);
+        assert!(registry.cancel(task_id));
+        release_gate(&gate);
+
+        let events = collect_until_terminal(&receiver);
+        assert_eq!(terminal_count(&events), 1);
+        assert!(events.iter().any(|event| event.contains("\"task_cancelled\"")));
+        assert!(!events.iter().any(|event| event.contains("\"orchestrator_plan_ready\"")));
+        assert!(!registry.contains_for_test(task_id));
+        assert_history(&db, task_id, "cancelled", None);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn start_task_cancel_after_provider_starts_finishes_cancelled_without_plan() {
+        let (runtime, store, calls, dir) = valid_runtime();
+        let db = Database::for_test(dir.clone().join("task.sqlite3"));
+        let registry = Arc::new(TaskRegistry::default());
+        let (channel, receiver) = channel();
+        let task_id = start_task(
+            registry.clone(), db.clone(), runtime, store, "goal".into(), channel,
+        ).unwrap();
+        let mut events = Vec::new();
+        wait_for_event(&receiver, &mut events, "\"provider_selected\"");
+        assert!(calls.load(Ordering::Acquire) >= 1);
+        assert!(registry.cancel(task_id));
+        events.extend(collect_until_terminal(&receiver));
+
+        assert_eq!(terminal_count(&events), 1);
+        assert!(events.iter().any(|event| event.contains("\"task_cancelled\"")));
+        assert!(!events.iter().any(|event| event.contains("\"orchestrator_plan_ready\"")));
+        assert!(!registry.contains_for_test(task_id));
+        assert_history(&db, task_id, "cancelled", None);
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
