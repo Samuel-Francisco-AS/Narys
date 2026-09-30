@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. Próximo checkpoint: D0.5E — cancelamento, recovery e eventos reais.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — PASS técnico + auditoria independente + gate humano real; pronta para integração. Próximo checkpoint: D0.5F — gate real da mini-trilha.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -304,3 +304,80 @@ A auditoria independente do commit `ecd92032ff20004cd6791b1118d1b74fa9880955` ap
 ## Fechamento de integração da D0.5D — 29/09/2026
 
 A PR #7 foi integrada à `main` por squash no commit `d8591b93518a96e7a6c2cb94eba2d1c92194c455`. A D0.5D está oficialmente encerrada em **PASS completo**, com auditoria independente, gate humano real, `PlanV1` válido e cleanup pós-turno sem processo `codex app-server --stdio` residual. O próximo checkpoint é **D0.5E — cancelamento, recovery e eventos reais**.
+
+
+## D0.5E — PASS técnico + auditoria independente + gate humano
+
+Base: `origin/main` e main local conferidas em `c5394c52f7f820fc5b4ef73da1f264b1e4ce93ca`, branch de implementação `lr-7d05e-codex-lifecycle`. Um único agente de implementação; nenhuma delegação. D0.5D permanece encerrada em PASS completo. D0.5E ainda não recebeu auditoria/gate humano.
+
+### Contrato de cancelamento e corrida
+
+O contrato público `AgentBackend::execute` continua recebendo `&AtomicBool` e event sink, sem dependência concreta em seus tipos genéricos. Codex usa um controle por chamada com flags atômicas de cancelamento/sink fechado. O adaptador de diagnóstico e o backend de produção continuam usando o mesmo `execute_planner`, a mesma preparação compartilhada com preflight e o mesmo lifecycle. Nenhum estado global de busy/session é criado.
+
+- Cancelamento pré-marcado retorna `AgentError::Cancelled` antes de spawn, sem eventos ou inferência.
+- Se o cancelamento chega durante a preparação ou após thread/start, é verificado novamente antes de turn/start. Não há inferência nesse caminho e a thread/processo são recolhidos.
+- Após turn/start com ID válido, cancelamento observado enquanto ativo entra uma única vez no caminho de `turn/interrupt`. Não há retry de interrupt nem de turno. O request contém somente os IDs internos já correlacionados; nenhum deles cruza a fronteira pública.
+- ACK de interrupt tem prazo de 2 s. Se aceito como objeto vazio, a terminalização tem mais 2 s. `completed`, `interrupted` ou falha terminal observada não autoriza retorno de plano após cancelamento já observado. Falha de ACK, EOF ou ausência de terminalização levam ao cleanup, preservando `Cancelled` (ou `EventSinkClosed`, quando este iniciou a interrupção). Server requests e itens proibidos observados nessa coleta continuam falhando fechados com diagnóstico de segurança; não são escondidos por cancelamento.
+- A corrida é resolvida pela observação local: terminal de sucesso recebido antes de a flag ser observada preserva sucesso, após validação PlanV1 e cleanup. Se a flag é observada enquanto ativo, cancelamento vence, mesmo que uma conclusão seja recebida depois. Sinal que chega durante cleanup não invalida sucesso terminal já observado.
+
+O mecanismo está confirmado em `TurnInterruptParams`/`TurnInterruptResponse` da [tag rust-v0.158.0](https://github.com/openai/codex/tree/rust-v0.158.0/codex-rs/app-server-protocol/schema/json/v2) e nos schemas locais do CLI 0.159.0: `threadId`, `turnId` e resposta `{}`. A [documentação oficial do app-server](https://learn.chatgpt.com/docs/app-server#interrupt-a-turn) confirma `turn/completed` após interrupção. Nenhum CLI/model/provider foi alterado.
+
+### Responsividade e recursos
+
+A ponte assíncrona verifica a flag do chamador em intervalos de até 50 ms; a leitura de notifications no worker usa slices de até 100 ms, respeitando o deadline global de 60 s. Latência esperada de observação durante espera de notifications: até aproximadamente **150 ms**, mais agendamento do sistema. Não há busy waiting; receiver e timer aguardam de forma bloqueante/assíncrona. Não é uma garantia de tempo real. Requests preparatórias/turn-start continuam tendo deadline de 8 s: se cancelamento chega aguardando o ACK de turn/start, o controle atua assim que há ID válido ou após falha/timeout com cleanup.
+
+A fila de eventos tem capacidade 1 e handshake de acknowledgement: somente um evento pode estar pendente, nunca texto do modelo. Enqueue não bloqueia; o worker só continua após confirmação de entrega. ACK aguarda em slices de 50 ms com teto de 2 s; consumidor sem resposta vira sink fechado. Callback deve retornar prontamente; callback arbitrário bloqueante não pode ser interrompido pela infraestrutura, mas o worker tem seu próprio teto de espera e recolhe recursos. A queda/drop da future marca o sink como fechado; o worker continua responsável por interromper/recolher, sem depender do consumidor drenando filas.
+
+Após observar cancelamento, os budgets de IO são 2 s para ACK + 2 s para terminalização + até 8 s para unsubscribe + 2 s antes de kill+wait no shutdown. Há também o teto de ACK de eventos de 2 s quando o consumidor não responde. Cleanup e kill+wait reutilizam a D0.5B/D0.5D; não há canal de stream novo, locks mantidos durante IO nem daemon persistente.
+
+### Eventos reais e falha do sink
+
+`AgentEvent` ganhou variantes genéricas sem payload privado:
+
+| Evento | Fato que o origina |
+|---|---|
+| `SessionReady` | Preparação e isolamento efetivo da thread passaram |
+| `WorkStarted` | turn/start foi aceito com ID válido |
+| `OutputObserved` | Primeiro delta de resposta/reasoning não vazio ou agentMessage completo da thread/turn correspondente |
+| `CancellationRequested` | Caminho de controle decidiu solicitar interrupção de trabalho ativo |
+| `Completed` | PlanV1 passou no Core e cleanup passou |
+| `Cancelled` | Operação cancelada, após tentativa de cleanup |
+| `Failed` | Operação falhou, após tentativa de cleanup |
+
+`OutputObserved` é emitido no máximo uma vez por operação, compactando fatos de streaming realmente recebidos. Não há texto parcial, porcentagem, timer de progresso ou mensagem inventada. Terminal tem uma única tentativa de entrega; consumidor saudável confirma recebimento. Consumidor fechado não pode receber garantia de entrega. A variante legada `Output { text }` permanece para compatibilidade dos consumidores/mocks existentes, mas Codex não a emite: somente PlanV1 validado vira resultado.
+
+Qualquer erro do callback é tratado como `AgentError::EventSinkClosed`. Antes de turn/start, impede inferência. Durante trabalho ativo, dispara a mesma interrupção única e cleanup. Se o callback rejeita o terminal de uma operação que seria sucesso, o retorno é EventSinkClosed. Falhas anteriores de preparação/protocolo/segurança não são mascaradas por falha posterior de sink ou cleanup. Cancelled/EventSinkClosed também não viram sucesso quando cleanup falha. Os códigos específicos seguem confinados à camada Planner/Codex; `AgentError` não ganhou variantes específicas, strings arbitrárias ou payloads.
+
+### Recovery, segurança e testes
+
+Recovery significa desfazer o lifecycle da chamada atual: unsubscribe quando há thread, EOF no stdin, wait ou kill+wait, readers recolhidos e diretório temporário descartado. Cada chamada futura cria seus próprios recursos/flags; cancelamento, transport close, protocolo inválido, interrupt falho, sink fechado ou cleanup parcial não envenenam uma sessão global. Não há retry automático de inferência, resume, pool, persistência ou execução de PlanV1.
+
+Permanecem intactos: readOnly, rede de ferramentas desabilitada, approval never, cwd fora do checkout, environments/dynamicTools/workspace roots/selectedCapabilityRoots vazios, instructionSources obrigatoriamente vazias, permission profile apenas provenance, MCP/tools/shell/unified exec/web desabilitados, capabilities somente planning + structured_output, PlanV1/outputSchema/prompt, limite de 16 KiB do plano, transporte 64 KiB/mensagem + 512 KiB/sessão + 8192 frames, burst sem perda, server requests fail-closed e probe D0.5B separado. Preflight e UI não foram alterados.
+
+Testes novos usam buffers/fakes e relógio monotônico virtual para corridas, polls, deadlines e cleanup; testes da ponte usam somente esperas curtas de canal em memória, sem subprocessos/arquivos/modelos. Cobrem cancelamento prévio/pre-turn/ativo, sinais repetidos, stream após cancel, completion versus cancel, interrupt falho/sem terminal, eventos/coalescing/ordem/terminal único, sink fechado, drop da future, recovery em chamada independente, cleanup parcial e server requests. Os testes D0.5A/B/C/D permanecem, incluindo regressões de burst e isolamento. Um teste manual `ignored` foi preparado para cancelamento real isolado; **não foi executado nesta implementação**. Gates automáticos não consomem quota. A auditoria independente da Luna precede qualquer gate humano desta candidata.
+
+Fora de escopo: D0.5F+, LR-7D1, execução agentiva/TaskRegistry, TaskGraph, Orchestrator, retry/fallback, seleção de modelo/agente, processo persistente, progresso em UI, Telegram e telemetria avançada. Assets Blender locais não foram tocados.
+
+Verificação da candidata: 27 testes novos (26 automáticos e um manual ignorado); suíte Rust completa com **198 PASS, 0 falhas, 2 ignored**. Gates `npm run typecheck`, `npm run build`, `cargo check`, `cargo test`, `cargo check --release` e `git diff --check` passaram. Warnings de dead code/unused import do projeto e chunk Vite acima de 500 KiB permanecem informativos. Revisão estática final conferiu cancelamento/ACK, corrida terminal, interrupt único, cleanup/Drop, ausência de retry/busy state, filas bounded, isolamento e fronteiras sanitizadas. Nenhuma inferência real foi executada; nenhum asset Blender foi alterado. A candidata aguarda auditoria independente, sem PASS humano antecipado.
+
+
+### FIX de auditoria D0.5E — pending após falha do ACK de interrupt
+
+A auditoria do HEAD `b533670d4a200636003ec2925cbf162400728801` encontrou que notifications intercaladas já recebidas por `await_response` podiam ficar em `pending` e nunca passar pela validação quando o ACK de `turn/interrupt` falhava/expirava. Isso permitia classificar a operação simplesmente como Cancelled/EventSinkClosed, ocultando um item proibido já recebido.
+
+Após a única tentativa de interrupt, o lifecycle agora retira a FIFO `pending` por um método interno não bloqueante, sem leitura do receiver e sem esperar mensagens novas. Cada notification retirada passa pelo mesmo `inspect_notification_mode`, sem relaxar as regras. O primeiro diagnóstico fail-closed encontrado prevalece sobre cancelamento/sink fechado. A inspeção não para ao observar terminal: mensagens posteriores na FIFO também são verificadas antes de aceitar a classificação de cancelamento. O terminal observado é guardado, evitando perda ou uma nova espera desnecessária pela mesma conclusão.
+
+O caminho é limitado pela fila já existente (budget de 8192 frames e 512 KiB do transporte), sem reabastecimento ou IO. ACK falho com pending benigno/terminal conserva Cancelled/EventSinkClosed e segue direto ao cleanup; ACK aceito sem terminal observado mantém a espera limitada de terminalização. Server request continua produzindo somente diagnóstico fechado, sem resposta. Nenhum erro de interrupt vira sucesso; nenhum retry ou segundo interrupt foi adicionado. Cleanup continua obrigatório, com a precedência anterior de falhas preservada.
+
+Oito testes novos cobrem armazenamento pending em timeout/protocol/close, item proibido intercalado com ACK expirado, falha protocol/transport, terminal pending com ACK falho, pending benigno sem erro de segurança inventado, item proibido depois de terminal (com ACK aceito ou falho), server request durante ACK e notification pending malformada. Usam `CodexRpcStream::await_response`/framing reais sobre buffers em memória; o fake converte EOF em timeout de ACK somente após a preservação real da FIFO, sem sleeps ou dependência de relógio. Um teste direto de `await_reply` injeta o erro de timeout no ponto de receive. Verificam interrupt único, ausência de nova leitura bloqueante e unsubscribe/shutdown em todos os caminhos. Nenhuma inferência real ou arquivo artístico foi acessado/alterado. D0.5E permanece **candidata à auditoria independente**, sem PASS humano.
+
+Gates da FIX: `npm run typecheck`, `npm run build`, `cargo check`, `cargo test`, `cargo check --release` e `git diff --check` passaram. Suíte completa: **206 PASS, 0 falhas, 2 ignored**. Permanecem warnings informativos de dead code/unused import e chunk Vite acima de 500 KiB. Nenhuma inferência real foi executada.
+
+
+## Gate humano da D0.5E — PASS
+
+Após a auditoria independente do HEAD `3463942325887c7b436862eb827fc6517db281ba`, foi executado apenas o teste manual ignorado `manual_isolated_cancel_lifecycle` contra o runtime Codex real. O teste iniciou o `CodexAgentBackend` em sessão efêmera/read-only, observou `WorkStarted`, marcou cancelamento, percorreu o caminho real de `turn/interrupt` e terminou em `AgentError::Cancelled` conforme o contrato. Resultado: **1 passed, 0 failed**, em 2,38 s; os warnings observados eram os mesmos avisos de dead code/unused já conhecidos e não bloquearam o gate.
+
+Imediatamente após o teste, `git status --short` retornou vazio e `pgrep -af 'codex app-server --stdio'` também retornou vazio. Portanto o gate real confirmou, em conjunto, cancelamento remoto, cleanup sem processo órfão e ausência de alteração no checkout. A FIX anterior também garante que notifications já recebidas durante um ACK falho de interrupt continuam sujeitas à inspeção fail-closed antes de a operação ser classificada como Cancelled/EventSinkClosed.
+
+Com isso, **D0.5E está encerrada em PASS técnico + auditoria independente + gate humano real e pronta para integração**. D0.5F permanece fora de escopo e será o próximo checkpoint da mini-trilha.

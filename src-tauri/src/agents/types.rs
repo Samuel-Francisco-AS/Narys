@@ -44,6 +44,19 @@ pub struct AgentResult {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AgentEvent {
+    /// A safe, ephemeral session has actually been prepared.
+    SessionReady,
+    /// The runtime accepted a work request with a valid work identifier.
+    WorkStarted,
+    /// First correlated response activity, without unvalidated content.
+    OutputObserved,
+    /// The control path is requesting interruption of active work.
+    CancellationRequested,
+    /// Operation outcomes, emitted only after the cleanup attempt.
+    Completed,
+    Cancelled,
+    Failed,
+    // Kept for existing consumers/mocks; Codex never emits partial text here.
     Output { text: String },
 }
 
