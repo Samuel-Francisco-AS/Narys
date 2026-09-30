@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — candidata à auditoria independente; sem PASS humano.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — PASS técnico + auditoria independente + gate humano real; pronta para integração. Próximo checkpoint: D0.5F — gate real da mini-trilha.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -306,7 +306,7 @@ A auditoria independente do commit `ecd92032ff20004cd6791b1118d1b74fa9880955` ap
 A PR #7 foi integrada à `main` por squash no commit `d8591b93518a96e7a6c2cb94eba2d1c92194c455`. A D0.5D está oficialmente encerrada em **PASS completo**, com auditoria independente, gate humano real, `PlanV1` válido e cleanup pós-turno sem processo `codex app-server --stdio` residual. O próximo checkpoint é **D0.5E — cancelamento, recovery e eventos reais**.
 
 
-## D0.5E — CANDIDATA À AUDITORIA INDEPENDENTE
+## D0.5E — PASS técnico + auditoria independente + gate humano
 
 Base: `origin/main` e main local conferidas em `c5394c52f7f820fc5b4ef73da1f264b1e4ce93ca`, branch de implementação `lr-7d05e-codex-lifecycle`. Um único agente de implementação; nenhuma delegação. D0.5D permanece encerrada em PASS completo. D0.5E ainda não recebeu auditoria/gate humano.
 
@@ -372,3 +372,12 @@ O caminho é limitado pela fila já existente (budget de 8192 frames e 512 KiB d
 Oito testes novos cobrem armazenamento pending em timeout/protocol/close, item proibido intercalado com ACK expirado, falha protocol/transport, terminal pending com ACK falho, pending benigno sem erro de segurança inventado, item proibido depois de terminal (com ACK aceito ou falho), server request durante ACK e notification pending malformada. Usam `CodexRpcStream::await_response`/framing reais sobre buffers em memória; o fake converte EOF em timeout de ACK somente após a preservação real da FIFO, sem sleeps ou dependência de relógio. Um teste direto de `await_reply` injeta o erro de timeout no ponto de receive. Verificam interrupt único, ausência de nova leitura bloqueante e unsubscribe/shutdown em todos os caminhos. Nenhuma inferência real ou arquivo artístico foi acessado/alterado. D0.5E permanece **candidata à auditoria independente**, sem PASS humano.
 
 Gates da FIX: `npm run typecheck`, `npm run build`, `cargo check`, `cargo test`, `cargo check --release` e `git diff --check` passaram. Suíte completa: **206 PASS, 0 falhas, 2 ignored**. Permanecem warnings informativos de dead code/unused import e chunk Vite acima de 500 KiB. Nenhuma inferência real foi executada.
+
+
+## Gate humano da D0.5E — PASS
+
+Após a auditoria independente do HEAD `3463942325887c7b436862eb827fc6517db281ba`, foi executado apenas o teste manual ignorado `manual_isolated_cancel_lifecycle` contra o runtime Codex real. O teste iniciou o `CodexAgentBackend` em sessão efêmera/read-only, observou `WorkStarted`, marcou cancelamento, percorreu o caminho real de `turn/interrupt` e terminou em `AgentError::Cancelled` conforme o contrato. Resultado: **1 passed, 0 failed**, em 2,38 s; os warnings observados eram os mesmos avisos de dead code/unused já conhecidos e não bloquearam o gate.
+
+Imediatamente após o teste, `git status --short` retornou vazio e `pgrep -af 'codex app-server --stdio'` também retornou vazio. Portanto o gate real confirmou, em conjunto, cancelamento remoto, cleanup sem processo órfão e ausência de alteração no checkout. A FIX anterior também garante que notifications já recebidas durante um ACK falho de interrupt continuam sujeitas à inspeção fail-closed antes de a operação ser classificada como Cancelled/EventSinkClosed.
+
+Com isso, **D0.5E está encerrada em PASS técnico + auditoria independente + gate humano real e pronta para integração**. D0.5F permanece fora de escopo e será o próximo checkpoint da mini-trilha.
