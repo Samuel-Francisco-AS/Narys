@@ -89,8 +89,12 @@ impl CognitiveRolePolicy {
     }
 
     fn valid_provider_id(value: &str) -> bool {
-        !value.is_empty() && value.len() <= 64 && value.trim() == value
-            && value.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-' || byte == b'_')
+        !value.is_empty()
+            && value.len() <= 64
+            && value.trim() == value
+            && value.bytes().all(|byte| {
+                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-' || byte == b'_'
+            })
     }
 
     fn validate_integrity(&self) -> Result<(), &'static str> {
@@ -100,7 +104,11 @@ impl CognitiveRolePolicy {
         if !Self::valid_model(&self.model) {
             return Err("model_invalid");
         }
-        match (&self.fallback_provider_id, &self.fallback_model, self.fallback_thinking_level) {
+        match (
+            &self.fallback_provider_id,
+            &self.fallback_model,
+            self.fallback_thinking_level,
+        ) {
             (None, None, None) => {}
             (Some(provider), Some(model), _)
                 if Self::valid_provider_id(provider) && Self::valid_model(model) => {}
@@ -133,8 +141,14 @@ impl CognitiveRolePolicy {
                 if self.max_provider_calls < 2 {
                     return Err("fallback_budget_invalid");
                 }
-                if self.fallback_provider_id.as_deref().is_none_or(|id| !Self::valid_provider_id(id))
-                    || self.fallback_model.as_deref().map_or(true, |model| !Self::valid_model(model))
+                if self
+                    .fallback_provider_id
+                    .as_deref()
+                    .is_none_or(|id| !Self::valid_provider_id(id))
+                    || self
+                        .fallback_model
+                        .as_deref()
+                        .map_or(true, |model| !Self::valid_model(model))
                     || self.fallback_provider_id.as_deref() == Some(self.provider_id.as_str())
                 {
                     return Err("fallback_config_invalid");
@@ -314,7 +328,13 @@ mod tests {
                 summary.max_output_tokens,
                 summary.max_provider_calls,
             ),
-            (RoutingMode::Fixed, None, Some(ThinkingLevel::Low), Some(1024), 1)
+            (
+                RoutingMode::Fixed,
+                None,
+                Some(ThinkingLevel::Low),
+                Some(1024),
+                1
+            )
         );
 
         conversation.model = "gemini-new-model".into();
@@ -327,11 +347,17 @@ mod tests {
 
         summary.max_output_tokens = Some(512);
         save(&mut conn, &summary).unwrap();
-        assert_eq!(load(&conn, CognitiveRole::Conversation).unwrap(), conversation);
+        assert_eq!(
+            load(&conn, CognitiveRole::Conversation).unwrap(),
+            conversation
+        );
 
         drop(conn);
         let conn = db.open().unwrap();
-        assert_eq!(load(&conn, CognitiveRole::Conversation).unwrap(), conversation);
+        assert_eq!(
+            load(&conn, CognitiveRole::Conversation).unwrap(),
+            conversation
+        );
         assert_eq!(load(&conn, CognitiveRole::Summary).unwrap(), summary);
 
         let columns: Vec<String> = conn
@@ -361,7 +387,10 @@ mod tests {
         let mut bad = original.clone();
         bad.provider_id = "unknown".into();
         assert!(bad.validate().is_ok()); // Persistence validates structure only.
-        assert!(crate::cognition::catalog::validate_registered("unknown", bad.thinking_level, &[]).is_err());
+        assert!(
+            crate::cognition::catalog::validate_registered("unknown", bad.thinking_level, &[])
+                .is_err()
+        );
 
         bad = original.clone();
         bad.model = "\u{0007}".into();
@@ -398,7 +427,14 @@ mod tests {
 
     #[test]
     fn provider_order_is_structural_and_summary_stays_fixed() {
-        let dir = std::env::temp_dir().join(format!("lr7d-policy-{}-{}", std::process::id(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+        let dir = std::env::temp_dir().join(format!(
+            "lr7d-policy-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         let db = Database::for_test(dir.join("test.sqlite3"));
         let conn = db.open().unwrap();
@@ -408,7 +444,14 @@ mod tests {
             conversation.routing_mode = RoutingMode::Fixed;
             assert!(conversation.validate().is_ok());
             conversation.routing_mode = RoutingMode::Preferred;
-            conversation.fallback_provider_id = Some(if primary == "gemini" { "groq" } else { "gemini" }.into());
+            conversation.fallback_provider_id = Some(
+                if primary == "gemini" {
+                    "groq"
+                } else {
+                    "gemini"
+                }
+                .into(),
+            );
             conversation.fallback_model = Some("target-specific-model".into());
             assert!(conversation.validate().is_ok());
             conversation.fallback_provider_id = Some(primary.into());

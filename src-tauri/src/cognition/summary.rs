@@ -2,8 +2,8 @@ use super::{
     policy::{self, CognitiveRole, CognitiveRolePolicy},
     scheduler::Scheduler,
     types::{
-        ContextBundle, ContextMetadata, ProviderCapabilities, ProviderTaskRequest, ProviderTarget, ProviderInvocationConfig, ProviderSelection, SchedulerError,
-        TaskBudget,
+        ContextBundle, ContextMetadata, ProviderCapabilities, ProviderInvocationConfig,
+        ProviderSelection, ProviderTarget, ProviderTaskRequest, SchedulerError, TaskBudget,
     },
 };
 use crate::{
@@ -146,18 +146,16 @@ impl SummaryWorker {
                     return ProcessOutcome::Transient;
                 }
                 policy
-            },
+            }
             Err(_) => {
                 eprintln!("[Summary] policy code=read_failed");
                 self.defer_claim(claimed.id);
                 return ProcessOutcome::Transient;
             }
         };
-        let timeouts = match self
-            .db
-            .open()
-            .and_then(|conn| crate::persistence::provider_timeouts::load(&conn, &policy.provider_id))
-        {
+        let timeouts = match self.db.open().and_then(|conn| {
+            crate::persistence::provider_timeouts::load(&conn, &policy.provider_id)
+        }) {
             Ok(timeouts) => timeouts,
             Err(_) => {
                 eprintln!("[Summary] timeouts code=read_failed");
@@ -389,9 +387,14 @@ fn summary_request(
         context: Arc::new(context),
         max_output_tokens: policy.max_output_tokens,
         selection: ProviderSelection::Fixed(policy.provider_id.clone()),
-        targets: vec![ProviderTarget { provider_id: policy.provider_id.clone(), invocation: ProviderInvocationConfig {
-            model: policy.model.clone(), thinking_level: policy.thinking_level, timeouts: Some(timeouts),
-        } }],
+        targets: vec![ProviderTarget {
+            provider_id: policy.provider_id.clone(),
+            invocation: ProviderInvocationConfig {
+                model: policy.model.clone(),
+                thinking_level: policy.thinking_level,
+                timeouts: Some(timeouts),
+            },
+        }],
         required_capabilities: ProviderCapabilities::text_stream(),
     }
 }
@@ -421,6 +424,7 @@ fn parse_output(raw: &str) -> Result<SummaryOutput, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cognition::types::ProviderRequest;
     use crate::cognition::{
         provider::{Provider, ProviderFuture},
         registry::ProviderRegistry,
@@ -431,7 +435,6 @@ mod tests {
         sync::Mutex,
         time::{SystemTime, UNIX_EPOCH},
     };
-    use crate::cognition::types::ProviderRequest;
     struct Fake {
         responses: Mutex<VecDeque<Result<String, ProviderError>>>,
         requests: Mutex<Vec<String>>,
@@ -506,10 +509,17 @@ mod tests {
                 fake.clone(),
             )
             .unwrap();
-        providers.register(ProviderConfig {
-            id: "groq".into(), enabled: true, priority: 2,
-            capabilities: ProviderCapabilities::text_stream(),
-        }, fake.clone()).unwrap();
+        providers
+            .register(
+                ProviderConfig {
+                    id: "groq".into(),
+                    enabled: true,
+                    priority: 2,
+                    capabilities: ProviderCapabilities::text_stream(),
+                },
+                fake.clone(),
+            )
+            .unwrap();
         (
             db,
             fake,
@@ -533,16 +543,30 @@ mod tests {
         policy.provider_id = "groq".into();
         policy.model = "openai/gpt-oss-20b".into();
         policy::save(&mut conn, &policy).unwrap();
-        let before = conversation::history_session(&conn, id).unwrap().unwrap().messages;
-        let claim = conversation::claim_next_pending_summary(&mut conn).unwrap().unwrap();
+        let before = conversation::history_session(&conn, id)
+            .unwrap()
+            .unwrap()
+            .messages;
+        let claim = conversation::claim_next_pending_summary(&mut conn)
+            .unwrap()
+            .unwrap();
         drop(conn);
-        fake.responses.lock().unwrap().push_back(Ok("{\"title\":\"Groq válido\",\"summary\":\"Resumo factual.\"}".into()));
-        assert_eq!(worker(db.clone(), scheduler, registry).process(claim).await, ProcessOutcome::Continue);
-        let after = conversation::history_session(&db.open().unwrap(), id).unwrap().unwrap();
+        fake.responses.lock().unwrap().push_back(Ok(
+            "{\"title\":\"Groq válido\",\"summary\":\"Resumo factual.\"}".into(),
+        ));
+        assert_eq!(
+            worker(db.clone(), scheduler, registry).process(claim).await,
+            ProcessOutcome::Continue
+        );
+        let after = conversation::history_session(&db.open().unwrap(), id)
+            .unwrap()
+            .unwrap();
         assert_eq!(after.title.as_deref(), Some("Groq válido"));
         assert_eq!(after.summary.as_deref(), Some("Resumo factual."));
         assert_eq!(after.messages.len(), before.len());
-        for (a, b) in after.messages.iter().zip(before.iter()) { assert_eq!((&a.role, &a.content), (&b.role, &b.content)); }
+        for (a, b) in after.messages.iter().zip(before.iter()) {
+            assert_eq!((&a.role, &a.content), (&b.role, &b.content));
+        }
     }
     fn worker(
         db: Database,
@@ -590,7 +614,10 @@ mod tests {
         assert_eq!(request.targets.len(), 1);
         assert_eq!(request.targets[0].provider_id, "gemini");
         assert_eq!(request.targets[0].invocation.model, "gemini-summary");
-        assert_eq!(request.targets[0].invocation.timeouts, Some(crate::persistence::gemini_settings::GeminiTimeouts::default().into()));
+        assert_eq!(
+            request.targets[0].invocation.timeouts,
+            Some(crate::persistence::gemini_settings::GeminiTimeouts::default().into())
+        );
         assert_eq!(
             request.targets[0].invocation.thinking_level,
             Some(super::super::policy::ThinkingLevel::Low)
