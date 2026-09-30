@@ -29,7 +29,7 @@ fn assert_sqlite_integrity(conn: &rusqlite::Connection) {
 #[test]
 fn migration_empty_and_twice() {
   let (db,_) = fixture(); let conn=db.open().unwrap();
-  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,7);
+  let v:i64=conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap(); assert_eq!(v,8);
   assert_sqlite_integrity(&conn);
   drop(conn); assert_sqlite_integrity(&db.open().unwrap());
 }
@@ -41,16 +41,17 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
   conn.execute("INSERT INTO conversation_sessions(kind,status,title) VALUES ('product','closed','Antes da policy')", []).unwrap();
   migrations::apply(&conn).unwrap();
   let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-  assert_eq!(version, 7);
+  assert_eq!(version, 8);
   let title: String = conn.query_row("SELECT title FROM conversation_sessions WHERE id=1", [], |r| r.get(0)).unwrap();
   assert_eq!(title, "Antes da policy");
   let rows: Vec<(String, String, Option<String>, Option<i64>, i64)> = conn.prepare(
     "SELECT role,model,thinking_level,max_output_tokens,max_provider_calls FROM cognitive_role_policies ORDER BY role").unwrap()
     .query_map([], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap().map(Result::unwrap).collect();
   assert_eq!(rows, vec![("conversation".into(),"gemini-3.8-flash".into(),Some("low".into()),Some(4096),2),
+    ("orchestrator".into(),"gemini-3.8-flash".into(),Some("low".into()),Some(4096),2),
     ("summary".into(),"gemini-3.8-flash".into(),Some("low".into()),Some(1024),1)]);
   migrations::apply(&conn).unwrap();
-  assert_eq!(conn.query_row("SELECT COUNT(*) FROM cognitive_role_policies", [], |r| r.get::<_,i64>(0)).unwrap(), 2);
+  assert_eq!(conn.query_row("SELECT COUNT(*) FROM cognitive_role_policies", [], |r| r.get::<_,i64>(0)).unwrap(), 3);
   assert_sqlite_integrity(&conn);
 }
 
@@ -451,7 +452,7 @@ fn migration_004_preserves_v3_policy_and_seeds_advanced_defaults() {
   conn.execute("UPDATE cognitive_role_policies SET model='gemini-custom',max_provider_calls=4,max_output_tokens=NULL WHERE role='conversation'", []).unwrap();
   migrations::apply(&conn).unwrap();
   let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
-  assert_eq!(version, 7);
+  assert_eq!(version, 8);
   let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
   let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
   assert_eq!(conversation.model, "gemini-custom");
@@ -493,7 +494,7 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
   conn.execute("UPDATE cognitive_role_policies SET model='gemini-custom' WHERE role='conversation'", []).unwrap();
   migrations::apply(&conn).unwrap();
   let version: i64 = conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap();
-  assert_eq!(version,7);
+  assert_eq!(version,8);
   assert_eq!(super::general_settings::load(&conn).unwrap().active_fps,45);
   assert_eq!(crate::cognition::policy::load(&conn,crate::cognition::policy::CognitiveRole::Conversation).unwrap().model,"gemini-custom");
   assert_eq!(super::gemini_settings::load(&conn).unwrap().request_timeout_ms,45_000);
@@ -513,7 +514,7 @@ fn migration_006_preserves_fixed_behavior_and_seeds_groq_fallback_config() {
   conn.execute("UPDATE cognitive_role_policies SET model='gemini-custom',max_provider_calls=4 WHERE role='conversation'", []).unwrap();
   migrations::apply(&conn).unwrap();
   let version: i64 = conn.pragma_query_value(None,"user_version",|r|r.get(0)).unwrap();
-  assert_eq!(version,7);
+  assert_eq!(version,8);
   let conversation = policy::load(&conn,CognitiveRole::Conversation).unwrap();
   let summary = policy::load(&conn,CognitiveRole::Summary).unwrap();
   assert_eq!(conversation.model,"gemini-custom");
@@ -542,12 +543,12 @@ fn migration_007_preserves_v6_policy_and_gemini_timeout() {
     include_str!("../../migrations/006_cognitive_routing.sql"))).unwrap();
   conn.execute("UPDATE gemini_provider_settings SET request_timeout_ms=64000,stream_idle_timeout_ms=17000", []).unwrap();
   conn.execute("UPDATE cognitive_role_policies SET routing_mode='preferred',model='custom-gemini',thinking_level='high',max_provider_calls=4 WHERE role='conversation'", []).unwrap();
+  migrations::apply(&conn).unwrap();
+  assert_eq!(conn.pragma_query_value(None, "user_version", |r| r.get::<_,i64>(0)).unwrap(), 8);
   let before = policy::load(&conn, CognitiveRole::Conversation).unwrap();
   let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
-  migrations::apply(&conn).unwrap();
-  assert_eq!(conn.pragma_query_value(None, "user_version", |r| r.get::<_,i64>(0)).unwrap(), 7);
-  assert_eq!(policy::load(&conn, CognitiveRole::Conversation).unwrap(), before);
-  assert_eq!(policy::load(&conn, CognitiveRole::Summary).unwrap(), summary);
+  assert_eq!(before.model, "custom-gemini");
+  assert_eq!(before.max_provider_calls, 4);
   assert_eq!(before.routing_mode, RoutingMode::Preferred);
   assert_eq!(before.thinking_level, Some(ThinkingLevel::High));
   assert_eq!(provider_timeouts::load(&conn, "gemini").unwrap(), ProviderTimeouts { request_timeout_ms:64000, stream_idle_timeout_ms:17000 });

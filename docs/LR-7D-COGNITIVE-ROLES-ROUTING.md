@@ -1,13 +1,13 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1/D2/D3 planejadas.**
+Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo no gate humano em 30/09/2026; D2/D3 planejadas.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ### D0.5 — fronteira futura de agentes
 
 A mini-trilha D0.5 começa após o fechamento da D0 e mantém Codex separado dos
 Cognitive Providers. **D0.5A foi fechada em PASS completo em 29/09/2026** e detecta
-somente o runtime e o estado seguro de autenticação. **D0.5B também foi fechada em PASS e integrada em 29/09/2026**, adicionando a ponte efêmera Rust ↔ `codex app-server --stdio`; **D0.5C também foi integrada em PASS em 29/09/2026**, estabelecendo `AgentBackend` e `AgentRegistry`; D0.5D fechou em PASS completo após auditoria e gate humano, adicionando o primeiro `CodexAgentBackend` real com Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. D0.5E também fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026, encerrando a mini-trilha **LR-7D0.5 em PASS completo**. O próximo checkpoint é **LR-7D1 — Orchestrator/Planner configurável**. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
+somente o runtime e o estado seguro de autenticação. **D0.5B também foi fechada em PASS e integrada em 29/09/2026**, adicionando a ponte efêmera Rust ↔ `codex app-server --stdio`; **D0.5C também foi integrada em PASS em 29/09/2026**, estabelecendo `AgentBackend` e `AgentRegistry`; D0.5D fechou em PASS completo após auditoria e gate humano, adicionando o primeiro `CodexAgentBackend` real com Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. D0.5E também fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026, encerrando a mini-trilha **LR-7D0.5 em PASS completo**. **LR-7D1 — Orchestrator/Planner configurável — fechou em PASS completo no gate humano de 30/09/2026.** O próximo checkpoint é **LR-7D2 — fallback chain + Auto/score + affinity**. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
 
 ## Princípio central
 
@@ -45,7 +45,7 @@ Dívida intencional deixada pela LR-7C:
 
 ## LR-7D0 — providers genéricos por papel + remoção dos hardcodes
 
-### Implementação candidata
+### Implementação fechada
 
 - A persistência valida apenas a estrutura da policy. O boundary de settings e o início da conversa validam o provider contra o catálogo, Registry, capabilities e estado da credencial. Provider desconhecido, indisponível ou sem credencial falha fechado.
 - Conversation monta targets por `provider_id`, cada qual com model, thinking e timeouts próprios. `Fixed` aceita Gemini ou Groq; `Preferred` aceita as duas ordens com targets diferentes. O Scheduler continua responsável por cooldown, retry, fallback anterior ao primeiro chunk e cancelamento, sem regras por marca.
@@ -202,7 +202,7 @@ Trocar Gemini ↔ Groq como primary/fallback em Conversation e como provider Fix
 
 Adicionar uma policy persistida `orchestrator` configurável pela interface.
 
-O usuário escolhe provider, model, thinking, output/context budget, timeout/retry e routing compatível.
+O usuário escolhe provider, model, thinking, output/input budget, timeout/retry e routing compatível.
 
 ### Regra de autoridade
 
@@ -217,9 +217,49 @@ A LLM Orchestrator **não executa ferramentas diretamente por autoridade própri
 
 Nenhum papel decorativo: `orchestrator` só entra na UI quando existir um caminho real de runtime que o utilize.
 
-### Gate
+### Implementação fechada
 
-Trocar Orchestrator entre Gemini e Groq pela UI muda a próxima operação de planejamento real sem alterar identidade, permissões ou estado da Luna.
+A migration 008 amplia a policy persistida para incluir `orchestrator`, preservando
+Conversation/Summary e semeando Gemini com defaults conservadores. O papel expõe
+provider, model, thinking, output budget, input budget de planejamento, timeout por provider e
+retry; permanece `Fixed` nesta fase. A UI deriva os providers do catálogo do
+backend e nunca recebe segredos.
+
+O comando `start_orchestrator_planning` registra uma tarefa e carrega/valida a policy no momento da
+operação, limita o objetivo, envia apenas identidade técnica mínima (sem
+histórico ou memória), chama o Scheduler e retorna o provider efetivamente usado
+junto do `PlanV1` validado. O plano é apenas exibido: nenhuma ferramenta ou passo
+é executado.
+
+Gemini e Groq continuam anunciando somente `text_stream()`. A saída usa
+instrução textual estrita e aceita exclusivamente JSON cru; fences, texto extra,
+reparo heurístico e reasoning oculto não são aceitos. `PlanV1::parse`/`validate`
+continua sendo a autoridade única para limites, IDs, dependências, ciclos,
+capabilities, riscos e `needsUserInput`; erros falham fechados e sanitizados.
+
+O gate humano deve selecionar Gemini, salvar e executar o objetivo controlado,
+verificar provider e plano, reiniciar para confirmar persistência, trocar apenas
+o Orchestrator para Groq e repetir. Fallback chain, Auto, score, affinity e
+task graph permanecem explicitamente fora desta entrega.
+
+### Gate — PASS em 30/09/2026
+
+O gate humano confirmou persistência e troca configurável do Orchestrator,
+planejamento real Groq com `PlanV1` válido, retorno responsivo do `TaskId` e
+cancelamento real em `running` com Groq e Gemini, sem execução de passos ou
+ferramentas. O default Gemini passou a ser preenchido a partir da constante
+canônica da integração.
+
+No fechamento, chamadas Gemini chegaram ao provider mas receberam HTTP 503
+`service_unavailable` com `Retry-After` de 30 s. O Scheduler aplicou
+`unavailable` + cooldown e falhou fechado; portanto o gate final não é
+registrado como sucesso Gemini → `PlanV1`, e sim como validação de routing,
+erro/cooldown e cancelamento. Sam aprovou o gate humano com essa observação
+não bloqueante.
+
+**LR-7D1 = PASS completo.** Trocar Orchestrator entre Gemini e Groq continua
+sendo somente configuração; D2/D3, ferramentas e novas permissões de agentes
+permanecem fora desta entrega.
 
 ---
 

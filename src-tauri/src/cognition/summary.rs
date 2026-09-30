@@ -578,6 +578,7 @@ mod tests {
             history_max_messages: 8,
             history_max_bytes: 12288,
             summary_input_max_bytes: 32768,
+            context_max_bytes: 32768,
         };
         let request = summary_request(
             &[],

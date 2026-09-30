@@ -1,5 +1,5 @@
 pub mod runtime;
-mod task;
+pub(crate) mod task;
 
 use std::sync::Arc;
 
@@ -37,6 +37,19 @@ pub fn cancel_task(registry: State<'_, Arc<TaskRegistry>>, task_id: u64) -> Resu
   AuditEvent::new(Action::TaskCancelRequested, if accepted { Outcome::Succeeded } else { Outcome::Denied })
     .with_task_id(id).emit();
   Ok(accepted)
+}
+
+#[tauri::command]
+pub fn start_orchestrator_planning(
+  registry: State<'_, Arc<TaskRegistry>>, db: State<'_, Database>,
+  runtime: State<'_, Arc<ProviderRuntime>>, store: State<'_, Arc<SecretStore>>,
+  objective: String, channel: Channel<TaskEvent>,
+) -> Result<TaskId, String> {
+  AuditEvent::new(Action::CommandInvoked, Outcome::Allowed).with_detail("start_orchestrator_planning").emit();
+  crate::cognition::orchestrator::start_task(
+    registry.inner().clone(), db.inner().clone(), runtime.inner().clone(),
+    store.inner().clone(), objective, channel,
+  )
 }
 
 #[cfg(debug_assertions)]

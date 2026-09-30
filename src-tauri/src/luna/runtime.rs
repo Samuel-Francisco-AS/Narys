@@ -90,27 +90,38 @@ impl TaskRegistry {
     }
   }
 
+  #[cfg(test)]
+  pub fn contains_for_test(&self, id: TaskId) -> bool {
+    self.active.lock().unwrap_or_else(|poison| poison.into_inner()).contains_key(&id)
+  }
+
   fn remove(&self, id: TaskId) {
     self.active.lock().unwrap_or_else(|poison| poison.into_inner()).remove(&id);
   }
 
   // Resolve cancellation and remove under the same lock. If cancel_task returns
   // true, the worker will publish TaskCancelled rather than TaskCompleted.
-  fn finish(&self, id: TaskId, outcome: TaskState) -> TaskState {
+  pub(crate) fn finish(&self, id: TaskId, outcome: TaskState) -> TaskState {
     let mut active = self.active.lock().unwrap_or_else(|poison| poison.into_inner());
     let cancelled = active.get(&id).is_some_and(|task| task.cancelled.load(Ordering::Acquire));
     active.remove(&id);
     if cancelled { TaskState::Cancelled } else { outcome }
   }
 
-  fn finish_channel_closed(&self, id: TaskId) -> TaskState {
+  pub(crate) fn finish_channel_closed(&self, id: TaskId) -> TaskState {
     self.remove(id);
     TaskState::Failed
   }
 }
 
+impl ActiveTask {
+  pub(crate) fn new(registry: Arc<TaskRegistry>, id: TaskId) -> Self {
+    Self { registry, id, session_id: None }
+  }
+}
+
 // Also removes the registration if the spawned future is dropped unexpectedly.
-struct ActiveTask {
+pub(crate) struct ActiveTask {
   registry: Arc<TaskRegistry>,
   id: TaskId,
   session_id: Option<i64>,
@@ -432,7 +443,7 @@ mod tests {
       fallback_provider_id: Some("groq".into()), fallback_model: Some("openai/gpt-oss-20b".into()),
       fallback_thinking_level: Some(ThinkingLevel::Low), max_output_tokens: Some(8192), max_provider_calls: 3,
       retry_enabled: true, max_retries: 1, retry_backoff_ms: 1500, history_max_messages: 8, history_max_bytes: 12288,
-      summary_input_max_bytes: 32768 };
+      summary_input_max_bytes: 32768, context_max_bytes: 32768 };
     let first_timeouts = crate::persistence::gemini_settings::GeminiTimeouts::default();
     let groq_timeouts = crate::cognition::types::ProviderTimeouts { request_timeout_ms: 30_000, stream_idle_timeout_ms: 12_000 };
     let first_configs = HashMap::from([("gemini".into(), first_timeouts.into()), ("groq".into(), groq_timeouts)]);

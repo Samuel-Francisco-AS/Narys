@@ -5,7 +5,6 @@ use crate::security::secrets::{SecretKey, SecretStore};
 
 use super::{policy::ThinkingLevel, provider::{Provider, ProviderFuture}, types::{ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage, ProviderMessage, ProviderRole, ProviderTimeouts}};
 
-#[cfg(test)]
 pub const MODEL: &str = "gemini-3.8-flash";
 pub const ENDPOINT: &str = "https://generativelanguage.googleapis.com/v1beta/interactions";
 #[cfg(test)]

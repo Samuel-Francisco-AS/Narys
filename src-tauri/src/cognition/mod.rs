@@ -12,6 +12,7 @@ pub mod scheduler;
 pub mod settings;
 pub mod summary;
 pub mod types;
+pub mod orchestrator;
 
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 use serde::Deserialize;

@@ -3,9 +3,9 @@ import { Channel, invoke } from '@tauri-apps/api/core'
 import './settings.css'
 
 type Thinking = 'low' | 'medium' | 'high' | null
-type Role = 'conversation' | 'summary'
+type Role = 'conversation' | 'summary' | 'orchestrator'
 type Routing = 'fixed' | 'preferred'
-type Policy = { role: Role; providerId: string; model: string; thinkingLevel: Thinking; routingMode: Routing; fallbackProviderId: string | null; fallbackModel: string | null; fallbackThinkingLevel: Thinking; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number }
+type Policy = { role: Role; providerId: string; model: string; thinkingLevel: Thinking; routingMode: Routing; fallbackProviderId: string | null; fallbackModel: string | null; fallbackThinkingLevel: Thinking; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number; contextMaxBytes: number }
 type Timeouts = { requestTimeoutMs: number; streamIdleTimeoutMs: number }
 type ProviderInfo = { id: string; displayName: string; configured: boolean; enabled: boolean; capabilities: { textGeneration: boolean; streaming: boolean }; supportedThinkingLevels: Thinking[]; defaultModel: string | null }
 type Settings = { providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
@@ -14,6 +14,8 @@ type ProbeResult = { text: string; providerId: string; usage: { providerCalls: n
 type CodexRuntimeStatus = { installed: boolean; version: string | null; authenticated: boolean; authKind: 'chatgpt' | 'api_key' | 'other' | 'unknown' | 'none'; available: boolean; diagnosticCode: 'codex_not_installed' | 'codex_not_authenticated' | 'codex_status_timeout' | 'codex_status_failed' | 'codex_status_unrecognized' | null }
 type CodexAppServerProbe = { launched: boolean; initialized: boolean; platformFamily: 'unix' | 'windows' | null; platformOs: 'linux' | 'macos' | 'windows' | null; diagnosticCode: string | null }
 type PlanV1 = { version: 1; objective: string; steps: { id: string; description: string; requiredCapabilities: string[]; dependsOn: string[] }[]; risks: string[]; needsUserInput: boolean; questions: string[] }
+type OrchestratorResult = { providerId: string; plan: PlanV1; usage: { providerCalls: number; outputTokens: number; retries: number; fallbacks: number } }
+type OrchestratorEvent = { taskId: number; sequence: number; state: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'; type: 'task_started' | 'provider_selected' | 'provider_retry' | 'provider_fallback' | 'provider_output_observed' | 'orchestrator_plan_ready' | 'task_completed' | 'task_cancelled' | 'task_failed'; provider_id?: string; attempt?: number; result?: OrchestratorResult; detail?: string; reason_code?: string; from_provider_id?: string; to_provider_id?: string }
 const plannerPreflightCodes = [
   'planner_spawn_failed', 'planner_initialize_failed', 'planner_config_read_failed', 'planner_mcp_config_invalid',
   'planner_thread_start_failed', 'planner_sandbox_rejected', 'planner_approval_policy_rejected', 'planner_cwd_rejected',
@@ -31,7 +33,7 @@ const plannerErrorCodes = [
 ] as const
 const isPlannerErrorCode = (value: unknown): value is typeof plannerErrorCodes[number] => typeof value === 'string' && (plannerErrorCodes as readonly string[]).includes(value)
 const isPlannerPreflightCode = (value: unknown): value is PlannerPreflightCode => typeof value === 'string' && (plannerPreflightCodes as readonly string[]).includes(value)
-const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo' }
+const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo', orchestrator: 'Orchestrator' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
 function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers: ProviderInfo[]; onSaved: (policy: Policy) => void }) {
@@ -59,6 +61,7 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   const [historyMessages, setHistoryMessages] = useState(String(initial.historyMaxMessages))
   const [historyBytes, setHistoryBytes] = useState(String(initial.historyMaxBytes))
   const [summaryBytes, setSummaryBytes] = useState(String(initial.summaryInputMaxBytes))
+  const [contextBytes, setContextBytes] = useState(String(initial.contextMaxBytes))
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -80,10 +83,11 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
     const maxRetries = numberValue(retries), retryBackoffMs = numberValue(backoff)
     const historyMaxMessages = numberValue(historyMessages), historyMaxBytes = numberValue(historyBytes)
     const summaryInputMaxBytes = numberValue(summaryBytes)
-    if ([maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes].some(value => !Number.isSafeInteger(value) || value < 0 || value > 4294967295)) { setError('Limites avançados devem ser inteiros não negativos até 4294967295.'); return }
+    const contextMaxBytes = numberValue(contextBytes)
+    if ([maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes, contextMaxBytes].some(value => !Number.isSafeInteger(value) || value < 0 || value > 4294967295) || contextMaxBytes < 1) { setError('Limites avançados devem ser inteiros não negativos até 4294967295.'); return }
     setBusy(true); setError(''); setMessage('')
     try {
-      const saved = await invoke<Policy>('update_cognitive_role_policy', { policy: { ...policy, maxOutputTokens, maxProviderCalls, maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes } })
+      const saved = await invoke<Policy>('update_cognitive_role_policy', { policy: { ...policy, maxOutputTokens, maxProviderCalls, maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes, contextMaxBytes } })
       setPolicy(saved); onSaved(saved); setMessage('Salvo. A próxima tarefa usará esta configuração.')
     } catch (cause) { setError(`Não foi possível salvar: ${String(cause)}`) }
     finally { setBusy(false) }
@@ -132,6 +136,10 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
         <label>Máximo de mensagens anteriores<input type="number" min="0" value={historyMessages} onChange={event => setHistoryMessages(event.target.value)} /></label>
         <label>Máximo de bytes<input type="number" min="0" value={historyBytes} onChange={event => setHistoryBytes(event.target.value)} /></label>
         <small>0 desativa o envio de histórico anterior. Apenas a sessão atual é usada.</small>
+      </fieldset>}
+      {initial.role === 'orchestrator' && <fieldset><legend>Contexto do planejamento</legend>
+        <label>Máximo de bytes do contexto<input type="number" min="1" value={contextBytes} onChange={event => setContextBytes(event.target.value)} /></label>
+        <small>O planejamento usa somente o objetivo atual e identidade técnica mínima; histórico e memória não são enviados.</small>
       </fieldset>}
       {initial.role === 'summary' && <fieldset><legend>Input do resumo</legend>
         <label>Máximo de bytes<input type="number" min="0" value={summaryBytes} onChange={event => setSummaryBytes(event.target.value)} /></label>
@@ -193,6 +201,14 @@ export default function AiSettingsApp() {
   const [plannerError, setPlannerError] = useState('')
   const [plannerPreflight, setPlannerPreflight] = useState<PlannerPreflightProbe | null>(null)
   const [plannerPreflightBusy, setPlannerPreflightBusy] = useState(false)
+  const [orchestratorObjective, setOrchestratorObjective] = useState('Organizar uma tarefa simples em passos seguros')
+  const [orchestratorResult, setOrchestratorResult] = useState<OrchestratorResult | null>(null)
+  const [orchestratorBusy, setOrchestratorBusy] = useState(false)
+  const [orchestratorError, setOrchestratorError] = useState('')
+  const [orchestratorTaskId, setOrchestratorTaskId] = useState<number | null>(null)
+  const [orchestratorState, setOrchestratorState] = useState<OrchestratorEvent['state'] | null>(null)
+  const orchestratorTaskRef = useRef<number | null>(null)
+  const orchestratorTerminalRef = useRef(false)
   async function refresh() { setSettings(await invoke<Settings>('get_ai_settings')) }
   async function refreshCodex() {
     setCodexBusy(true)
@@ -221,9 +237,34 @@ export default function AiSettingsApp() {
     } catch { setPlannerPreflight({ ready: false, diagnosticCode: null }) }
     finally { setPlannerPreflightBusy(false) }
   }
+  async function runOrchestrator() {
+    orchestratorTerminalRef.current = false; setOrchestratorBusy(true); setOrchestratorResult(null); setOrchestratorError(''); setOrchestratorState('pending')
+    try {
+      const channel = new Channel<OrchestratorEvent>(event => {
+        setOrchestratorTaskId(event.taskId); setOrchestratorState(event.state)
+        if (event.type === 'orchestrator_plan_ready' && event.result) setOrchestratorResult(event.result)
+        if (event.type === 'task_failed') setOrchestratorError(`Planejamento falhou: ${event.detail ?? 'erro sanitizado'}`)
+        if (event.state === 'completed' || event.state === 'cancelled' || event.state === 'failed') {
+          orchestratorTerminalRef.current = true; setOrchestratorBusy(false); orchestratorTaskRef.current = null
+        }
+      })
+      const id = await invoke<number>('start_orchestrator_planning', { objective: orchestratorObjective, channel })
+      setOrchestratorTaskId(id)
+      if (!orchestratorTerminalRef.current) orchestratorTaskRef.current = id
+    }
+    catch (cause) { setOrchestratorBusy(false); setOrchestratorError(typeof cause === 'string' ? `Planejamento falhou: ${cause}` : 'Planejamento falhou: erro sanitizado') }
+  }
+  async function cancelOrchestrator() {
+    if (orchestratorTaskRef.current === null) return
+    try { await invoke<boolean>('cancel_task', { taskId: orchestratorTaskRef.current }) }
+    catch { setOrchestratorError('Não foi possível solicitar o cancelamento.') }
+  }
   useEffect(() => {
     void refresh().catch(() => setError('Não foi possível carregar as configurações.'))
     void refreshCodex()
+    return () => {
+      if (orchestratorTaskRef.current !== null) void invoke<boolean>('cancel_task', { taskId: orchestratorTaskRef.current })
+    }
   }, [])
   async function credential(provider: 'gemini' | 'groq', action: 'set' | 'delete') {
     setBusy(true); setError(''); setNotice('')
@@ -302,13 +343,22 @@ export default function AiSettingsApp() {
           <p><strong>Perguntas:</strong> {plannerResult.questions.join('; ') || 'nenhuma'}</p>
         </div>}
       </section>
+      <section className="settings-card" aria-labelledby="orchestrator-title">
+        <p className="settings-kicker">DEV · COGNITIVE ROLE</p><h2 id="orchestrator-title">Orchestrator / Planner</h2>
+        <p>Executa uma operação real com a policy persistida do Orchestrator. O Core valida o PlanV1; nenhum passo ou ferramenta é executado.</p>
+        <label>Objetivo controlado<textarea value={orchestratorObjective} maxLength={2048} onChange={event => setOrchestratorObjective(event.target.value)} rows={3} /></label>
+        <div className="settings-actions"><button type="button" disabled={orchestratorBusy || !orchestratorObjective.trim()} onClick={() => void runOrchestrator()}>{orchestratorBusy ? 'Planejando…' : 'Executar planejamento real'}</button><button type="button" disabled={!orchestratorBusy || orchestratorTaskRef.current === null} onClick={() => void cancelOrchestrator()}>Cancelar</button></div>
+        <p role="status">TaskId: {orchestratorTaskId ?? '—'} · Estado: {orchestratorState ?? 'sem tarefa'}</p>
+        {orchestratorError && <p role="alert" className="settings-error">{orchestratorError}</p>}
+        {orchestratorResult && <div role="status" className="planner-result"><p><strong>Provider efetivamente usado:</strong> {orchestratorResult.providerId}</p><p><strong>Calls:</strong> {orchestratorResult.usage.providerCalls} · <strong>Output:</strong> {orchestratorResult.usage.outputTokens} tokens</p><p><strong>Objetivo:</strong> {orchestratorResult.plan.objective}</p><ol>{orchestratorResult.plan.steps.map(step => <li key={step.id}><strong>{step.id}:</strong> {step.description}<br />Dependências: {step.dependsOn.join(', ') || 'nenhuma'}<br />Capabilities: {step.requiredCapabilities.join(', ') || 'nenhuma'}</li>)}</ol><p><strong>Riscos:</strong> {orchestratorResult.plan.risks.join('; ') || 'nenhum'}</p><p><strong>Perguntas:</strong> {orchestratorResult.plan.questions.join('; ') || 'nenhuma'}</p></div>}
+      </section>
       <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} providers={settings.providers} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
       <section className="settings-card"><h2>Parâmetros avançados</h2>
         <p>Streaming: ativo — requerido pelo adapter atual. Thinking summaries: desativado — não configurável nesta versão.</p>
         <p>Timeout HTTP total e idle do stream: configuráveis por provider. Conexão: 8 s — configuração dos adapters atuais.</p>
-        <p>Histórico de conversa enviado: configurável em Conversa. Summary input budget: configurável em Resumo. Retry: configurável por papel.</p>
+        <p>Histórico de conversa enviado: configurável em Conversa. Summary input budget: configurável em Resumo. Orchestrator input budget: bytes UTF-8 da instrução fixa mais objetivo enviados ao provider. Retry: configurável por papel.</p>
         <p>Preparação de resumo: até 256 mensagens candidatas mais a primeira fala do usuário; leitura local limitada a 8193 caracteres por mensagem. Título gerado: até 70 caracteres; resumo: até 1200. Limites técnicos desta versão.</p>
-        <p>Fallback: Conversa expõe Fixed ou Preferred entre providers compatíveis. Resumo permanece Fixed. Auto, affinity e task graph não estão disponíveis.</p>
+        <p>Fallback: Conversa expõe Fixed ou Preferred entre providers compatíveis. Resumo e Orchestrator permanecem Fixed. Auto, affinity e task graph não estão disponíveis.</p>
         <p>Cada target usa seu próprio modelo, thinking e timeouts. Temperature, top-p e tools ainda não são expostos.</p>
         <p>Segurança, isolamento de sessão e segredos fora do React são invariantes do aplicativo. O adapter Gemini envia <code>store:false</code>; o adapter Groq não envia parâmetros não suportados pelo endpoint Chat Completions.</p>
       </section>

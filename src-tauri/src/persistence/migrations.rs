@@ -7,9 +7,10 @@ const ADVANCED: &str = include_str!("../../migrations/004_cognitive_retry_and_ge
 const GEMINI_TIMEOUTS: &str = include_str!("../../migrations/005_gemini_provider_timeouts.sql");
 const COGNITIVE_ROUTING: &str = include_str!("../../migrations/006_cognitive_routing.sql");
 const PROVIDER_TIMEOUTS: &str = include_str!("../../migrations/007_provider_timeouts.sql");
+const ORCHESTRATOR: &str = include_str!("../../migrations/008_orchestrator_role.sql");
 pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
   let version: i64 = conn.pragma_query_value(None, "user_version", |row| row.get(0)).map_err(|_| PersistenceError::Migration)?;
-  if version > 7 { return Err(PersistenceError::Migration); }
+  if version > 8 { return Err(PersistenceError::Migration); }
   if version == 0 {
     conn.execute_batch(&format!("BEGIN IMMEDIATE; {INITIAL} PRAGMA user_version = 1; COMMIT;"))
       .map_err(|_| PersistenceError::Migration)?;
@@ -36,6 +37,10 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
   }
   if version < 7 {
     conn.execute_batch(&format!("BEGIN IMMEDIATE; {PROVIDER_TIMEOUTS} PRAGMA user_version = 7; COMMIT;"))
+      .map_err(|_| PersistenceError::Migration)?;
+  }
+  if version < 8 {
+    conn.execute_batch(&format!("BEGIN IMMEDIATE; {ORCHESTRATOR} PRAGMA user_version = 8; COMMIT;"))
       .map_err(|_| PersistenceError::Migration)?;
   }
   Ok(())

@@ -35,7 +35,9 @@ pub enum TaskEventKind {
   ProviderChunk { provider_id: String, chunk: String },
   ProviderRetry { provider_id: String, reason_code: String },
   ProviderFallback { from_provider_id: String, to_provider_id: String, reason_code: String },
+  ProviderOutputObserved { provider_id: String },
   TaskResultReady { result: crate::cognition::types::TaskResult },
+  OrchestratorPlanReady { result: crate::cognition::orchestrator::OrchestratorResult },
 }
 
 #[derive(Debug, Serialize)]

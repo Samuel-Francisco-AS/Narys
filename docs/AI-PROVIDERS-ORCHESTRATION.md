@@ -475,3 +475,14 @@ produção ou UI foi adicionado. **D0.5D fechou em PASS completo após auditoria
 
 
 **D0.5E — PASS completo e integrada à `main` pela PR #8 em 29/09/2026:** o contrato genérico de AgentBackend mantém cancelamento por AtomicBool e agora possui eventos semânticos de fatos reais. Codex usa interrupção remota única via `turn/interrupt`, espera bounded, recovery de recursos por chamada efêmera e inspeção fail-closed das notifications já observadas durante cancelamento. O gate manual real `manual_isolated_cancel_lifecycle` passou; após o teste, `git status --short` e `pgrep -af 'codex app-server --stdio'` ficaram vazios. Não há execução de PlanV1, estado global de sessão, retry de turno ou ligação ao CognitiveProvider/Scheduler/TaskRegistry. **D0.5F passou auditoria independente e gate humano real**: uma primeira chamada foi cancelada durante `WorkStarted`, seguida por cleanup; uma segunda chamada independente produziu `PlanV1` válido, emitiu `Completed` e também encerrou limpa. `git status --short` e `pgrep -af 'codex app-server --stdio'` ficaram vazios. **LR-7D0.5 está encerrada em PASS completo e integrada à `main` pela PR #9 em 29/09/2026.** A próxima etapa é LR-7D1.
+## LR-7D1 — Orchestrator
+
+O Orchestrator é um papel cognitivo persistido, não um provider novo nem um
+agente especialista. Ele usa Gemini ou Groq por `provider_id` via Scheduler,
+com modelo, thinking, output budget, input budget de planejamento, timeout por provider e retry
+configuráveis. Nesta fase o routing é somente `Fixed`; fallback chain e `Auto`
+ficam para D2.
+
+As APIs atuais não são anunciadas como structured output nativo. O runtime usa
+JSON textual estrito e valida a resposta com o contrato único `PlanV1` do Luna
+Core. Markdown, texto extra e reparos são rejeitados.
