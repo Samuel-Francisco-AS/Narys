@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — PASS completo e integrada à `main` pela PR #8 em 29/09/2026. D0.5F — PASS técnico + auditoria independente + gate humano real. **LR-7D0.5 encerrada em PASS completo e pronta para integração. Próximo checkpoint: LR-7D1 — Orchestrator/Planner configurável.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — PASS completo e integrada à `main` pela PR #8 em 29/09/2026. D0.5F — PASS completo e integrada à `main` pela PR #9 em 29/09/2026. **LR-7D0.5 encerrada e integrada em PASS completo. Próximo checkpoint: LR-7D1 — Orchestrator/Planner configurável.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -408,4 +408,11 @@ A primeira chamada iniciou o `CodexAgentBackend` real, emitiu `SessionReady` e `
 
 Imediatamente após o teste, `git status --short` retornou vazio e `pgrep -af 'codex app-server --stdio'` também retornou vazio. Assim, o gate final comprovou no runtime real a sequência **cancelamento → cleanup → nova chamada independente → PlanV1 válido → Completed → cleanup**, sem alteração do checkout e sem processo app-server órfão. Os warnings observados eram os avisos preexistentes de dead code/unused e não bloquearam o gate.
 
-Com isso, **D0.5F = PASS completo** e a mini-trilha **LR-7D0.5 — Codex Agent Bridge = PASS completo**, pronta para integração. Nenhuma capability foi ampliada: o backend Codex permanece restrito a `planning + structured_output`; execução de PlanV1, ferramentas, leitura/escrita do repositório, TaskRegistry e Orchestrator seguem fora desta mini-trilha. O próximo checkpoint é **LR-7D1 — Orchestrator/Planner configurável**.
+Com isso, **D0.5F = PASS completo** e a mini-trilha **LR-7D0.5 — Codex Agent Bridge = PASS completo**. Nenhuma capability foi ampliada: o backend Codex permanece restrito a `planning + structured_output`; execução de PlanV1, ferramentas, leitura/escrita do repositório, TaskRegistry e Orchestrator seguem fora desta mini-trilha. O próximo checkpoint é **LR-7D1 — Orchestrator/Planner configurável**.
+
+
+## Fechamento de integração da D0.5F — 29/09/2026
+
+A PR #9 foi integrada à `main` por squash no commit `3c7c30555b02257f7a89a863b48e8c46a289b90d`. A D0.5F está oficialmente encerrada em **PASS completo**, sem mudança de runtime de produção: seu artefato foi o gate manual final que comprovou no Codex real a sequência **cancelamento → cleanup → nova chamada independente → PlanV1 válido → Completed → cleanup**, com checkout inalterado e nenhum processo `codex app-server --stdio` residual.
+
+Com a integração da D0.5F, a mini-trilha **LR-7D0.5 — Codex Agent Bridge está oficialmente encerrada e integrada em PASS completo**. O `CodexAgentBackend` continua restrito a `planning + structured_output`; execução agentiva, ferramentas, acesso de repositório, TaskRegistry e Orchestrator permanecem fora desta trilha. O próximo checkpoint é **LR-7D1 — Orchestrator/Planner configurável**.
