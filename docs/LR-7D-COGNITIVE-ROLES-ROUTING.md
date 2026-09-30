@@ -1,6 +1,6 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1/D2/D3 planejadas.**
+Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — candidata à auditoria/gate humano; D2/D3 planejadas.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ### D0.5 — fronteira futura de agentes
@@ -216,6 +216,31 @@ A LLM Orchestrator **não executa ferramentas diretamente por autoridade própri
 - política do usuário.
 
 Nenhum papel decorativo: `orchestrator` só entra na UI quando existir um caminho real de runtime que o utilize.
+
+### Implementação candidata
+
+A migration 008 amplia a policy persistida para incluir `orchestrator`, preservando
+Conversation/Summary e semeando Gemini com defaults conservadores. O papel expõe
+provider, model, thinking, output budget, context budget, timeout por provider e
+retry; permanece `Fixed` nesta fase. A UI deriva os providers do catálogo do
+backend e nunca recebe segredos.
+
+O comando `run_orchestrator_planning` carrega e valida a policy no momento da
+operação, limita o objetivo, envia apenas identidade técnica mínima (sem
+histórico ou memória), chama o Scheduler e retorna o provider efetivamente usado
+junto do `PlanV1` validado. O plano é apenas exibido: nenhuma ferramenta ou passo
+é executado.
+
+Gemini e Groq continuam anunciando somente `text_stream()`. A saída usa
+instrução textual estrita e aceita exclusivamente JSON cru; fences, texto extra,
+reparo heurístico e reasoning oculto não são aceitos. `PlanV1::parse`/`validate`
+continua sendo a autoridade única para limites, IDs, dependências, ciclos,
+capabilities, riscos e `needsUserInput`; erros falham fechados e sanitizados.
+
+O gate humano deve selecionar Gemini, salvar e executar o objetivo controlado,
+verificar provider e plano, reiniciar para confirmar persistência, trocar apenas
+o Orchestrator para Groq e repetir. Fallback chain, Auto, score, affinity e
+task graph permanecem explicitamente fora desta entrega.
 
 ### Gate
 

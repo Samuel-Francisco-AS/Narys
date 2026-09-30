@@ -7,12 +7,14 @@ use serde::{Deserialize, Serialize};
 pub enum CognitiveRole {
     Conversation,
     Summary,
+    Orchestrator,
 }
 impl CognitiveRole {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Conversation => "conversation",
             Self::Summary => "summary",
+            Self::Orchestrator => "orchestrator",
         }
     }
 }
@@ -68,6 +70,7 @@ pub struct CognitiveRolePolicy {
     pub history_max_messages: u32,
     pub history_max_bytes: u32,
     pub summary_input_max_bytes: u32,
+    pub context_max_bytes: u32,
 }
 impl CognitiveRolePolicy {
     pub fn retry_policy(&self) -> super::types::RetryPolicy {
@@ -108,6 +111,9 @@ impl CognitiveRolePolicy {
         }
         if self.max_provider_calls == 0 {
             return Err("provider_calls_invalid");
+        }
+        if self.context_max_bytes == 0 {
+            return Err("context_limit_invalid");
         }
         if self.retry_backoff_ms > i64::MAX as u64 {
             return Err("retry_backoff_invalid");
@@ -154,24 +160,11 @@ pub fn load(
     role: CognitiveRole,
 ) -> Result<CognitiveRolePolicy, PersistenceError> {
     let raw: (
-        String,
-        String,
-        Option<String>,
-        Option<i64>,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        i64,
-        String,
-        Option<String>,
-        Option<String>,
-        Option<String>,
+        String, String, Option<String>, Option<i64>, i64, i64, i64, i64,
+        i64, i64, i64, String, Option<String>, Option<String>, Option<String>, i64,
     ) = conn
         .query_row(
-            "SELECT provider_id,model,thinking_level,max_output_tokens,max_provider_calls,retry_enabled,max_retries,retry_backoff_ms,history_max_messages,history_max_bytes,summary_input_max_bytes,routing_mode,fallback_provider_id,fallback_model,fallback_thinking_level FROM cognitive_role_policies WHERE role=?1",
+            "SELECT provider_id,model,thinking_level,max_output_tokens,max_provider_calls,retry_enabled,max_retries,retry_backoff_ms,history_max_messages,history_max_bytes,summary_input_max_bytes,routing_mode,fallback_provider_id,fallback_model,fallback_thinking_level,context_max_bytes FROM cognitive_role_policies WHERE role=?1",
             [role.as_str()],
             |row| {
                 Ok((
@@ -190,6 +183,7 @@ pub fn load(
                     row.get(12)?,
                     row.get(13)?,
                     row.get(14)?,
+                    row.get(15)?,
                 ))
             },
         )
@@ -226,6 +220,7 @@ pub fn load(
         history_max_messages: u32::try_from(raw.8).map_err(|_| PersistenceError::Read)?,
         history_max_bytes: u32::try_from(raw.9).map_err(|_| PersistenceError::Read)?,
         summary_input_max_bytes: u32::try_from(raw.10).map_err(|_| PersistenceError::Read)?,
+        context_max_bytes: u32::try_from(raw.15).map_err(|_| PersistenceError::Read)?,
     };
     policy
         .validate_integrity()
@@ -240,7 +235,7 @@ pub fn save(
     policy.validate().map_err(|_| PersistenceError::Write)?;
     let tx = conn.transaction().map_err(|_| PersistenceError::Write)?;
     let changed = tx.execute(
-        "UPDATE cognitive_role_policies SET provider_id=?2,model=?3,thinking_level=?4,max_output_tokens=?5,max_provider_calls=?6,retry_enabled=?7,max_retries=?8,retry_backoff_ms=?9,history_max_messages=?10,history_max_bytes=?11,summary_input_max_bytes=?12,routing_mode=?13,fallback_provider_id=?14,fallback_model=?15,fallback_thinking_level=?16,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE role=?1",
+        "UPDATE cognitive_role_policies SET provider_id=?2,model=?3,thinking_level=?4,max_output_tokens=?5,max_provider_calls=?6,retry_enabled=?7,max_retries=?8,retry_backoff_ms=?9,history_max_messages=?10,history_max_bytes=?11,summary_input_max_bytes=?12,routing_mode=?13,fallback_provider_id=?14,fallback_model=?15,fallback_thinking_level=?16,context_max_bytes=?17,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE role=?1",
         params![
             policy.role.as_str(),
             policy.provider_id,
@@ -258,6 +253,7 @@ pub fn save(
             policy.fallback_provider_id,
             policy.fallback_model,
             policy.fallback_thinking_level.map(ThinkingLevel::as_str),
+            policy.context_max_bytes,
         ],
     ).map_err(|_| PersistenceError::Write)?;
     if changed != 1 {

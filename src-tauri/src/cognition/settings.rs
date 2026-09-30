@@ -84,6 +84,7 @@ pub async fn get_ai_settings(
         let roles = vec![
             policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?,
             policy::load(&conn, CognitiveRole::Summary).map_err(|e| e.code())?,
+            policy::load(&conn, CognitiveRole::Orchestrator).map_err(|e| e.code())?,
         ];
         let mut timeouts = std::collections::HashMap::new();
         for status in statuses.iter().filter(|status| catalog::integration(&status.id).is_some()) {

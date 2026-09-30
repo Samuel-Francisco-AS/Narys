@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-run-orchestrator-planning"
+description = "Enables the run_orchestrator_planning command without any pre-configured scope."
+commands.allow = ["run_orchestrator_planning"]
+
+[[permission]]
+identifier = "deny-run-orchestrator-planning"
+description = "Denies the run_orchestrator_planning command without any pre-configured scope."
+commands.deny = ["run_orchestrator_planning"]

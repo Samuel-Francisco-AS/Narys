@@ -750,3 +750,9 @@ O hardening introduz propagação terminal de falha do Channel (`channel_closed`
 
 
 **Atualização LR-7B (28/09/2026):** PASS completo. Groq foi integrado como segundo provider real no Registry, com Stronghold, streaming SSE, usage e diagnóstico `Fixed(groq)`. Conversation/Summary permaneceram `Fixed(gemini)` nesta etapa; a distribuição real foi fechada posteriormente na LR-7C.
+## LR-7D1 — candidata
+
+Implementação concluída na branch `lr-7d1-orchestrator-planner`, pendente de
+auditoria independente e gate humano. O Orchestrator persistido pode alternar
+Gemini/Groq pela UI e produz `PlanV1` validado sem executar ferramentas. D2/D3,
+LR-8 e novas permissões do Codex permanecem adiadas.

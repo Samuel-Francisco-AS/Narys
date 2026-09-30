@@ -13,6 +13,7 @@
   "permissions": [
     "allow-get-ai-settings",
     "allow-update-cognitive-role-policy",
+    "allow-run-orchestrator-planning",
     "allow-update-provider-timeouts",
     "allow-get-codex-runtime-status",
     "allow-probe-codex-app-server",

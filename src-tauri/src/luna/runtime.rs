@@ -432,7 +432,7 @@ mod tests {
       fallback_provider_id: Some("groq".into()), fallback_model: Some("openai/gpt-oss-20b".into()),
       fallback_thinking_level: Some(ThinkingLevel::Low), max_output_tokens: Some(8192), max_provider_calls: 3,
       retry_enabled: true, max_retries: 1, retry_backoff_ms: 1500, history_max_messages: 8, history_max_bytes: 12288,
-      summary_input_max_bytes: 32768 };
+      summary_input_max_bytes: 32768, context_max_bytes: 32768 };
     let first_timeouts = crate::persistence::gemini_settings::GeminiTimeouts::default();
     let groq_timeouts = crate::cognition::types::ProviderTimeouts { request_timeout_ms: 30_000, stream_idle_timeout_ms: 12_000 };
     let first_configs = HashMap::from([("gemini".into(), first_timeouts.into()), ("groq".into(), groq_timeouts)]);
