@@ -220,13 +220,11 @@ pub fn start_task(
     if objective.trim().is_empty() || objective.len() > crate::agents::planner::MAX_OBJECTIVE_BYTES {
         return Err("orchestrator_request_invalid".into());
     }
-    let conn = db.open().map_err(|error| error.code().to_owned())?;
-    let policy = policy::load(&conn, CognitiveRole::Orchestrator).map_err(|error| error.code().to_owned())?;
-    policy.validate().map_err(str::to_owned)?;
-    catalog::validate_policy(&policy, &runtime.scheduler.status(), &store).map_err(str::to_owned)?;
-    let timeout = provider_timeouts::load(&conn, &policy.provider_id).map_err(|error| error.code().to_owned())?;
     let (id, cancelled) = registry.register()?;
     let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let statuses = runtime.scheduler.status();
+    let preflight_db = db.clone();
+    let preflight_store = store.clone();
     tauri::async_runtime::spawn(async move {
         let _active = crate::luna::runtime::ActiveTask::new(registry.clone(), id);
         let mut sequence = 0;
@@ -239,7 +237,27 @@ pub fn start_task(
             (TaskState::Failed, None)
         } else {
             let mut events = scheduler_event(&channel, id, &mut sequence, &cancelled);
-            let plan_result = plan(runtime.scheduler.clone(), policy, objective, timeout, &cancelled, &mut events).await;
+            let preflight = tauri::async_runtime::spawn_blocking(move || {
+                let conn = preflight_db.open().map_err(|error| error.code())?;
+                let policy = policy::load(&conn, CognitiveRole::Orchestrator).map_err(|error| error.code())?;
+                policy.validate()?;
+                catalog::validate_policy(&policy, &statuses, &preflight_store)?;
+                let timeout = provider_timeouts::load(&conn, &policy.provider_id).map_err(|error| error.code())?;
+                Ok::<_, &'static str>((policy, timeout))
+            }).await;
+            let plan_result = match preflight {
+                Ok(Ok((policy, timeout))) => {
+                    if cancelled.load(Ordering::Acquire) {
+                        Err("cancelled")
+                    } else {
+                        plan(runtime.scheduler.clone(), policy, objective, timeout, &cancelled, &mut events).await
+                    }
+                }
+                Ok(Err(error)) => {
+                    if cancelled.load(Ordering::Acquire) { Err("cancelled") } else { Err(error) }
+                }
+                Err(_) => Err("worker_failed"),
+            };
             drop(events);
             match plan_result {
                 Ok(result) => {

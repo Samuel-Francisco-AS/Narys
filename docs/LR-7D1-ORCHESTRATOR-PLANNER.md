@@ -60,12 +60,23 @@ somente para Groq, salvar e repetir. Deve confirmar que o TaskId é cancelável,
 que a UI recebe eventos factuais e que Conversation, Summary, identidade e
 histórico permanecem intactos e nenhum passo é executado.
 
-No gate humano, Gemini e Groq alcançaram o runtime real e iniciaram tarefas,
-mas ambos tiveram saída rejeitada no boundary de `PlanV1`. A causa foi tratada
-como insuficiência do contrato model-facing, não como falha de routing ou
-validação: o Core permaneceu fail-closed e nenhuma ferramenta foi executada.
-O gate humano deve ser repetido após esta correção. O estado permanece
-**CANDIDATA À REAUDITORIA / GATE HUMANO**.
+O gate humano confirmou a persistência da policy após restart, o routing real
+para Groq, a geração real de `PlanV1` válida por Groq, o terminal `completed` e
+que nenhum passo/ferramenta foi executado. O mesmo gate revelou que o catálogo
+não expunha um default Gemini, que `settings-ai` não tinha
+`allow-cancel-task`, e uma perda de responsividade ao iniciar o planejamento.
+
+As correções desta rodada fazem o catálogo derivar o default Gemini da
+constante canônica da integração, adicionam somente `allow-cancel-task` à
+capability `settings-ai` e movem o preflight SQLite/SecretStore do início
+síncrono de `start_task` para `spawn_blocking` após o registro da tarefa. O
+preflight continua validando policy, catálogo e timeouts; seus erros seguem o
+fluxo factual de histórico e evento terminal, e o cancelamento verificado antes
+do planejamento continua impedindo `OrchestratorPlanReady`.
+
+O gate humano precisa ser repetido apenas para confirmar a troca Groq ↔ Gemini,
+o cancelamento pela janela `settings-ai` e a responsividade no início. O estado
+permanece **CANDIDATA À REAUDITORIA / GATE HUMANO**.
 
 Fallback chain/Auto/score/affinity/task graph, ferramentas, LR-8 e expansão do
 Codex permanecem fora de escopo.

@@ -12,7 +12,7 @@ pub struct Integration {
 
 const LEVELS: &[ThinkingLevel] = &[ThinkingLevel::Low, ThinkingLevel::Medium, ThinkingLevel::High];
 pub const INTEGRATIONS: &[Integration] = &[
-    Integration { id: "gemini", display_name: "Gemini", default_model: None, secret: SecretKey::GeminiApiKey, thinking: LEVELS },
+    Integration { id: "gemini", display_name: "Gemini", default_model: Some(super::gemini::MODEL), secret: SecretKey::GeminiApiKey, thinking: LEVELS },
     Integration { id: "groq", display_name: "Groq", default_model: Some(super::groq::MODEL), secret: SecretKey::GroqApiKey, thinking: LEVELS },
 ];
 
@@ -96,5 +96,12 @@ mod tests {
             capabilities: ProviderCapabilities::text_stream(), supported_thinking_levels: vec!["low"], default_model: Some(super::super::groq::MODEL) };
         let json = serde_json::to_string(&info).unwrap();
         for forbidden in ["apiKey", "token", "bearer", "stronghold", "unlock"] { assert!(!json.contains(forbidden)); }
+    }
+
+    #[test]
+    fn catalog_exposes_gemini_integration_default_model() {
+        let gemini = integration("gemini").unwrap();
+        assert_eq!(gemini.default_model, Some(super::super::gemini::MODEL));
+        assert!(!gemini.default_model.unwrap().is_empty());
     }
 }
