@@ -27,9 +27,15 @@ faz o cancelamento vencedor impedir a publicação do plano.
 ## PlanV1 e structured output
 
 Gemini/Groq anunciam somente `text_stream()`: não há capability nativa de
-structured output. O prompt exige JSON cru, sem markdown ou texto adicional.
-O parse é estrito e falha fechado; não existe reparo mágico. A validação única
-de `agents::planner::PlanV1` impõe tamanho, cardinalidade, IDs, dependências,
+structured output. O prompt incorpora a representação serializada de
+`agents::planner::output_schema()` e explicita as invariantes que o JSON Schema
+não cobre (IDs, dependências, ciclos e consistência entre `needsUserInput` e
+`questions`), além de um exemplo mínimo apenas de formato. A resposta aceita é
+JSON cru, sem markdown ou texto adicional; o parse é estrito e falha fechado,
+sem reparo mágico. Falhas são classificadas apenas pelos códigos sanitizados
+`orchestrator_json_syntax_invalid`, `orchestrator_plan_shape_invalid` ou
+`orchestrator_plan_semantic_invalid`. A validação única de
+`agents::planner::PlanV1` impõe tamanho, cardinalidade, IDs, dependências,
 ciclos, capabilities e consistência de perguntas.
 
 ## Contexto, eventos e segurança
@@ -53,6 +59,13 @@ executar o objetivo controlado, verificar provider e plano, reiniciar, trocar
 somente para Groq, salvar e repetir. Deve confirmar que o TaskId é cancelável,
 que a UI recebe eventos factuais e que Conversation, Summary, identidade e
 histórico permanecem intactos e nenhum passo é executado.
+
+No gate humano, Gemini e Groq alcançaram o runtime real e iniciaram tarefas,
+mas ambos tiveram saída rejeitada no boundary de `PlanV1`. A causa foi tratada
+como insuficiência do contrato model-facing, não como falha de routing ou
+validação: o Core permaneceu fail-closed e nenhuma ferramenta foi executada.
+O gate humano deve ser repetido após esta correção. O estado permanece
+**CANDIDATA À REAUDITORIA / GATE HUMANO**.
 
 Fallback chain/Auto/score/affinity/task graph, ferramentas, LR-8 e expansão do
 Codex permanecem fora de escopo.
