@@ -436,6 +436,7 @@ trait PlannerProtocol {
 
 trait PlannerTurnProtocol: PlannerProtocol {
     fn now(&self) -> Instant { Instant::now() }
+    fn pop_pending_notification(&mut self) -> Option<Value> { None }
     fn interrupt(&mut self, thread_id: &str, turn_id: &str, deadline: Instant) -> Result<(), CodexAppServerDiagnosticCode> {
         let response = self.request("turn/interrupt", json!({"threadId":thread_id,"turnId":turn_id}), deadline)
             .map_err(|_| CodexAppServerDiagnosticCode::CodexAppServerProtocolError)?;
@@ -456,6 +457,9 @@ impl PlannerProtocol for CodexAppServerSession {
 }
 
 impl PlannerTurnProtocol for CodexAppServerSession {
+    fn pop_pending_notification(&mut self) -> Option<Value> {
+        CodexAppServerSession::pop_pending_notification(self)
+    }
     fn interrupt(&mut self, thread_id: &str, turn_id: &str, deadline: Instant) -> Result<(), CodexAppServerDiagnosticCode> {
         let response = CodexAppServerSession::request(self, "turn/interrupt",
             json!({"threadId":thread_id,"turnId":turn_id}), deadline)?;
@@ -609,12 +613,19 @@ fn stop_active_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, tu
     let reason = if emit(AgentEvent::CancellationRequested).is_err() { AgentError::EventSinkClosed } else { reason };
     let deadline = session.now() + INTERRUPT_TIMEOUT;
     let interrupted = session.interrupt(thread_id, turn_id, deadline);
+    // await_response preserves interleaved notifications even when the ACK
+    // fails. Inspect all of that finite FIFO before classifying cancellation;
+    // a queued terminal must not hide a later queued forbidden notification.
+    let mut discarded = None;
+    let mut terminal_observed = false;
+    while let Some(notification) = session.pop_pending_notification() {
+        terminal_observed |= inspect_notification_mode(&notification, thread_id, turn_id, &mut discarded, true)?;
+    }
     if interrupted == Err(CodexAppServerDiagnosticCode::CodexAppServerUnexpectedServerRequest) {
         return Err(PlannerTurnDiagnosticCode::PlannerTurnUnexpectedNotification.into());
     }
-    if interrupted.is_ok() {
+    if interrupted.is_ok() && !terminal_observed {
         let deadline = session.now() + INTERRUPT_TIMEOUT;
-        let mut discarded = None;
         loop {
             if session.now() >= deadline { break; }
             match session.next_notification((session.now() + CANCEL_POLL).min(deadline)) {

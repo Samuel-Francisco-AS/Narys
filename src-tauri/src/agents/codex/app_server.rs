@@ -268,6 +268,10 @@ impl CodexAppServerSession {
     self.stream.next_notification(deadline)
   }
 
+  pub(super) fn pop_pending_notification(&mut self) -> Option<Value> {
+    self.stream.pop_pending_notification()
+  }
+
   pub(super) fn shutdown(&mut self) -> Result<(), CodexAppServerDiagnosticCode> { self.process.shutdown() }
 }
 
@@ -290,7 +294,7 @@ impl CodexRpcStream {
   }
 
   pub(super) fn next_notification(&mut self, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
-    if let Some(value) = self.pending.pop_front() { return Ok(value); }
+    if let Some(value) = self.pop_pending_notification() { return Ok(value); }
     let value = self.receive(deadline)?;
     let object = value.as_object().ok_or(CodexAppServerDiagnosticCode::CodexAppServerProtocolError)?;
     if object.get("method").and_then(Value::as_str).is_none()
@@ -299,6 +303,12 @@ impl CodexRpcStream {
     }
     reject_server_request(object)?;
     Ok(value)
+  }
+
+  // Only notifications already parsed while awaiting an RPC reply. No IO,
+  // no waiting and no replenishment: the producer's frame budget bounds this.
+  pub(super) fn pop_pending_notification(&mut self) -> Option<Value> {
+    self.pending.pop_front()
   }
 
   fn receive(&mut self, deadline: Instant) -> Result<Value, CodexAppServerDiagnosticCode> {
@@ -399,6 +409,18 @@ pub async fn probe_codex_app_server() -> Result<CodexAppServerProbe, String> {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test] fn interleaved_pending_survives_rpc_timeout_protocol_and_close() {
+    use CodexAppServerDiagnosticCode::*;
+    for failure in [CodexAppServerHandshakeTimeout, CodexAppServerProtocolError, CodexAppServerClosed] {
+      let notification=json!({"method":"item/started","params":{"item":{"type":"commandExecution"}}});
+      let mut incoming=VecDeque::from([Ok(notification.clone()),Err(failure)]);
+      let mut pending=VecDeque::new();
+      assert!(matches!(await_reply(|| incoming.pop_front().unwrap(),2,&mut pending),Err(code) if code==failure));
+      assert_eq!(pending.pop_front(),Some(notification));
+      assert!(pending.is_empty());
+    }
+  }
 
   #[test] fn regression_planner_burst_preserves_1024_frames() {
     let input=b"{\"method\":\"item/agentMessage/delta\",\"params\":{\"delta\":\"x\"}}\n".repeat(1024);

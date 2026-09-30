@@ -301,35 +301,133 @@ fn cancelled() -> OperationFailure { OperationFailure::Agent(AgentError::Cancell
     assert_eq!(run(&mut fake,&mut vec![]),Err(PlannerTurnDiagnosticCode::PlannerTurnUnexpectedNotification.into()));
     assert_eq!(fake.interrupts(),1); fake.cleaned();
 }
-#[test] fn queued_completed_during_interrupt_ack_is_drained_in_order() {
-    struct Wire {
-        stream:super::super::app_server::CodexRpcStream,
-        interrupts:usize,
-        cleanup:Vec<&'static str>,
+// Actual wire framing + await_response/pending, without a process or file.
+struct InterruptWire {
+    stream:super::super::app_server::CodexRpcStream,
+    interrupts:usize,
+    cleanup:Vec<&'static str>,
+    pending_inspected:usize,
+    notification_reads:usize,
+    eof_fault:Option<CodexAppServerDiagnosticCode>,
+}
+impl InterruptWire {
+    fn new(interleaved:Vec<Value>, ack:&str, eof_fault:Option<CodexAppServerDiagnosticCode>) -> Self {
+        let mut wire=format!("{}\n",json!({"id":1,"result":{"turn":{"id":"v"}}}));
+        for notification in interleaved { wire.push_str(&notification.to_string()); wire.push('\n'); }
+        wire.push_str(ack);
+        Self { stream:super::super::app_server::test_planner_stream(wire.as_bytes()),interrupts:0,
+            cleanup:vec![],pending_inspected:0,notification_reads:0,eof_fault }
     }
-    impl PlannerProtocol for Wire {
-        fn initialize(&mut self,_:Instant)->Result<(),()> { unreachable!() }
-        fn request(&mut self,method:&str,_:Value,deadline:Instant)->Result<Value,()> {
-            match method {
-                "turn/start" => self.stream.await_response(1,deadline).map_err(|_|()),
-                "turn/interrupt" => { self.interrupts+=1; self.stream.await_response(2,deadline).map_err(|_|()) }
-                "thread/unsubscribe" => { self.cleanup.push("unsubscribe"); Ok(json!({})) }
-                _=>unreachable!(),
-            }
+    fn assert_reclaimed_once(&self) {
+        assert_eq!(self.interrupts,1);
+        assert_eq!(self.cleanup,["unsubscribe","shutdown"]);
+    }
+}
+impl PlannerProtocol for InterruptWire {
+    fn initialize(&mut self,_:Instant)->Result<(),()> { unreachable!() }
+    fn request(&mut self,method:&str,_:Value,deadline:Instant)->Result<Value,()> {
+        match method {
+            "turn/start" => self.stream.await_response(1,deadline).map_err(|_|()),
+            "thread/unsubscribe" => { self.cleanup.push("unsubscribe"); Ok(json!({})) }
+            _=>panic!("no tools or server replies are permitted"),
         }
-        fn shutdown(&mut self)->Result<(),()> { self.cleanup.push("shutdown"); Ok(()) }
     }
-    impl PlannerTurnProtocol for Wire {
-        fn next_notification(&mut self,deadline:Instant)->Received { self.stream.next_notification(deadline) }
+    fn shutdown(&mut self)->Result<(),()> { self.cleanup.push("shutdown"); Ok(()) }
+}
+impl PlannerTurnProtocol for InterruptWire {
+    fn interrupt(&mut self,thread_id:&str,turn_id:&str,deadline:Instant)->Result<(),CodexAppServerDiagnosticCode> {
+        assert_eq!((thread_id,turn_id),("t","v")); self.interrupts+=1;
+        let response=self.stream.await_response(2,deadline).map_err(|code| {
+            // Deterministic timeout fault: replace EOF only AFTER real
+            // await_response has preserved its interleaved notifications.
+            if code==CodexAppServerDiagnosticCode::CodexAppServerClosed { self.eof_fault.unwrap_or(code) } else { code }
+        })?;
+        if response.as_object().is_some_and(|object|object.is_empty()) { Ok(()) }
+        else { Err(CodexAppServerDiagnosticCode::CodexAppServerProtocolError) }
     }
-    let wire=format!("{}\n{}\n{}\n",json!({"id":1,"result":{"turn":{"id":"v"}}}),
-        completed("interrupted"),json!({"id":2,"result":{}}));
-    let mut fake=Wire { stream:super::super::app_server::test_planner_stream(wire.as_bytes()),interrupts:0,cleanup:vec![] };
+    fn pop_pending_notification(&mut self)->Option<Value> {
+        let pending=self.stream.pop_pending_notification();
+        if pending.is_some() { self.pending_inspected+=1; }
+        pending
+    }
+    fn next_notification(&mut self,deadline:Instant)->Received {
+        self.notification_reads+=1; self.stream.next_notification(deadline)
+    }
+}
+fn run_interrupt_wire(wire:&mut InterruptWire, sink_closed:bool)->Result<String,OperationFailure> {
     let control=LifecycleControl::default();
-    assert_eq!(run_controlled_prepared_turn(&mut fake,"t","Objetivo",&control,&mut |event| {
-        if event==AgentEvent::WorkStarted { control.cancelled.store(true,Ordering::Release); } Ok(())
-    }),Err(cancelled()));
-    assert_eq!(fake.interrupts,1); assert_eq!(fake.cleanup,["unsubscribe","shutdown"]);
+    run_controlled_prepared_turn(wire,"t","Objetivo",&control,&mut |event| {
+        if event==AgentEvent::WorkStarted {
+            if sink_closed { control.sink_closed.store(true,Ordering::Release); }
+            else { control.cancelled.store(true,Ordering::Release); }
+        }
+        Ok(())
+    })
+}
+fn forbidden(kind:&str)->Value {
+    json!({"method":"item/started","params":{"threadId":"t","turnId":"v","item":{"type":kind}}})
+}
+#[test] fn queued_completed_during_interrupt_ack_is_drained_in_order() {
+    let mut wire=InterruptWire::new(vec![completed("interrupted")],"{\"id\":2,\"result\":{}}\n",None);
+    assert_eq!(run_interrupt_wire(&mut wire,false),Err(cancelled()));
+    assert_eq!(wire.pending_inspected,1); assert_eq!(wire.notification_reads,0); wire.assert_reclaimed_once();
+}
+#[test] fn forbidden_pending_survives_interrupt_ack_timeout() {
+    for kind in ["commandExecution","fileChange","mcpToolCall","dynamicToolCall","webSearch","unknown"] {
+        let mut wire=InterruptWire::new(vec![forbidden(kind)],"",Some(CodexAppServerDiagnosticCode::CodexAppServerHandshakeTimeout));
+        assert_eq!(run_interrupt_wire(&mut wire,false),Err(PlannerTurnDiagnosticCode::PlannerTurnUnexpectedItem.into()));
+        assert_eq!(wire.pending_inspected,1); assert_eq!(wire.notification_reads,0); wire.assert_reclaimed_once();
+    }
+}
+#[test] fn forbidden_pending_survives_interrupt_protocol_or_transport_failure() {
+    for ack in ["{\"id\":2,\"error\":{\"message\":\"synthetic-private-payload\"}}\n","not json\n",""] {
+        for sink_closed in [false,true] {
+            let mut wire=InterruptWire::new(vec![forbidden("commandExecution")],ack,None);
+            let error=PlannerTurnDiagnosticCode::PlannerTurnUnexpectedItem;
+            assert_eq!(run_interrupt_wire(&mut wire,sink_closed),Err(error.into()));
+            assert_eq!(error.code(),"planner_turn_unexpected_item");
+            assert!(!error.code().contains("private"));
+            assert_eq!(wire.pending_inspected,1); wire.assert_reclaimed_once();
+        }
+    }
+}
+#[test] fn queued_terminal_is_inspected_even_after_interrupt_ack_failure() {
+    for (ack,fault) in [("",Some(CodexAppServerDiagnosticCode::CodexAppServerHandshakeTimeout)),
+        ("{\"id\":2,\"error\":{}}\n",None),("",None)] {
+        let mut wire=InterruptWire::new(vec![completed("interrupted")],ack,fault);
+        assert_eq!(run_interrupt_wire(&mut wire,false),Err(cancelled()));
+        assert_eq!(wire.pending_inspected,1); assert_eq!(wire.notification_reads,0);
+        assert!(wire.stream.pop_pending_notification().is_none()); wire.assert_reclaimed_once();
+    }
+}
+#[test] fn benign_pending_after_failed_interrupt_keeps_cancel_or_sink_error() {
+    for (ack,fault) in [("",Some(CodexAppServerDiagnosticCode::CodexAppServerHandshakeTimeout)),
+        ("{\"id\":2,\"error\":{}}\n",None),("",None)] {
+        for sink_closed in [false,true] {
+            let mut wire=InterruptWire::new(vec![delta(),delta()],ack,fault);
+            let expected=if sink_closed { OperationFailure::Agent(AgentError::EventSinkClosed) } else { cancelled() };
+            assert_eq!(run_interrupt_wire(&mut wire,sink_closed),Err(expected));
+            assert_eq!(wire.pending_inspected,2); assert_eq!(wire.notification_reads,0); wire.assert_reclaimed_once();
+        }
+    }
+}
+#[test] fn queued_terminal_cannot_hide_later_forbidden_pending_item() {
+    for ack in ["","{\"id\":2,\"result\":{}}\n"] {
+        let mut wire=InterruptWire::new(vec![completed("interrupted"),forbidden("fileChange")],ack,None);
+        assert_eq!(run_interrupt_wire(&mut wire,false),Err(PlannerTurnDiagnosticCode::PlannerTurnUnexpectedItem.into()));
+        assert_eq!(wire.pending_inspected,2); assert_eq!(wire.notification_reads,0); wire.assert_reclaimed_once();
+    }
+}
+#[test] fn server_request_during_interrupt_ack_stays_closed_without_reply() {
+    let request="{\"id\":77,\"method\":\"item/commandExecution/requestApproval\",\"params\":{}}\n";
+    let mut wire=InterruptWire::new(vec![delta()],request,None);
+    assert_eq!(run_interrupt_wire(&mut wire,false),Err(PlannerTurnDiagnosticCode::PlannerTurnUnexpectedNotification.into()));
+    assert_eq!(wire.pending_inspected,1); assert_eq!(wire.notification_reads,0); wire.assert_reclaimed_once();
+}
+#[test] fn malformed_pending_notification_preserves_protocol_diagnostic_on_ack_failure() {
+    let mut wire=InterruptWire::new(vec![json!({"method":"item/completed"})],"",None);
+    assert_eq!(run_interrupt_wire(&mut wire,false),Err(PlannerTurnDiagnosticCode::PlannerTurnUnexpectedNotification.into()));
+    assert_eq!(wire.pending_inspected,1); wire.assert_reclaimed_once();
 }
 #[tokio::test] async fn successful_async_bridge_preserves_event_order_and_has_no_global_busy_state() {
     for _ in 0..2 {
