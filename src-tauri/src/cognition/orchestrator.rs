@@ -35,6 +35,14 @@ pub struct OrchestratorResult {
 
 const TASK_KIND: &str = "orchestrator_planning";
 
+fn task_summary(state: TaskState) -> String {
+    match state {
+        TaskState::Completed => "Orchestrator PlanV1 validado".into(),
+        TaskState::Cancelled => "Orchestrator planejamento cancelado".into(),
+        _ => "Orchestrator planejamento falhou".into(),
+    }
+}
+
 fn static_context() -> ContextBundle {
     let identity: IdentityInput = serde_json::from_value(serde_json::json!({
       "version":"orchestrator-internal","canonicalName":"Luna","presentation":"neutral",
@@ -159,7 +167,8 @@ fn scheduler_event<'a>(
                 TaskEventKind::ProviderRetry { provider_id, reason_code: reason_code.into() },
             SchedulerEvent::Fallback { from, to, reason_code } =>
                 TaskEventKind::ProviderFallback { from_provider_id: from, to_provider_id: to, reason_code: reason_code.into() },
-            SchedulerEvent::Chunk { .. } => return Ok(()),
+            SchedulerEvent::Chunk { provider_id, .. } =>
+                TaskEventKind::ProviderOutputObserved { provider_id },
         };
         emit(channel, id, sequence, TaskState::Running, kind)
           .map_err(|_| {
@@ -189,10 +198,10 @@ pub fn start_task(
         registry.mark_running(id);
         let mut error_code = None;
         let started = emit(&channel, id, &mut sequence, TaskState::Running, TaskEventKind::TaskStarted);
-        let outcome = if started.is_err() {
+        let (outcome, mut validated_result) = if started.is_err() {
             cancelled.store(true, Ordering::Release);
             error_code = Some("channel_closed");
-            TaskState::Failed
+            (TaskState::Failed, None)
         } else {
             let mut events = scheduler_event(&channel, id, &mut sequence, &cancelled);
             let plan_result = plan(runtime.scheduler.clone(), policy, objective, timeout, &cancelled, &mut events).await;
@@ -201,39 +210,65 @@ pub fn start_task(
                 Ok(result) => {
                     if cancelled.load(Ordering::Acquire) {
                         error_code = Some("cancelled");
-                        TaskState::Cancelled
+                        (TaskState::Cancelled, None)
                     } else {
                         let state = registry.finish(id, TaskState::Completed);
                         if state == TaskState::Cancelled {
                             error_code = Some("cancelled");
-                            TaskState::Cancelled
-                        } else if emit(&channel, id, &mut sequence, TaskState::Running,
-                            TaskEventKind::OrchestratorPlanReady { result: result.clone() }).is_err() {
-                            cancelled.store(true, Ordering::Release);
-                            error_code = Some("channel_closed");
-                            TaskState::Failed
+                            (TaskState::Cancelled, None)
                         } else {
-                            TaskState::Completed
+                            (TaskState::Completed, Some(result))
                         }
                     }
                 }
                 Err(code) => {
                     error_code = Some(code);
                     if code == "cancelled" || cancelled.load(Ordering::Acquire) {
-                        TaskState::Cancelled
+                        (TaskState::Cancelled, None)
                     } else {
-                        TaskState::Failed
+                        (TaskState::Failed, None)
                     }
                 }
             }
         };
-        let mut state = if error_code == Some("channel_closed") {
-            registry.finish_channel_closed(id)
-        } else if outcome == TaskState::Completed {
-            outcome
-        } else {
-            registry.finish(id, outcome)
+        let mut state = outcome;
+        if error_code == Some("channel_closed") {
+            state = registry.finish_channel_closed(id);
+        }
+        let record = TaskRecord {
+            task_id: id.0, kind: TASK_KIND.into(),
+            state: match state { TaskState::Completed => "completed", TaskState::Cancelled => "cancelled", _ => "failed" }.into(),
+            started_at, finished_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
+            summary: Some(task_summary(state)),
+            error_code: if state == TaskState::Failed { Some(error_code.unwrap_or("task_failed").into()) } else { None },
         };
+        let db_record = db.clone();
+        let history_result = tauri::async_runtime::spawn_blocking(move || {
+            let conn = db_record.open().map_err(|e| e.code())?;
+            task_history::insert(&conn, &record).map_err(|e| e.code())
+        }).await;
+        if !matches!(history_result, Ok(Ok(()))) {
+            eprintln!("[Luna Core] task_history code=write_failed task_id={}", id.0);
+            state = TaskState::Failed;
+            error_code = Some("task_history_write_failed");
+            validated_result = None;
+        }
+        if state == TaskState::Completed {
+            if let Some(result) = validated_result {
+                if emit(&channel, id, &mut sequence, TaskState::Running,
+                    TaskEventKind::OrchestratorPlanReady { result }).is_err() {
+                    cancelled.store(true, Ordering::Release);
+                    state = TaskState::Failed;
+                    error_code = Some("channel_closed");
+                    if let Ok(Ok(conn)) = tauri::async_runtime::spawn_blocking({
+                        let db = db.clone();
+                        move || db.open().map_err(|e| e.code())
+                    }).await {
+                        let _ = task_history::mark_failed(&conn, id.0, "channel_closed");
+                    }
+                }
+            }
+        }
         let terminal_kind = match state {
             TaskState::Completed => TaskEventKind::TaskCompleted,
             TaskState::Cancelled => TaskEventKind::TaskCancelled,
@@ -242,21 +277,12 @@ pub fn start_task(
         let terminal_sent = emit(&channel, id, &mut sequence, state, terminal_kind).is_ok();
         if !terminal_sent {
             cancelled.store(true, Ordering::Release);
-            state = TaskState::Failed;
-            error_code = Some("channel_closed");
+            let db_update = db.clone();
+            let _ = tauri::async_runtime::spawn_blocking(move || {
+                let conn = db_update.open().map_err(|e| e.code())?;
+                task_history::mark_failed(&conn, id.0, "channel_closed").map_err(|e| e.code())
+            }).await;
         }
-        let record = TaskRecord {
-            task_id: id.0, kind: TASK_KIND.into(),
-            state: match state { TaskState::Completed => "completed", TaskState::Cancelled => "cancelled", _ => "failed" }.into(),
-            started_at, finished_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
-            summary: Some("Orchestrator PlanV1 validado".into()),
-            error_code: if state == TaskState::Failed { Some(error_code.unwrap_or("task_failed").into()) } else { None },
-        };
-        let db_record = db.clone();
-        let _ = tauri::async_runtime::spawn_blocking(move || {
-            let conn = db_record.open().map_err(|e| e.code())?;
-            task_history::insert(&conn, &record).map_err(|e| e.code())
-        }).await;
     });
     Ok(id)
 }
@@ -265,6 +291,68 @@ pub fn start_task(
 mod tests {
     use super::*;
     use crate::cognition::policy::{RoutingMode, ThinkingLevel};
+    use crate::cognition::{
+        provider::{Provider, ProviderFuture},
+        registry::ProviderRegistry,
+        types::{ProviderChunk, ProviderConfig, ProviderError, ProviderRequest, ProviderResponse, ProviderUsage},
+    };
+    use std::time::Duration;
+
+    struct PlanProvider {
+        output: String,
+        stream: bool,
+        delay_ms: u64,
+    }
+
+    impl Provider for PlanProvider {
+        fn execute<'a>(
+            &'a self,
+            _request: &'a ProviderRequest,
+            cancelled: &'a std::sync::atomic::AtomicBool,
+            on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+        ) -> ProviderFuture<'a> {
+            Box::pin(async move {
+                let deadline = tokio::time::Instant::now() + Duration::from_millis(self.delay_ms);
+                while tokio::time::Instant::now() < deadline {
+                    if cancelled.load(Ordering::Acquire) {
+                        return Err(ProviderError::Cancelled);
+                    }
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                if self.stream {
+                    on_chunk(ProviderChunk { text: self.output.clone() })?;
+                }
+                Ok(ProviderResponse {
+                    text: self.output.clone(),
+                    usage: ProviderUsage { calls: 1, input_tokens: 4, output_tokens: 8, total_tokens: None, thought_tokens: None },
+                })
+            })
+        }
+    }
+
+    fn policy(provider_id: &str) -> CognitiveRolePolicy {
+        CognitiveRolePolicy {
+            role: CognitiveRole::Orchestrator, provider_id: provider_id.into(), model: "fake-model".into(),
+            thinking_level: None, routing_mode: RoutingMode::Fixed,
+            fallback_provider_id: None, fallback_model: None, fallback_thinking_level: None,
+            max_output_tokens: Some(128), max_provider_calls: 1, retry_enabled: false, max_retries: 0,
+            retry_backoff_ms: 0, history_max_messages: 0, history_max_bytes: 0, summary_input_max_bytes: 0,
+            context_max_bytes: 8192,
+        }
+    }
+
+    fn valid_plan() -> String {
+        r#"{"version":1,"objective":"Objetivo","steps":[{"id":"a","description":"Passo","requiredCapabilities":["planning"],"dependsOn":[]}],"risks":[],"needsUserInput":false,"questions":[]}"#.into()
+    }
+
+    fn scheduler(provider_id: &str, output: String, stream: bool, delay_ms: u64) -> Arc<Scheduler> {
+        let mut registry = ProviderRegistry::default();
+        registry.register(
+            ProviderConfig { id: provider_id.into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() },
+            Arc::new(PlanProvider { output, stream, delay_ms }),
+        ).unwrap();
+        Arc::new(Scheduler::new(registry))
+    }
 
     #[test]
     fn request_is_strict_and_has_no_history_or_tools() {
@@ -301,16 +389,12 @@ mod tests {
         assert!(built.input.len() > "objetivo".len());
     }
 
-    fn valid_json() -> String {
-        r#"{"version":1,"objective":"Objetivo","steps":[{"id":"a","description":"Passo","requiredCapabilities":["planning"],"dependsOn":[]}],"risks":[],"needsUserInput":false,"questions":[]}"#.into()
-    }
-
     #[test]
     fn strict_plan_boundary_accepts_only_valid_raw_json() {
-        assert!(PlanV1::parse(&valid_json()).is_ok());
-        assert!(PlanV1::parse(&format!("```json\n{}\n```", valid_json())).is_err());
-        assert!(PlanV1::parse(&format!("prefix {}", valid_json())).is_err());
-        assert!(PlanV1::parse(&format!("{} suffix", valid_json())).is_err());
+        assert!(PlanV1::parse(&valid_plan()).is_ok());
+        assert!(PlanV1::parse(&format!("```json\n{}\n```", valid_plan())).is_err());
+        assert!(PlanV1::parse(&format!("prefix {}", valid_plan())).is_err());
+        assert!(PlanV1::parse(&format!("{} suffix", valid_plan())).is_err());
         assert!(PlanV1::parse(r#"{"version":1,"objective":"Objetivo","steps":[],"risks":[],"needsUserInput":false,"questions":[]}"#).is_err());
     }
 
@@ -347,5 +431,83 @@ mod tests {
             request_timeout_ms: 1, stream_idle_timeout_ms: 1,
         });
         assert!(built.input.len() > policy.context_max_bytes as usize);
+    }
+
+    #[test]
+    fn integrated_plan_selects_fixed_gemini_and_groq_and_validates_output() {
+        for provider_id in ["gemini", "groq"] {
+            let scheduler = scheduler(provider_id, valid_plan(), true, 0);
+            let cancelled = AtomicBool::new(false);
+            let mut selected = None;
+            let result = tauri::async_runtime::block_on(plan(
+                scheduler, policy(provider_id), "goal".into(),
+                super::super::types::ProviderTimeouts { request_timeout_ms: 10, stream_idle_timeout_ms: 10 },
+                &cancelled, &mut |event| {
+                    if let SchedulerEvent::Selected { provider_id, .. } = event {
+                        selected = Some(provider_id);
+                    }
+                    Ok(())
+                },
+            )).unwrap();
+            assert_eq!(selected.as_deref(), Some(provider_id));
+            assert_eq!(result.provider_id, provider_id);
+            assert_eq!(result.plan.version, 1);
+        }
+    }
+
+    #[test]
+    fn integrated_plan_rejects_invalid_and_semantically_invalid_json() {
+        for output in [
+            "{".to_owned(),
+            format!("```json\n{}\n```", valid_plan()),
+            r#"{"version":1,"objective":"Objetivo","steps":[],"risks":[],"needsUserInput":false,"questions":[]}"#.into(),
+        ] {
+            let scheduler = scheduler("gemini", output, false, 0);
+            let result = tauri::async_runtime::block_on(plan(
+                scheduler, policy("gemini"), "goal".into(),
+                super::super::types::ProviderTimeouts { request_timeout_ms: 10, stream_idle_timeout_ms: 10 },
+                &AtomicBool::new(false), &mut |_| Ok(()),
+            ));
+            assert!(matches!(result, Err("orchestrator_plan_invalid")));
+        }
+    }
+
+    #[test]
+    fn integrated_plan_cancellation_wins_and_sink_close_stops_observed_output() {
+        let scheduler_for_cancel = scheduler("gemini", valid_plan(), true, 100);
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let signal = cancelled.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(20));
+            signal.store(true, Ordering::Release);
+        });
+        let cancelled_result = tauri::async_runtime::block_on(plan(
+            scheduler_for_cancel, policy("gemini"), "goal".into(),
+            super::super::types::ProviderTimeouts { request_timeout_ms: 10, stream_idle_timeout_ms: 10 },
+            &cancelled, &mut |_| Ok(()),
+        ));
+        assert!(matches!(cancelled_result, Err("cancelled")));
+
+        let scheduler_after_cancel = scheduler("gemini", valid_plan(), true, 0);
+        let sink_cancelled = AtomicBool::new(false);
+        let sink_result = tauri::async_runtime::block_on(plan(
+            scheduler_after_cancel, policy("gemini"), "goal".into(),
+            super::super::types::ProviderTimeouts { request_timeout_ms: 10, stream_idle_timeout_ms: 10 },
+            &sink_cancelled, &mut |event| {
+                if matches!(event, SchedulerEvent::Chunk { .. }) {
+                    return Err(SchedulerError::EventSinkClosed);
+                }
+                Ok(())
+            },
+        ));
+        assert!(matches!(sink_result, Err("channel_closed")));
+        assert!(sink_cancelled.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn task_summaries_are_factual_for_each_terminal_state() {
+        assert_eq!(task_summary(TaskState::Completed), "Orchestrator PlanV1 validado");
+        assert_eq!(task_summary(TaskState::Cancelled), "Orchestrator planejamento cancelado");
+        assert_eq!(task_summary(TaskState::Failed), "Orchestrator planejamento falhou");
     }
 }

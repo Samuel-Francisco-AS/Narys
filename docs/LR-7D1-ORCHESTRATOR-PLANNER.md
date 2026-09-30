@@ -41,7 +41,7 @@ bytes HTTP nem serialização interna do `ContextBundle`. Histórico e memória 
 são enviados ao planejamento diagnóstico; secrets nunca entram em SQLite ou na
 resposta. O Core mantém autoridade sobre schema, budgets, capabilities,
 permissões e cancelamento. A UI acompanha `TaskStarted`, provider/retry,
-`OrchestratorPlanReady` (somente após validação), e exatamente um terminal
+`ProviderOutputObserved` sem conteúdo parcial, `OrchestratorPlanReady` (somente após validação), e exatamente um terminal
 `TaskCompleted`, `TaskCancelled` ou `TaskFailed`.
 
 ## Testes e gate humano
