@@ -202,7 +202,7 @@ Trocar Gemini ↔ Groq como primary/fallback em Conversation e como provider Fix
 
 Adicionar uma policy persistida `orchestrator` configurável pela interface.
 
-O usuário escolhe provider, model, thinking, output/context budget, timeout/retry e routing compatível.
+O usuário escolhe provider, model, thinking, output/input budget, timeout/retry e routing compatível.
 
 ### Regra de autoridade
 
@@ -221,11 +221,11 @@ Nenhum papel decorativo: `orchestrator` só entra na UI quando existir um caminh
 
 A migration 008 amplia a policy persistida para incluir `orchestrator`, preservando
 Conversation/Summary e semeando Gemini com defaults conservadores. O papel expõe
-provider, model, thinking, output budget, context budget, timeout por provider e
+provider, model, thinking, output budget, input budget de planejamento, timeout por provider e
 retry; permanece `Fixed` nesta fase. A UI deriva os providers do catálogo do
 backend e nunca recebe segredos.
 
-O comando `run_orchestrator_planning` carrega e valida a policy no momento da
+O comando `start_orchestrator_planning` registra uma tarefa e carrega/valida a policy no momento da
 operação, limita o objetivo, envia apenas identidade técnica mínima (sem
 histórico ou memória), chama o Scheduler e retorna o provider efetivamente usado
 junto do `PlanV1` validado. O plano é apenas exibido: nenhuma ferramenta ou passo

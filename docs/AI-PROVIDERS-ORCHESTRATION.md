@@ -479,7 +479,7 @@ produção ou UI foi adicionado. **D0.5D fechou em PASS completo após auditoria
 
 O Orchestrator é um papel cognitivo persistido, não um provider novo nem um
 agente especialista. Ele usa Gemini ou Groq por `provider_id` via Scheduler,
-com modelo, thinking, output/context budget, timeout por provider e retry
+com modelo, thinking, output budget, input budget de planejamento, timeout por provider e retry
 configuráveis. Nesta fase o routing é somente `Fixed`; fallback chain e `Auto`
 ficam para D2.
 

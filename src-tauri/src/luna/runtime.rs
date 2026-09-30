@@ -96,21 +96,27 @@ impl TaskRegistry {
 
   // Resolve cancellation and remove under the same lock. If cancel_task returns
   // true, the worker will publish TaskCancelled rather than TaskCompleted.
-  fn finish(&self, id: TaskId, outcome: TaskState) -> TaskState {
+  pub(crate) fn finish(&self, id: TaskId, outcome: TaskState) -> TaskState {
     let mut active = self.active.lock().unwrap_or_else(|poison| poison.into_inner());
     let cancelled = active.get(&id).is_some_and(|task| task.cancelled.load(Ordering::Acquire));
     active.remove(&id);
     if cancelled { TaskState::Cancelled } else { outcome }
   }
 
-  fn finish_channel_closed(&self, id: TaskId) -> TaskState {
+  pub(crate) fn finish_channel_closed(&self, id: TaskId) -> TaskState {
     self.remove(id);
     TaskState::Failed
   }
 }
 
+impl ActiveTask {
+  pub(crate) fn new(registry: Arc<TaskRegistry>, id: TaskId) -> Self {
+    Self { registry, id, session_id: None }
+  }
+}
+
 // Also removes the registration if the spawned future is dropped unexpectedly.
-struct ActiveTask {
+pub(crate) struct ActiveTask {
   registry: Arc<TaskRegistry>,
   id: TaskId,
   session_id: Option<i64>,

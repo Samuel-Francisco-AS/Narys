@@ -17,11 +17,12 @@ A migration 008 reconstrói `cognitive_role_policies` para aceitar
 carregada a cada operação, validada contra catálogo, capability e SecretStore,
 e sobrevive a reopen/restart.
 
-`run_orchestrator_planning` recebe um objetivo, usa contexto técnico mínimo,
-invoca o Scheduler com timeout persistido por provider e retry da policy, e
-retorna provider, usage e somente o plano validado. Não há execução automática.
-O módulo aceita cancelamento antes da aceitação do resultado e não aceita plano
-depois de um cancelamento vencedor.
+`start_orchestrator_planning` registra uma tarefa no `TaskRegistry` compartilhado,
+emite eventos pelo `Channel<TaskEvent>`, usa contexto técnico mínimo, invoca o
+Scheduler com timeout persistido por provider e retry da policy, e remove a
+tarefa em todos os caminhos terminais. `cancel_task(TaskId)` usa a mesma flag
+compartilhada pelo Scheduler; a resolução de corrida em `TaskRegistry::finish`
+faz o cancelamento vencedor impedir a publicação do plano.
 
 ## PlanV1 e structured output
 
@@ -33,19 +34,25 @@ ciclos, capabilities e consistência de perguntas.
 
 ## Contexto, eventos e segurança
 
-O objetivo é limitado a 2048 bytes e pelo budget persistido. Histórico e memória
-não são enviados ao planejamento diagnóstico; secrets nunca entram em SQLite ou
-na resposta. O Core mantém autoridade sobre schema, budgets, capabilities,
-permissões e cancelamento. O resultado mostrado na UI é o plano já validado.
+O objetivo é limitado a 2048 bytes. `context_max_bytes` é o orçamento
+determinístico de input do planejamento: limita os bytes UTF-8 da instrução
+enviada ao provider (instruções fixas mais objetivo); não pretende representar
+bytes HTTP nem serialização interna do `ContextBundle`. Histórico e memória não
+são enviados ao planejamento diagnóstico; secrets nunca entram em SQLite ou na
+resposta. O Core mantém autoridade sobre schema, budgets, capabilities,
+permissões e cancelamento. A UI acompanha `TaskStarted`, provider/retry,
+`OrchestratorPlanReady` (somente após validação), e exatamente um terminal
+`TaskCompleted`, `TaskCancelled` ou `TaskFailed`.
 
 ## Testes e gate humano
 
-Testes locais cobrem migration/reopen, seed, policy e parse estrito; não usam
-internet, quota ou credenciais. O gate humano deve configurar Gemini na policy,
-salvar, executar o objetivo controlado, verificar provider e plano, reiniciar,
-trocar somente para Groq, salvar e repetir. Deve confirmar que Conversation,
-Summary, identidade e histórico permanecem intactos e que nenhum passo é
-executado.
+Testes locais cobrem migration/reopen, seed, policy, routing por provider,
+budgets/timeouts, lifecycle do registry e parse estrito; não usam internet,
+quota ou credenciais. O gate humano deve configurar Gemini na policy, salvar,
+executar o objetivo controlado, verificar provider e plano, reiniciar, trocar
+somente para Groq, salvar e repetir. Deve confirmar que o TaskId é cancelável,
+que a UI recebe eventos factuais e que Conversation, Summary, identidade e
+histórico permanecem intactos e nenhum passo é executado.
 
 Fallback chain/Auto/score/affinity/task graph, ferramentas, LR-8 e expansão do
 Codex permanecem fora de escopo.
