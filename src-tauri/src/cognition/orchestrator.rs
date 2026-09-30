@@ -39,6 +39,7 @@ const TASK_KIND: &str = "orchestrator_planning";
 
 #[cfg(test)]
 struct PreflightGate {
+    objective: String,
     entered: Mutex<bool>,
     released: Mutex<bool>,
     cv: Condvar,
@@ -50,9 +51,12 @@ static PREFLIGHT_GATE: OnceLock<Mutex<Option<Arc<PreflightGate>>>> = OnceLock::n
 static PREFLIGHT_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 #[cfg(test)]
-fn wait_for_test_preflight_gate() {
+fn wait_for_test_preflight_gate(objective: &str) {
     let gate = PREFLIGHT_GATE.get().and_then(|slot| slot.lock().unwrap().clone());
     let Some(gate) = gate else { return };
+    if gate.objective != objective {
+        return;
+    }
     *gate.entered.lock().unwrap() = true;
     gate.cv.notify_all();
     let mut released = gate.released.lock().unwrap();
@@ -62,7 +66,7 @@ fn wait_for_test_preflight_gate() {
 }
 
 #[cfg(not(test))]
-fn wait_for_test_preflight_gate() {}
+fn wait_for_test_preflight_gate(_objective: &str) {}
 
 fn model_contract() -> String {
     let schema = serde_json::to_string(&crate::agents::planner::output_schema())
@@ -266,7 +270,7 @@ pub fn start_task(
             (TaskState::Failed, None)
         } else {
             let mut events = scheduler_event(&channel, id, &mut sequence, &cancelled);
-            wait_for_test_preflight_gate();
+            wait_for_test_preflight_gate(&objective);
             let preflight = tauri::async_runtime::spawn_blocking(move || {
                 let conn = preflight_db.open().map_err(|error| error.code())?;
                 let policy = policy::load(&conn, CognitiveRole::Orchestrator).map_err(|error| error.code())?;
@@ -495,16 +499,15 @@ mod tests {
         (channel, receiver)
     }
 
-    fn collect_until_terminal(receiver: &mpsc::Receiver<String>) -> Vec<String> {
+    fn collect_until_channel_closed(receiver: &mpsc::Receiver<String>) -> Vec<String> {
         let mut events = Vec::new();
         loop {
-            let event = receiver.recv_timeout(Duration::from_secs(5)).expect("task lifecycle event");
-            let terminal = event.contains("\"task_completed\"")
-                || event.contains("\"task_cancelled\"")
-                || event.contains("\"task_failed\"");
-            events.push(event);
-            if terminal {
-                return events;
+            match receiver.recv_timeout(Duration::from_secs(5)) {
+                Ok(event) => events.push(event),
+                Err(mpsc::RecvTimeoutError::Disconnected) => return events,
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    panic!("task lifecycle channel did not close after terminal")
+                }
             }
         }
     }
@@ -534,8 +537,9 @@ mod tests {
         assert_eq!(row.1.as_deref(), error_code);
     }
 
-    fn install_preflight_gate() -> Arc<PreflightGate> {
+    fn install_preflight_gate(objective: &str) -> Arc<PreflightGate> {
         let gate = Arc::new(PreflightGate {
+            objective: objective.into(),
             entered: Mutex::new(false),
             released: Mutex::new(false),
             cv: Condvar::new(),
@@ -563,20 +567,21 @@ mod tests {
         let dir = test_dir("returns-before-preflight");
         let db = Database::for_test(dir.clone().join("task.sqlite3"));
         let registry = Arc::new(TaskRegistry::default());
-        let gate = install_preflight_gate();
+        let objective = "gate-return-before-preflight";
+        let gate = install_preflight_gate(objective);
         let (channel, receiver) = channel();
 
         let task_id = start_task(
             registry.clone(), db.clone(), empty_runtime(),
             Arc::new(SecretStore::with_key_store(dir.clone(), Arc::new(TestKeys::default()))),
-            "goal".into(), channel,
+            objective.into(), channel,
         ).unwrap();
 
         wait_for_gate(&gate);
         assert!(registry.contains_for_test(task_id));
         release_gate(&gate);
 
-        let events = collect_until_terminal(&receiver);
+        let events = collect_until_channel_closed(&receiver);
         assert_eq!(terminal_count(&events), 1);
         assert!(events.iter().any(|event| event.contains("\"task_started\"")));
         assert!(events.iter().any(|event| event.contains("\"task_failed\"")));
@@ -597,7 +602,7 @@ mod tests {
             Arc::new(SecretStore::with_key_store(dir.clone(), Arc::new(TestKeys::default()))),
             "goal".into(), channel,
         ).unwrap();
-        let events = collect_until_terminal(&receiver);
+        let events = collect_until_channel_closed(&receiver);
 
         assert_eq!(terminal_count(&events), 1);
         assert!(events.iter().any(|event| event.contains("\"task_started\"")));
@@ -614,19 +619,20 @@ mod tests {
         let dir = test_dir("cancel-preflight");
         let db = Database::for_test(dir.clone().join("task.sqlite3"));
         let registry = Arc::new(TaskRegistry::default());
-        let gate = install_preflight_gate();
+        let objective = "gate-cancel-during-preflight";
+        let gate = install_preflight_gate(objective);
         let (channel, receiver) = channel();
 
         let task_id = start_task(
             registry.clone(), db.clone(), empty_runtime(),
             Arc::new(SecretStore::with_key_store(dir.clone(), Arc::new(TestKeys::default()))),
-            "goal".into(), channel,
+            objective.into(), channel,
         ).unwrap();
         wait_for_gate(&gate);
         assert!(registry.cancel(task_id));
         release_gate(&gate);
 
-        let events = collect_until_terminal(&receiver);
+        let events = collect_until_channel_closed(&receiver);
         assert_eq!(terminal_count(&events), 1);
         assert!(events.iter().any(|event| event.contains("\"task_cancelled\"")));
         assert!(!events.iter().any(|event| event.contains("\"orchestrator_plan_ready\"")));
@@ -648,7 +654,7 @@ mod tests {
         wait_for_event(&receiver, &mut events, "\"provider_selected\"");
         assert!(calls.load(Ordering::Acquire) >= 1);
         assert!(registry.cancel(task_id));
-        events.extend(collect_until_terminal(&receiver));
+        events.extend(collect_until_channel_closed(&receiver));
 
         assert_eq!(terminal_count(&events), 1);
         assert!(events.iter().any(|event| event.contains("\"task_cancelled\"")));

@@ -1,6 +1,6 @@
 # LR-7D1 — Orchestrator/Planner configurável
 
-Estado: **candidata à auditoria independente e ao gate humano**.
+Estado: **PASS completo — auditoria independente e gate humano aprovados em 30/09/2026**.
 
 ## Arquitetura
 
@@ -80,9 +80,29 @@ cancelamento após o provider iniciar. Os testes verificam eventos, histórico,
 ausência de plano publicado, chamadas ao provider e remoção do registry; não há
 novo comportamento funcional nesta cobertura.
 
-O gate humano precisa ser repetido apenas para confirmar a troca Groq ↔ Gemini,
-o cancelamento pela janela `settings-ai` e a responsividade no início. O estado
-permanece **CANDIDATA À REAUDITORIA / GATE HUMANO**.
+A reauditoria e o segundo gate humano confirmaram as correções: ao selecionar
+Gemini como Orchestrator, a UI preenche o modelo canônico `gemini-3.8-flash`;
+o início do planejamento devolve o `TaskId` sem o bloqueio perceptível anterior;
+e o cancelamento pela janela `settings-ai` termina factual e corretamente em
+`cancelled` tanto com Groq quanto com Gemini quando solicitado durante
+`running`. Groq voltou a concluir uma operação real com `PlanV1` válido.
+
+Durante as tentativas finais com Gemini, o endpoint respondeu HTTP 503
+`service_unavailable` com `Retry-After` de 30 s. O Scheduler classificou a
+resposta como `unavailable`, aplicou cooldown e encerrou a tarefa em `failed`.
+Isso fica registrado como observação externa não bloqueante: este gate não
+constitui evidência de uma conclusão Gemini → `PlanV1` bem-sucedida nesta
+rodada, mas comprova routing até o provider, tratamento fail-closed e
+cancelamento real. O gate humano foi aprovado por Sam.
+
+Antes da integração, o harness de lifecycle foi endurecido sem mudar produção:
+o gate global de preflight passou a ser escopado ao objetivo do teste, evitando
+captura acidental de outros `start_task` paralelos, e a coleta de eventos agora
+aguarda o fechamento do Channel para que a asserção de exatamente um terminal
+também detecte qualquer terminal tardio.
+
+**LR-7D1 = PASS completo.** O próximo checkpoint da trilha é **LR-7D2 —
+fallback chain + Auto/score + affinity**.
 
 Fallback chain/Auto/score/affinity/task graph, ferramentas, LR-8 e expansão do
 Codex permanecem fora de escopo.

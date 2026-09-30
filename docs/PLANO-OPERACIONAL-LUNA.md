@@ -716,7 +716,7 @@ Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáve
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7A/FIX → LR-7D0 fechadas em PASS** e **LR-7D0.5A → LR-7D0.5F encerradas e integradas em PASS completo**, a trilha já possui Gemini + Groq reais, fallback/overflow funcional, seleção configurável de provider e Codex como `AgentBackend` real com planejamento estruturado read-only, cancelamento, eventos factuais e recovery de lifecycle validados no runtime real. A próxima evolução funcional é **LR-7D1 — Orchestrator/Planner configurável**. LR-8 permanece separada para Rate Limit Manager e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7A/FIX → LR-7D0 fechadas em PASS** e **LR-7D0.5A → LR-7D0.5F encerradas e integradas em PASS completo**, a trilha já possui Gemini + Groq reais, fallback/overflow funcional, seleção configurável de provider e Codex como `AgentBackend` real com planejamento estruturado read-only, cancelamento, eventos factuais e recovery de lifecycle validados no runtime real. A próxima evolução funcional é **LR-7D2 — fallback chain + Auto/score + affinity**, pois a LR-7D1 foi fechada em PASS completo após auditoria e gate humano em 30/09/2026. LR-8 permanece separada para Rate Limit Manager e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
@@ -750,9 +750,14 @@ O hardening introduz propagação terminal de falha do Channel (`channel_closed`
 
 
 **Atualização LR-7B (28/09/2026):** PASS completo. Groq foi integrado como segundo provider real no Registry, com Stronghold, streaming SSE, usage e diagnóstico `Fixed(groq)`. Conversation/Summary permaneceram `Fixed(gemini)` nesta etapa; a distribuição real foi fechada posteriormente na LR-7C.
-## LR-7D1 — candidata
+## LR-7D1 — PASS completo
 
-Implementação concluída na branch `lr-7d1-orchestrator-planner`, pendente de
-auditoria independente e gate humano. O Orchestrator persistido pode alternar
-Gemini/Groq pela UI e produz `PlanV1` validado sem executar ferramentas. D2/D3,
-LR-8 e novas permissões do Codex permanecem adiadas.
+Fechada em 30/09/2026 após auditoria independente e gate humano. O Orchestrator
+persistido alterna Gemini/Groq por configuração, registra `TaskId` antes do
+preflight bloqueante, usa Scheduler/TaskRegistry, valida `PlanV1` de forma
+fail-closed e não executa ferramentas ou passos. Persistência, planejamento real
+Groq, responsividade e cancelamento em `running` com Groq/Gemini foram
+validados. No gate final, Gemini respondeu HTTP 503 `service_unavailable` com
+`Retry-After` de 30 s; o tratamento de erro/cooldown foi correto, mas essa
+rodada não é registrada como sucesso Gemini → `PlanV1`. D2/D3, LR-8 e novas
+permissões do Codex permanecem adiadas. Próximo checkpoint: **LR-7D2**.
