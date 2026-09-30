@@ -54,7 +54,7 @@ static PREFLIGHT_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 fn wait_for_test_preflight_gate(objective: &str) {
     let gate = PREFLIGHT_GATE.get().and_then(|slot| slot.lock().unwrap().clone());
     let Some(gate) = gate else { return };
-    if gate.objective != objective {
+    if gate.objective.as_str() != objective {
         return;
     }
     *gate.entered.lock().unwrap() = true;
