@@ -217,7 +217,7 @@ A LLM Orchestrator **não executa ferramentas diretamente por autoridade própri
 
 Nenhum papel decorativo: `orchestrator` só entra na UI quando existir um caminho real de runtime que o utilize.
 
-### Implementação candidata
+### Implementação fechada
 
 A migration 008 amplia a policy persistida para incluir `orchestrator`, preservando
 Conversation/Summary e semeando Gemini com defaults conservadores. O papel expõe
