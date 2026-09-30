@@ -444,18 +444,61 @@ fn forbidden(kind:&str)->Value {
 }
 #[tokio::test]
 #[ignore = "manual only: requires authenticated Codex, isolated inference and quota"]
-async fn manual_isolated_cancel_lifecycle() {
-    let cancelled=AtomicBool::new(false);
-    let request=AgentRequest { objective:"Proponha um plano curto de investigação de interface, sem executar ações.".into(),
-        required_capabilities:production_config().capabilities };
-    let mut events=vec![];
-    let result=CodexAgentBackend.execute(&request,&cancelled,&mut |event| {
-        if event==AgentEvent::WorkStarted { cancelled.store(true,Ordering::Release); }
-        events.push(event); Ok(())
+async fn manual_final_codex_agent_bridge_gate() {
+    let request = AgentRequest {
+        objective: "Proponha um plano curto de investigação de interface, sem executar ações.".into(),
+        required_capabilities: production_config().capabilities,
+    };
+    let cancellation = AtomicBool::new(false);
+    let mut cancelled_events = Vec::new();
+    let cancelled_result = CodexAgentBackend.execute(&request, &cancellation, &mut |event| {
+        if event == AgentEvent::WorkStarted {
+            cancellation.store(true, Ordering::Release);
+        }
+        cancelled_events.push(event);
+        Ok(())
     }).await;
-    assert!(matches!(result,Err(AgentError::Cancelled)), "manual cancellation did not complete");
-    assert_eq!(events.iter().filter(|event| **event==AgentEvent::CancellationRequested).count(),1);
-    assert!(matches!(events.last(),Some(AgentEvent::Cancelled)), "manual terminal event missing");
+
+    assert_eq!(cancelled_result, Err(AgentError::Cancelled));
+    assert!(matches!(cancelled_events.first(), Some(AgentEvent::SessionReady)));
+    assert!(cancelled_events.iter().position(|event| *event == AgentEvent::SessionReady)
+        < cancelled_events.iter().position(|event| *event == AgentEvent::WorkStarted));
+    assert_eq!(cancelled_events.iter().filter(|event| **event == AgentEvent::WorkStarted).count(), 1);
+    assert_eq!(cancelled_events.iter().filter(|event| **event == AgentEvent::CancellationRequested).count(), 1);
+    assert_eq!(cancelled_events.iter().filter(|event| **event == AgentEvent::Cancelled).count(), 1);
+    assert_eq!(cancelled_events.iter().filter(|event| **event == AgentEvent::Completed).count(), 0);
+    assert_eq!(cancelled_events.iter().filter(|event| **event == AgentEvent::Failed).count(), 0);
+    assert!(!cancelled_events.iter().any(|event| matches!(event, AgentEvent::Output { .. })));
+    assert!(matches!(cancelled_events.last(), Some(AgentEvent::Cancelled)));
+
+    let recovery_cancellation = AtomicBool::new(false);
+    let recovery_request = AgentRequest {
+        objective: "Planeje como investigar um botão Tauri que não responde ao clique. Não execute nenhuma alteração.".into(),
+        required_capabilities: production_config().capabilities,
+    };
+    let mut recovery_events = Vec::new();
+    let recovery_result = CodexAgentBackend.execute(
+        &recovery_request,
+        &recovery_cancellation,
+        &mut |event| {
+            recovery_events.push(event);
+            Ok(())
+        },
+    ).await.expect("independent recovery call should complete");
+    let plan = PlanV1::parse(&recovery_result.output)
+        .expect("recovery output must be a valid PlanV1");
+    plan.validate().expect("recovery PlanV1 must pass Core validation");
+
+    assert_eq!(recovery_events, [
+        AgentEvent::SessionReady,
+        AgentEvent::WorkStarted,
+        AgentEvent::OutputObserved,
+        AgentEvent::Completed,
+    ]);
+    assert_eq!(recovery_events.iter().filter(|event| **event == AgentEvent::Completed).count(), 1);
+    assert_eq!(recovery_events.iter().filter(|event| **event == AgentEvent::Cancelled).count(), 0);
+    assert_eq!(recovery_events.iter().filter(|event| **event == AgentEvent::Failed).count(), 0);
+    assert!(!recovery_events.iter().any(|event| matches!(event, AgentEvent::Output { .. })));
 }
 
 #[tokio::test] async fn async_ready_delivery_checks_cancel_before_releasing_worker() {

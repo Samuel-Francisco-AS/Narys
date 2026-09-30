@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — PASS completo e integrada à `main` pela PR #8 em 29/09/2026. Próximo checkpoint: D0.5F — gate real da mini-trilha.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — PASS completo e integrada à `main` pela PR #8 em 29/09/2026. D0.5F — PASS técnico + auditoria independente + gate humano real. **LR-7D0.5 encerrada em PASS completo e pronta para integração. Próximo checkpoint: LR-7D1 — Orchestrator/Planner configurável.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -18,7 +18,7 @@ backend agentivo real, restrito a planejamento read-only estruturado.
 - **D0.5C:** contrato `AgentBackend` e registry genérico.
 - **D0.5D:** planner read-only e `PlanV1`.
 - **D0.5E:** cancelamento, recovery e eventos reais.
-- **D0.5F:** gate real.
+- **D0.5F:** PASS final — cancelamento real seguido por nova chamada independente concluída com `PlanV1` válido.
 
 ## Escopo e fronteira de segurança da D0.5A
 
@@ -385,4 +385,27 @@ Com isso, **D0.5E está encerrada em PASS completo**. D0.5F permanece fora de es
 
 ## Fechamento de integração da D0.5E — 29/09/2026
 
-A PR #8 foi integrada à `main` por squash no commit `ba12c2411ed6f1e0bec9ef2c7382b45a71c4956a`. A D0.5E está oficialmente encerrada em **PASS completo**, com cancelamento remoto real via `turn/interrupt`, recovery de lifecycle por chamada efêmera, eventos factuais genéricos e cleanup pós-cancelamento sem processo `codex app-server --stdio` residual. O próximo checkpoint é **D0.5F — gate real da mini-trilha Codex Agent Bridge**.
+A PR #8 foi integrada à `main` por squash no commit `ba12c2411ed6f1e0bec9ef2c7382b45a71c4956a`. A D0.5E está oficialmente encerrada em **PASS completo**, com cancelamento remoto real via `turn/interrupt`, recovery de lifecycle por chamada efêmera, eventos factuais genéricos e cleanup pós-cancelamento sem processo `codex app-server --stdio` residual. D0.5F é **CANDIDATA AO GATE FINAL** da mini-trilha; ainda não está encerrada.
+
+## D0.5F — PASS técnico + auditoria independente + gate humano final
+
+O artefato desta etapa é o teste manual ignored `manual_final_codex_agent_bridge_gate`, em `src-tauri/src/agents/codex/lifecycle_tests.rs`. Ele usa diretamente o `CodexAgentBackend` de produção e não roda no `cargo test` normal.
+
+O protocolo humano executa duas chamadas independentes no mesmo teste:
+
+1. **Chamada cancelada:** cria request, `AtomicBool` e event sink novos; inicia o runtime real isolado; ao receber `WorkStarted`, marca a flag de cancelamento e aguarda `AgentError::Cancelled`. Exige `SessionReady` antes de `WorkStarted`, exatamente um `WorkStarted`, um `CancellationRequested` e um `Cancelled`, zero `Completed`/`Failed` e nenhum `AgentEvent::Output { text }`. `OutputObserved` é permitido, mas não obrigatório.
+2. **Cleanup e recovery:** somente após o retorno cancelado, cria nova flag, novo sink e nova chamada, sem retry interno nem reutilização de sessão/processo. A chamada deve emitir `SessionReady`, `WorkStarted`, `OutputObserved` e `Completed`, sem `Cancelled`, `Failed` ou `Output { text }`.
+3. **Resultado confiável e cleanup final:** o output da segunda chamada passa por `PlanV1::parse` e `PlanV1::validate`, usando a mesma validação do Core. O retorno do backend só ocorre após o cleanup obrigatório; a execução humana deve confirmar também checkout inalterado e ausência de processo `codex app-server --stdio` residual.
+
+O teste permanece fora do gate automático e continua marcado como `ignored`, de modo que `cargo test` normal não consome inferência/quota. Na implementação da candidata nenhuma inferência real foi executada; o gate real ocorreu somente após auditoria independente.
+
+
+## Gate humano final da D0.5F — PASS
+
+Após a auditoria independente do HEAD `26870d126333b179d7700a32e866269ae702514c`, foi executado manualmente apenas o teste `manual_final_codex_agent_bridge_gate` contra o runtime Codex autenticado real. Resultado: **1 passed, 0 failed**, em **36,57 s**.
+
+A primeira chamada iniciou o `CodexAgentBackend` real, emitiu `SessionReady` e `WorkStarted`, marcou o cancelamento a partir desse fato real, percorreu `turn/interrupt` e terminou em `AgentError::Cancelled` com terminal `Cancelled`. Somente após o retorno e cleanup dessa chamada, o teste criou uma nova flag, novo sink e nova chamada independente. A segunda operação iniciou uma nova sessão efêmera, emitiu `SessionReady → WorkStarted → OutputObserved → Completed`, retornou output aceito por `PlanV1::parse`/`validate` e concluiu normalmente.
+
+Imediatamente após o teste, `git status --short` retornou vazio e `pgrep -af 'codex app-server --stdio'` também retornou vazio. Assim, o gate final comprovou no runtime real a sequência **cancelamento → cleanup → nova chamada independente → PlanV1 válido → Completed → cleanup**, sem alteração do checkout e sem processo app-server órfão. Os warnings observados eram os avisos preexistentes de dead code/unused e não bloquearam o gate.
+
+Com isso, **D0.5F = PASS completo** e a mini-trilha **LR-7D0.5 — Codex Agent Bridge = PASS completo**, pronta para integração. Nenhuma capability foi ampliada: o backend Codex permanece restrito a `planning + structured_output`; execução de PlanV1, ferramentas, leitura/escrita do repositório, TaskRegistry e Orchestrator seguem fora desta mini-trilha. O próximo checkpoint é **LR-7D1 — Orchestrator/Planner configurável**.
