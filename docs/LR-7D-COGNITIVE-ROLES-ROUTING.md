@@ -7,7 +7,7 @@ Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate
 
 A mini-trilha D0.5 começa após o fechamento da D0 e mantém Codex separado dos
 Cognitive Providers. **D0.5A foi fechada em PASS completo em 29/09/2026** e detecta
-somente o runtime e o estado seguro de autenticação. **D0.5B também foi fechada em PASS e integrada em 29/09/2026**, adicionando a ponte efêmera Rust ↔ `codex app-server --stdio`; **D0.5C também foi integrada em PASS em 29/09/2026**, estabelecendo `AgentBackend` e `AgentRegistry`; D0.5D fechou em PASS completo após auditoria e gate humano, adicionando o primeiro `CodexAgentBackend` real com Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. D0.5E também fechou em PASS técnico + auditoria independente + gate humano real, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais; está pronta para integração. D0.5F é o próximo checkpoint. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
+somente o runtime e o estado seguro de autenticação. **D0.5B também foi fechada em PASS e integrada em 29/09/2026**, adicionando a ponte efêmera Rust ↔ `codex app-server --stdio`; **D0.5C também foi integrada em PASS em 29/09/2026**, estabelecendo `AgentBackend` e `AgentRegistry`; D0.5D fechou em PASS completo após auditoria e gate humano, adicionando o primeiro `CodexAgentBackend` real com Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. D0.5E também fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. D0.5F é o próximo checkpoint. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
 
 ## Princípio central
 

@@ -1,6 +1,6 @@
 # LR-7D0.5 — Codex Agent Bridge
 
-Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — PASS técnico + auditoria independente + gate humano real; pronta para integração. Próximo checkpoint: D0.5F — gate real da mini-trilha.** Esta mini-trilha prepara a descoberta
+Estado: **D0.5A, D0.5B e D0.5C — PASS completo e integradas à `main` em 29/09/2026. D0.5D — `CodexAgentBackend` real + Planner read-only + `PlanV1` — PASS completo e integrada à `main` pela PR #7 em 29/09/2026. D0.5E — cancelamento, recovery e eventos reais — PASS completo e integrada à `main` pela PR #8 em 29/09/2026. Próximo checkpoint: D0.5F — gate real da mini-trilha.** Esta mini-trilha prepara a descoberta
 segura do runtime Codex sem transformá-lo em `CognitiveProvider`.
 
 ## Decisão arquitetural
@@ -380,4 +380,9 @@ Após a auditoria independente do HEAD `3463942325887c7b436862eb827fc6517db281ba
 
 Imediatamente após o teste, `git status --short` retornou vazio e `pgrep -af 'codex app-server --stdio'` também retornou vazio. Portanto o gate real confirmou, em conjunto, cancelamento remoto, cleanup sem processo órfão e ausência de alteração no checkout. A FIX anterior também garante que notifications já recebidas durante um ACK falho de interrupt continuam sujeitas à inspeção fail-closed antes de a operação ser classificada como Cancelled/EventSinkClosed.
 
-Com isso, **D0.5E está encerrada em PASS técnico + auditoria independente + gate humano real e pronta para integração**. D0.5F permanece fora de escopo e será o próximo checkpoint da mini-trilha.
+Com isso, **D0.5E está encerrada em PASS completo**. D0.5F permanece fora de escopo e será o próximo checkpoint da mini-trilha.
+
+
+## Fechamento de integração da D0.5E — 29/09/2026
+
+A PR #8 foi integrada à `main` por squash no commit `ba12c2411ed6f1e0bec9ef2c7382b45a71c4956a`. A D0.5E está oficialmente encerrada em **PASS completo**, com cancelamento remoto real via `turn/interrupt`, recovery de lifecycle por chamada efêmera, eventos factuais genéricos e cleanup pós-cancelamento sem processo `codex app-server --stdio` residual. O próximo checkpoint é **D0.5F — gate real da mini-trilha Codex Agent Bridge**.
