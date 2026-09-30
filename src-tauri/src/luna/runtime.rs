@@ -7,7 +7,8 @@ use std::{
     time::Duration,
 };
 
-use crate::cognition::policy::CognitiveRolePolicy;
+use crate::cognition::gemini_commands::CurrentRunSessions;
+use crate::cognition::policy::{self, CognitiveRole, CognitiveRolePolicy};
 use crate::cognition::{
     context::{ContextBuilder, ContextRequest},
     scheduler::SchedulerEvent,
@@ -25,6 +26,7 @@ use crate::persistence::{
     database::Database,
     task_history::{self, TaskRecord},
 };
+use crate::security::secrets::SecretStore;
 use chrono::{SecondsFormat, Utc};
 use tauri::ipc::Channel;
 
@@ -312,13 +314,20 @@ pub fn start_conversation(
     registry: Arc<TaskRegistry>,
     db: Database,
     runtime: Arc<ProviderRuntime>,
-    timeouts: HashMap<String, crate::cognition::types::ProviderTimeouts>,
+    store: Arc<SecretStore>,
+    sessions: CurrentRunSessions,
     session_id: i64,
     message: String,
-    policy: CognitiveRolePolicy,
     channel: Channel<TaskEvent>,
 ) -> Result<TaskId, String> {
-    policy.validate().map_err(str::to_owned)?;
+    // This is the entire synchronous IPC path: structural checks and registration.
+    // Session/SQLite/Stronghold validation belongs to the blocking preflight worker.
+    if message.trim().is_empty() || message.len() > 4096 {
+        return Err("conversation_input_invalid".into());
+    }
+    if session_id <= 0 {
+        return Err("session_invalid".into());
+    }
     let (id, cancelled) = registry.register()?;
     *registry
         .foreground_provider_tasks
@@ -344,31 +353,80 @@ pub fn start_conversation(
                 &cancelled,
             )
             .map_err(|_| "channel_closed")?;
+            if cancelled.load(Ordering::Acquire) {
+                return Err("cancelled");
+            }
             let db_context = db.clone();
-            let (context, history) = tauri::async_runtime::spawn_blocking(move || {
-                let conn = db_context.open().map_err(|e| e.code())?;
-                let history = conversation::outbound_history(
-                    &conn,
-                    session_id,
-                    policy.history_max_messages as usize,
-                    policy.history_max_bytes as usize,
-                )
-                .map_err(|e| e.code())?;
-                let context = ContextBuilder::build(
-                    &conn,
-                    ContextRequest {
-                        domain: None,
-                        kind: None,
-                        min_importance: 0,
-                        memory_limit: 0,
-                        include_recent_conversation: false,
-                    },
-                )
-                .map_err(|e| e.code())?;
-                Ok::<_, &'static str>((context, history))
+            let preflight_cancelled = cancelled.clone();
+            let preflight_runtime = runtime.clone();
+            #[cfg(debug_assertions)]
+            let preflight_started = std::time::Instant::now();
+            let preflight = tauri::async_runtime::spawn_blocking(move || {
+                #[cfg(test)]
+                conversation_preflight_tests::wait_at_gate(&sessions, false);
+                let prepared = (|| {
+                    if preflight_cancelled.load(Ordering::Acquire) {
+                        return Err("cancelled");
+                    }
+                    // Never hold the session registry lock across DB/credential I/O.
+                    if !sessions
+                        .0
+                        .lock()
+                        .map_err(|_| "session_registry_failed")?
+                        .contains(&session_id)
+                    {
+                        return Err("session_invalid");
+                    }
+                    let conn = db_context.open().map_err(|e| e.code())?;
+                    if !conversation::is_active_session(&conn, session_id).map_err(|e| e.code())? {
+                        return Err("session_invalid");
+                    }
+                    let policy =
+                        policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?;
+                    crate::cognition::catalog::validate_policy(
+                        &policy,
+                        &preflight_runtime.scheduler.status(),
+                        &store,
+                    )?;
+                    let timeouts = policy.load_timeouts(&conn).map_err(|e| e.code())?;
+                    if preflight_cancelled.load(Ordering::Acquire) {
+                        return Err("cancelled");
+                    }
+                    let history = conversation::outbound_history(
+                        &conn,
+                        session_id,
+                        policy.history_max_messages as usize,
+                        policy.history_max_bytes as usize,
+                    )
+                    .map_err(|e| e.code())?;
+                    let context = ContextBuilder::build(
+                        &conn,
+                        ContextRequest {
+                            domain: None,
+                            kind: None,
+                            min_importance: 0,
+                            memory_limit: 0,
+                            include_recent_conversation: false,
+                        },
+                    )
+                    .map_err(|e| e.code())?;
+                    Ok::<_, &'static str>((policy, timeouts, context, history))
+                })();
+                #[cfg(test)]
+                conversation_preflight_tests::wait_at_gate(&sessions, true);
+                prepared
             })
-            .await
-            .map_err(|_| "worker_failed")??;
+            .await;
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[Conversation][diag] preflight_ms={}",
+                preflight_started.elapsed().as_millis()
+            );
+            // Cancellation wins even when the blocking worker returned an error.
+            if cancelled.load(Ordering::Acquire) {
+                return Err("cancelled");
+            }
+            let (policy, timeouts, context, history) = preflight.map_err(|_| "worker_failed")??;
             emit_cognitive(
                 &channel,
                 id,
@@ -485,7 +543,11 @@ pub fn start_conversation(
         } else {
             registry.finish(id, outcome)
         };
-        let mut error_code = error_code;
+        let mut error_code = if state == TaskState::Cancelled {
+            None
+        } else {
+            error_code
+        };
         let record = TaskRecord {
             task_id: id.0,
             kind: "conversation".into(),
@@ -511,8 +573,12 @@ pub fn start_conversation(
                 "[Luna Core] task_history code=write_failed task_id={}",
                 id.0
             );
-            state = TaskState::Failed;
-            error_code = Some("task_history_write_failed");
+            // A cancelled preflight must stay cancelled, including when the DB
+            // itself is unavailable. The failed history write is still diagnosed.
+            if state != TaskState::Cancelled {
+                state = TaskState::Failed;
+                error_code = Some("task_history_write_failed");
+            }
         }
         let terminal = match state {
             TaskState::Completed => TaskEventKind::TaskCompleted,
@@ -1225,3 +1291,7 @@ mod tests {
         assert!(!registry.cancel(id));
     }
 }
+
+#[cfg(test)]
+#[path = "conversation_preflight_tests.rs"]
+mod conversation_preflight_tests;

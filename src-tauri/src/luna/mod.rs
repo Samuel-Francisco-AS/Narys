@@ -8,7 +8,6 @@ use crate::cognition::policy::{self, CognitiveRole, RoutingMode};
 use crate::cognition::ProviderRuntime;
 #[cfg(debug_assertions)]
 use crate::cognition::{scheduler::ProviderStatus, CognitionRuntime, DiagnosticScenario};
-use crate::persistence::conversation;
 use crate::persistence::database::Database;
 use crate::security::secrets::SecretStore;
 use serde::Serialize;
@@ -181,29 +180,14 @@ pub fn start_conversation_task(
     message: String,
     channel: Channel<TaskEvent>,
 ) -> Result<TaskId, String> {
-    if message.trim().is_empty() || message.len() > 4096 {
-        return Err("conversation_input_invalid".into());
-    }
-    let current_run = sessions.0.lock().map_err(|_| "session_registry_failed")?;
-    if session_id <= 0 || !current_run.contains(&session_id) {
-        return Err("session_invalid".into());
-    }
-    let conn = db.open().map_err(|e| e.code())?;
-    if !conversation::is_active_session(&conn, session_id).map_err(|e| e.code())? {
-        return Err("session_invalid".into());
-    }
-    let policy = policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?;
-    crate::cognition::catalog::validate_policy(&policy, &runtime.scheduler.status(), &store)
-        .map_err(str::to_owned)?;
-    let timeouts = policy.load_timeouts(&conn).map_err(|e| e.code())?;
     runtime::start_conversation(
         registry.inner().clone(),
         db.inner().clone(),
         runtime.inner().clone(),
-        timeouts,
+        store.inner().clone(),
+        sessions.inner().clone(),
         session_id,
         message,
-        policy,
         channel,
     )
 }

@@ -1,7 +1,8 @@
 # LR-7D2 — fallback chain + Auto/score + affinity
 
-Estado: **IMPLEMENTADA / candidata ao gate**. Auditoria independente e gate
-humano pendentes. Base: `origin/main` confirmada após fetch em
+Estado: **PASS técnico da auditoria / gate humano em andamento**. A FIX de
+responsividade abaixo precisa ser revalidada no gate real. Sem PASS completo.
+Base: `origin/main` confirmada após fetch em
 `965c17ae9bd989d4bad746c4987926f4264d23b6`, com LR-7D1 integrada pela PR #10.
 Branch dedicada: `lr-7d2-smart-routing`. Não há merge nesta entrega.
 
@@ -148,9 +149,10 @@ git diff --check
 cargo fmt --check --manifest-path src-tauri/Cargo.toml
 ```
 
-A base possui drift preexistente de rustfmt em **44 arquivos**, verificado
+Na entrega inicial da D2, a base possuía drift preexistente de rustfmt em
+**44 arquivos**, verificado
 comparando cópias de `origin/main` com o mesmo formatter. Os 18 arquivos Rust
-novos/modificados da D2 foram formatados; o gate global ainda aponta **27
+novos/modificados daquela entrega foram formatados; o gate global apontava **27
 arquivos intocados**, incluindo `build.rs`, módulos agents/security e persistência.
 A divergência não é exclusiva de build.rs. Não foram reformados arquivos alheios
 apenas para tornar esse gate verde. A formatação dos arquivos tocados amplia o
@@ -186,3 +188,65 @@ existentes permanecem ignorados por exigirem autorização/ambiente externo.
 
 LR-7D2 só fecha após auditoria independente e aprovação humana. LR-7D3 é o
 próximo checkpoint **somente após esse fechamento**.
+
+## FIX humana — responsividade no início da Conversation
+
+No gate humano real, Preferred/Auto/fallback/affinity funcionaram, mas o avatar
+ficou visualmente congelado por aproximadamente **3–4 s**, após enviar a mensagem
+e antes de `ProviderSelected`. Isso é uma observação humana; ainda não há medição
+que atribua os 3–4 s completos a uma única operação.
+
+A inspeção confirmou trabalho inadequado no caminho síncrono de
+`start_conversation_task`: lock das sessões mantido durante abertura SQLite,
+validação da sessão, leitura da policy, validação dos targets/Stronghold e leitura
+de timeouts. `conversation_routing_status` já executava seu I/O em spawn_blocking;
+continua informativo para UX, sem substituir a validação autorizativa do backend.
+
+A FIX deixa no caminho síncrono somente validação estrutural barata e registro
+do TaskId/foreground work. O worker async emite TaskStarted e executa em
+spawn_blocking a validação da sessão atual/ativa, releitura da policy persistida,
+validação de **todos** os targets/credenciais, timeouts, histórico isolado e
+ContextBuilder. O registro das sessões agora tem ownership compartilhado por Arc;
+o lock é liberado antes do I/O. Não há cache novo de secrets.
+
+Antes: preflight bloqueante → registro/TaskId → TaskStarted → Scheduler.
+Depois: registro/TaskId → TaskStarted → preflight bloqueante fora do caminho da
+UI → ContextBuilt → seleção real do Scheduler → chunks → resultado/persistência
+→ terminal. Erro de preflight produz TaskFailed sanitizado, sem seleção fictícia.
+
+Cancelamento é checado antes do spawn_blocking, dentro do worker e após seu
+retorno, inclusive se retornou erro. O worker bloqueante já em andamento pode
+precisar terminar seu I/O; ele não autoriza chamada ao provider após cancelamento.
+Um cancelamento aceito produz exatamente um TaskCancelled, nenhuma resposta
+persistida e cleanup da TaskRegistry/foreground work. Falha de escrita do histórico
+da task é diagnosticada e não transforma esse cancelamento em failed.
+
+Score, affinity, cooldown, request targets, retry/fallback, fronteira anterior ao
+primeiro chunk, usage, persistência e isolamento da Conversation permanecem iguais.
+Summary/Orchestrator, permissões, identidade, memória e avatar/Three.js não foram
+alterados. Luna Core continua a autoridade.
+
+Somente em debug, `[Conversation][diag] preflight_ms=...` mede o agregado entre
+despacho e conclusão do spawn_blocking, incluindo espera no pool, DB, credenciais,
+timeouts e preparação do contexto/histórico. Não registra input, histórico,
+identificadores privados ou secrets; não é emitido em release. Barreiras artificiais
+nos testes entram no tempo medido e não devem ser confundidas com latência real.
+
+Dez testes adicionais cobrem retorno/registro anterior à conclusão do preflight,
+barreiras antes/depois do trabalho e dentro do keystore de teste, cancelamento
+inclusive após erro/DB indisponível, exatamente um terminal e cleanup, sessão
+inválida/inativa/não registrada, credenciais ausentes em Fixed/Preferred/Auto,
+releitura de model/thinking/timeouts após registro, execução e persistência normais,
+Preferred/fallback/Auto/affinity e histórico isolado. A suíte completa também
+continua cobrindo Summary/Orchestrator. Nenhuma credencial ou provider real é usado.
+Resultados dos gates no HEAD da FIX ficam na mesma PR #11. Os quatro arquivos
+Rust tocados na FIX foram formatados, incluindo gemini_commands.rs (o diff de
+formatação desse arquivo já apresentava drift na base). O gate global permanece
+com divergência preexistente em **26 arquivos intocados**.
+
+Repetir o gate humano no início da Conversation: enviar em Preferred e Auto,
+observar a animação entre envio e ProviderSelected, registrar o preflight_ms no
+build debug e repetir na mesma sessão com affinity. Cancelar durante preflight:
+nenhuma chamada/resposta e um único terminal cancelled. Confirmar a rota e histórico
+após sucesso. **A ausência do freeze só será confirmada pelo novo gate humano**;
+testes automatizados não encerram esse finding nem a LR-7D2.
