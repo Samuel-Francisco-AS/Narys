@@ -72,7 +72,8 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   const [backoff, setBackoff] = useState(String(initial.retryBackoffMs))
   const [historyMessages, setHistoryMessages] = useState(String(initial.historyMaxMessages))
   const [historyBytes, setHistoryBytes] = useState(String(initial.historyMaxBytes))
-  const [summaryBytes, setSummaryBytes] = useState(String(initial.summaryInputMaxBytes))
+  const [summaryBytes, setSummaryBytes] = useState(String(initial.summaryInputMaxBytes || 32768))
+  const [summaryEnabled, setSummaryEnabled] = useState(initial.role !== 'summary' || initial.summaryInputMaxBytes > 0)
   const [contextBytes, setContextBytes] = useState(String(initial.contextMaxBytes))
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -81,9 +82,10 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
     const maxProviderCalls = numberValue(calls)
     const maxOutputTokens = policy.maxOutputTokens === null ? null : numberValue(customOutput)
     if (policy.targets.length < (policy.routingMode === 'fixed' ? 1 : 2) || policy.targets.length > 8 || (policy.routingMode === 'fixed' && policy.targets.length !== 1) || new Set(policy.targets.map(target => target.providerId)).size !== policy.targets.length) { setError('Quantidade de targets inválida para este modo.'); return }
+    const summaryDisabled = initial.role === 'summary' && !summaryEnabled
     for (const target of policy.targets) {
       const provider = providers.find(item => item.id === target.providerId)
-      if (!usable(provider)) { setError('Configure uma credencial para cada provider habilitado e compatível antes de salvar.'); return }
+      if (!summaryDisabled && !usable(provider)) { setError('Configure uma credencial para cada provider habilitado e compatível antes de salvar.'); return }
       if (!target.model.trim() || target.model !== target.model.trim() || new TextEncoder().encode(target.model).length > 128 || /[\u0000-\u001f\u007f]/.test(target.model)) { setError('Modelo inválido: use até 128 bytes, sem controles.'); return }
       if (target.thinkingLevel && !provider?.supportedThinkingLevels.includes(target.thinkingLevel)) { setError('Thinking indisponível neste target.'); return }
     }
@@ -92,7 +94,7 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
     if (maxOutputTokens !== null && (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > 4294967295)) { setError('O limite de output deve estar entre 1 e 4294967295.'); return }
     const maxRetries = numberValue(retries), retryBackoffMs = numberValue(backoff)
     const historyMaxMessages = numberValue(historyMessages), historyMaxBytes = numberValue(historyBytes)
-    const summaryInputMaxBytes = numberValue(summaryBytes)
+    const summaryInputMaxBytes = initial.role === 'summary' && !summaryEnabled ? 0 : numberValue(summaryBytes)
     const contextMaxBytes = numberValue(contextBytes)
     if ([maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes, contextMaxBytes].some(value => !Number.isSafeInteger(value) || value < 0 || value > 4294967295) || contextMaxBytes < 1) { setError('Limites avançados devem ser inteiros não negativos até 4294967295.'); return }
     setBusy(true); setError(''); setMessage('')
@@ -105,6 +107,14 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   return <section className="settings-card role-card" aria-label={labels[initial.role]}>
     <div className="role-header"><div><p className="settings-kicker">PAPEL COGNITIVO</p><h2>{labels[initial.role]}</h2></div><span>{initial.role}</span></div>
     <div className="settings-fields">
+      {initial.role === 'summary' && <fieldset><legend>Resumo automático</legend>
+        <label className="radio"><input type="checkbox" checked={summaryEnabled} onChange={event => {
+          const enabled = event.target.checked
+          setSummaryEnabled(enabled)
+          if (enabled && numberValue(summaryBytes) <= 0) setSummaryBytes('32768')
+        }} />Gerar título e resumo automaticamente ao encerrar uma conversa</label>
+        <small>Desativado: nenhuma chamada de provider é feita para resumo e novas sessões fechadas permanecem sem resumo automático.</small>
+      </fieldset>}
       <fieldset><legend>Roteamento</legend>
         <label>Modo<select value={policy.routingMode} onChange={event => changeMode(event.target.value as Routing)}><option value="fixed">Fixed</option><option value="preferred" disabled={providers.length < 2}>Preferred</option><option value="auto" disabled={providers.length < 2}>Auto</option></select></label>
         {policy.routingMode === 'fixed' && <small>Usa exatamente o único target definido.</small>}
@@ -148,8 +158,8 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
         <small>O planejamento usa somente o objetivo atual e identidade técnica mínima; histórico e memória não são enviados.</small>
       </fieldset>}
       {initial.role === 'summary' && <fieldset><legend>Input do resumo</legend>
-        <label>Máximo de bytes<input type="number" min="0" value={summaryBytes} onChange={event => setSummaryBytes(event.target.value)} /></label>
-        <small>Limita quanto do transcript fechado pode ser enviado para gerar título e resumo.</small>
+        <label>Máximo de bytes<input type="number" min="1" disabled={!summaryEnabled} value={summaryBytes} onChange={event => setSummaryBytes(event.target.value)} /></label>
+        <small>{summaryEnabled ? 'Limita quanto do transcript fechado pode ser enviado para gerar título e resumo.' : 'Resumo automático desativado.'}</small>
       </fieldset>}
     </div>
     <div className="settings-actions"><button type="button" disabled={busy} onClick={() => void save()}>Salvar {labels[initial.role].toLowerCase()}</button>{message && <span role="status">{message}</span>}</div>
