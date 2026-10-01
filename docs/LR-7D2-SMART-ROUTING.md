@@ -1,6 +1,6 @@
 # LR-7D2 — fallback chain + Auto/score + affinity
 
-Estado: **PASS completo em 01/10/2026; integração pela PR #11.**
+Estado: **PASS completo em 01/10/2026 e integrada à `main` pela PR #11.**
 Auditoria independente e gate humano foram aprovados. Preferred, fallback real,
 Auto/score/affinity, restart com affinity somente runtime, responsividade do
 CharacterStage e a redução real da latência do preflight foram validados.

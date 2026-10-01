@@ -424,7 +424,7 @@ Uma única tarefa pode ser completada usando dois providers diferentes sem perde
 
 ### LR-7D2.5 — provider redundancy + Gemini de-risking
 
-**Estado: PRÓXIMA / PLANEJADA; LR-7D2 fechou em PASS completo e a implementação começa após a integração da PR #11.**
+**Estado: PRÓXIMA / PLANEJADA; LR-7D2 fechou em PASS completo e foi integrada; implementação ainda não iniciada.**
 
 Antes do task graph da D3, ampliar a redundância real da camada cognitiva:
 

@@ -1,6 +1,6 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo em 30/09/2026. LR-7D2 — PASS completo em 01/10/2026, com integração pela PR #11. LR-7D2.5 — provider redundancy + Gemini de-risking — é o próximo checkpoint; D3 vem somente depois da D2.5.**
+Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo em 30/09/2026. LR-7D2 — PASS completo em 01/10/2026 e integrada à `main` pela PR #11. LR-7D2.5 — provider redundancy + Gemini de-risking — é o próximo checkpoint; D3 vem somente depois da D2.5.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ### D0.5 — fronteira futura de agentes
@@ -336,7 +336,7 @@ preferência/affinity sem hardcodes comerciais.
 
 ## LR-7D2.5 — provider redundancy + Gemini de-risking
 
-**Estado: PRÓXIMA / PLANEJADA. LR-7D2 = PASS completo; iniciar somente após a integração da PR #11.**
+**Estado: PRÓXIMA / PLANEJADA. LR-7D2 = PASS completo e integrada; implementação ainda não iniciada.**
 
 Objetivo: reduzir a dependência operacional de qualquer provider individual antes
 de introduzir task graph. A mini-trilha adicionará **pelo menos dois Cognitive
