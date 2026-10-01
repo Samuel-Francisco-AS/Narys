@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "settings-ai",
-  "description": "Janela IA independente: policy cognitiva, credenciais Gemini/Groq e diagnóstico Groq.",
+  "description": "Janela IA independente: policy cognitiva, credenciais dos Cognitive Providers e diagnósticos.",
   "windows": [
     "settings-ai"
   ],
@@ -25,6 +25,12 @@
     "allow-groq-status",
     "allow-groq-set-api-key",
     "allow-groq-delete-api-key",
-    "allow-groq-probe"
+    "allow-groq-probe",
+    "allow-mistral-status",
+    "allow-mistral-set-api-key",
+    "allow-mistral-delete-api-key",
+    "allow-cloudflare-status",
+    "allow-cloudflare-set-credentials",
+    "allow-cloudflare-delete-credentials"
   ]
 }
