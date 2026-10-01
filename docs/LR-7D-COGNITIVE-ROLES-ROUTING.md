@@ -336,30 +336,35 @@ preferência/affinity sem hardcodes comerciais.
 
 ## LR-7D2.5 — provider redundancy + Gemini de-risking
 
-**Estado: PRÓXIMA / PLANEJADA. LR-7D2 = PASS completo e integrada; implementação ainda não iniciada.**
+**Estado: ENCERRADA em 01/10/2026 e integrada à `main` pela PR #12, com escopo revisado e dívida operacional registrada.**
 
-Objetivo: reduzir a dependência operacional de qualquer provider individual antes
-de introduzir task graph. A mini-trilha adicionará **pelo menos dois Cognitive
-Providers reais adicionais**, com Mistral API direta e Cloudflare Workers AI como
-candidatos iniciais, sujeitos a revalidação de acesso/compatibilidade no início da
-implementação.
+Objetivo alcançado no escopo revisado: reduzir a dependência operacional de um
+provider individual antes de introduzir task graph, ampliando o conjunto de
+Cognitive Providers e preservando o Scheduler sem regras comerciais por marca.
 
-Decisão arquitetural:
+Resultado da fase:
 
-- Gemini continua suportado, mas deixa de ser gate ou dependência funcional;
-- nenhuma role cognitiva deve possuir provider comercial obrigatório;
-- Fixed/Preferred/Auto da D2 serão exercitados com 3+ targets reais;
-- as novas credenciais permanecem no SecretStore;
-- uma base OpenAI-compatible pode ser extraída para transporte comum, sem apagar
-  diferenças de capabilities, erros, streaming ou rate-limit entre providers;
-- OpenRouter pode entrar futuramente como agregador/fallback, mas não conta como
-  uma das duas novas rotas principais desta fase;
-- D2.5 não antecipa task graph, ferramentas ou o Rate Limit Manager completo.
+- Cloudflare Workers AI foi integrada e validada em gate humano real para
+  Conversation e Orchestrator/PlanV1;
+- Mistral API direta foi integrada tecnicamente, com credencial no Stronghold,
+  mas não recebeu PASS operacional: a conta Free usada no gate exige upgrade e
+  devolveu HTTP 429 com limite efetivo zero;
+- Gemini permanece suportado, mas não é dependência estrutural obrigatória;
+- Fixed/Preferred/Auto continuam provider-neutral e baseados apenas nos targets
+  explicitamente autorizados;
+- Summary automático passou a ser opcional e pode ser desativado sem enfileirar
+  nova tarefa nem chamar provider;
+- a futura substituição operacional da rota Mistral por **OpenAI API paga** ficou
+  registrada como dívida, para quando houver orçamento de ativação;
+- D2.5 não antecipou task graph, ferramentas nem o Rate Limit Manager completo.
 
-Gate central: com Gemini desabilitado/em cooldown/indisponível, Conversation e os
-papéis compatíveis continuam operacionais por configuração, sem mudança de código.
+A ausência de PASS operacional da Mistral não foi mascarada como sucesso: o
+fechamento foi aprovado com essa limitação externa explicitamente registrada.
 
-Plano detalhado: [LR-7D2.5 — provider redundancy + Gemini de-risking](LR-7D2.5-PROVIDER-REDUNDANCY.md).
+Plano e evidências de fechamento:
+[LR-7D2.5 — provider redundancy + Gemini de-risking](LR-7D2.5-PROVIDER-REDUNDANCY.md).
+
+**Próxima etapa oficial: LR-7D3 — task graph mínimo + subtarefas independentes.**
 
 ---
 
