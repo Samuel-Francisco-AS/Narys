@@ -451,3 +451,18 @@ erro HTTP real; o timeout/idle timeout continua protegido pela implementação
 bounded de request/stream. Nenhuma chamada externa real foi feita pela suíte; o
 gate humano de Mistral/Cloudflare permanece separado. D3/LR-8 continuam fora de
 escopo.
+
+### Finding do gate humano Cloudflare — finish reason
+
+No gate humano, `@cf/zai-org/glm-4.7-flash` demonstrou consumir parte
+significativa de `max_completion_tokens` em reasoning: com 256 tokens retornou
+`content: null` e `finish_reason: "length"`; com 1024 tokens e input sintético
+curto retornou JSON válido, `completion_tokens: 626` e `finish_reason: "stop"`.
+O adapter agora exige uma razão terminal conhecida antes de aceitar `[DONE]`.
+`stop` conclui normalmente; `length` retorna `ProviderError::Incomplete` mesmo
+quando já existe texto acumulado; `tool_calls`/`function_call` retorna
+`RequiresAction`; razões desconhecidas, ausentes ou chunks finais malformados
+retornam `Protocol`. `finish_reason: null` é permitido somente em chunks
+intermediários. Assim, truncamento é distinguido de JSON semanticamente inválido
+e não chega ao parser estrito de Summary como sucesso. Reasoning e
+`reasoning_content` continuam ignorados e não são logados.

@@ -283,6 +283,7 @@ impl Provider for CloudflareProvider {
             let mut text = String::new();
             let mut usage = None;
             let mut done = false;
+            let mut finish_reason = None;
             'stream: loop {
                 let next = tokio::select! {
                   _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
@@ -297,6 +298,11 @@ impl Provider for CloudflareProvider {
                             on_chunk(ProviderChunk { text: piece })?;
                         }
                         StreamEvent::Usage(value) => usage = Some(value),
+                        StreamEvent::Finish(reason) => {
+                            if finish_reason.replace(reason).is_some() {
+                                return Err(ProviderError::Protocol);
+                            }
+                        }
                         StreamEvent::Done => {
                             done = true;
                             break 'stream;
@@ -308,8 +314,15 @@ impl Provider for CloudflareProvider {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
             }
-            if !done || text.trim().is_empty() {
+            if !done {
                 return Err(ProviderError::Protocol);
+            }
+            match finish_reason {
+                Some(FinishReason::Stop) if !text.trim().is_empty() => {}
+                Some(FinishReason::Length) => return Err(ProviderError::Incomplete),
+                Some(FinishReason::ToolCalls) => return Err(ProviderError::RequiresAction),
+                Some(FinishReason::Unknown) | None => return Err(ProviderError::Protocol),
+                Some(FinishReason::Stop) => return Err(ProviderError::Protocol),
             }
             let usage = usage.unwrap_or_default();
             Ok(ProviderResponse { text, usage })
@@ -321,8 +334,17 @@ impl Provider for CloudflareProvider {
 enum StreamEvent {
     Text(String),
     Usage(ProviderUsage),
+    Finish(FinishReason),
     Done,
     Ignore,
+}
+
+#[derive(Debug, PartialEq)]
+enum FinishReason {
+    Stop,
+    Length,
+    ToolCalls,
+    Unknown,
 }
 
 #[derive(Default)]
@@ -381,6 +403,18 @@ impl SseParser {
         {
             if !content.is_empty() {
                 events.push(StreamEvent::Text(content.to_owned()));
+            }
+        }
+        if let Some(raw_reason) = value.pointer("/choices/0/finish_reason") {
+            if !raw_reason.is_null() {
+                let reason = match raw_reason.as_str() {
+                    Some("stop") => FinishReason::Stop,
+                    Some("length") => FinishReason::Length,
+                    Some("tool_calls") | Some("function_call") => FinishReason::ToolCalls,
+                    Some(_) => FinishReason::Unknown,
+                    None => return Err(ProviderError::Protocol),
+                };
+                events.push(StreamEvent::Finish(reason));
             }
         }
         if let Some(raw_usage) = value.get("usage").filter(|usage| !usage.is_null()) {
@@ -519,12 +553,12 @@ mod tests {
             .push(b"data: {\"choices\":[{\"delta\":{\"content\":\"Ol")
             .unwrap()
             .is_empty());
-        let mut rest = "á\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"reasoning\":\"secret\"}}]}\n\ndata: [DONE]\n\n"
+        let mut rest = "á\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"reasoning\":\"secret\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
             .as_bytes()
             .to_vec();
         let events = parser.push(&mut rest).unwrap();
         assert_eq!(events[0], StreamEvent::Text("Olá".into()));
-        assert_eq!(events[1], StreamEvent::Ignore);
+        assert_eq!(events[1], StreamEvent::Finish(FinishReason::Stop));
         assert_eq!(events[2], StreamEvent::Done);
     }
 
@@ -532,11 +566,15 @@ mod tests {
     fn usage_is_optional_but_valid_usage_is_parsed() {
         let mut parser = SseParser::default();
         let events = parser
-            .push(b"data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}],\"usage\":null}\n\ndata: [DONE]\n\n")
+            .push(b"data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}],\"usage\":null}\n\ndata: [DONE]\n\n")
             .unwrap();
         assert_eq!(
             events,
-            vec![StreamEvent::Text("ok".into()), StreamEvent::Done]
+            vec![
+                StreamEvent::Text("ok".into()),
+                StreamEvent::Finish(FinishReason::Stop),
+                StreamEvent::Done
+            ]
         );
         let mut parser = SseParser::default();
         let events = parser
@@ -610,6 +648,59 @@ mod tests {
     }
 
     #[test]
+    fn finish_reason_is_required_and_classified_without_exposing_reasoning() {
+        let mut parser = SseParser::default();
+        let events = parser
+            .push(
+                br#"data: {"choices":[{"delta":{"content":"{\"title\":\"T\u00edtulo\",\"summary\":\"texto incom"},"finish_reason":"length"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+
+data: [DONE]
+
+"#,
+            )
+            .unwrap();
+        assert_eq!(
+            events,
+            vec![
+                StreamEvent::Text("{\"title\":\"Título\",\"summary\":\"texto incom".into()),
+                StreamEvent::Finish(FinishReason::Length),
+                StreamEvent::Usage(ProviderUsage {
+                    calls: 1,
+                    input_tokens: 1,
+                    output_tokens: 2,
+                    total_tokens: Some(3),
+                    thought_tokens: None
+                }),
+                StreamEvent::Done
+            ]
+        );
+
+        for (reason, expected) in [
+            ("tool_calls", FinishReason::ToolCalls),
+            ("function_call", FinishReason::ToolCalls),
+            ("mystery", FinishReason::Unknown),
+        ] {
+            let mut parser = SseParser::default();
+            let events = parser
+                .push(
+                    format!(
+                        "data: {{\"choices\":[{{\"delta\":{{}},\"finish_reason\":\"{reason}\"}}]}}\n\n"
+                    )
+                    .as_bytes(),
+                )
+                .unwrap();
+            assert_eq!(events, vec![StreamEvent::Finish(expected)]);
+        }
+
+        let mut parser = SseParser::default();
+        assert_eq!(
+            parser
+                .push(b"data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\ndata: [DONE]\n\n"),
+            Ok(vec![StreamEvent::Text("x".into()), StreamEvent::Done])
+        );
+    }
+
+    #[test]
     fn local_http_lifecycle_covers_split_valid_eof_timeout_and_internal_code() {
         let (store, directory) = http_fixture();
         let provider = CloudflareProvider::new(CloudflareConfig::default(), store).unwrap();
@@ -626,7 +717,7 @@ mod tests {
         ));
         std::fs::remove_dir_all(directory).unwrap();
 
-        let valid = "data: {\"choices\":[{\"delta\":{\"content\":\"visible\"}}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\n\ndata: [DONE]\n\n";
+        let valid = "data: {\"choices\":[{\"delta\":{\"content\":\"vis\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"ible\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\n\ndata: [DONE]\n\n";
         let (store, directory) = http_fixture();
         let (endpoint, handle) =
             super::super::transport::test_support::server("200 OK", valid, false, Duration::ZERO);
@@ -649,6 +740,60 @@ mod tests {
         .unwrap();
         handle.join().unwrap();
         assert_eq!(result.text, "visible");
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) = super::super::transport::test_support::server(
+            "200 OK",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"title\\\":\\\"T\\\",\\\"summary\\\":\\\"incom\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":null},\"finish_reason\":\"length\"}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":256,\"total_tokens\":257}}\n\ndata: [DONE]\n\n",
+            false,
+            Duration::ZERO,
+        );
+        let provider = CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 500,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        handle.join().unwrap();
+        assert!(matches!(result, Err(ProviderError::Incomplete)));
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) = super::super::transport::test_support::server(
+            "200 OK",
+            "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"private\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"delta\":{\"reasoning_content\":\"private\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n",
+            false,
+            Duration::ZERO,
+        );
+        let provider = CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 500,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        handle.join().unwrap();
+        assert!(matches!(result, Err(ProviderError::Incomplete)));
         std::fs::remove_dir_all(directory).unwrap();
 
         let (store, directory) = http_fixture();
