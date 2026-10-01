@@ -113,7 +113,7 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
           setSummaryEnabled(enabled)
           if (enabled && numberValue(summaryBytes) <= 0) setSummaryBytes('32768')
         }} />Gerar título e resumo automaticamente ao encerrar uma conversa</label>
-        <small>Desativado: nenhuma chamada de provider é feita para resumo e novas sessões fechadas permanecem sem resumo automático.</small>
+        <small>Desativado: novas sessões fechadas não geram chamadas de provider e permanecem sem resumo automático.</small>
       </fieldset>}
       <fieldset><legend>Roteamento</legend>
         <label>Modo<select value={policy.routingMode} onChange={event => changeMode(event.target.value as Routing)}><option value="fixed">Fixed</option><option value="preferred" disabled={providers.length < 2}>Preferred</option><option value="auto" disabled={providers.length < 2}>Auto</option></select></label>
@@ -124,7 +124,7 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
           const provider = providers.find(item => item.id === target.providerId)
           return <li key={target.providerId}><fieldset><legend>Target {index + 1}</legend>
             <label>Provider<select value={target.providerId} onChange={event => changeProvider(index, event.target.value)}>{providers.filter(item => item.id === target.providerId || !policy.targets.some(other => other.providerId === item.id)).map(item => <option key={item.id} value={item.id}>{item.displayName}{!usable(item) ? ' · indisponível' : ''}</option>)}</select></label>
-            {!usable(provider) && <p className="settings-warning">Provider desabilitado, incompatível ou sem credencial.</p>}
+            {!summaryDisabled && !usable(provider) && <p className="settings-warning">Provider desabilitado, incompatível ou sem credencial.</p>}
             <label>Modelo <small>Default: {provider?.defaultModel ?? '—'}</small><input value={target.model} maxLength={128} onChange={event => replaceTarget(index, { ...target, model: event.target.value })} /></label>
             <label>Thinking<select value={target.thinkingLevel ?? ''} onChange={event => replaceTarget(index, { ...target, thinkingLevel: (event.target.value || null) as Thinking })}><option value="">Padrão do provider</option>{provider?.supportedThinkingLevels.filter((level): level is Exclude<Thinking, null> => level !== null).map(level => <option key={level} value={level}>{level}</option>)}</select></label>
             <div className="settings-actions"><button type="button" aria-label={`Mover target ${index + 1} para cima`} disabled={index === 0} onClick={() => moveTarget(index, -1)}>↑</button><button type="button" aria-label={`Mover target ${index + 1} para baixo`} disabled={index === policy.targets.length - 1} onClick={() => moveTarget(index, 1)}>↓</button><button type="button" disabled={policy.targets.length <= (policy.routingMode === 'fixed' ? 1 : 2)} onClick={() => { targetConfigs.current[target.providerId] = target; setPolicy({ ...policy, targets: policy.targets.filter((_, i) => i !== index) }) }}>Remover</button></div>
