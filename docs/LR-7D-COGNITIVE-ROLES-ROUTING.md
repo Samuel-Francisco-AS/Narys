@@ -1,13 +1,13 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo no gate humano em 30/09/2026; D2 implementada / candidata ao gate. LR-7D2.5 — provider redundancy + Gemini de-risking — está planejada para começar somente após D2 = PASS completo; D3 vem depois da D2.5.**
+Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo em 30/09/2026. LR-7D2 — PASS completo em 01/10/2026, com integração pela PR #11. LR-7D2.5 — provider redundancy + Gemini de-risking — é o próximo checkpoint; D3 vem somente depois da D2.5.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ### D0.5 — fronteira futura de agentes
 
 A mini-trilha D0.5 começa após o fechamento da D0 e mantém Codex separado dos
 Cognitive Providers. **D0.5A foi fechada em PASS completo em 29/09/2026** e detecta
-somente o runtime e o estado seguro de autenticação. **D0.5B também foi fechada em PASS e integrada em 29/09/2026**, adicionando a ponte efêmera Rust ↔ `codex app-server --stdio`; **D0.5C também foi integrada em PASS em 29/09/2026**, estabelecendo `AgentBackend` e `AgentRegistry`; D0.5D fechou em PASS completo após auditoria e gate humano, adicionando o primeiro `CodexAgentBackend` real com Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. D0.5E também fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026, encerrando a mini-trilha **LR-7D0.5 em PASS completo**. **LR-7D1 — Orchestrator/Planner configurável — fechou em PASS completo no gate humano de 30/09/2026.** A **LR-7D2 — fallback chain + Auto/score + affinity** está implementada / candidata ao gate. Após seu fechamento, a mini-trilha **LR-7D2.5 — provider redundancy + Gemini de-risking** adicionará pelo menos dois Cognitive Providers reais antes da LR-7D3. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
+somente o runtime e o estado seguro de autenticação. **D0.5B também foi fechada em PASS e integrada em 29/09/2026**, adicionando a ponte efêmera Rust ↔ `codex app-server --stdio`; **D0.5C também foi integrada em PASS em 29/09/2026**, estabelecendo `AgentBackend` e `AgentRegistry`; D0.5D fechou em PASS completo após auditoria e gate humano, adicionando o primeiro `CodexAgentBackend` real com Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. D0.5E também fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026, encerrando a mini-trilha **LR-7D0.5 em PASS completo**. **LR-7D1 — Orchestrator/Planner configurável — fechou em PASS completo no gate humano de 30/09/2026.** A **LR-7D2 — fallback chain + Auto/score + affinity** fechou em PASS completo em 01/10/2026. A próxima mini-trilha é **LR-7D2.5 — provider redundancy + Gemini de-risking**, que adicionará pelo menos dois Cognitive Providers reais antes da LR-7D3. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
 
 ## Princípio central
 
@@ -265,7 +265,7 @@ permanecem fora desta entrega.
 
 ## LR-7D2 — fallback chain + Auto/score + affinity
 
-### Implementação candidata
+### Implementação fechada
 
 Migration 009 / schema 9 normaliza `CognitiveRolePolicy.targets`, preservando
 as rotas efetivas v8. Conversation/Summary/Orchestrator aceitam Fixed,
@@ -277,9 +277,12 @@ limitada a 256 entradas, perdida após restart e ignorada em Fixed/Preferred.
 A UI edita a lista sem copiar model/thinking entre providers. Parsers estritos,
 cancelamento, budgets, lifecycle e autoridade do Core permanecem.
 
-**IMPLEMENTADA / candidata ao gate**, sem PASS completo. Auditoria independente
-e gate humano com Gemini/Groq pendentes; cadeia 3+ coberta por mocks.
-[Arquitetura, fórmula, migration, testes e roteiro](LR-7D2-SMART-ROUTING.md).
+**PASS completo em 01/10/2026.** Auditoria independente aprovada; o gate humano
+confirmou Preferred/fallback real, Auto/score/affinity, restart runtime-only,
+responsividade e redução material do preflight. Cadeia 3+ permanece coberta por
+providers sintéticos. Summary/Orchestrator após as FIXes ficaram cobertos pela
+auditoria e suíte automatizada, distinção aceita no fechamento.
+[Arquitetura, fórmula, migration, testes e fechamento](LR-7D2-SMART-ROUTING.md).
 
 ### Objetivo
 
@@ -317,15 +320,23 @@ RPM/TPM/RPD/TPD, token bucket, queue e circuit breaker completo ficam na LR-8.
 
 Evitar troca de provider quando o custo de transferir contexto/continuidade superar o ganho esperado, salvo falha/cooldown/policy explícita.
 
-### Gate
+### Gate — PASS em 01/10/2026
 
-Uma mesma configuração permite trocar a ordem dos providers e o Scheduler respeita a preferência/affinity sem hardcodes comerciais.
+O gate real confirmou troca de ordem em Preferred, fallback Gemini → Groq após
+HTTP 503 antes do primeiro chunk, Auto restrito aos targets autorizados e affinity
+capaz de manter Groq mesmo no segundo target. Restart limpou affinity sem perder
+policy. A FIX de responsividade eliminou o freeze do avatar; a FIX batch reduziu
+o preflight real de ~6,3 s para ~1,6 s no ambiente Fedora. O custo residual de
+abertura do Stronghold fica documentado como otimização futura.
+
+Uma mesma configuração pode trocar a ordem dos providers e o Scheduler respeita
+preferência/affinity sem hardcodes comerciais.
 
 ---
 
 ## LR-7D2.5 — provider redundancy + Gemini de-risking
 
-**Estado: PLANEJADA. Não iniciar antes de LR-7D2 = PASS completo e integrada.**
+**Estado: PRÓXIMA / PLANEJADA. LR-7D2 = PASS completo; iniciar somente após a integração da PR #11.**
 
 Objetivo: reduzir a dependência operacional de qualquer provider individual antes
 de introduzir task graph. A mini-trilha adicionará **pelo menos dois Cognitive

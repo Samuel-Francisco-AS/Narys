@@ -1,11 +1,12 @@
 # LR-7D2 — fallback chain + Auto/score + affinity
 
-Estado: **PASS técnico da auditoria / gate humano em andamento**. Preferred,
-Auto/score/affinity e a FIX de responsividade passaram no gate humano. A nova
-FIX de latência local/batch aguarda medição real. Sem PASS completo.
-Base: `origin/main` confirmada após fetch em
+Estado: **PASS completo em 01/10/2026; integração pela PR #11.**
+Auditoria independente e gate humano foram aprovados. Preferred, fallback real,
+Auto/score/affinity, restart com affinity somente runtime, responsividade do
+CharacterStage e a redução real da latência do preflight foram validados.
+Base: `origin/main` confirmada em
 `965c17ae9bd989d4bad746c4987926f4264d23b6`, com LR-7D1 integrada pela PR #10.
-Branch dedicada: `lr-7d2-smart-routing`. Não há merge nesta entrega.
+Branch de entrega: `lr-7d2-smart-routing`.
 
 ## Autoridade e arquitetura
 
@@ -358,3 +359,50 @@ não autoriza declarar resolvida a latência real nem fechar a LR-7D2.
 O formatter foi aplicado apenas aos arquivos desta FIX. secrets.rs e settings.rs
 já tinham drift e agora são arquivos tocados; o gate global conserva drift
 preexistente em **24 arquivos intocados**, sem corrigir arquivos alheios.
+
+
+## Fechamento — PASS completo em 01/10/2026
+
+A auditoria independente aprovou a implementação original e as duas FIXes humanas
+sem finding bloqueante. O gate humano real confirmou o comportamento de Conversation:
+
+- **Preferred:** Groq em primeiro concluiu diretamente; com Gemini em primeiro,
+  o provider retornou HTTP 503 `service_unavailable`, entrou em cooldown de 30 s
+  e a mesma tarefa avançou para Groq antes do primeiro chunk;
+- **Auto:** a primeira escolha respeitou score e targets autorizados; após sucesso
+  por Groq, a mesma sessão passou a favorecê-lo por affinity;
+- **affinity:** com Groq no segundo target, `auto_affinity` venceu a vantagem de
+  posição do Gemini (scores observados de 255 e 280), provando que continuidade
+  pode mudar a seleção sem alterar Fixed/Preferred;
+- **restart:** a policy persistiu, mas a affinity anterior não sobreviveu ao
+  processo, como definido pelo contrato runtime-only;
+- **responsividade:** o freeze visual de aproximadamente 3–4 s entre envio e
+  `ProviderSelected` desapareceu após mover o preflight bloqueante para
+  `spawn_blocking`; o avatar continuou animando durante o preflight;
+- **latência local:** antes do batch de credenciais foram observados
+  `preflight_ms=6294` e `6341`. Após a FIX, medições reais ficaram em
+  `preflight_total_ms=1625` e `1666`, redução aproximada de 74%;
+- **Stronghold:** o custo dominante restante é abrir/carregar o client do cofre,
+  tipicamente ~1,5–2,5 s neste Fedora. Status UX, preflight autorizativo,
+  execução do provider e Summary Worker ainda podem realizar operações
+  independentes. Isso fica como oportunidade de otimização futura, não como
+  bloqueio da D2.
+
+A mensagem `Couldn't get key from code: Quote` foi rastreada ao `tao 0.35.3`
+no mapeamento de teclado Linux/GTK e não ao keyring/Stronghold.
+
+Summary e Orchestrator não receberam uma repetição humana dedicada após as FIXes
+de performance. Seus contratos D2 foram cobertos pela auditoria independente e
+pela suíte automatizada; o fechamento foi aceito explicitamente pelo usuário com
+essa distinção registrada, sem afirmar um gate humano que não ocorreu.
+
+No HEAD final anterior ao fechamento documental, a implementação reportou
+**256 testes aprovados, 0 falhas e 2 ignorados**, além de typecheck, build,
+cargo check, release check e `git diff --check` em PASS. O
+`cargo fmt --check` global permanece vermelho por drift histórico em arquivos
+não tocados; os arquivos Rust modificados pela D2 passaram na verificação
+individual.
+
+A D2 não implementa task graph, paralelismo, ferramentas ou LR-8. O próximo
+checkpoint é **LR-7D2.5 — provider redundancy + Gemini de-risking**, seguido de
+LR-7D3.

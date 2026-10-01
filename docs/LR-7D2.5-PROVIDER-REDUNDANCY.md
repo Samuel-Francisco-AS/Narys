@@ -1,6 +1,6 @@
 # LR-7D2.5 — provider redundancy + Gemini de-risking
 
-Estado: **PLANEJADA. Não iniciar antes de LR-7D2 = PASS completo e integrada.**
+Estado: **PRÓXIMA / PLANEJADA. LR-7D2 fechou em PASS completo em 01/10/2026; iniciar após a integração da PR #11.**
 Posição no roadmap: **LR-7D2 → LR-7D2.5 → LR-7D3**.
 
 ## Motivação
