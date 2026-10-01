@@ -360,6 +360,37 @@ Antes de fechamento, no mínimo:
 Warnings preexistentes não devem ser apresentados como regressões da D2.5, mas
 qualquer warning novo causado pela fase deve ser investigado.
 
+## FIX — resumo automático opcional
+
+Durante o gate humano da Cloudflare ficou claro que o resumo automático é
+dispensável para a operação principal da Luna e pode introduzir custo, latência e
+complexidade sem benefício proporcional.
+
+A D2.5 passa a tratar `summary_input_max_bytes = 0` como estado explícito de
+**resumo automático desativado**. Esse uso deixa de significar "executar Summary
+com input vazio".
+
+Quando desativado:
+
+- novas sessões fechadas permanecem com `summary_status = none`;
+- nenhuma nova tarefa de Summary é enfileirada;
+- o `SummaryWorker` não considera a policy elegível e não chama provider;
+- itens `pending`/`running` existentes são neutralizados para `none` ao salvar
+  a configuração desativada;
+- Conversation, histórico, Orchestrator, routing, affinity e providers continuam
+  inalterados;
+- configurações de rota/modelo/output do papel Summary permanecem persistidas,
+  permitindo reativação posterior.
+
+A UI de **IA e modelos → Resumo** expõe a opção
+**Gerar título e resumo automaticamente ao encerrar uma conversa**. Ao reativar
+uma configuração que estava em zero, o budget de input volta inicialmente para
+32 KiB e continua editável.
+
+Uma chamada de provider que já tenha saído antes do instante em que a opção é
+desativada pode terminar externamente, mas seu resultado não deve reativar a fila
+nem persistir resumo em uma sessão já neutralizada.
+
 ## Critério de fechamento
 
 LR-7D2.5 só pode ser declarada PASS completo quando:
