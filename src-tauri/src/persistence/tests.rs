@@ -266,6 +266,77 @@ fn history_list_detail_and_orphan_normalization_are_isolated() {
 }
 
 #[test]
+fn summary_input_zero_disables_automatic_queueing_and_clears_pending() {
+    let (db, _) = fixture();
+    let mut conn = db.open().unwrap();
+
+    conn.execute(
+        "UPDATE cognitive_role_policies SET summary_input_max_bytes=0 WHERE role='summary'",
+        [],
+    )
+    .unwrap();
+
+    let disabled = conversation::create_session(&conn).unwrap();
+    conversation::append_exchange_to_session(
+        &mut conn,
+        disabled,
+        "SUMMARY-DISABLED-1",
+        "Resposta",
+    )
+    .unwrap();
+    assert!(conversation::close_session(&conn, disabled).unwrap());
+    assert_eq!(
+        conversation::history_session(&conn, disabled)
+            .unwrap()
+            .unwrap()
+            .summary_status,
+        "none"
+    );
+    assert!(conversation::claim_next_pending_summary(&mut conn)
+        .unwrap()
+        .is_none());
+
+    conn.execute(
+        "UPDATE cognitive_role_policies SET summary_input_max_bytes=32768 WHERE role='summary'",
+        [],
+    )
+    .unwrap();
+    let queued = conversation::create_session(&conn).unwrap();
+    conversation::append_exchange_to_session(
+        &mut conn,
+        queued,
+        "SUMMARY-ENABLED-2",
+        "Resposta",
+    )
+    .unwrap();
+    assert!(conversation::close_session(&conn, queued).unwrap());
+    assert_eq!(
+        conversation::history_session(&conn, queued)
+            .unwrap()
+            .unwrap()
+            .summary_status,
+        "pending"
+    );
+
+    conn.execute(
+        "UPDATE cognitive_role_policies SET summary_input_max_bytes=0 WHERE role='summary'",
+        [],
+    )
+    .unwrap();
+    assert_eq!(conversation::disable_pending_summaries(&conn).unwrap(), 1);
+    assert_eq!(
+        conversation::history_session(&conn, queued)
+            .unwrap()
+            .unwrap()
+            .summary_status,
+        "none"
+    );
+    assert!(conversation::claim_next_pending_summary(&mut conn)
+        .unwrap()
+        .is_none());
+}
+
+#[test]
 fn restart_keeps_old_history_out_of_new_outbound_context() {
     let (db, _) = fixture();
     let mut conn = db.open().unwrap();
