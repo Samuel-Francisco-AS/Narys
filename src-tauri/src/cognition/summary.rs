@@ -109,7 +109,7 @@ impl SummaryWorker {
                     .open()
                     .ok()
                     .and_then(|conn| policy::load(&conn, CognitiveRole::Summary).ok())
-                    .is_some_and(|policy| available(&policy))
+                    .is_some_and(|policy| policy.summary_input_max_bytes > 0 && available(&policy))
             })
             .await
             .unwrap_or(false);
@@ -160,6 +160,18 @@ impl SummaryWorker {
                 return ProcessOutcome::Transient;
             }
         };
+        if policy.summary_input_max_bytes == 0 {
+            let db = self.db.clone();
+            let id = claimed.id;
+            let _ = tauri::async_runtime::spawn_blocking(move || {
+                db.open().and_then(|conn| {
+                    conversation::clear_claimed_summary(&conn, id)?;
+                    Ok(())
+                })
+            })
+            .await;
+            return ProcessOutcome::Continue;
+        }
         // Revalidate the exact snapshot used below, even if settings changed
         // between opportunistic readiness and claiming this session.
         let available = self.available.clone();
