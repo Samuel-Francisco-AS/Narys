@@ -331,8 +331,23 @@ impl SseParser {
                         let object = chunk.as_object().ok_or(ProviderError::Protocol)?;
                         match object.get("type").and_then(Value::as_str) {
                             Some("thinking") => {
-                                if object.get("thinking").and_then(Value::as_str).is_none() {
+                                let thinking = object
+                                    .get("thinking")
+                                    .and_then(Value::as_array)
+                                    .ok_or(ProviderError::Protocol)?;
+                                if thinking.len() > 64 {
                                     return Err(ProviderError::Protocol);
+                                }
+                                for inner in thinking {
+                                    let inner = inner.as_object().ok_or(ProviderError::Protocol)?;
+                                    if inner.get("type").and_then(Value::as_str) != Some("text")
+                                        || inner
+                                            .get("text")
+                                            .and_then(Value::as_str)
+                                            .is_none_or(|text| text.len() > 1_048_576)
+                                    {
+                                        return Err(ProviderError::Protocol);
+                                    }
                                 }
                             }
                             Some("text") => {
@@ -381,6 +396,88 @@ fn token_field(usage: &Value, name: &str) -> Result<u32, ProviderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::security::secrets::{SecretError, UnlockKeyStore};
+    use std::{
+        sync::Mutex,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    #[derive(Default)]
+    struct Keys(Mutex<Option<Vec<u8>>>);
+    impl UnlockKeyStore for Keys {
+        fn load(&self) -> Result<Option<Vec<u8>>, SecretError> {
+            Ok(self.0.lock().unwrap().clone())
+        }
+        fn store(&self, key: &[u8]) -> Result<(), SecretError> {
+            *self.0.lock().unwrap() = Some(key.to_vec());
+            Ok(())
+        }
+        fn delete(&self) -> Result<(), SecretError> {
+            *self.0.lock().unwrap() = None;
+            Ok(())
+        }
+    }
+
+    fn http_fixture() -> (std::sync::Arc<SecretStore>, std::path::PathBuf) {
+        let directory = std::env::temp_dir().join(format!(
+            "mistral-lifecycle-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = std::sync::Arc::new(SecretStore::with_key_store(
+            directory.clone(),
+            std::sync::Arc::new(Keys::default()),
+        ));
+        store
+            .set_secret(SecretKey::MistralApiKey, b"synthetic-mistral-secret")
+            .unwrap();
+        (store, directory)
+    }
+
+    fn http_request(timeouts: ProviderTimeouts) -> ProviderRequest {
+        ProviderRequest {
+            input: "hello".into(),
+            history: vec![],
+            context: std::sync::Arc::new(ContextBundle {
+                identity: serde_json::from_value(serde_json::json!({
+                    "version":"v1","canonicalName":"Luna","presentation":"neutral",
+                    "primaryLanguage":"pt-BR","concept":"test","traits":{},
+                    "behavioralInvariants":[],"modes":{},"relationship":{
+                      "primaryPersonName":"","relationModes":[],"affectionStyle":{
+                        "warm":false,"provocative":false,"playfulJealousy":false,
+                        "playfulTerritoriality":false,"coercion":false,"isolation":false,
+                        "emotionalBlackmail":false},"interactionPreferences":{
+                        "wantsRealDisagreement":false,
+                        "wantsLunaToProposeDirectionsDuringStructuring":false,
+                        "prefersLinearFlowDuringImplementation":false}},
+                    "memoryPolicy":{"retrieval":"none","history":"none",
+                      "continuity":"none","storePrivateChainOfThought":false},
+                    "provenance":"test","effectiveFrom":"2026-01-01"
+                }))
+                .unwrap(),
+                relevant_memories: vec![],
+                recent_messages: vec![],
+                metadata: super::super::types::ContextMetadata {
+                    identity_version: "v1".into(),
+                    memory_count: 0,
+                    recent_message_count: 0,
+                },
+            }),
+            max_output_tokens: Some(64),
+            target: super::super::types::ProviderTarget {
+                provider_id: "mistral".into(),
+                invocation: super::super::types::ProviderInvocationConfig {
+                    model: MODEL.into(),
+                    thinking_level: Some(ThinkingLevel::Low),
+                    timeouts: Some(timeouts),
+                },
+            },
+            attempt: 0,
+        }
+    }
 
     #[test]
     fn payload_has_minimal_context_and_hides_reasoning() {
@@ -412,7 +509,7 @@ mod tests {
     fn typed_reasoning_content_emits_only_text_and_supports_string_transition() {
         let mut parser = SseParser::default();
         let events = parser
-            .push(b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\",\"thinking\":\"private\"},{\"type\":\"text\",\"text\":\"visible\"}]}}]}\n\n")
+            .push(b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\",\"thinking\":[{\"type\":\"text\",\"text\":\"private one\"},{\"type\":\"text\",\"text\":\"private two\"}]},{\"type\":\"text\",\"text\":\"visible\"}]}}]}\n\n")
             .unwrap();
         assert_eq!(events, vec![StreamEvent::Text("visible".into())]);
         let events = parser
@@ -427,13 +524,13 @@ mod tests {
         let mut parser = SseParser::default();
         assert_eq!(
             parser.push(
-                b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\"}]}}]}\n\n"
+                b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\",\"thinking\":\"private\"}]}}]}\n\n"
             ),
             Err(ProviderError::Protocol)
         );
         let mut parser = SseParser::default();
         assert_eq!(
-            parser.push(b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"unknown\",\"text\":\"x\"}]}}]}\n\n"),
+            parser.push(b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\",\"thinking\":[{\"type\":\"image\",\"text\":\"x\"}]}]}}]}\n\n"),
             Err(ProviderError::Protocol)
         );
     }
@@ -541,5 +638,107 @@ mod tests {
             MistralProvider::classify(StatusCode::FORBIDDEN, &HeaderMap::new()),
             ProviderError::Authentication
         );
+    }
+
+    #[test]
+    fn local_http_lifecycle_covers_split_thinking_eof_http_and_cancel() {
+        let (store, directory) = http_fixture();
+        let provider = MistralProvider::new(MistralConfig::default(), store).unwrap();
+        assert!(matches!(
+            tauri::async_runtime::block_on(provider.execute(
+                &http_request(ProviderTimeouts {
+                    request_timeout_ms: 500,
+                    stream_idle_timeout_ms: 500,
+                }),
+                &AtomicBool::new(true),
+                &mut |_| Ok(()),
+            )),
+            Err(ProviderError::Cancelled)
+        ));
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let body = "data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\",\"thinking\":[{\"type\":\"text\",\"text\":\"private-only\"}]}]}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\",\"thinking\":[{\"type\":\"text\",\"text\":\"private-close\"}]},{\"type\":\"text\",\"text\":\"visible\"}]}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\" final\"}}]}\n\ndata: [DONE]\n\n";
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) =
+            super::super::transport::test_support::server("200 OK", body, false, Duration::ZERO);
+        let provider = MistralProvider::new(
+            MistralConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store.clone(),
+        )
+        .unwrap();
+        let request = http_request(ProviderTimeouts {
+            request_timeout_ms: 500,
+            stream_idle_timeout_ms: 500,
+        });
+        let cancelled = AtomicBool::new(false);
+        let mut public = String::new();
+        let response =
+            tauri::async_runtime::block_on(provider.execute(&request, &cancelled, &mut |chunk| {
+                public.push_str(&chunk.text);
+                Ok(())
+            }))
+            .unwrap();
+        handle.join().unwrap();
+        assert_eq!(public, "visible final");
+        assert_eq!(response.text, "visible final");
+        assert!(!public.contains("private"));
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) = super::super::transport::test_support::server(
+            "200 OK",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"visible\"}}]}\n\n",
+            false,
+            Duration::ZERO,
+        );
+        let provider = MistralProvider::new(
+            MistralConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 100,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        handle.join().unwrap();
+        assert!(matches!(result, Err(ProviderError::Protocol)));
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) = super::super::transport::test_support::server(
+            "401 Unauthorized",
+            "denied",
+            false,
+            Duration::ZERO,
+        );
+        let provider = MistralProvider::new(
+            MistralConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 100,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        handle.join().unwrap();
+        assert!(matches!(result, Err(ProviderError::Authentication)));
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

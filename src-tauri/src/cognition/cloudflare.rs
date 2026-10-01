@@ -413,6 +413,94 @@ fn token_field(usage: &Value, name: &str) -> Result<u32, ProviderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::security::secrets::{SecretError, UnlockKeyStore};
+    use std::{
+        sync::Mutex,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    #[derive(Default)]
+    struct Keys(Mutex<Option<Vec<u8>>>);
+    impl UnlockKeyStore for Keys {
+        fn load(&self) -> Result<Option<Vec<u8>>, SecretError> {
+            Ok(self.0.lock().unwrap().clone())
+        }
+        fn store(&self, key: &[u8]) -> Result<(), SecretError> {
+            *self.0.lock().unwrap() = Some(key.to_vec());
+            Ok(())
+        }
+        fn delete(&self) -> Result<(), SecretError> {
+            *self.0.lock().unwrap() = None;
+            Ok(())
+        }
+    }
+
+    fn http_fixture() -> (std::sync::Arc<SecretStore>, std::path::PathBuf) {
+        let directory = std::env::temp_dir().join(format!(
+            "cloudflare-lifecycle-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = std::sync::Arc::new(SecretStore::with_key_store(
+            directory.clone(),
+            std::sync::Arc::new(Keys::default()),
+        ));
+        store
+            .set_secrets(&[
+                (SecretKey::CloudflareApiToken, b"synthetic-token".to_vec()),
+                (
+                    SecretKey::CloudflareAccountId,
+                    b"synthetic-account".to_vec(),
+                ),
+            ])
+            .unwrap();
+        (store, directory)
+    }
+
+    fn http_request(timeouts: ProviderTimeouts) -> ProviderRequest {
+        ProviderRequest {
+            input: "hello".into(),
+            history: vec![],
+            context: std::sync::Arc::new(ContextBundle {
+                identity: serde_json::from_value(serde_json::json!({
+                    "version":"v1","canonicalName":"Luna","presentation":"neutral",
+                    "primaryLanguage":"pt-BR","concept":"test","traits":{},
+                    "behavioralInvariants":[],"modes":{},"relationship":{
+                      "primaryPersonName":"","relationModes":[],"affectionStyle":{
+                        "warm":false,"provocative":false,"playfulJealousy":false,
+                        "playfulTerritoriality":false,"coercion":false,"isolation":false,
+                        "emotionalBlackmail":false},"interactionPreferences":{
+                        "wantsRealDisagreement":false,
+                        "wantsLunaToProposeDirectionsDuringStructuring":false,
+                        "prefersLinearFlowDuringImplementation":false}},
+                    "memoryPolicy":{"retrieval":"none","history":"none",
+                      "continuity":"none","storePrivateChainOfThought":false},
+                    "provenance":"test","effectiveFrom":"2026-01-01"
+                }))
+                .unwrap(),
+                relevant_memories: vec![],
+                recent_messages: vec![],
+                metadata: super::super::types::ContextMetadata {
+                    identity_version: "v1".into(),
+                    memory_count: 0,
+                    recent_message_count: 0,
+                },
+            }),
+            max_output_tokens: Some(64),
+            target: super::super::types::ProviderTarget {
+                provider_id: "cloudflare".into(),
+                invocation: super::super::types::ProviderInvocationConfig {
+                    model: MODEL.into(),
+                    thinking_level: None,
+                    timeouts: Some(timeouts),
+                },
+            },
+            attempt: 0,
+        }
+    }
 
     #[test]
     fn payload_has_minimal_context_and_hides_reasoning() {
@@ -519,5 +607,102 @@ mod tests {
             CloudflareProvider::classify(StatusCode::REQUEST_TIMEOUT, &HeaderMap::new(), b""),
             ProviderError::Timeout
         );
+    }
+
+    #[test]
+    fn local_http_lifecycle_covers_split_valid_eof_timeout_and_internal_code() {
+        let (store, directory) = http_fixture();
+        let provider = CloudflareProvider::new(CloudflareConfig::default(), store).unwrap();
+        assert!(matches!(
+            tauri::async_runtime::block_on(provider.execute(
+                &http_request(ProviderTimeouts {
+                    request_timeout_ms: 500,
+                    stream_idle_timeout_ms: 500,
+                }),
+                &AtomicBool::new(true),
+                &mut |_| Ok(()),
+            )),
+            Err(ProviderError::Cancelled)
+        ));
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let valid = "data: {\"choices\":[{\"delta\":{\"content\":\"visible\"}}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\n\ndata: [DONE]\n\n";
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) =
+            super::super::transport::test_support::server("200 OK", valid, false, Duration::ZERO);
+        let provider = CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 500,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ))
+        .unwrap();
+        handle.join().unwrap();
+        assert_eq!(result.text, "visible");
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) = super::super::transport::test_support::server(
+            "200 OK",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"visible\"}}]}\n\n",
+            false,
+            Duration::ZERO,
+        );
+        let provider = CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 100,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        handle.join().unwrap();
+        assert!(matches!(result, Err(ProviderError::Protocol)));
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) = super::super::transport::test_support::server(
+            "429 Too Many Requests",
+            r#"{"errors":[{"code":3036}]}"#,
+            false,
+            Duration::ZERO,
+        );
+        let provider = CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 100,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        handle.join().unwrap();
+        assert!(matches!(result, Err(ProviderError::QuotaExceeded)));
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

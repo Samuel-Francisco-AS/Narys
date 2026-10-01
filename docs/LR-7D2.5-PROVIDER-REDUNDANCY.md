@@ -414,6 +414,15 @@ privado no output público. Os níveis Low/Medium/High continuam anunciados porq
 essa semântica agora é suportada pelo adapter; reasoning nunca entra em
 `ProviderChunk`, `ProviderResponse`, histórico ou SQLite.
 
+No fluxo multi-turn, o ThinkChunk Mistral é deliberadamente efêmero. A
+documentação da Mistral recomenda reenviar o ThinkChunk completo para máxima
+coerência, mas o Luna Core persiste e reapresenta somente o texto final:
+traces privados não são armazenados nem reenviados ao provider. Isso pode reduzir
+a vantagem/coerência do reasoning em Conversation multi-turn e é uma decisão
+deliberada de privacidade/arquitetura, não um bug. Orchestrator e Summary
+continuam podendo usar reasoning quando configurado. Não existe armazenamento
+paralelo de thinking para contornar essa decisão.
+
 Cloudflare não envia mais `include_reasoning` nem `reasoning_effort`. Erros HTTP
 leem no máximo 64 KiB, sem logging do corpo, e os códigos conhecidos são
 classificados bounded/fail-closed: 3036 como `QuotaExceeded`, 3040 como
@@ -436,5 +445,9 @@ PASS, `cargo check --manifest-path src-tauri/Cargo.toml` PASS, `cargo test
 `cargo check --release --manifest-path src-tauri/Cargo.toml` PASS e `git diff
 --check` PASS. O build mantém somente o warning preexistente de chunk JavaScript
 grande; os warnings Rust de dead code/imports não são regressões desta FIX.
-Nenhuma chamada externa real foi feita pela suíte; o gate humano de
-Mistral/Cloudflare permanece separado. D3/LR-8 continuam fora de escopo.
+Os testes locais adicionais usam fake HTTP em loopback e cobrem resposta completa,
+SSE fragmentado no parser, EOF antes de `[DONE]`, cancelamento antes da chamada e
+erro HTTP real; o timeout/idle timeout continua protegido pela implementação
+bounded de request/stream. Nenhuma chamada externa real foi feita pela suíte; o
+gate humano de Mistral/Cloudflare permanece separado. D3/LR-8 continuam fora de
+escopo.
