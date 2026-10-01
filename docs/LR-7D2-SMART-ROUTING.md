@@ -170,8 +170,10 @@ independente nem ao gate humano.
 Só Gemini/Groq são providers reais. Cadeia 3+ é provada sinteticamente, sem
 adicionar terceiro provider. Affinity é heurística determinística sobre custo
 estimado de continuidade; não anuncia latência, quota, cache ou savings reais.
-Não há LR-7D3, task graph, paralelismo, LR-8, grounding web/tools, novas permissões
-Codex ou mudanças de identidade/memória/avatar/3D. Dois testes de integração real
+Não há LR-7D2.5, LR-7D3, task graph, paralelismo, LR-8, grounding web/tools,
+novas permissões Codex ou mudanças de identidade/memória/avatar/3D. A D2.5 já
+está planejada documentalmente, mas sua implementação só começa após o fechamento
+desta D2. Dois testes de integração real
 existentes permanecem ignorados por exigirem autorização/ambiente externo.
 
 ## Gate humano pendente
@@ -186,8 +188,10 @@ existentes permanecem ignorados por exigirem autorização/ambiente externo.
 6. Testar Summary e verificar título/resumo, isolamento e mensagens intactas.
 7. Reiniciar: mode/ordem/model/thinking persistem e affinity começa limpa.
 
-LR-7D2 só fecha após auditoria independente e aprovação humana. LR-7D3 é o
-próximo checkpoint **somente após esse fechamento**.
+LR-7D2 só fecha após auditoria independente e aprovação humana. O próximo
+checkpoint após esse fechamento será **LR-7D2.5 — provider redundancy + Gemini
+de-risking**; somente após a D2.5 começa a LR-7D3. Consulte
+[LR-7D2.5-PROVIDER-REDUNDANCY.md](LR-7D2.5-PROVIDER-REDUNDANCY.md).
 
 ## FIX humana — responsividade no início da Conversation
 
