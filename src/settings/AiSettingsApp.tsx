@@ -78,11 +78,11 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const summaryDisabled = initial.role === 'summary' && !summaryEnabled
   async function save() {
     const maxProviderCalls = numberValue(calls)
     const maxOutputTokens = policy.maxOutputTokens === null ? null : numberValue(customOutput)
     if (policy.targets.length < (policy.routingMode === 'fixed' ? 1 : 2) || policy.targets.length > 8 || (policy.routingMode === 'fixed' && policy.targets.length !== 1) || new Set(policy.targets.map(target => target.providerId)).size !== policy.targets.length) { setError('Quantidade de targets inválida para este modo.'); return }
-    const summaryDisabled = initial.role === 'summary' && !summaryEnabled
     for (const target of policy.targets) {
       const provider = providers.find(item => item.id === target.providerId)
       if (!summaryDisabled && !usable(provider)) { setError('Configure uma credencial para cada provider habilitado e compatível antes de salvar.'); return }
