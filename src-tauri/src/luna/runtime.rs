@@ -310,6 +310,18 @@ fn chat_budget_and_request(
     Ok((budget, request))
 }
 
+fn preflight_stage<T>(_stage: &'static str, operation: impl FnOnce() -> T) -> T {
+    #[cfg(debug_assertions)]
+    let started = std::time::Instant::now();
+    let result = operation();
+    #[cfg(debug_assertions)]
+    eprintln!(
+        "[Conversation][diag] {_stage}_ms={}",
+        started.elapsed().as_millis()
+    );
+    result
+}
+
 pub fn start_conversation(
     registry: Arc<TaskRegistry>,
     db: Database,
@@ -368,48 +380,59 @@ pub fn start_conversation(
                     if preflight_cancelled.load(Ordering::Acquire) {
                         return Err("cancelled");
                     }
-                    // Never hold the session registry lock across DB/credential I/O.
-                    if !sessions
-                        .0
-                        .lock()
-                        .map_err(|_| "session_registry_failed")?
-                        .contains(&session_id)
-                    {
-                        return Err("session_invalid");
-                    }
-                    let conn = db_context.open().map_err(|e| e.code())?;
-                    if !conversation::is_active_session(&conn, session_id).map_err(|e| e.code())? {
-                        return Err("session_invalid");
-                    }
-                    let policy =
-                        policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?;
-                    crate::cognition::catalog::validate_policy(
-                        &policy,
-                        &preflight_runtime.scheduler.status(),
-                        &store,
-                    )?;
-                    let timeouts = policy.load_timeouts(&conn).map_err(|e| e.code())?;
+                    let (conn, policy) = preflight_stage("session_policy", || {
+                        // Never hold the session registry lock across DB/credential I/O.
+                        if !sessions
+                            .0
+                            .lock()
+                            .map_err(|_| "session_registry_failed")?
+                            .contains(&session_id)
+                        {
+                            return Err("session_invalid");
+                        }
+                        let conn = db_context.open().map_err(|e| e.code())?;
+                        if !conversation::is_active_session(&conn, session_id)
+                            .map_err(|e| e.code())?
+                        {
+                            return Err("session_invalid");
+                        }
+                        let policy = policy::load(&conn, CognitiveRole::Conversation)
+                            .map_err(|e| e.code())?;
+                        Ok::<_, &'static str>((conn, policy))
+                    })?;
+                    preflight_stage("credentials", || {
+                        crate::cognition::catalog::validate_policy(
+                            &policy,
+                            &preflight_runtime.scheduler.status(),
+                            &store,
+                        )
+                    })?;
+                    let timeouts = preflight_stage("timeouts", || policy.load_timeouts(&conn))
+                        .map_err(|e| e.code())?;
                     if preflight_cancelled.load(Ordering::Acquire) {
                         return Err("cancelled");
                     }
-                    let history = conversation::outbound_history(
-                        &conn,
-                        session_id,
-                        policy.history_max_messages as usize,
-                        policy.history_max_bytes as usize,
-                    )
-                    .map_err(|e| e.code())?;
-                    let context = ContextBuilder::build(
-                        &conn,
-                        ContextRequest {
-                            domain: None,
-                            kind: None,
-                            min_importance: 0,
-                            memory_limit: 0,
-                            include_recent_conversation: false,
-                        },
-                    )
-                    .map_err(|e| e.code())?;
+                    let (context, history) = preflight_stage("history_context", || {
+                        let history = conversation::outbound_history(
+                            &conn,
+                            session_id,
+                            policy.history_max_messages as usize,
+                            policy.history_max_bytes as usize,
+                        )
+                        .map_err(|e| e.code())?;
+                        let context = ContextBuilder::build(
+                            &conn,
+                            ContextRequest {
+                                domain: None,
+                                kind: None,
+                                min_importance: 0,
+                                memory_limit: 0,
+                                include_recent_conversation: false,
+                            },
+                        )
+                        .map_err(|e| e.code())?;
+                        Ok::<_, &'static str>((context, history))
+                    })?;
                     Ok::<_, &'static str>((policy, timeouts, context, history))
                 })();
                 #[cfg(test)]
@@ -419,7 +442,7 @@ pub fn start_conversation(
             .await;
             #[cfg(debug_assertions)]
             eprintln!(
-                "[Conversation][diag] preflight_ms={}",
+                "[Conversation][diag] preflight_total_ms={}",
                 preflight_started.elapsed().as_millis()
             );
             // Cancellation wins even when the blocking worker returned an error.
