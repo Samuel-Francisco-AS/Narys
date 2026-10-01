@@ -1,6 +1,6 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo em 30/09/2026. LR-7D2 — PASS completo em 01/10/2026 e integrada à `main` pela PR #11. LR-7D2.5 — encerrada em 01/10/2026 com Cloudflare validada, Summary automático opcional e dívida formal de substituir Mistral por OpenAI API paga quando houver orçamento. Próxima etapa: LR-7D3.**
+Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo em 30/09/2026. LR-7D2 — PASS completo em 01/10/2026 e integrada à `main` pela PR #11. LR-7D2.5 — encerrada em 01/10/2026 com Cloudflare validada, Summary automático opcional e dívida formal de substituir Mistral por OpenAI API paga quando houver orçamento. LR-7D3 possui implementação candidata na branch `lr-7d3-task-graph`; gates técnicos locais e gate humano real ainda estão pendentes.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ### D0.5 — fronteira futura de agentes
@@ -369,6 +369,8 @@ Plano e evidências de fechamento:
 ---
 
 ## LR-7D3 — task graph mínimo + subtarefas independentes
+
+**Estado na branch de implementação:** candidata à validação técnica local; nenhum PASS registrado ainda. Detalhes: [LR-7D3 — Task graph mínimo](LR-7D3-TASK-GRAPH.md).
 
 ### Objetivo
 

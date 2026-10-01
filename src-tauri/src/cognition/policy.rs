@@ -8,6 +8,7 @@ pub enum CognitiveRole {
     Conversation,
     Summary,
     Orchestrator,
+    Worker,
 }
 impl CognitiveRole {
     pub fn as_str(self) -> &'static str {
@@ -15,6 +16,7 @@ impl CognitiveRole {
             Self::Conversation => "conversation",
             Self::Summary => "summary",
             Self::Orchestrator => "orchestrator",
+            Self::Worker => "worker",
         }
     }
 }
@@ -318,7 +320,7 @@ mod tests {
         }
     }
     #[test]
-    fn v8_to_v10_preserves_effective_routes_budgets_timestamp_reopen_and_integrity() {
+    fn v8_to_v11_preserves_existing_roles_and_adds_worker_defaults() {
         let (db, dir) = fixture();
         let conn = Connection::open(dir.join("policy.sqlite3")).unwrap();
         conn.execute_batch(concat!(
@@ -342,7 +344,7 @@ mod tests {
         assert_eq!(
             conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
                 .unwrap(),
-            10
+            11
         );
         let conversation = load(&conn, CognitiveRole::Conversation).unwrap();
         assert_eq!(conversation.routing_mode, RoutingMode::Preferred);
@@ -409,6 +411,17 @@ mod tests {
                 "preserved"
             );
         }
+        let worker = load(&conn, CognitiveRole::Worker).unwrap();
+        assert_eq!(worker.routing_mode, RoutingMode::Preferred);
+        assert_eq!(worker.max_provider_calls, 4);
+        assert_eq!(worker.max_retries, 1);
+        assert_eq!(worker.retry_backoff_ms, 750);
+        assert_eq!(worker.max_output_tokens, Some(4096));
+        assert_eq!(worker.context_max_bytes, 16384);
+        assert_eq!(
+            worker.targets.iter().map(|target| target.provider_id.as_str()).collect::<Vec<_>>(),
+            vec!["groq", "cloudflare"]
+        );
         drop(conn);
         let reopened = db.open().unwrap();
         assert_eq!(
@@ -420,6 +433,7 @@ mod tests {
             load(&reopened, CognitiveRole::Orchestrator).unwrap(),
             planner
         );
+        assert_eq!(load(&reopened, CognitiveRole::Worker).unwrap(), worker);
         assert_eq!(
             reopened
                 .query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0))
@@ -447,6 +461,7 @@ mod tests {
             CognitiveRole::Conversation,
             CognitiveRole::Orchestrator,
             CognitiveRole::Summary,
+            CognitiveRole::Worker,
         ] {
             let mut policy = load(&conn, role).unwrap();
             policy.routing_mode = RoutingMode::Auto;

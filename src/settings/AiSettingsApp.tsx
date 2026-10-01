@@ -3,7 +3,7 @@ import { Channel, invoke } from '@tauri-apps/api/core'
 import './settings.css'
 
 type Thinking = 'low' | 'medium' | 'high' | null
-type Role = 'conversation' | 'summary' | 'orchestrator'
+type Role = 'conversation' | 'summary' | 'orchestrator' | 'worker'
 type Routing = 'fixed' | 'preferred' | 'auto'
 type Target = { providerId: string; model: string; thinkingLevel: Thinking }
 type Policy = { role: Role; routingMode: Routing; targets: Target[]; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number; contextMaxBytes: number }
@@ -17,6 +17,8 @@ type CodexAppServerProbe = { launched: boolean; initialized: boolean; platformFa
 type PlanV1 = { version: 1; objective: string; steps: { id: string; description: string; requiredCapabilities: string[]; dependsOn: string[] }[]; risks: string[]; needsUserInput: boolean; questions: string[] }
 type OrchestratorResult = { providerId: string; plan: PlanV1; usage: { providerCalls: number; outputTokens: number; retries: number; fallbacks: number } }
 type OrchestratorEvent = { taskId: number; sequence: number; state: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'; type: 'task_started' | 'provider_selected' | 'provider_retry' | 'provider_fallback' | 'provider_output_observed' | 'orchestrator_plan_ready' | 'task_completed' | 'task_cancelled' | 'task_failed'; provider_id?: string; attempt?: number; routing_reason?: string; score?: number | null; result?: OrchestratorResult; detail?: string; reason_code?: string; from_provider_id?: string; to_provider_id?: string }
+type TaskGraphResult = { plannerProviderId: string; plannerUsage: { providerCalls: number; inputTokens: number; outputTokens: number; retries: number; fallbacks: number }; plan: PlanV1; subtasks: { subtaskId: string; providerId: string; text: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; retries: number; fallbacks: number } }[]; consolidatedText: string; workerUsage: { providerCalls: number; inputTokens: number; outputTokens: number; providersUsed: string[]; retries: number; fallbacks: number } }
+type TaskGraphEvent = { taskId: number; sequence: number; state: 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'; type: 'task_started' | 'provider_selected' | 'provider_retry' | 'provider_fallback' | 'provider_output_observed' | 'task_planned' | 'subtask_waiting' | 'subtask_started' | 'subtask_completed' | 'subtask_retry' | 'subtask_output_observed' | 'subtask_failed' | 'task_graph_result_ready' | 'task_completed' | 'task_cancelled' | 'task_failed'; subtask_id?: string; provider_id?: string; depends_on?: string[]; error_code?: string; reason_code?: string; result?: TaskGraphResult; detail?: string }
 const plannerPreflightCodes = [
   'planner_spawn_failed', 'planner_initialize_failed', 'planner_config_read_failed', 'planner_mcp_config_invalid',
   'planner_thread_start_failed', 'planner_sandbox_rejected', 'planner_approval_policy_rejected', 'planner_cwd_rejected',
@@ -34,7 +36,7 @@ const plannerErrorCodes = [
 ] as const
 const isPlannerErrorCode = (value: unknown): value is typeof plannerErrorCodes[number] => typeof value === 'string' && (plannerErrorCodes as readonly string[]).includes(value)
 const isPlannerPreflightCode = (value: unknown): value is PlannerPreflightCode => typeof value === 'string' && (plannerPreflightCodes as readonly string[]).includes(value)
-const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo', orchestrator: 'Orchestrator' }
+const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo', orchestrator: 'Orchestrator', worker: 'Worker' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
 function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers: ProviderInfo[]; onSaved: (policy: Policy) => void }) {
@@ -117,9 +119,9 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
       </fieldset>}
       <fieldset><legend>Roteamento</legend>
         <label>Modo<select value={policy.routingMode} onChange={event => changeMode(event.target.value as Routing)}><option value="fixed">Fixed</option><option value="preferred" disabled={providers.length < 2}>Preferred</option><option value="auto" disabled={providers.length < 2}>Auto</option></select></label>
-        {policy.routingMode === 'fixed' && <small>Usa exatamente o único target definido.</small>}
-        {policy.routingMode === 'preferred' && <small>usa a ordem definida acima; falhas elegíveis podem avançar antes do primeiro chunk.</small>}
-        {policy.routingMode === 'auto' && <small>a Luna escolhe apenas entre os targets autorizados acima, considerando preferência, disponibilidade e continuidade da sessão.</small>}
+        {policy.routingMode === 'fixed' && <small>{initial.role === 'worker' ? 'Todas as subtarefas usam o único provider autorizado, salvo indisponibilidade que encerre o grafo.' : 'Usa exatamente o único target definido.'}</small>}
+        {policy.routingMode === 'preferred' && <small>{initial.role === 'worker' ? 'O Core distribui subtarefas prontas pela ordem dos targets elegíveis; depois da atribuição cada unidade fica fixa no provider escolhido.' : 'Usa a ordem definida acima; falhas elegíveis podem avançar antes do primeiro chunk.'}</small>}
+        {policy.routingMode === 'auto' && <small>{initial.role === 'worker' ? 'O Scheduler ranqueia apenas targets autorizados e elegíveis; o Core distribui as unidades sem affinity de sessão e fixa cada subtarefa no provider atribuído.' : 'A Luna escolhe apenas entre os targets autorizados acima, considerando preferência, disponibilidade e continuidade da sessão.'}</small>}
         <ol>{policy.targets.map((target, index) => {
           const provider = providers.find(item => item.id === target.providerId)
           return <li key={target.providerId}><fieldset><legend>Target {index + 1}</legend>
@@ -144,18 +146,19 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
         <label className="radio"><input type="checkbox" checked={policy.retryEnabled} onChange={event => setPolicy({ ...policy, retryEnabled: event.target.checked })} />Retry automático para falhas transitórias</label>
         <label>Tentativas extras<input type="number" min="0" value={retries} onChange={event => setRetries(event.target.value)} /></label>
         <label>Backoff inicial (ms)<input type="number" min="0" value={backoff} onChange={event => setBackoff(event.target.value)} /></label>
-        <small>O retry só ocorre antes do primeiro trecho e para Timeout/Unavailable sem Retry-After. Rate limit e Unavailable com Retry-After entram em cooldown; em Preferred/Auto, podem seguir ao próximo target se ainda houver orçamento.</small>
+        <small>{initial.role === 'worker' ? 'O retry permanece no provider já atribuído à subtarefa. A D3 não faz fallback cruzado dentro de uma unidade; falha terminal encerra novas ondas do grafo.' : 'O retry só ocorre antes do primeiro trecho e para Timeout/Unavailable sem Retry-After. Rate limit e Unavailable com Retry-After entram em cooldown; em Preferred/Auto, podem seguir ao próximo target se ainda houver orçamento.'}</small>
         {numberValue(retries) + 1 > numberValue(calls) && <p className="settings-warning">Seu orçamento total permite menos tentativas do que o número de retries configurado.</p>}
-        {policy.routingMode !== 'fixed' && policy.retryEnabled && numberValue(retries) > 0 && numberValue(calls) < 1 + (policy.targets.length - 1) * (numberValue(retries) + 1) && <p className="settings-warning">Retries podem consumir o orçamento antes de alcançar todos os targets. Aumente Max provider calls para reservar chamadas para fallback.</p>}
+        {initial.role !== 'worker' && policy.routingMode !== 'fixed' && policy.retryEnabled && numberValue(retries) > 0 && numberValue(calls) < 1 + (policy.targets.length - 1) * (numberValue(retries) + 1) && <p className="settings-warning">Retries podem consumir o orçamento antes de alcançar todos os targets. Aumente Max provider calls para reservar chamadas para fallback.</p>}
+        {initial.role === 'worker' && policy.retryEnabled && numberValue(calls) < 2 * (numberValue(retries) + 1) && <p className="settings-warning">Com concorrência 2, este budget não reserva o pior caso de retry para duas subtarefas na mesma onda; o Core reduzirá a largura da onda.</p>}
       </fieldset>
       {initial.role === 'conversation' && <fieldset><legend>Histórico enviado</legend>
         <label>Máximo de mensagens anteriores<input type="number" min="0" value={historyMessages} onChange={event => setHistoryMessages(event.target.value)} /></label>
         <label>Máximo de bytes<input type="number" min="0" value={historyBytes} onChange={event => setHistoryBytes(event.target.value)} /></label>
         <small>0 desativa o envio de histórico anterior. Apenas a sessão atual é usada.</small>
       </fieldset>}
-      {initial.role === 'orchestrator' && <fieldset><legend>Contexto do planejamento</legend>
+      {(initial.role === 'orchestrator' || initial.role === 'worker') && <fieldset><legend>{initial.role === 'worker' ? 'Contexto da subtarefa' : 'Contexto do planejamento'}</legend>
         <label>Máximo de bytes do contexto<input type="number" min="1" value={contextBytes} onChange={event => setContextBytes(event.target.value)} /></label>
-        <small>O planejamento usa somente o objetivo atual e identidade técnica mínima; histórico e memória não são enviados.</small>
+        <small>{initial.role === 'worker' ? 'Cada worker recebe somente a instrução da subtarefa e resultados necessários das dependências; histórico e memória não são reenviados.' : 'O planejamento usa somente o objetivo atual e identidade técnica mínima; histórico e memória não são enviados.'}</small>
       </fieldset>}
       {initial.role === 'summary' && <fieldset><legend>Input do resumo</legend>
         <label>Máximo de bytes<input type="number" min="1" disabled={!summaryEnabled} value={summaryBytes} onChange={event => setSummaryBytes(event.target.value)} /></label>
@@ -229,6 +232,15 @@ export default function AiSettingsApp() {
   const [orchestratorState, setOrchestratorState] = useState<OrchestratorEvent['state'] | null>(null)
   const orchestratorTaskRef = useRef<number | null>(null)
   const orchestratorTerminalRef = useRef(false)
+  const [taskGraphObjective, setTaskGraphObjective] = useState('Crie exatamente duas subtarefas cognitivas independentes, sem ferramentas e sem dependências entre elas: uma deve analisar vantagens e a outra riscos de usar cache local em um aplicativo desktop. Cada subtarefa deve exigir apenas planning ou structured_output.')
+  const [taskGraphResult, setTaskGraphResult] = useState<TaskGraphResult | null>(null)
+  const [taskGraphBusy, setTaskGraphBusy] = useState(false)
+  const [taskGraphError, setTaskGraphError] = useState('')
+  const [taskGraphTaskId, setTaskGraphTaskId] = useState<number | null>(null)
+  const [taskGraphState, setTaskGraphState] = useState<TaskGraphEvent['state'] | null>(null)
+  const [taskGraphProgress, setTaskGraphProgress] = useState<string[]>([])
+  const taskGraphTaskRef = useRef<number | null>(null)
+  const taskGraphTerminalRef = useRef(false)
   async function refresh() { setSettings(await invoke<Settings>('get_ai_settings')) }
   async function refreshCodex() {
     setCodexBusy(true)
@@ -280,11 +292,42 @@ export default function AiSettingsApp() {
     try { await invoke<boolean>('cancel_task', { taskId: orchestratorTaskRef.current }) }
     catch { setOrchestratorError('Não foi possível solicitar o cancelamento.') }
   }
+  async function runTaskGraph() {
+    taskGraphTerminalRef.current = false
+    setTaskGraphBusy(true); setTaskGraphResult(null); setTaskGraphError(''); setTaskGraphState('pending'); setTaskGraphProgress([])
+    try {
+      const channel = new Channel<TaskGraphEvent>(event => {
+        setTaskGraphTaskId(event.taskId); setTaskGraphState(event.state)
+        if (event.type === 'task_planned') setTaskGraphProgress(current => [...current, 'Plano validado e compilado em task graph.'])
+        if (event.type === 'subtask_started') setTaskGraphProgress(current => [...current, `${event.subtask_id ?? 'subtask'} → ${event.provider_id ?? 'provider'} iniciou`])
+        if (event.type === 'subtask_completed') setTaskGraphProgress(current => [...current, `${event.subtask_id ?? 'subtask'} → ${event.provider_id ?? 'provider'} concluiu`])
+        if (event.type === 'subtask_retry') setTaskGraphProgress(current => [...current, `${event.subtask_id ?? 'subtask'} retry em ${event.provider_id ?? 'provider'} · ${event.reason_code ?? 'transient'}`])
+        if (event.type === 'subtask_failed') setTaskGraphProgress(current => [...current, `${event.subtask_id ?? 'subtask'} falhou · ${event.error_code ?? 'erro sanitizado'}`])
+        if (event.type === 'task_graph_result_ready' && event.result) setTaskGraphResult(event.result)
+        if (event.type === 'task_failed') setTaskGraphError(`Task graph falhou: ${event.detail ?? 'erro sanitizado'}`)
+        if (event.state === 'completed' || event.state === 'cancelled' || event.state === 'failed') {
+          taskGraphTerminalRef.current = true; setTaskGraphBusy(false); taskGraphTaskRef.current = null
+        }
+      })
+      const id = await invoke<number>('start_task_graph', { objective: taskGraphObjective, channel })
+      setTaskGraphTaskId(id)
+      if (!taskGraphTerminalRef.current) taskGraphTaskRef.current = id
+    } catch (cause) {
+      setTaskGraphBusy(false)
+      setTaskGraphError(typeof cause === 'string' ? `Task graph falhou: ${cause}` : 'Task graph falhou: erro sanitizado')
+    }
+  }
+  async function cancelTaskGraph() {
+    if (taskGraphTaskRef.current === null) return
+    try { await invoke<boolean>('cancel_task', { taskId: taskGraphTaskRef.current }) }
+    catch { setTaskGraphError('Não foi possível solicitar o cancelamento do task graph.') }
+  }
   useEffect(() => {
     void refresh().catch(() => setError('Não foi possível carregar as configurações.'))
     void refreshCodex()
     return () => {
       if (orchestratorTaskRef.current !== null) void invoke<boolean>('cancel_task', { taskId: orchestratorTaskRef.current })
+      if (taskGraphTaskRef.current !== null) void invoke<boolean>('cancel_task', { taskId: taskGraphTaskRef.current })
     }
   }, [])
   async function credential(provider: 'gemini' | 'groq' | 'mistral', action: 'set' | 'delete') {
@@ -392,13 +435,27 @@ export default function AiSettingsApp() {
         {orchestratorError && <p role="alert" className="settings-error">{orchestratorError}</p>}
         {orchestratorResult && <div role="status" className="planner-result"><p><strong>Provider efetivamente usado:</strong> {orchestratorResult.providerId}</p><p><strong>Calls:</strong> {orchestratorResult.usage.providerCalls} · <strong>Output:</strong> {orchestratorResult.usage.outputTokens} tokens</p><p><strong>Objetivo:</strong> {orchestratorResult.plan.objective}</p><ol>{orchestratorResult.plan.steps.map(step => <li key={step.id}><strong>{step.id}:</strong> {step.description}<br />Dependências: {step.dependsOn.join(', ') || 'nenhuma'}<br />Capabilities: {step.requiredCapabilities.join(', ') || 'nenhuma'}</li>)}</ol><p><strong>Riscos:</strong> {orchestratorResult.plan.risks.join('; ') || 'nenhum'}</p><p><strong>Perguntas:</strong> {orchestratorResult.plan.questions.join('; ') || 'nenhuma'}</p></div>}
       </section>
+      <section className="settings-card" aria-labelledby="task-graph-title">
+        <p className="settings-kicker">DEV · LR-7D3</p><h2 id="task-graph-title">Task graph distribuído</h2>
+        <p>O Orchestrator produz um PlanV1; o Luna Core executa somente subtarefas cognitivas compatíveis, paraleliza no máximo duas independentes e registra o provider real de cada unidade. Ferramentas e capabilities operacionais falham em modo fechado.</p>
+        <label>Objetivo controlado<textarea value={taskGraphObjective} maxLength={2048} onChange={event => setTaskGraphObjective(event.target.value)} rows={5} /></label>
+        <div className="settings-actions"><button type="button" disabled={taskGraphBusy || !taskGraphObjective.trim()} onClick={() => void runTaskGraph()}>{taskGraphBusy ? 'Executando grafo…' : 'Executar task graph real'}</button><button type="button" disabled={!taskGraphBusy || taskGraphTaskRef.current === null} onClick={() => void cancelTaskGraph()}>Cancelar raiz</button></div>
+        <p role="status">TaskId raiz: {taskGraphTaskId ?? '—'} · Estado: {taskGraphState ?? 'sem tarefa'}</p>
+        {taskGraphProgress.length > 0 && <ol>{taskGraphProgress.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol>}
+        {taskGraphError && <p role="alert" className="settings-error">{taskGraphError}</p>}
+        {taskGraphResult && <div role="status" className="planner-result">
+          <p><strong>Planner:</strong> {taskGraphResult.plannerProviderId} · <strong>Planner calls:</strong> {taskGraphResult.plannerUsage.providerCalls} · <strong>Worker calls:</strong> {taskGraphResult.workerUsage.providerCalls} · <strong>Providers workers:</strong> {taskGraphResult.workerUsage.providersUsed.join(', ') || '—'}</p>
+          <ol>{taskGraphResult.subtasks.map(item => <li key={item.subtaskId}><strong>{item.subtaskId}</strong> → {item.providerId}<br />{item.text}</li>)}</ol>
+          <p><strong>Consolidação determinística do Core:</strong></p><pre>{taskGraphResult.consolidatedText}</pre>
+        </div>}
+      </section>
       <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} providers={settings.providers} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
       <section className="settings-card"><h2>Parâmetros avançados</h2>
         <p>Streaming: ativo — requerido pelo adapter atual. Thinking summaries: desativado — não configurável nesta versão.</p>
         <p>Timeout HTTP total e idle do stream: configuráveis por provider. Conexão: 8 s — configuração dos adapters atuais.</p>
         <p>Histórico de conversa enviado: configurável em Conversa. Summary input budget: configurável em Resumo. Orchestrator input budget: bytes UTF-8 da instrução fixa mais objetivo enviados ao provider. Retry: configurável por papel.</p>
         <p>Preparação de resumo: até 256 mensagens candidatas mais a primeira fala do usuário; leitura local limitada a 8193 caracteres por mensagem. Título gerado: até 70 caracteres; resumo: até 1200. Limites técnicos desta versão.</p>
-        <p>Fixed usa um target; Preferred segue a ordem; Auto usa score determinístico e continuidade de sessão na Conversa. Task graph permanece adiado.</p>
+        <p>Fixed usa um target; Preferred segue a ordem; Auto usa score determinístico e continuidade de sessão na Conversa. O papel Worker autoriza os providers usados por subtarefas do task graph; distribuição e dependências permanecem sob autoridade do Luna Core.</p>
         <p>Cada target usa seu próprio modelo, thinking e timeouts. Temperature, top-p e tools ainda não são expostos.</p>
         <p>Segurança, isolamento de sessão e segredos fora do React são invariantes do aplicativo. O adapter Gemini envia <code>store:false</code>; o adapter Groq não envia parâmetros não suportados pelo endpoint Chat Completions.</p>
       </section>

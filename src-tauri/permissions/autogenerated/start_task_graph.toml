@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-start-task-graph"
+description = "Enables the start_task_graph command without any pre-configured scope."
+commands.allow = ["start_task_graph"]
+
+[[permission]]
+identifier = "deny-start-task-graph"
+description = "Denies the start_task_graph command without any pre-configured scope."
+commands.deny = ["start_task_graph"]

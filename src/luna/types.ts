@@ -7,6 +7,14 @@ export type CognitiveResult = {
   usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; providersUsed: string[]; retries: number; fallbacks: number }
   contextMetadata: { identityVersion: string; memoryCount: number; recentMessageCount: number }
 }
+export type TaskGraphResult = {
+  plannerProviderId: string
+  plannerUsage: { providerCalls: number; inputTokens: number; outputTokens: number; providersUsed: string[]; retries: number; fallbacks: number }
+  plan: { version: 1; objective: string; steps: { id: string; description: string; requiredCapabilities: string[]; dependsOn: string[] }[]; risks: string[]; needsUserInput: boolean; questions: string[] }
+  subtasks: { subtaskId: string; providerId: string; text: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; providersUsed: string[]; retries: number; fallbacks: number } }[]
+  consolidatedText: string
+  workerUsage: { providerCalls: number; inputTokens: number; outputTokens: number; providersUsed: string[]; retries: number; fallbacks: number }
+}
 
 type TaskEventBase = {
   taskId: TaskId
@@ -27,4 +35,12 @@ export type TaskEvent = TaskEventBase & (
   | { type: 'provider_retry'; provider_id: string; reason_code: string }
   | { type: 'provider_fallback'; from_provider_id: string; to_provider_id: string; reason_code: string }
   | { type: 'task_result_ready'; result: CognitiveResult }
+  | { type: 'task_planned'; step_count: number }
+  | { type: 'subtask_waiting'; subtask_id: string; depends_on: string[] }
+  | { type: 'subtask_started'; subtask_id: string; provider_id: string }
+  | { type: 'subtask_completed'; subtask_id: string; provider_id: string }
+  | { type: 'subtask_retry'; subtask_id: string; provider_id: string; reason_code: string }
+  | { type: 'subtask_output_observed'; subtask_id: string; provider_id: string }
+  | { type: 'subtask_failed'; subtask_id: string; provider_id: string | null; error_code: string }
+  | { type: 'task_graph_result_ready'; result: TaskGraphResult }
 )

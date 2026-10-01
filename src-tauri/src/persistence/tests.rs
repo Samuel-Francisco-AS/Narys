@@ -49,7 +49,7 @@ fn migration_empty_and_twice() {
     let v: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(v, 10);
+    assert_eq!(v, 11);
     assert_sqlite_integrity(&conn);
     drop(conn);
     assert_sqlite_integrity(&db.open().unwrap());
@@ -69,7 +69,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 10);
+    assert_eq!(version, 11);
     let title: String = conn
         .query_row(
             "SELECT title FROM conversation_sessions WHERE id=1",
@@ -104,6 +104,13 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
                 Some("low".into()),
                 Some(1024),
                 1
+            ),
+            (
+                "worker".into(),
+                "openai/gpt-oss-20b".into(),
+                Some("low".into()),
+                Some(4096),
+                4
             )
         ]
     );
@@ -112,7 +119,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
         conn.query_row("SELECT COUNT(*) FROM cognitive_role_policies", [], |r| r
             .get::<_, i64>(0))
             .unwrap(),
-        3
+        4
     );
     assert_sqlite_integrity(&conn);
 }
@@ -1116,7 +1123,7 @@ fn migration_004_preserves_v3_policy_and_seeds_advanced_defaults() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 10);
+    assert_eq!(version, 11);
     let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
     assert_eq!(conversation.targets[0].model, "gemini-custom");
@@ -1226,7 +1233,7 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 10);
+    assert_eq!(version, 11);
     assert_eq!(super::general_settings::load(&conn).unwrap().active_fps, 45);
     assert_eq!(
         crate::cognition::policy::load(
@@ -1265,7 +1272,7 @@ fn migration_006_preserves_fixed_behavior_and_seeds_groq_fallback_config() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 10);
+    assert_eq!(version, 11);
     let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
     assert_eq!(conversation.targets[0].model, "gemini-custom");
@@ -1303,7 +1310,7 @@ fn migration_007_preserves_v6_policy_and_gemini_timeout() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        10
+        11
     );
     let before = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();

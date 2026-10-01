@@ -1,8 +1,9 @@
 use super::{
     registry::ProviderRegistry,
     types::{
-        ProviderChunk, ProviderError, ProviderRequest, ProviderSelection, ProviderTaskRequest,
-        RetryPolicy, SchedulerError, SchedulerUsage, TaskBudget, TaskResult,
+        ProviderCapabilities, ProviderChunk, ProviderError, ProviderRequest, ProviderSelection,
+        ProviderTarget, ProviderTaskRequest, RetryPolicy, SchedulerError, SchedulerUsage,
+        TaskBudget, TaskResult,
     },
 };
 use serde::Serialize;
@@ -141,6 +142,50 @@ impl Scheduler {
             })
             .collect()
     }
+    pub fn ranked_provider_ids(
+        &self,
+        selection: &ProviderSelection,
+        targets: &[ProviderTarget],
+        required: &ProviderCapabilities,
+    ) -> Result<Vec<String>, SchedulerError> {
+        if targets.is_empty() || targets.len() > super::policy::MAX_TARGETS {
+            return Err(SchedulerError::InvalidTargetConfig);
+        }
+        let mut ids = HashSet::new();
+        let mut ranked = Vec::new();
+        for (ordinal, target) in targets.iter().enumerate() {
+            if !target.invocation.valid() || !ids.insert(&target.provider_id) {
+                return Err(SchedulerError::InvalidTargetConfig);
+            }
+            if let ProviderSelection::Fixed(id) = selection {
+                if &target.provider_id != id {
+                    continue;
+                }
+            }
+            let entry = self
+                .registry
+                .get(&target.provider_id)
+                .ok_or(SchedulerError::NoProvider)?;
+            if !entry.config.enabled
+                || !entry.config.capabilities.supports(required)
+                || self.cooling(&entry.config.id)
+            {
+                continue;
+            }
+            let (score, _) = auto_score(targets.len(), ordinal, entry.config.priority, false, 0);
+            ranked.push((entry.config.id.clone(), ordinal, score));
+        }
+        if matches!(selection, ProviderSelection::Auto) {
+            ranked.sort_by(|a, b| b.2.cmp(&a.2).then(a.1.cmp(&b.1)).then(a.0.cmp(&b.0)));
+        }
+        let result: Vec<_> = ranked.into_iter().map(|item| item.0).collect();
+        if result.is_empty() {
+            Err(SchedulerError::NoProvider)
+        } else {
+            Ok(result)
+        }
+    }
+
     pub async fn run(
         &self,
         request: ProviderTaskRequest,
@@ -551,5 +596,71 @@ mod tests {
     fn affinity_score_is_bounded_even_for_maximum_context_size() {
         assert_eq!(auto_score(8, 7, u16::MAX, true, usize::MAX), (600, 500));
         assert_eq!(auto_score(2, 1, 32, true, 0), (100, 0));
+    }
+
+    #[test]
+    fn task_graph_ranking_respects_authorized_order_fixed_and_auto() {
+        use crate::cognition::{
+            mock::{MockProvider, MockScenario},
+            types::{ProviderConfig, ProviderInvocationConfig, ProviderTimeouts},
+        };
+        let mut registry = ProviderRegistry::default();
+        for (id, priority) in [("a", 10), ("b", 1), ("c", 20)] {
+            registry
+                .register(
+                    ProviderConfig {
+                        id: id.into(),
+                        enabled: true,
+                        priority,
+                        capabilities: ProviderCapabilities::text_stream(),
+                    },
+                    std::sync::Arc::new(MockProvider::new(MockScenario::Normal)),
+                )
+                .unwrap();
+        }
+        let scheduler = Scheduler::new(registry);
+        let target = |id: &str| ProviderTarget {
+            provider_id: id.into(),
+            invocation: ProviderInvocationConfig {
+                model: format!("{id}-model"),
+                thinking_level: None,
+                timeouts: Some(ProviderTimeouts {
+                    request_timeout_ms: 1000,
+                    stream_idle_timeout_ms: 1000,
+                }),
+            },
+        };
+        let targets = vec![target("a"), target("b"), target("c")];
+        assert_eq!(
+            scheduler
+                .ranked_provider_ids(
+                    &ProviderSelection::Preferred,
+                    &targets,
+                    &ProviderCapabilities::text_stream(),
+                )
+                .unwrap(),
+            vec!["a", "b", "c"]
+        );
+        assert_eq!(
+            scheduler
+                .ranked_provider_ids(
+                    &ProviderSelection::Fixed("b".into()),
+                    &targets,
+                    &ProviderCapabilities::text_stream(),
+                )
+                .unwrap(),
+            vec!["b"]
+        );
+        // Policy position is intentionally stronger than registry priority.
+        assert_eq!(
+            scheduler
+                .ranked_provider_ids(
+                    &ProviderSelection::Auto,
+                    &targets,
+                    &ProviderCapabilities::text_stream(),
+                )
+                .unwrap(),
+            vec!["a", "b", "c"]
+        );
     }
 }

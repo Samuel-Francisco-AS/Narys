@@ -115,7 +115,7 @@ fn task_summary(state: TaskState) -> String {
     }
 }
 
-fn static_context() -> ContextBundle {
+pub(crate) fn technical_context() -> ContextBundle {
     let identity: IdentityInput = serde_json::from_value(serde_json::json!({
       "version":"orchestrator-internal","canonicalName":"Luna","presentation":"neutral",
       "primaryLanguage":"pt-BR","concept":"planning","traits":{},"behavioralInvariants":[],
@@ -155,7 +155,7 @@ fn request(
     ProviderTaskRequest {
         input,
         history: vec![],
-        context: Arc::new(static_context()),
+        context: Arc::new(technical_context()),
         max_output_tokens: policy.max_output_tokens,
         selection: policy.selection(),
         targets: policy
