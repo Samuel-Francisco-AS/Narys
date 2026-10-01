@@ -300,11 +300,25 @@ impl SecretStore {
         })
     }
     pub fn get_secret(&self, key: SecretKey) -> Result<Option<Vec<u8>>, SecretError> {
+        Ok(self.get_secrets(&[key])?.remove(&key).flatten())
+    }
+    /// Reads all requested values from one Stronghold snapshot and one client.
+    /// This remains an internal Rust API; callers must not expose the returned values.
+    pub fn get_secrets(
+        &self,
+        keys: &[SecretKey],
+    ) -> Result<HashMap<SecretKey, Option<Vec<u8>>>, SecretError> {
         self.with_client(false, |_, client| {
-            client
-                .store()
-                .get(key.bytes())
-                .map_err(|_| SecretError::Store)
+            keys.iter()
+                .copied()
+                .map(|key| {
+                    client
+                        .store()
+                        .get(key.bytes())
+                        .map(|value| (key, value))
+                        .map_err(|_| SecretError::Store)
+                })
+                .collect()
         })
     }
     /// Presence only. One serialized vault operation for all unique requested keys;
@@ -338,11 +352,29 @@ impl SecretStore {
     }
 
     pub fn delete_secret(&self, key: SecretKey) -> Result<(), SecretError> {
+        self.delete_secrets(&[key])
+    }
+    /// Mutates a set of secrets in one Stronghold transaction.
+    pub fn set_secrets(&self, values: &[(SecretKey, Vec<u8>)]) -> Result<(), SecretError> {
         self.with_client(true, |_, client| {
-            client
-                .store()
-                .delete(key.bytes())
-                .map_err(|_| SecretError::Store)?;
+            for (key, value) in values {
+                client
+                    .store()
+                    .insert(key.bytes().to_vec(), value.clone(), None)
+                    .map_err(|_| SecretError::Store)?;
+            }
+            Ok(())
+        })
+    }
+    /// Deletes a set of secrets in one Stronghold transaction.
+    pub fn delete_secrets(&self, keys: &[SecretKey]) -> Result<(), SecretError> {
+        self.with_client(true, |_, client| {
+            for key in keys {
+                client
+                    .store()
+                    .delete(key.bytes())
+                    .map_err(|_| SecretError::Store)?;
+            }
             Ok(())
         })
     }
@@ -672,6 +704,53 @@ mod tests {
         assert!(store.secret_presence(&[]).unwrap().is_empty());
         assert_eq!(keys.loads.load(Ordering::SeqCst), 0);
         assert_eq!(store.counts.locks.load(Ordering::SeqCst), 0);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn value_batch_and_cloudflare_mutations_use_one_snapshot_operation() {
+        let (dir, keys) = fixture();
+        let store = SecretStore::with_key_store(dir.clone(), keys.clone());
+        store
+            .set_secrets(&[
+                (SecretKey::CloudflareApiToken, b"synthetic-token".to_vec()),
+                (
+                    SecretKey::CloudflareAccountId,
+                    b"synthetic-account".to_vec(),
+                ),
+            ])
+            .unwrap();
+        reset_counts(&store, &keys);
+        let values = store
+            .get_secrets(&[
+                SecretKey::CloudflareApiToken,
+                SecretKey::CloudflareAccountId,
+            ])
+            .unwrap();
+        assert_eq!(
+            values[&SecretKey::CloudflareApiToken],
+            Some(b"synthetic-token".to_vec())
+        );
+        assert_eq!(
+            values[&SecretKey::CloudflareAccountId],
+            Some(b"synthetic-account".to_vec())
+        );
+        assert_eq!(store.counts.opens.load(Ordering::SeqCst), 1);
+        assert_eq!(store.counts.locks.load(Ordering::SeqCst), 1);
+        reset_counts(&store, &keys);
+        store
+            .delete_secrets(&[
+                SecretKey::CloudflareApiToken,
+                SecretKey::CloudflareAccountId,
+            ])
+            .unwrap();
+        let presence = store
+            .secret_presence(&[
+                SecretKey::CloudflareApiToken,
+                SecretKey::CloudflareAccountId,
+            ])
+            .unwrap();
+        assert!(!presence.values().any(|present| *present));
         fs::remove_dir_all(dir).unwrap();
     }
 

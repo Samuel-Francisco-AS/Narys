@@ -1,5 +1,5 @@
 use reqwest::{
-    header::{HeaderMap, HeaderValue, AUTHORIZATION, RETRY_AFTER},
+    header::{HeaderMap, HeaderValue, AUTHORIZATION},
     Client, StatusCode,
 };
 use serde_json::{json, Value};
@@ -8,12 +8,13 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, RwLock,
     },
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
 use super::{
     policy::ThinkingLevel,
     provider::{Provider, ProviderFuture},
+    transport::{cancellation, network_error, retry_after_ms},
     types::{
         ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse,
         ProviderRole, ProviderTimeouts, ProviderUsage,
@@ -99,10 +100,9 @@ impl MinimalOutboundContext {
           "messages": messages,
           "stream": true,
           "stream_options": {"include_usage": true},
-          "include_reasoning": false
         });
         if let Some(limit) = request.max_output_tokens {
-            payload["max_completion_tokens"] = json!(limit);
+            payload["max_tokens"] = json!(limit);
         }
         if let Some(level) = request.target.invocation.thinking_level {
             payload["reasoning_effort"] = json!(match level {
@@ -170,34 +170,6 @@ fn valid_model(model: &str) -> bool {
         && model
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'.' | b'_' | b'-'))
-}
-
-fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
-    const MAX_RETRY_AFTER_MS: u64 = 7 * 24 * 60 * 60 * 1000;
-    let value = headers.get(RETRY_AFTER)?.to_str().ok()?;
-    if let Ok(seconds) = value.parse::<u64>() {
-        return Some(seconds.saturating_mul(1000).min(MAX_RETRY_AFTER_MS));
-    }
-    httpdate::parse_http_date(value)
-        .ok()
-        .and_then(|date| date.duration_since(SystemTime::now()).ok())
-        .map(|duration| duration.as_millis().min(MAX_RETRY_AFTER_MS as u128) as u64)
-}
-
-fn network_error(error: &reqwest::Error) -> ProviderError {
-    if error.is_timeout() {
-        ProviderError::Timeout
-    } else {
-        ProviderError::Unavailable {
-            retry_after_ms: None,
-        }
-    }
-}
-
-async fn cancellation(cancelled: &AtomicBool) {
-    while !cancelled.load(Ordering::Acquire) {
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
 }
 
 impl Provider for MistralProvider {
@@ -348,12 +320,35 @@ impl SseParser {
             return Err(ProviderError::Protocol);
         }
         let mut events = Vec::new();
-        if let Some(content) = value
-            .pointer("/choices/0/delta/content")
-            .and_then(Value::as_str)
-        {
-            if !content.is_empty() {
-                events.push(StreamEvent::Text(content.to_owned()));
+        if let Some(content) = value.pointer("/choices/0/delta/content") {
+            match content {
+                Value::String(text) if !text.is_empty() => {
+                    events.push(StreamEvent::Text(text.clone()));
+                }
+                Value::String(_) => {}
+                Value::Array(chunks) => {
+                    for chunk in chunks {
+                        let object = chunk.as_object().ok_or(ProviderError::Protocol)?;
+                        match object.get("type").and_then(Value::as_str) {
+                            Some("thinking") => {
+                                if object.get("thinking").and_then(Value::as_str).is_none() {
+                                    return Err(ProviderError::Protocol);
+                                }
+                            }
+                            Some("text") => {
+                                let text = object
+                                    .get("text")
+                                    .and_then(Value::as_str)
+                                    .ok_or(ProviderError::Protocol)?;
+                                if !text.is_empty() {
+                                    events.push(StreamEvent::Text(text.to_owned()));
+                                }
+                            }
+                            _ => return Err(ProviderError::Protocol),
+                        }
+                    }
+                }
+                _ => return Err(ProviderError::Protocol),
             }
         }
         if let Some(raw_usage) = value.get("usage").filter(|usage| !usage.is_null()) {
@@ -411,6 +406,90 @@ mod tests {
         assert_eq!(events[0], StreamEvent::Text("Olá".into()));
         assert_eq!(events[1], StreamEvent::Ignore);
         assert_eq!(events[2], StreamEvent::Done);
+    }
+
+    #[test]
+    fn typed_reasoning_content_emits_only_text_and_supports_string_transition() {
+        let mut parser = SseParser::default();
+        let events = parser
+            .push(b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\",\"thinking\":\"private\"},{\"type\":\"text\",\"text\":\"visible\"}]}}]}\n\n")
+            .unwrap();
+        assert_eq!(events, vec![StreamEvent::Text("visible".into())]);
+        let events = parser
+            .push(b"data: {\"choices\":[{\"delta\":{\"content\":\" continuation\"}}]}\n\n")
+            .unwrap();
+        assert_eq!(events, vec![StreamEvent::Text(" continuation".into())]);
+        assert!(!format!("{events:?}").contains("private"));
+    }
+
+    #[test]
+    fn malformed_typed_content_fails_closed() {
+        let mut parser = SseParser::default();
+        assert_eq!(
+            parser.push(
+                b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"thinking\"}]}}]}\n\n"
+            ),
+            Err(ProviderError::Protocol)
+        );
+        let mut parser = SseParser::default();
+        assert_eq!(
+            parser.push(b"data: {\"choices\":[{\"delta\":{\"content\":[{\"type\":\"unknown\",\"text\":\"x\"}]}}]}\n\n"),
+            Err(ProviderError::Protocol)
+        );
+    }
+
+    #[test]
+    fn payload_uses_mistral_contract_without_unknown_reasoning_field() {
+        let context = ContextBundle {
+            identity: serde_json::from_value(serde_json::json!({
+                "version":"v1","canonicalName":"Synthetic","presentation":"neutral",
+                "primaryLanguage":"pt-BR","concept":"test","traits":{"curiosity":"high"},
+                "behavioralInvariants":["be_clear"],"modes":{"test":{"priority":"test","tone":"calm"}},
+                "relationship":{"primaryPersonName":"Tester","relationModes":["testing"],
+                  "affectionStyle":{"warm":false,"provocative":false,"playfulJealousy":false,
+                    "playfulTerritoriality":false,"coercion":false,"isolation":false,
+                    "emotionalBlackmail":false},
+                  "interactionPreferences":{"wantsRealDisagreement":true,
+                    "wantsLunaToProposeDirectionsDuringStructuring":false,
+                    "prefersLinearFlowDuringImplementation":true}},
+                "memoryPolicy":{"retrieval":"selective","history":"versioned",
+                  "continuity":"revisable","storePrivateChainOfThought":false},
+                "provenance":"synthetic","effectiveFrom":"2026-01-01"
+            })).unwrap(),
+            relevant_memories: vec![],
+            recent_messages: vec![],
+            metadata: super::super::types::ContextMetadata {
+                identity_version: "v1".into(),
+                memory_count: 0,
+                recent_message_count: 0,
+            },
+        };
+        let request = ProviderRequest {
+            input: "hello".into(),
+            history: vec![],
+            context: std::sync::Arc::new(context),
+            max_output_tokens: Some(321),
+            target: super::super::types::ProviderTarget {
+                provider_id: "mistral".into(),
+                invocation: super::super::types::ProviderInvocationConfig {
+                    model: "custom-model".into(),
+                    thinking_level: Some(ThinkingLevel::High),
+                    timeouts: None,
+                },
+            },
+            attempt: 0,
+        };
+        let payload = MinimalOutboundContext {
+            system_instruction: "test".into(),
+        }
+        .payload(&request)
+        .unwrap();
+        assert_eq!(payload["max_tokens"], 321);
+        assert_eq!(payload["reasoning_effort"], "high");
+        assert!(payload.get("include_reasoning").is_none());
+        assert!(payload.get("max_completion_tokens").is_none());
+        assert_eq!(payload["stream"], true);
+        assert_eq!(payload["stream_options"]["include_usage"], true);
     }
 
     #[test]

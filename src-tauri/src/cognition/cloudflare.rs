@@ -1,5 +1,5 @@
 use reqwest::{
-    header::{HeaderMap, HeaderValue, AUTHORIZATION, RETRY_AFTER},
+    header::{HeaderMap, HeaderValue, AUTHORIZATION},
     Client, StatusCode,
 };
 use serde_json::{json, Value};
@@ -8,12 +8,12 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, RwLock,
     },
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
 use super::{
-    policy::ThinkingLevel,
     provider::{Provider, ProviderFuture},
+    transport::{cancellation, network_error, retry_after_ms},
     types::{
         ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse,
         ProviderRole, ProviderTimeouts, ProviderUsage,
@@ -98,18 +98,10 @@ impl MinimalOutboundContext {
           "model": model,
           "messages": messages,
           "stream": true,
-          "stream_options": {"include_usage": true},
-          "include_reasoning": false
+          "stream_options": {"include_usage": true}
         });
         if let Some(limit) = request.max_output_tokens {
             payload["max_completion_tokens"] = json!(limit);
-        }
-        if let Some(level) = request.target.invocation.thinking_level {
-            payload["reasoning_effort"] = json!(match level {
-                ThinkingLevel::Low => "low",
-                ThinkingLevel::Medium => "medium",
-                ThinkingLevel::High => "high",
-            });
         }
         Ok(payload)
     }
@@ -146,7 +138,28 @@ impl CloudflareProvider {
         self.timeouts.clone()
     }
 
-    fn classify(status: StatusCode, headers: &HeaderMap) -> ProviderError {
+    fn classify(status: StatusCode, headers: &HeaderMap, body: &[u8]) -> ProviderError {
+        let code = serde_json::from_slice::<Value>(body)
+            .ok()
+            .and_then(|value| {
+                value
+                    .pointer("/errors/0/code")
+                    .or_else(|| value.pointer("/error/code"))
+                    .and_then(|code| {
+                        code.as_u64()
+                            .map(|value| value.to_string())
+                            .or_else(|| code.as_str().map(str::to_owned))
+                    })
+            });
+        match code.as_deref() {
+            Some("3036") | Some("5035") => return ProviderError::QuotaExceeded,
+            Some("3040") => {
+                return ProviderError::Unavailable {
+                    retry_after_ms: retry_after_ms(headers),
+                }
+            }
+            _ => {}
+        }
         match status.as_u16() {
             400 | 404 | 413 | 422 => ProviderError::InvalidRequest,
             401 | 403 => ProviderError::Authentication,
@@ -172,34 +185,6 @@ fn valid_model(model: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'.' | b'_' | b'-' | b'@'))
 }
 
-fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
-    const MAX_RETRY_AFTER_MS: u64 = 7 * 24 * 60 * 60 * 1000;
-    let value = headers.get(RETRY_AFTER)?.to_str().ok()?;
-    if let Ok(seconds) = value.parse::<u64>() {
-        return Some(seconds.saturating_mul(1000).min(MAX_RETRY_AFTER_MS));
-    }
-    httpdate::parse_http_date(value)
-        .ok()
-        .and_then(|date| date.duration_since(SystemTime::now()).ok())
-        .map(|duration| duration.as_millis().min(MAX_RETRY_AFTER_MS as u128) as u64)
-}
-
-fn network_error(error: &reqwest::Error) -> ProviderError {
-    if error.is_timeout() {
-        ProviderError::Timeout
-    } else {
-        ProviderError::Unavailable {
-            retry_after_ms: None,
-        }
-    }
-}
-
-async fn cancellation(cancelled: &AtomicBool) {
-    while !cancelled.load(Ordering::Acquire) {
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-}
-
 impl Provider for CloudflareProvider {
     fn execute<'a>(
         &'a self,
@@ -218,21 +203,23 @@ impl Provider for CloudflareProvider {
                 return Err(ProviderError::InvalidRequest);
             }
             let secrets = self.secrets.clone();
-            let key = tokio::select! {
+            let credentials = tokio::select! {
               _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
-              result = tauri::async_runtime::spawn_blocking(move || secrets.get_secret(SecretKey::CloudflareApiToken)) =>
+              result = tauri::async_runtime::spawn_blocking(move || secrets.get_secrets(&[
+                  SecretKey::CloudflareApiToken,
+                  SecretKey::CloudflareAccountId,
+              ])) =>
                 result.map_err(|_| ProviderError::Unavailable { retry_after_ms: None })?
                   .map_err(|_| ProviderError::Unavailable { retry_after_ms: None })?
-                  .ok_or(ProviderError::Authentication)?,
             };
-            let account_secrets = self.secrets.clone();
-            let account_id = tokio::select! {
-              _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
-              result = tauri::async_runtime::spawn_blocking(move || account_secrets.get_secret(SecretKey::CloudflareAccountId)) =>
-                result.map_err(|_| ProviderError::Unavailable { retry_after_ms: None })?
-                  .map_err(|_| ProviderError::Unavailable { retry_after_ms: None })?
-                  .ok_or(ProviderError::Authentication)?,
-            };
+            let key = credentials
+                .get(&SecretKey::CloudflareApiToken)
+                .and_then(Option::as_ref)
+                .ok_or(ProviderError::Authentication)?;
+            let account_id = credentials
+                .get(&SecretKey::CloudflareAccountId)
+                .and_then(Option::as_ref)
+                .ok_or(ProviderError::Authentication)?;
             let account_id =
                 std::str::from_utf8(&account_id).map_err(|_| ProviderError::Authentication)?;
             if account_id.is_empty()
@@ -272,7 +259,24 @@ impl Provider for CloudflareProvider {
               result = send => result.map_err(|error| network_error(&error))?,
             };
             if !response.status().is_success() {
-                return Err(Self::classify(response.status(), response.headers()));
+                const MAX_ERROR_BODY: usize = 64 * 1024;
+                let status = response.status();
+                let headers = response.headers().clone();
+                let mut body = Vec::new();
+                while let Some(chunk) =
+                    response
+                        .chunk()
+                        .await
+                        .map_err(|_| ProviderError::Unavailable {
+                            retry_after_ms: retry_after_ms(&headers),
+                        })?
+                {
+                    if body.len().saturating_add(chunk.len()) > MAX_ERROR_BODY {
+                        break;
+                    }
+                    body.extend_from_slice(&chunk);
+                }
+                return Err(Self::classify(status, &headers, &body));
             }
 
             let mut parser = SseParser::default();
@@ -415,7 +419,7 @@ mod tests {
         assert!(valid_model(MODEL));
         assert!(!valid_model("cloudflare small"));
         assert!(
-            !CloudflareProvider::classify(StatusCode::UNAUTHORIZED, &HeaderMap::new())
+            !CloudflareProvider::classify(StatusCode::UNAUTHORIZED, &HeaderMap::new(), b"")
                 .eq(&ProviderError::Fatal)
         );
     }
@@ -470,20 +474,50 @@ mod tests {
             Err(ProviderError::Protocol)
         );
         assert_eq!(
-            CloudflareProvider::classify(StatusCode::TOO_MANY_REQUESTS, &HeaderMap::new()),
+            CloudflareProvider::classify(StatusCode::TOO_MANY_REQUESTS, &HeaderMap::new(), b""),
             ProviderError::RateLimited {
                 retry_after_ms: None
             }
         );
         assert_eq!(
-            CloudflareProvider::classify(StatusCode::INTERNAL_SERVER_ERROR, &HeaderMap::new()),
+            CloudflareProvider::classify(StatusCode::INTERNAL_SERVER_ERROR, &HeaderMap::new(), b""),
             ProviderError::Unavailable {
                 retry_after_ms: None
             }
         );
         assert_eq!(
-            CloudflareProvider::classify(StatusCode::FORBIDDEN, &HeaderMap::new()),
+            CloudflareProvider::classify(StatusCode::FORBIDDEN, &HeaderMap::new(), b""),
             ProviderError::Authentication
+        );
+        assert_eq!(
+            CloudflareProvider::classify(
+                StatusCode::TOO_MANY_REQUESTS,
+                &HeaderMap::new(),
+                br#"{"errors":[{"code":3036}]}"#,
+            ),
+            ProviderError::QuotaExceeded
+        );
+        assert_eq!(
+            CloudflareProvider::classify(
+                StatusCode::TOO_MANY_REQUESTS,
+                &HeaderMap::new(),
+                br#"{"errors":[{"code":3040}]}"#,
+            ),
+            ProviderError::Unavailable {
+                retry_after_ms: None
+            }
+        );
+        assert_eq!(
+            CloudflareProvider::classify(
+                StatusCode::FORBIDDEN,
+                &HeaderMap::new(),
+                br#"{"errors":[{"code":5035}]}"#,
+            ),
+            ProviderError::QuotaExceeded
+        );
+        assert_eq!(
+            CloudflareProvider::classify(StatusCode::REQUEST_TIMEOUT, &HeaderMap::new(), b""),
+            ProviderError::Timeout
         );
     }
 }

@@ -1,5 +1,5 @@
 use reqwest::{
-    header::{HeaderMap, HeaderValue, AUTHORIZATION, RETRY_AFTER},
+    header::{HeaderMap, HeaderValue, AUTHORIZATION},
     Client, StatusCode,
 };
 use serde_json::{json, Value};
@@ -8,12 +8,13 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, RwLock,
     },
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
 use super::{
     policy::ThinkingLevel,
     provider::{Provider, ProviderFuture},
+    transport::{cancellation, network_error, retry_after_ms},
     types::{
         ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse,
         ProviderRole, ProviderTimeouts, ProviderUsage,
@@ -170,34 +171,6 @@ fn valid_model(model: &str) -> bool {
         && model
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'.' | b'_' | b'-'))
-}
-
-fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
-    const MAX_RETRY_AFTER_MS: u64 = 7 * 24 * 60 * 60 * 1000;
-    let value = headers.get(RETRY_AFTER)?.to_str().ok()?;
-    if let Ok(seconds) = value.parse::<u64>() {
-        return Some(seconds.saturating_mul(1000).min(MAX_RETRY_AFTER_MS));
-    }
-    httpdate::parse_http_date(value)
-        .ok()
-        .and_then(|date| date.duration_since(SystemTime::now()).ok())
-        .map(|duration| duration.as_millis().min(MAX_RETRY_AFTER_MS as u128) as u64)
-}
-
-fn network_error(error: &reqwest::Error) -> ProviderError {
-    if error.is_timeout() {
-        ProviderError::Timeout
-    } else {
-        ProviderError::Unavailable {
-            retry_after_ms: None,
-        }
-    }
-}
-
-async fn cancellation(cancelled: &AtomicBool) {
-    while !cancelled.load(Ordering::Acquire) {
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
 }
 
 impl Provider for GroqProvider {
@@ -383,6 +356,7 @@ fn token_field(usage: &Value, name: &str) -> Result<u32, ProviderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reqwest::header::RETRY_AFTER;
     use crate::{
         cognition::{
             registry::ProviderRegistry,

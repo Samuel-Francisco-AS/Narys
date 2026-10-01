@@ -1,6 +1,6 @@
 # LR-7D2.5 — provider redundancy + Gemini de-risking
 
-Estado: **PLANEJAMENTO REVALIDADO E FECHADO EM 01/10/2026; implementação ainda não iniciada.**
+Estado: **FIX DE HARDENING IMPLEMENTADA NA BRANCH; aguardando gate humano, sem merge na main.**
 Posição no roadmap: **LR-7D2 → LR-7D2.5 → LR-7D3**.
 Branch de implementação: `lr-7d25-provider-redundancy`.
 
@@ -401,10 +401,40 @@ conteúdo sintético até a confirmação explícita do opt-out de
 training/improvement. Esta branch não executou chamadas externas e não afirma
 Zero Data Retention.
 
-Validação automatizada já executada nesta branch: `npm run typecheck`, `npm run
-build`, `cargo check`, `cargo test` (264 passaram, 2 ignorados), e `git diff
---check`. O build mantém apenas o warning preexistente de chunk JavaScript grande;
-os warnings Rust de dead code e testes existentes também permanecem conhecidos.
-Ainda dependem de validação posterior: rustfmt dos arquivos tocados,
-`cargo check --release`, auditoria independente, probes reais com credenciais,
-fallback externo real, restart real e experiência da UI.
+### FIX pós-auditoria independente
+
+A FIX removeu `include_reasoning` do payload Mistral, corrigiu
+`max_completion_tokens` para `max_tokens`, preservando `stream`,
+`stream_options.include_usage` e `reasoning_effort`. O parser Mistral agora aceita
+conteúdo typed com `thinking` e `text`, descarta integralmente reasoning, emite
+somente text, aceita a transição para string e falha fechado para typed chunks
+malformados. Os testes cobrem reasoning-only, fechamento de thinking com primeiro
+text, continuação string, usage, `[DONE]`, payload completo e ausência do texto
+privado no output público. Os níveis Low/Medium/High continuam anunciados porque
+essa semântica agora é suportada pelo adapter; reasoning nunca entra em
+`ProviderChunk`, `ProviderResponse`, histórico ou SQLite.
+
+Cloudflare não envia mais `include_reasoning` nem `reasoning_effort`. Erros HTTP
+leem no máximo 64 KiB, sem logging do corpo, e os códigos conhecidos são
+classificados bounded/fail-closed: 3036 como `QuotaExceeded`, 3040 como
+`Unavailable` elegível a retry/fallback, e 5035 como `QuotaExceeded`; 401/403
+autenticação permanecem `Authentication` quando não há código conhecido.
+Cloudflare agora lê token e Account ID por uma única operação `with_client(false,
+...)`, com um lock, uma abertura e uma snapshot. Set e delete usam uma única
+operação `with_client(true, ...)`, sem persistência parcial se a operação falhar.
+Nenhum valor é retornado por status/presence ou serializado.
+
+As primitivas realmente comuns de transporte foram extraídas para
+`cognition/transport.rs`: `Retry-After` bounded, classificação de erro de rede e
+espera cancelável. Payloads, autenticação, regras de modelo, semântica de erro e
+reasoning continuam específicas dos adapters. Scheduler, Gemini e Groq não
+receberam regra comercial nem mudança semântica intencional.
+
+Resultados reais dos gates desta FIX: `npm run typecheck` PASS, `npm run build`
+PASS, `cargo check --manifest-path src-tauri/Cargo.toml` PASS, `cargo test
+--manifest-path src-tauri/Cargo.toml` PASS (268 testes, 0 falhas, 2 ignorados),
+`cargo check --release --manifest-path src-tauri/Cargo.toml` PASS e `git diff
+--check` PASS. O build mantém somente o warning preexistente de chunk JavaScript
+grande; os warnings Rust de dead code/imports não são regressões desta FIX.
+Nenhuma chamada externa real foi feita pela suíte; o gate humano de
+Mistral/Cloudflare permanece separado. D3/LR-8 continuam fora de escopo.

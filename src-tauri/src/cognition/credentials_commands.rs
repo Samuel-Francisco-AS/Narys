@@ -133,8 +133,10 @@ pub async fn cloudflare_set_credentials(
     let account = account_id.as_bytes().to_vec();
     tauri::async_runtime::spawn_blocking(move || {
         write_store
-            .set_secret(SecretKey::CloudflareApiToken, &token)
-            .and_then(|_| write_store.set_secret(SecretKey::CloudflareAccountId, &account))
+            .set_secrets(&[
+                (SecretKey::CloudflareApiToken, token),
+                (SecretKey::CloudflareAccountId, account),
+            ])
             .map_err(|error| error.code())
     })
     .await
@@ -162,8 +164,10 @@ pub async fn cloudflare_delete_credentials(
     let write_store = store.clone();
     tauri::async_runtime::spawn_blocking(move || {
         write_store
-            .delete_secret(SecretKey::CloudflareApiToken)
-            .and_then(|_| write_store.delete_secret(SecretKey::CloudflareAccountId))
+            .delete_secrets(&[
+                SecretKey::CloudflareApiToken,
+                SecretKey::CloudflareAccountId,
+            ])
             .map_err(|error| error.code())
     })
     .await
