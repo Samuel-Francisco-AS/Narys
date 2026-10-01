@@ -27,7 +27,7 @@ adicionar, remover e mover targets; eventos mostram motivo e score. O Core
 mantém autoridade, parsers estritos e nenhuma execução de PlanV1/ferramentas.
 Veja [arquitetura, testes e fechamento](docs/LR-7D2-SMART-ROUTING.md).
 
-A próxima mini-trilha já está registrada: **LR-7D2.5 — provider redundancy + Gemini de-risking**. Ela começa somente depois do fechamento da D2, adiciona pelo menos dois Cognitive Providers reais além de Gemini/Groq e torna explícito que Gemini permanece suportado, mas não obrigatório. Candidatos iniciais: Mistral API direta e Cloudflare Workers AI. Veja [o plano da D2.5](docs/LR-7D2.5-PROVIDER-REDUNDANCY.md).
+**LR-7D2.5 — provider redundancy + Gemini de-risking foi encerrada em 01/10/2026.** Cloudflare Workers AI passou gate real em Conversation e Orchestrator/PlanV1; Mistral permaneceu integrada no código, mas seu gate operacional foi bloqueado pela exigência de upgrade da conta Free. Summary automático passou a ser opcional e pode ser desativado sem chamar provider. A futura substituição operacional de Mistral por OpenAI API paga está registrada como dívida. Veja [o fechamento da D2.5](docs/LR-7D2.5-PROVIDER-REDUNDANCY.md). **Próxima etapa: LR-7D3.**
 
 ## Direção arquitetural pós-M0
 
@@ -154,7 +154,7 @@ A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode 
 
 ### LR-7D — papéis cognitivos e roteamento configurável
 
-**LR-7D0 fechada em PASS completo em 29/09/2026 e LR-7D1 fechada em PASS completo em 30/09/2026.** Gemini e Groq podem ser escolhidos por configuração nos papéis suportados; o Orchestrator/Planner persistido produz `PlanV1` validado, é cancelável e não executa passos. LR-7D2 fallback chain/Auto/affinity fechou em PASS completo em 01/10/2026; a próxima mini-trilha é LR-7D2.5 para adicionar pelo menos dois providers reais e reduzir dependência operacional do Gemini; LR-7D3 task graph mínimo somente após a D2.5. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
+**LR-7D0 fechada em PASS completo em 29/09/2026 e LR-7D1 fechada em PASS completo em 30/09/2026.** Gemini e Groq podem ser escolhidos por configuração nos papéis suportados; o Orchestrator/Planner persistido produz `PlanV1` validado, é cancelável e não executa passos. LR-7D2 fallback chain/Auto/affinity fechou em PASS completo em 01/10/2026; LR-7D2.5 também foi encerrada em 01/10/2026 com Cloudflare real, Summary opcional e dívida formal de substituir a rota Mistral bloqueada por OpenAI API paga quando houver orçamento. A próxima etapa é LR-7D3 task graph mínimo. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
 
 ### LR-7D0.5A — descoberta segura do Codex
 
