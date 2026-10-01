@@ -96,9 +96,15 @@ pub(super) fn wait_at_gate(sessions: &CurrentRunSessions, after: bool) {
 struct Keys {
     key: Mutex<Option<Vec<u8>>>,
     gate: Mutex<Option<Arc<Gate>>>,
+    loads: std::sync::atomic::AtomicUsize,
+    unavailable: AtomicBool,
 }
 impl UnlockKeyStore for Keys {
     fn load(&self) -> Result<Option<Vec<u8>>, SecretError> {
+        self.loads.fetch_add(1, Ordering::SeqCst);
+        if self.unavailable.load(Ordering::SeqCst) {
+            return Err(SecretError::CredentialStoreUnavailable);
+        }
         let gate = self.gate.lock().unwrap().clone();
         if let Some(gate) = gate {
             gate.block();
@@ -660,4 +666,71 @@ fn cheap_invalid_input_is_rejected_before_registration() {
     assert!(f.registry.active.lock().unwrap().is_empty());
     assert!(!f.registry.has_foreground_provider_work());
     assert!(f.requests.lock().unwrap().is_empty());
+}
+
+#[test]
+fn routing_status_batches_presence_but_task_revalidates_after_credential_change() {
+    let f = Fixture::new(&[SecretKey::GeminiApiKey, SecretKey::GroqApiKey]);
+    f.configure(RoutingMode::Auto, &["gemini", "groq"]);
+    let mut statuses = f.runtime.scheduler.status();
+    statuses
+        .iter_mut()
+        .find(|status| status.id == "gemini")
+        .unwrap()
+        .cooldown_ms = 888;
+    f.keys.loads.store(0, Ordering::SeqCst);
+    let status = super::super::routing_status_from_backend(&f.db, &statuses, &f.store).unwrap();
+    assert_eq!(f.keys.loads.load(Ordering::SeqCst), 1);
+    let frontend = serde_json::to_value(status).unwrap();
+    assert_eq!(frontend["routingMode"], "auto");
+    assert_eq!(frontend["targets"][0]["providerId"], "gemini");
+    assert_eq!(frontend["targets"][1]["providerId"], "groq");
+    assert_eq!(frontend["targets"][0]["cooldownMs"], 888);
+    for target in frontend["targets"].as_array().unwrap() {
+        assert_eq!(target["configured"], true);
+        assert_eq!(target.as_object().unwrap().len(), 4);
+    }
+    assert!(!frontend.to_string().contains("synthetic-test-credential"));
+    f.store.delete_secret(SecretKey::GroqApiKey).unwrap();
+    f.keys.loads.store(0, Ordering::SeqCst);
+    let (id, receiver) = f.start(f.session, "input");
+    let events = f.collect(id, receiver, "failed");
+    assert_eq!(events.last().unwrap()["detail"], "provider_not_configured");
+    assert_eq!(f.keys.loads.load(Ordering::SeqCst), 1);
+    assert!(f.requests.lock().unwrap().is_empty());
+    f.no_exchange();
+    f.keys.loads.store(0, Ordering::SeqCst);
+    let frontend = serde_json::to_value(
+        super::super::routing_status_from_backend(&f.db, &statuses, &f.store).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(frontend["targets"][0]["configured"], true);
+    assert_eq!(frontend["targets"][1]["configured"], false);
+    assert_eq!(f.keys.loads.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn credential_batch_failure_never_selects_provider_and_status_is_fail_closed() {
+    let f = Fixture::new(&[SecretKey::GeminiApiKey, SecretKey::GroqApiKey]);
+    f.configure(RoutingMode::Preferred, &["gemini", "groq"]);
+    f.keys.unavailable.store(true, Ordering::SeqCst);
+    f.keys.loads.store(0, Ordering::SeqCst);
+    let status =
+        super::super::routing_status_from_backend(&f.db, &f.runtime.scheduler.status(), &f.store)
+            .unwrap();
+    let frontend = serde_json::to_value(status).unwrap();
+    assert!(frontend["targets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|target| target["configured"] == false));
+    assert_eq!(f.keys.loads.load(Ordering::SeqCst), 1);
+    f.keys.loads.store(0, Ordering::SeqCst);
+    let (id, receiver) = f.start(f.session, "input");
+    let events = f.collect(id, receiver, "failed");
+    assert_eq!(events.last().unwrap()["detail"], "provider_not_configured");
+    assert_eq!(events.len(), 2);
+    assert_eq!(f.keys.loads.load(Ordering::SeqCst), 1);
+    assert!(f.requests.lock().unwrap().is_empty());
+    f.no_exchange();
 }

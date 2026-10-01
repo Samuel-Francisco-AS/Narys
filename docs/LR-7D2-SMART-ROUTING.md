@@ -1,7 +1,8 @@
 # LR-7D2 — fallback chain + Auto/score + affinity
 
-Estado: **PASS técnico da auditoria / gate humano em andamento**. A FIX de
-responsividade abaixo precisa ser revalidada no gate real. Sem PASS completo.
+Estado: **PASS técnico da auditoria / gate humano em andamento**. Preferred,
+Auto/score/affinity e a FIX de responsividade passaram no gate humano. A nova
+FIX de latência local/batch aguarda medição real. Sem PASS completo.
 Base: `origin/main` confirmada após fetch em
 `965c17ae9bd989d4bad746c4987926f4264d23b6`, com LR-7D1 integrada pela PR #10.
 Branch dedicada: `lr-7d2-smart-routing`. Não há merge nesta entrega.
@@ -245,12 +246,115 @@ Preferred/fallback/Auto/affinity e histórico isolado. A suíte completa também
 continua cobrindo Summary/Orchestrator. Nenhuma credencial ou provider real é usado.
 Resultados dos gates no HEAD da FIX ficam na mesma PR #11. Os quatro arquivos
 Rust tocados na FIX foram formatados, incluindo gemini_commands.rs (o diff de
-formatação desse arquivo já apresentava drift na base). O gate global permanece
-com divergência preexistente em **26 arquivos intocados**.
+formatação desse arquivo já apresentava drift na base). Naquela entrega, o gate
+global permaneceu com divergência preexistente em **26 arquivos intocados**.
 
 Repetir o gate humano no início da Conversation: enviar em Preferred e Auto,
 observar a animação entre envio e ProviderSelected, registrar o preflight_ms no
 build debug e repetir na mesma sessão com affinity. Cancelar durante preflight:
 nenhuma chamada/resposta e um único terminal cancelled. Confirmar a rota e histórico
-após sucesso. **A ausência do freeze só será confirmada pelo novo gate humano**;
-testes automatizados não encerram esse finding nem a LR-7D2.
+após sucesso. **Resultado humano posterior: PASS da responsividade; o avatar permaneceu fluido**.
+Restart também confirmou affinity somente runtime. A LR-7D2 continua aberta pelo
+finding de latência local descrito abaixo.
+
+
+### FIX humana — latência de credenciais e presença batch
+
+Com o freeze resolvido, a aplicação real registrou `preflight_ms=6294` e `6341`
+antes da seleção do Scheduler. A decomposição adicionada **antes de otimizar**
+mede somente em debug: `session_policy_ms`, `credentials_ms`, `timeouts_ms`,
+`history_context_ms` e `preflight_total_ms`. O cofre mede `operation_wait_ms`,
+`key_store_load_ms`, `secret_unlock_ms`, `secret_open_client_ms`, `secret_lookup_ms`
+e, quando há migração, `snapshot_validation_ms`. Labels são fixos; não há input,
+histórico, memória, secrets, bytes de chave, payload ou caminhos privados nos logs.
+O agregado substitui a label anterior `preflight_ms`; timings internos se sobrepõem
+(por exemplo, open_client está contido em unlock) e não devem ser somados duas vezes.
+
+Na base, cada target provocava um get_secret independente. Além disso, unlock_key
+validava o snapshot com Stronghold::new/load_client e with_client abria/carregava
+novamente o mesmo snapshot/client. A medição local confirmou que essa repetição
+é cara; não atribui automaticamente os 6,3 s reais a um único backend.
+
+Comparação localizada com o mesmo teste
+`preferred_auto_affinity_and_session_history_use_the_same_scheduler_contract`,
+`--nocapture --test-threads=1`, quatro preflights de dois targets, keystore fake,
+snapshot Stronghold real local, mesmo perfil debug e sem rede/providers reais:
+
+| Etapa | Antes (ms) | Depois (ms) |
+| --- | --- | --- |
+| sessão/policy | 0–2 | 0–2 |
+| credenciais | 5737–5842 | 1394–1414 |
+| timeouts | <1 | <1 |
+| histórico/contexto | <1 | <1 |
+| preflight total | 5739–5845 | 1396–1416 |
+
+Antes, cada validação/abertura do snapshot levou aproximadamente 1,4–1,5 s;
+lookup e keystore fake ficaram abaixo de 1 ms. Depois houve uma abertura de
+aproximadamente 1,4 s por preflight. São medições sintéticas/localizadas, sem
+barreiras nesse teste: não comprovam latência do keyring real nem substituem a
+nova medição na aplicação Fedora. Cada rodada dirigida passou o teste.
+
+`SecretStore::secret_presence(&[SecretKey]) -> Result<HashMap<SecretKey, bool>, SecretError>`
+retorna somente presença. Deduplica keys, mantém uma aquisição do mutex por batch,
+desbloqueia uma vez e verifica todos os valores no mesmo client. Cada valor é
+descartado dentro da closure. O snapshot validado é reutilizado **somente na
+operação atual**; Stronghold/client/unlock key não são mantidos em campo/cache.
+O helper comum também evita reabrir esse client nas APIs existentes, preservando
+seus contratos e o consumo da unlock key pelo Stronghold.
+
+Com snapshot provisionado e sem legado, contagens por operação:
+
+| Caminho (dois providers) | Keystore antes → depois | Stronghold/client antes → depois |
+| --- | --- | --- |
+| preflight da policy | 2 → 1 | 4 → 1 |
+| conversation_routing_status | 2 → 1 | 4 → 1 |
+| get_ai_settings (availability + infos) | 4 → 1 | 8 → 1 |
+
+Status e task são operações independentes: o preflight posterior **reabre e
+revalida** o cofre. Nenhuma presença da UX é autoridade. Fixed continua válido;
+todos os targets de Preferred/Auto continuam obrigatórios; cooldown não invalida
+save. validate_policy_registered permanece intacto. Erros mantêm códigos públicos
+sanitizados, como provider_not_configured; o SecretStore preserva erros tipados,
+e debug registra apenas seu código sanitizado. Settings também obtém availability
+e configured do mesmo batch, sem devolver conteúdo de secrets.
+
+A leitura não chama write_client/save nem altera bytes do snapshot. Checks de
+arquivos, permissões, comprimento da unlock key, decriptação/load_client e
+migração permanecem. O first-run legítimo ainda provisiona/verifica a unlock key
+no keystore com dois loads e um store, constantes por batch; não grava snapshot
+vazio. Migração/cleanup de legado preserva validações independentes e pode exigir
+aberturas adicionais como antes. Batch vazio não faz I/O.
+
+`Couldn't get key from code: Quote` foi localizado no **tao 0.35.3**,
+`src/platform_impl/linux/keyboard.rs`, branch debug do mapeamento GTK de tecla
+lógica não identificada, que retorna None. A versão foi confirmada no Cargo.lock.
+Não é um erro de keyring, Secret Service/libsecret ou Stronghold; esse caminho
+não consulta o cofre. Não há medição que ligue esse log aos 6,3 s. Não foi feito
+parsing de stderr, silenciamento, workaround de teclado ou troca do armazenamento.
+
+Quatro testes novos de SecretStore cobrem booleanos/presente/ausente, duplicatas,
+contadores de lock/load/open/client/get, ausência de escrita do snapshot, batch
+vazio, first-run constante, keystore/snapshot/chave inválidos e concorrência.
+Dois novos testes de Conversation cobrem status correto para todos os targets,
+revalidação após remover credencial e erro batch sem seleção/chamada/persistência.
+A cobertura de catálogo foi ampliada para Fixed/Preferred/Auto com um load,
+credencial secundária ausente, cooldown, gates antes do I/O e Settings sem secrets.
+Os testes existentes de policy/model/thinking/timeouts, cancelamento, affinity,
+Summary/Orchestrator e migração continuam na suíte. Os contadores de abertura
+existem somente nos testes. Resultados finais ficam na mesma PR #11.
+
+Esta FIX não altera Scheduler, score, affinity, cooldown, Preferred/Auto,
+retry/backoff/timeout do Gemini, modelos, providers ou UI/3D. `timeout → retry →
+backoff 1500 ms → 503` é um finding separado e permanece inalterado. O custo de
+Snapshot/Stronghold nesta medição não inclui chamada ao provider.
+
+**Gate humano de latência pendente:** no Fedora, repetir envios Preferred/Auto,
+registrar a decomposição acima, observar continuidade/affinity e avatar fluido,
+abrir IA e modelos e verificar status corretos. Repetir com credencial secundária
+ausente: falha fechada, nenhuma chamada. Confirmar cancelamento durante preflight.
+Comparar com 6294/6341 ms somente após essa rodada real; a redução material local
+não autoriza declarar resolvida a latência real nem fechar a LR-7D2.
+
+O formatter foi aplicado apenas aos arquivos desta FIX. secrets.rs e settings.rs
+já tinham drift e agora são arquivos tocados; o gate global conserva drift
+preexistente em **24 arquivos intocados**, sem corrigir arquivos alheios.

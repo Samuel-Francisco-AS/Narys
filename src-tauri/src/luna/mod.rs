@@ -5,9 +5,10 @@ use std::sync::Arc;
 
 use crate::cognition::gemini_commands::CurrentRunSessions;
 use crate::cognition::policy::{self, CognitiveRole, RoutingMode};
+use crate::cognition::scheduler::ProviderStatus;
 use crate::cognition::ProviderRuntime;
 #[cfg(debug_assertions)]
-use crate::cognition::{scheduler::ProviderStatus, CognitionRuntime, DiagnosticScenario};
+use crate::cognition::{CognitionRuntime, DiagnosticScenario};
 use crate::persistence::database::Database;
 use crate::security::secrets::SecretStore;
 use serde::Serialize;
@@ -138,35 +139,49 @@ pub async fn conversation_routing_status(
     let store = store.inner().clone();
     let statuses = runtime.scheduler.status();
     tauri::async_runtime::spawn_blocking(move || {
-        let conn = db.open().map_err(|e| e.code().to_owned())?;
-        let policy =
-            policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code().to_owned())?;
-        crate::cognition::catalog::validate_policy_registered(&policy, &statuses)
-            .map_err(str::to_owned)?;
-        let state = |provider_id: &str| ConversationProviderState {
-            provider_id: provider_id.to_owned(),
-            display_name: crate::cognition::catalog::integration(provider_id)
-                .map(|item| item.display_name)
-                .unwrap_or(provider_id)
-                .to_owned(),
-            configured: crate::cognition::catalog::configured(store.as_ref(), provider_id),
-            cooldown_ms: statuses
-                .iter()
-                .find(|status| status.id == provider_id)
-                .map(|status| status.cooldown_ms)
-                .unwrap_or(0),
-        };
-        Ok(ConversationRoutingStatus {
-            routing_mode: policy.routing_mode,
-            targets: policy
-                .targets
-                .iter()
-                .map(|target| state(&target.provider_id))
-                .collect(),
-        })
+        routing_status_from_backend(&db, &statuses, &store)
     })
     .await
     .map_err(|_| "worker_failed".to_owned())?
+}
+
+fn routing_status_from_backend(
+    db: &Database,
+    statuses: &[ProviderStatus],
+    store: &SecretStore,
+) -> Result<ConversationRoutingStatus, String> {
+    let conn = db.open().map_err(|e| e.code().to_owned())?;
+    let policy =
+        policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code().to_owned())?;
+    crate::cognition::catalog::validate_policy_registered(&policy, statuses)
+        .map_err(str::to_owned)?;
+    let ids: Vec<_> = policy
+        .targets
+        .iter()
+        .map(|target| target.provider_id.as_str())
+        .collect();
+    // Informative UX only. The later task always revalidates its own backend snapshot.
+    let configured = crate::cognition::catalog::configured_many(store, &ids).unwrap_or_default();
+    Ok(ConversationRoutingStatus {
+        routing_mode: policy.routing_mode,
+        targets: policy
+            .targets
+            .iter()
+            .map(|target| ConversationProviderState {
+                provider_id: target.provider_id.clone(),
+                display_name: crate::cognition::catalog::integration(&target.provider_id)
+                    .map(|item| item.display_name)
+                    .unwrap_or(&target.provider_id)
+                    .to_owned(),
+                configured: configured.get(&target.provider_id) == Some(&true),
+                cooldown_ms: statuses
+                    .iter()
+                    .find(|status| status.id == target.provider_id)
+                    .map(|status| status.cooldown_ms)
+                    .unwrap_or(0),
+            })
+            .collect(),
+    })
 }
 
 #[tauri::command]

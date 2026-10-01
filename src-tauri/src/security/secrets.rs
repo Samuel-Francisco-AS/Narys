@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::{self, File},
     io::Read,
     path::{Path, PathBuf},
@@ -25,7 +26,7 @@ fn measured<T>(_stage: &'static str, operation: impl FnOnce() -> T) -> T {
     result
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum SecretKey {
     Lr3Test,
     GeminiApiKey,
@@ -112,10 +113,22 @@ impl UnlockKeyStore for SystemCredentialStore {
     }
 }
 
+type OpenedClient = (Stronghold, iota_stronghold::Client);
+#[cfg(test)]
+#[derive(Default)]
+struct OperationCounts {
+    locks: std::sync::atomic::AtomicUsize,
+    opens: std::sync::atomic::AtomicUsize,
+    loads: std::sync::atomic::AtomicUsize,
+    lookups: std::sync::atomic::AtomicUsize,
+}
+
 pub struct SecretStore {
     directory: PathBuf,
     keys: Arc<dyn UnlockKeyStore>,
     operation: Mutex<()>,
+    #[cfg(test)]
+    counts: OperationCounts,
 }
 impl SecretStore {
     pub fn new(directory: PathBuf) -> Self {
@@ -126,10 +139,12 @@ impl SecretStore {
             directory,
             keys,
             operation: Mutex::new(()),
+            #[cfg(test)]
+            counts: OperationCounts::default(),
         }
     }
 
-    fn unlock_key(&self) -> Result<Vec<u8>, SecretError> {
+    fn unlock_client(&self) -> Result<OpenedClient, SecretError> {
         fs::create_dir_all(&self.directory).map_err(|_| SecretError::Path)?;
         private_directory_permissions(&self.directory).map_err(|_| SecretError::Path)?;
         let legacy = self.directory.join(LEGACY_UNLOCK);
@@ -142,8 +157,13 @@ impl SecretStore {
         let stored = measured("key_store_load", || self.keys.load())?;
         if let Some(key) = stored {
             validate_key(&key)?;
+            // Ordinary reads reuse this validated client for the entire operation.
+            // No Stronghold/client/key survives with_client; this is not a cache.
+            if !legacy.exists() {
+                return self.open_client(&snapshot, key, snapshot.exists());
+            }
             if snapshot.exists() {
-                validate_snapshot(&snapshot, &key)?;
+                self.validate_snapshot(&snapshot, &key)?;
             }
             if legacy.exists() {
                 // The system store is authoritative. Remove an old file only after the
@@ -158,7 +178,7 @@ impl SecretStore {
                 }
                 remove_legacy(&legacy)?;
             }
-            return Ok(key);
+            return self.open_client(&snapshot, key, false);
         }
         if legacy.exists() {
             validate_legacy_permissions(&legacy)?;
@@ -170,21 +190,21 @@ impl SecretStore {
             if !snapshot.exists() {
                 return Err(SecretError::MissingUnlockKey);
             }
-            validate_snapshot(&snapshot, &key)?;
+            self.validate_snapshot(&snapshot, &key)?;
             self.keys.store(&key)?;
             let recovered = measured("key_store_load", || self.keys.load())?
                 .ok_or(SecretError::MissingUnlockKey)?;
             if recovered != key {
                 return Err(SecretError::InvalidUnlockKey);
             }
-            validate_snapshot(&snapshot, &recovered)?;
+            self.validate_snapshot(&snapshot, &recovered)?;
             remove_legacy(&legacy)?;
             crate::security::audit::AuditEvent::new(
                 crate::security::audit::Action::UnlockKeyMigrated,
                 crate::security::audit::Outcome::Succeeded,
             )
             .emit();
-            return Ok(recovered);
+            return self.open_client(&snapshot, recovered, false);
         }
         if snapshot.exists() {
             return Err(SecretError::MissingUnlockKey);
@@ -197,7 +217,48 @@ impl SecretStore {
         if recovered != key {
             return Err(SecretError::InvalidUnlockKey);
         }
-        Ok(recovered)
+        self.open_client(&snapshot, recovered, false)
+    }
+
+    fn open_client(
+        &self,
+        snapshot: &Path,
+        key: Vec<u8>,
+        validating: bool,
+    ) -> Result<OpenedClient, SecretError> {
+        measured("secret_open_client", || {
+            #[cfg(test)]
+            self.counts
+                .opens
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let stronghold = Stronghold::new(snapshot, key).map_err(|_| SecretError::Snapshot)?;
+            let client = if validating || snapshot.exists() {
+                #[cfg(test)]
+                self.counts
+                    .loads
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                stronghold.load_client(CLIENT).map_err(|_| {
+                    if validating {
+                        SecretError::Snapshot
+                    } else {
+                        SecretError::Client
+                    }
+                })?
+            } else {
+                stronghold
+                    .create_client(CLIENT)
+                    .map_err(|_| SecretError::Client)?
+            };
+            Ok((stronghold, client))
+        })
+    }
+
+    // Migration verification deliberately remains separate: the recovered system
+    // key must still be independently verified before removing a legacy file.
+    fn validate_snapshot(&self, snapshot: &Path, key: &[u8]) -> Result<(), SecretError> {
+        measured("snapshot_validation", || {
+            self.open_client(snapshot, key.to_vec(), true).map(|_| ())
+        })
     }
 
     fn with_client<T>(
@@ -207,21 +268,12 @@ impl SecretStore {
     ) -> Result<T, SecretError> {
         let _guard =
             measured("operation_wait", || self.operation.lock()).map_err(|_| SecretError::Lock)?;
+        #[cfg(test)]
+        self.counts
+            .locks
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let snapshot = self.directory.join(SNAPSHOT);
-        let key = measured("secret_unlock", || self.unlock_key())?;
-        let (stronghold, client) = measured("secret_open_client", || {
-            let stronghold = Stronghold::new(&snapshot, key).map_err(|_| SecretError::Snapshot)?;
-            let client = if snapshot.exists() {
-                stronghold
-                    .load_client(CLIENT)
-                    .map_err(|_| SecretError::Client)?
-            } else {
-                stronghold
-                    .create_client(CLIENT)
-                    .map_err(|_| SecretError::Client)?
-            };
-            Ok::<_, SecretError>((stronghold, client))
-        })?;
+        let (stronghold, client) = measured("secret_unlock", || self.unlock_client())?;
         let output = measured("secret_lookup", || operation(&stronghold, &client))?;
         if write {
             stronghold
@@ -249,6 +301,36 @@ impl SecretStore {
                 .map_err(|_| SecretError::Store)
         })
     }
+    /// Presence only. One serialized vault operation for all unique requested keys;
+    /// values are dropped inside the closure and never returned to callers.
+    pub fn secret_presence(
+        &self,
+        keys: &[SecretKey],
+    ) -> Result<HashMap<SecretKey, bool>, SecretError> {
+        if keys.is_empty() {
+            return Ok(HashMap::new());
+        }
+        self.with_client(false, |_, client| {
+            let mut presence = HashMap::new();
+            for key in keys {
+                if presence.contains_key(key) {
+                    continue;
+                }
+                #[cfg(test)]
+                self.counts
+                    .lookups
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let exists = client
+                    .store()
+                    .get(key.bytes())
+                    .map_err(|_| SecretError::Store)?
+                    .is_some();
+                presence.insert(*key, exists);
+            }
+            Ok(presence)
+        })
+    }
+
     pub fn delete_secret(&self, key: SecretKey) -> Result<(), SecretError> {
         self.with_client(true, |_, client| {
             client
@@ -268,16 +350,6 @@ fn validate_key(key: &[u8]) -> Result<(), SecretError> {
     } else {
         Err(SecretError::InvalidUnlockKey)
     }
-}
-fn validate_snapshot(snapshot: &Path, key: &[u8]) -> Result<(), SecretError> {
-    measured("snapshot_validation", || {
-        let stronghold =
-            Stronghold::new(snapshot, key.to_vec()).map_err(|_| SecretError::Snapshot)?;
-        stronghold
-            .load_client(CLIENT)
-            .map_err(|_| SecretError::Snapshot)?;
-        Ok(())
-    })
 }
 fn remove_legacy(path: &Path) -> Result<(), SecretError> {
     fs::remove_file(path).map_err(|_| SecretError::LegacyCleanupFailed)?;
@@ -341,7 +413,7 @@ fn private_directory_permissions(path: &Path) -> std::io::Result<()> {
 mod tests {
     use super::*;
     use std::{
-        sync::atomic::{AtomicBool, Ordering},
+        sync::atomic::{AtomicBool, AtomicUsize, Ordering},
         time::{SystemTime, UNIX_EPOCH},
     };
     #[derive(Default)]
@@ -349,9 +421,12 @@ mod tests {
         value: Mutex<Option<Vec<u8>>>,
         unavailable: AtomicBool,
         corrupt_read: AtomicBool,
+        loads: AtomicUsize,
+        stores: AtomicUsize,
     }
     impl UnlockKeyStore for FakeKeys {
         fn load(&self) -> Result<Option<Vec<u8>>, SecretError> {
+            self.loads.fetch_add(1, Ordering::SeqCst);
             if self.unavailable.load(Ordering::SeqCst) {
                 return Err(SecretError::CredentialStoreUnavailable);
             }
@@ -364,6 +439,7 @@ mod tests {
             Ok(value)
         }
         fn store(&self, key: &[u8]) -> Result<(), SecretError> {
+            self.stores.fetch_add(1, Ordering::SeqCst);
             if self.unavailable.load(Ordering::SeqCst) {
                 Err(SecretError::CredentialStoreUnavailable)
             } else {
@@ -538,6 +614,153 @@ mod tests {
                 & 0o777,
             0o600
         );
+        fs::remove_dir_all(dir).unwrap();
+    }
+    fn reset_counts(store: &SecretStore, keys: &FakeKeys) {
+        keys.loads.store(0, Ordering::SeqCst);
+        keys.stores.store(0, Ordering::SeqCst);
+        for count in [
+            &store.counts.locks,
+            &store.counts.opens,
+            &store.counts.loads,
+            &store.counts.lookups,
+        ] {
+            count.store(0, Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn presence_batch_is_boolean_deduplicated_single_open_and_read_only() {
+        let (dir, keys) = fixture();
+        let store = SecretStore::with_key_store(dir.clone(), keys.clone());
+        store
+            .set_secret(SecretKey::GeminiApiKey, b"synthetic-gemini-value")
+            .unwrap();
+        store
+            .set_secret(SecretKey::GroqApiKey, b"synthetic-groq-value")
+            .unwrap();
+        let before = fs::read(dir.join(SNAPSHOT)).unwrap();
+        reset_counts(&store, &keys);
+        let presence: HashMap<SecretKey, bool> = store
+            .secret_presence(&[
+                SecretKey::GeminiApiKey,
+                SecretKey::GroqApiKey,
+                SecretKey::Lr3Test,
+                SecretKey::GeminiApiKey,
+                SecretKey::GroqApiKey,
+            ])
+            .unwrap();
+        assert_eq!(presence.len(), 3);
+        assert_eq!(presence[&SecretKey::GeminiApiKey], true);
+        assert_eq!(presence[&SecretKey::GroqApiKey], true);
+        assert_eq!(presence[&SecretKey::Lr3Test], false);
+        assert!(!format!("{presence:?}").contains("synthetic"));
+        assert_eq!(keys.loads.load(Ordering::SeqCst), 1);
+        assert_eq!(keys.stores.load(Ordering::SeqCst), 0);
+        assert_eq!(store.counts.locks.load(Ordering::SeqCst), 1);
+        assert_eq!(store.counts.opens.load(Ordering::SeqCst), 1);
+        assert_eq!(store.counts.loads.load(Ordering::SeqCst), 1);
+        assert_eq!(store.counts.lookups.load(Ordering::SeqCst), 3);
+        assert_eq!(fs::read(dir.join(SNAPSHOT)).unwrap(), before);
+        reset_counts(&store, &keys);
+        assert!(store.secret_presence(&[]).unwrap().is_empty());
+        assert_eq!(keys.loads.load(Ordering::SeqCst), 0);
+        assert_eq!(store.counts.locks.load(Ordering::SeqCst), 0);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn presence_first_run_verification_is_constant_not_per_target() {
+        let (dir, keys) = fixture();
+        let store = SecretStore::with_key_store(dir.clone(), keys.clone());
+        let presence = store
+            .secret_presence(&[
+                SecretKey::GeminiApiKey,
+                SecretKey::GroqApiKey,
+                SecretKey::GeminiApiKey,
+            ])
+            .unwrap();
+        assert!(presence.values().all(|configured| !configured));
+        // Existing first-run provisioning verifies the newly stored unlock key.
+        assert_eq!(keys.loads.load(Ordering::SeqCst), 2);
+        assert_eq!(keys.stores.load(Ordering::SeqCst), 1);
+        assert_eq!(store.counts.opens.load(Ordering::SeqCst), 1);
+        assert!(!dir.join(SNAPSHOT).exists());
+        reset_counts(&store, &keys);
+        store
+            .secret_presence(&[SecretKey::GroqApiKey, SecretKey::GeminiApiKey])
+            .unwrap();
+        assert_eq!(keys.loads.load(Ordering::SeqCst), 1);
+        assert_eq!(keys.stores.load(Ordering::SeqCst), 0);
+        assert_eq!(store.counts.opens.load(Ordering::SeqCst), 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn presence_errors_remain_fail_closed_and_never_return_partial_map() {
+        let (dir, keys) = fixture();
+        let store = SecretStore::with_key_store(dir.clone(), keys.clone());
+        store
+            .set_secret(SecretKey::GeminiApiKey, b"synthetic")
+            .unwrap();
+        let requested = [SecretKey::GeminiApiKey, SecretKey::GroqApiKey];
+        keys.unavailable.store(true, Ordering::SeqCst);
+        assert_eq!(
+            store.secret_presence(&requested).unwrap_err().code(),
+            "unlock_store_unavailable"
+        );
+        keys.unavailable.store(false, Ordering::SeqCst);
+        keys.corrupt_read.store(true, Ordering::SeqCst);
+        assert_eq!(
+            store.secret_presence(&requested).unwrap_err().code(),
+            "snapshot_unavailable"
+        );
+        keys.corrupt_read.store(false, Ordering::SeqCst);
+        fs::write(dir.join(SNAPSHOT), b"invalid-snapshot").unwrap();
+        assert_eq!(
+            store.secret_presence(&requested).unwrap_err().code(),
+            "snapshot_unavailable"
+        );
+        keys.delete().unwrap();
+        assert_eq!(
+            store.secret_presence(&requested).unwrap_err().code(),
+            "unlock_key_missing"
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn concurrent_presence_batches_remain_serialized_without_deadlock() {
+        let (dir, keys) = fixture();
+        let store = Arc::new(SecretStore::with_key_store(dir.clone(), keys.clone()));
+        store
+            .set_secret(SecretKey::GeminiApiKey, b"synthetic")
+            .unwrap();
+        reset_counts(&store, &keys);
+        let barrier = Arc::new(std::sync::Barrier::new(4));
+        let threads: Vec<_> = (0..3)
+            .map(|_| {
+                let store = store.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    let presence = store
+                        .secret_presence(&[SecretKey::GeminiApiKey, SecretKey::GroqApiKey])
+                        .unwrap();
+                    assert_eq!(presence[&SecretKey::GeminiApiKey], true);
+                    assert_eq!(presence[&SecretKey::GroqApiKey], false);
+                })
+            })
+            .collect();
+        barrier.wait();
+        for thread in threads {
+            thread.join().unwrap();
+        }
+        assert_eq!(keys.loads.load(Ordering::SeqCst), 3);
+        assert_eq!(store.counts.locks.load(Ordering::SeqCst), 3);
+        assert_eq!(store.counts.opens.load(Ordering::SeqCst), 3);
+        assert_eq!(store.counts.loads.load(Ordering::SeqCst), 3);
+        assert_eq!(store.counts.lookups.load(Ordering::SeqCst), 6);
         fs::remove_dir_all(dir).unwrap();
     }
 }
