@@ -1,12 +1,14 @@
 use super::{
+    catalog,
     policy::{self, CognitiveRole, CognitiveRolePolicy},
-    summary::SummaryWorker, catalog, ProviderRuntime, ProviderTimeoutHandles,
+    summary::SummaryWorker,
+    ProviderRuntime, ProviderTimeoutHandles,
 };
 use crate::{
     persistence::{
         database::Database,
-        provider_timeouts,
         general_settings::{self, GeneralSettings},
+        provider_timeouts,
     },
     security::secrets::SecretStore,
 };
@@ -87,14 +89,20 @@ pub async fn get_ai_settings(
             policy::load(&conn, CognitiveRole::Orchestrator).map_err(|e| e.code())?,
         ];
         let mut timeouts = std::collections::HashMap::new();
-        for status in statuses.iter().filter(|status| catalog::integration(&status.id).is_some()) {
-            timeouts.insert(status.id.clone(), provider_timeouts::load(&conn, &status.id).map_err(|e| e.code())?);
+        for status in statuses
+            .iter()
+            .filter(|status| catalog::integration(&status.id).is_some())
+        {
+            timeouts.insert(
+                status.id.clone(),
+                provider_timeouts::load(&conn, &status.id).map_err(|e| e.code())?,
+            );
         }
-        let credential_store_available = catalog::INTEGRATIONS.iter().all(|item| store.get_secret(item.secret).is_ok());
+        let infos = catalog::infos(&statuses, &store);
         Ok::<_, &'static str>(AiSettings {
-            providers: catalog::infos(&statuses, &store),
+            providers: infos.providers,
             roles,
-            credential_store_available,
+            credential_store_available: infos.credential_store_available,
             provider_timeouts: timeouts,
         })
     })
@@ -110,7 +118,11 @@ pub async fn update_provider_timeouts(
     provider_id: String,
     timeouts: super::types::ProviderTimeouts,
 ) -> Result<super::types::ProviderTimeouts, String> {
-    let handle = handles.0.get(&provider_id).ok_or("provider_unavailable")?.clone();
+    let handle = handles
+        .0
+        .get(&provider_id)
+        .ok_or("provider_unavailable")?
+        .clone();
     let value = timeouts;
     let db = db.inner().clone();
     let id = provider_id;
@@ -135,7 +147,8 @@ pub async fn update_cognitive_role_policy(
     policy: CognitiveRolePolicy,
 ) -> Result<CognitiveRolePolicy, String> {
     policy.validate().map_err(str::to_owned)?;
-    catalog::validate_policy(&policy, &runtime.scheduler.status(), &store).map_err(str::to_owned)?;
+    catalog::validate_policy(&policy, &runtime.scheduler.status(), &store)
+        .map_err(str::to_owned)?;
     let db = db.inner().clone();
     let saved = tauri::async_runtime::spawn_blocking(move || {
         let mut conn = db.open().map_err(|e| e.code())?;

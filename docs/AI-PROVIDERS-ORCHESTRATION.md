@@ -42,7 +42,7 @@ Adapters traduzem essa política para a API específica. Eles não devem inventa
 
 Uma seleção explícita do usuário tem precedência sobre a heurística do Scheduler. O Scheduler pode advertir e aplicar apenas guardrails de segurança/integridade e limites reais da integração. Se o usuário fixar, por exemplo, um agente Codex compatível como papel `conversation`, o runtime deve respeitar essa escolha enquanto a integração sustentar esse modo.
 
-**Decisão LR-7D (28/09/2026):** não existe uma “LLM principal da Luna”. O Luna Core é a autoridade do sistema; Gemini, Groq e futuros providers ocupam papéis cognitivos substituíveis. LR-7D0 remove hardcodes comerciais das policies de Conversation/Summary e torna primary/fallback configuráveis por provider registrado. LR-7D1 adiciona um papel cognitivo real `orchestrator`/Planner, também configurável, sem transferir ao modelo autoridade sobre permissões ou execução. LR-7D2 evolui para fallback chain + Auto/score + affinity; LR-7D3 fecha com task graph mínimo. Consulte [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
+**Decisão LR-7D (28/09/2026; ampliada em 30/09/2026):** não existe uma “LLM principal da Luna”. O Luna Core é a autoridade do sistema; Gemini, Groq e futuros providers ocupam papéis cognitivos substituíveis. LR-7D0 remove hardcodes comerciais das policies de Conversation/Summary e torna primary/fallback configuráveis por provider registrado. LR-7D1 adiciona um papel cognitivo real `orchestrator`/Planner, também configurável, sem transferir ao modelo autoridade sobre permissões ou execução. LR-7D2 fechou em PASS completo em 01/10/2026 com fallback chain + Auto/score + affinity, preflight responsivo e validação batch de credenciais. O próximo checkpoint, **LR-7D2.5**, adiciona pelo menos dois providers reais para de-risking de dependência antes da LR-7D3/task graph. Gemini permanece suportado, mas não é gate nem dependência funcional obrigatória. Consulte [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
 
 ## 2. Tipos de integração
 
@@ -90,7 +90,7 @@ Codex e GitHub Copilot entram inicialmente nesta categoria.
 
 ### Google Gemini API
 
-**Status:** candidato primário para primeiro provider geral.
+**Status:** provider real integrado desde LR-6; permanece suportado, mas não é provider principal nem dependência obrigatória.
 
 A API Gemini mantém Free Tier para determinados modelos. Projetos novos podem começar no nível gratuito e os limites variam por modelo/projeto. O runtime deve consultar configuração atual e tratar 429 RESOURCE_EXHAUSTED.
 
@@ -125,7 +125,7 @@ Fonte: https://console.groq.com/docs/rate-limits
 
 ### Mistral
 
-**Status:** candidato geral secundário.
+**Status:** candidato planejado para LR-7D2.5 como provider geral independente.
 
 O Mistral Studio é habilitado em Free mode por padrão e permite gerar API key sem cartão, sujeito aos limites da conta.
 
@@ -172,7 +172,7 @@ Fonte: https://openrouter.ai/pricing/
 
 ### Cloudflare Workers AI
 
-**Status:** candidato forte por compatibilidade e cota diária.
+**Status:** candidato planejado para LR-7D2.5 como segunda rota independente e primeiro teste forte da base OpenAI-compatible.
 
 Em 25/09/2026 a Cloudflare oferece 10.000 Neurons/dia sem cobrança no Workers AI; alguns modelos específicos exigem plano pago/método de cobrança.
 
@@ -439,12 +439,14 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 1. MockProvider local para testar Scheduler sem gastar cota.
 2. Gemini como primeiro provider geral.
 3. Groq como segundo provider real isolado na LR-7B; distribuição/fallback Gemini ↔ Groq é provada na LR-7C.
-4. Rate Limit Manager completo.
-5. OpenAI-compatible adapter + Cloudflare Workers AI.
-6. OpenRouter/Cohere/Hugging Face como experimentos/fallback.
-7. GitHub Copilot SDK como SpecialistAgent.
-8. Codex adapter como SpecialistAgent.
-9. OpenAI API paga somente depois de orçamento/limites estarem consolidados.
+4. LR-7D2 fecha fallback chain + Auto/score + affinity.
+5. **LR-7D2.5 adiciona pelo menos dois providers reais**, com Mistral API direta e Cloudflare Workers AI como candidatos iniciais; a fase valida operação sem Gemini obrigatório e extrai transporte OpenAI-compatible somente quando seguro.
+6. LR-7D3 fecha task graph mínimo usando pelo menos dois providers independentes elegíveis, sem exigir marcas específicas.
+7. Rate Limit Manager completo na LR-8.
+8. OpenRouter/Cohere/Hugging Face como experimentos/fallback posteriores.
+9. GitHub Copilot SDK como SpecialistAgent.
+10. Codex amplia sua integração agentiva já iniciada na D0.5.
+11. OpenAI API paga somente depois de orçamento/limites estarem consolidados.
 
 Essa ordem pode mudar por bloqueio técnico, mas a primeira prova de arquitetura precisa usar pelo menos **dois providers independentes** para evitar uma abstração falsa.
 
@@ -480,9 +482,37 @@ produção ou UI foi adicionado. **D0.5D fechou em PASS completo após auditoria
 O Orchestrator é um papel cognitivo persistido, não um provider novo nem um
 agente especialista. Ele usa Gemini ou Groq por `provider_id` via Scheduler,
 com modelo, thinking, output budget, input budget de planejamento, timeout por provider e retry
-configuráveis. Nesta fase o routing é somente `Fixed`; fallback chain e `Auto`
-ficam para D2.
+configuráveis. Na D1 o routing era somente `Fixed`; a D2 candidata usa a mesma infraestrutura
+de targets para Fixed/Preferred/Auto, preservando a validação estrita após sucesso.
 
 As APIs atuais não são anunciadas como structured output nativo. O runtime usa
 JSON textual estrito e valida a resposta com o contrato único `PlanV1` do Luna
 Core. Markdown, texto extra e reparos são rejeitados.
+
+## LR-7D2 — roteamento autorizado / candidata ao gate
+
+A migration 009 (schema 9) substitui primary/fallback por targets ordenados,
+com configuração individual e orçamento/retry por papel. Fixed usa um target;
+Preferred segue a ordem explícita; Auto aplica gates e score somente ao conjunto
+autorizado. Score: `(N-ordinal)*100 + 32-min(priority,32)` mais, quando há
+continuidade válida, `min(500,50+ceil(contextBytes/1024)*25)`. Não há preços,
+latência histórica ou quotas fictícias. Affinity de Conversation é por sessão,
+bounded (256), in-memory e não altera Fixed/Preferred. Summary/Orchestrator
+não inventam continuidade. Credenciais são verificadas por target no preflight,
+nunca persistidas no SQLite ou devolvidas ao frontend. JSON/PlanV1 inválido após
+sucesso não dispara fallback de provider. LR-8 e task graph continuam posteriores.
+[Detalhes e gate humano pendente](LR-7D2-SMART-ROUTING.md).
+
+## LR-7D2.5 — redundância real de providers
+
+**Planejada para iniciar somente após LR-7D2 = PASS completo.** O objetivo é
+evitar que a indisponibilidade de Gemini — incluindo os 503 observados em gates
+reais — tenha peso estrutural na Luna. A fase adicionará pelo menos dois
+Cognitive Providers reais e independentes; Mistral API direta e Cloudflare
+Workers AI são os candidatos iniciais. O gate exige operação com Gemini fora do
+conjunto ativo e 3+ targets reais, sem hardcode comercial.
+
+OpenRouter não conta como uma das duas novas rotas principais nesta fase por ser
+um agregador intermediário; pode entrar depois como fallback adicional.
+
+Plano completo: [LR-7D2.5-PROVIDER-REDUNDANCY.md](LR-7D2.5-PROVIDER-REDUNDANCY.md).

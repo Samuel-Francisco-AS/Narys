@@ -2,7 +2,7 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. A trilha **UIP-0 → UIP-7** está encerrada em PASS funcional. **LR-7A/FIX fechou a fundação multi-provider, LR-7B integrou Groq como segundo provider real, LR-7C fechou a primeira distribuição real Gemini ↔ Groq, LR-7D0 removeu Gemini como provider estruturalmente privilegiado e LR-7D0.5A/B/C estabeleceram descoberta segura do Codex, ponte efêmera app-server e a fundação genérica `AgentBackend`/`AgentRegistry`. D0.5A/B/C estão integradas em PASS; **D0.5D fechou em PASS completo após auditoria e gate humano, com `CodexAgentBackend` real + Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026**; **D0.5E fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, com cancelamento remoto, recovery de lifecycle e eventos reais**; **D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026, fechando a mini-trilha LR-7D0.5 em PASS completo**. **LR-7D1 fechou em PASS completo após auditoria e gate humano em 30/09/2026, com Orchestrator/Planner persistido, Gemini/Groq configuráveis, PlanV1 fail-closed, cancelamento e lifecycle real.** O próximo checkpoint é **LR-7D2 — fallback chain + Auto/score + affinity**. LR-8 permanece separada para Rate Limit Manager e telemetria avançada.** O trabalho artístico de Blender segue independente. **Após o fechamento da UIP-2 e antes da UIP-3, a Idle procedural foi substituída por uma Idle manual exportada do Blender; isso cria uma nova baseline de asset/performance para as medições seguintes.** Consulte [gate final UIP-7](docs/UIP-7-FINAL-PERFORMANCE.md), [integração da Idle manual](docs/MANUAL-IDLE-INTEGRATION.md), [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
+**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. A trilha **UIP-0 → UIP-7** está encerrada em PASS funcional. **LR-7A/FIX fechou a fundação multi-provider, LR-7B integrou Groq como segundo provider real, LR-7C fechou a primeira distribuição real Gemini ↔ Groq, LR-7D0 removeu Gemini como provider estruturalmente privilegiado e LR-7D0.5A/B/C estabeleceram descoberta segura do Codex, ponte efêmera app-server e a fundação genérica `AgentBackend`/`AgentRegistry`. D0.5A/B/C estão integradas em PASS; **D0.5D fechou em PASS completo após auditoria e gate humano, com `CodexAgentBackend` real + Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026**; **D0.5E fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, com cancelamento remoto, recovery de lifecycle e eventos reais**; **D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026, fechando a mini-trilha LR-7D0.5 em PASS completo**. **LR-7D1 fechou em PASS completo após auditoria e gate humano em 30/09/2026, com Orchestrator/Planner persistido, Gemini/Groq configuráveis, PlanV1 fail-closed, cancelamento e lifecycle real.** **LR-7D2 fechou em PASS completo em 01/10/2026 e foi integrada à `main` pela PR #11**, com lista de targets, Preferred chain, Auto/score/affinity, fallback real, affinity por sessão, preflight responsivo e validação batch de credenciais. Após D2 = PASS completo, entra **LR-7D2.5 — provider redundancy + Gemini de-risking**; LR-7D3 só começa após o fechamento da D2.5. LR-8 permanece separada para Rate Limit Manager e telemetria avançada.** O trabalho artístico de Blender segue independente. **Após o fechamento da UIP-2 e antes da UIP-3, a Idle procedural foi substituída por uma Idle manual exportada do Blender; isso cria uma nova baseline de asset/performance para as medições seguintes.** Consulte [gate final UIP-7](docs/UIP-7-FINAL-PERFORMANCE.md), [integração da Idle manual](docs/MANUAL-IDLE-INTEGRATION.md), [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## LR-7D1 — PASS completo
 
@@ -14,8 +14,20 @@ concluiu planejamento real e o cancelamento foi validado com Groq e Gemini. No
 gate final, Gemini respondeu HTTP 503 `service_unavailable`; o erro foi
 tratado fail-closed com cooldown e permanece documentado como observação externa,
 sem ser apresentado como sucesso Gemini → `PlanV1`. Codex continua um
-`AgentBackend` read-only separado, sem novas permissões. Próximo checkpoint:
-**LR-7D2**.
+`AgentBackend` read-only separado, sem novas permissões. A LR-7D2 fechou em PASS completo em 01/10/2026, conforme seção abaixo.
+
+## LR-7D2 — PASS completo
+
+Conversation, Summary e Orchestrator usam lista ordenada de targets com
+provider/model/thinking próprios. Fixed usa um; Preferred respeita a ordem;
+Auto escolhe somente dentro do conjunto autorizado com score determinístico.
+Conversation possui affinity por sessão, bounded e perdida após restart.
+Migration 009 / schema 9 preserva o comportamento efetivo v8. A UI permite
+adicionar, remover e mover targets; eventos mostram motivo e score. O Core
+mantém autoridade, parsers estritos e nenhuma execução de PlanV1/ferramentas.
+Veja [arquitetura, testes e fechamento](docs/LR-7D2-SMART-ROUTING.md).
+
+A próxima mini-trilha já está registrada: **LR-7D2.5 — provider redundancy + Gemini de-risking**. Ela começa somente depois do fechamento da D2, adiciona pelo menos dois Cognitive Providers reais além de Gemini/Groq e torna explícito que Gemini permanece suportado, mas não obrigatório. Candidatos iniciais: Mistral API direta e Cloudflare Workers AI. Veja [o plano da D2.5](docs/LR-7D2.5-PROVIDER-REDUNDANCY.md).
 
 ## Direção arquitetural pós-M0
 
@@ -35,6 +47,7 @@ Documentos principais:
 - [Identidade e memória LR-4](docs/MEMORY-IDENTITY.md)
 - [Runtime cognitivo LR-5](docs/COGNITION-RUNTIME.md)
 - [Bridge de runtime Codex LR-7D0.5](docs/LR-7D05-CODEX-AGENT-BRIDGE.md)
+- [Redundância pós-D2 / Gemini de-risking](docs/LR-7D2.5-PROVIDER-REDUNDANCY.md)
 
 **Estado LR-6:** PASS completo em 26/09/2026. O adapter Gemini, chat local, streaming, usage, cancelamento, persistência e SecretStore foram validados com API real e reinício do aplicativo. **UIP-0 → UIP-7 estão fechadas em PASS funcional; a trilha UIP está oficialmente encerrada.** **LR-7A/FIX, LR-7B, LR-7C e LR-7D0 estão fechadas em PASS**, com Gemini e Groq reais, fallback/overflow validados e seleção de provider configurável por papel. Na UIP-3, always-on-top no Wayland nativo e click-through seguro ficaram como limitações adiadas; na UIP-4, o resize nativo no GNOME/Wayland ficou como dívida de estabilidade espacial após a rejeição do POC de múltiplas WebViews. Consulte [Gemini LR-6](docs/GEMINI-PROVIDER.md), [gate UIP-7](docs/UIP-7-FINAL-PERFORMANCE.md) e [plano UIP](docs/UI-PERFORMANCE-PLAN.md).
 
@@ -141,7 +154,7 @@ A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode 
 
 ### LR-7D — papéis cognitivos e roteamento configurável
 
-**LR-7D0 fechada em PASS completo em 29/09/2026 e LR-7D1 fechada em PASS completo em 30/09/2026.** Gemini e Groq podem ser escolhidos por configuração nos papéis suportados; o Orchestrator/Planner persistido produz `PlanV1` validado, é cancelável e não executa passos. Próximas etapas: LR-7D2 fallback chain/Auto/affinity e LR-7D3 task graph mínimo. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
+**LR-7D0 fechada em PASS completo em 29/09/2026 e LR-7D1 fechada em PASS completo em 30/09/2026.** Gemini e Groq podem ser escolhidos por configuração nos papéis suportados; o Orchestrator/Planner persistido produz `PlanV1` validado, é cancelável e não executa passos. LR-7D2 fallback chain/Auto/affinity fechou em PASS completo em 01/10/2026; a próxima mini-trilha é LR-7D2.5 para adicionar pelo menos dois providers reais e reduzir dependência operacional do Gemini; LR-7D3 task graph mínimo somente após a D2.5. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
 
 ### LR-7D0.5A — descoberta segura do Codex
 
