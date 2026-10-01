@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mistral-delete-api-key"
+description = "Enables the mistral_delete_api_key command without any pre-configured scope."
+commands.allow = ["mistral_delete_api_key"]
+
+[[permission]]
+identifier = "deny-mistral-delete-api-key"
+description = "Denies the mistral_delete_api_key command without any pre-configured scope."
+commands.deny = ["mistral_delete_api_key"]

@@ -191,6 +191,9 @@ export default function AiSettingsApp() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [geminiKey, setGeminiKey] = useState('')
   const [groqKey, setGroqKey] = useState('')
+  const [mistralKey, setMistralKey] = useState('')
+  const [cloudflareToken, setCloudflareToken] = useState('')
+  const [cloudflareAccountId, setCloudflareAccountId] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -274,16 +277,28 @@ export default function AiSettingsApp() {
       if (orchestratorTaskRef.current !== null) void invoke<boolean>('cancel_task', { taskId: orchestratorTaskRef.current })
     }
   }, [])
-  async function credential(provider: 'gemini' | 'groq', action: 'set' | 'delete') {
+  async function credential(provider: 'gemini' | 'groq' | 'mistral', action: 'set' | 'delete') {
     setBusy(true); setError(''); setNotice('')
     const command = `${provider}_${action === 'set' ? 'set_api_key' : 'delete_api_key'}`
-    const value = provider === 'gemini' ? geminiKey : groqKey
+    const value = provider === 'gemini' ? geminiKey : provider === 'groq' ? groqKey : mistralKey
     try {
       await invoke(command, action === 'set' ? { apiKey: value } : {})
-      if (provider === 'gemini') setGeminiKey(''); else setGroqKey('')
+      if (provider === 'gemini') setGeminiKey(''); else if (provider === 'groq') setGroqKey(''); else setMistralKey('')
       await refresh()
-      setNotice(`${provider === 'gemini' ? 'Gemini' : 'Groq'}: ${action === 'set' ? 'chave guardada no SecretStore' : 'chave removida'}.`)
+      const name = provider === 'gemini' ? 'Gemini' : provider === 'groq' ? 'Groq' : 'Mistral'
+      setNotice(`${name}: ${action === 'set' ? 'chave guardada no SecretStore' : 'chave removida'}.`)
     } catch { setError('Não foi possível alterar a credencial no SecretStore.') }
+    finally { setBusy(false) }
+  }
+  async function cloudflareCredentials(action: 'set' | 'delete') {
+    setBusy(true); setError(''); setNotice('')
+    try {
+      await invoke(action === 'set' ? 'cloudflare_set_credentials' : 'cloudflare_delete_credentials',
+        action === 'set' ? { apiToken: cloudflareToken, accountId: cloudflareAccountId } : {})
+      setCloudflareToken(''); setCloudflareAccountId('')
+      await refresh()
+      setNotice(`Cloudflare Workers AI: ${action === 'set' ? 'credenciais guardadas no SecretStore' : 'credenciais removidas'}.`)
+    } catch { setError('Não foi possível alterar as credenciais Cloudflare no SecretStore.') }
     finally { setBusy(false) }
   }
   async function probeGroq() {
@@ -299,6 +314,8 @@ export default function AiSettingsApp() {
   }
   const gemini = settings?.providers.find(provider => provider.id === 'gemini')
   const groq = settings?.providers.find(provider => provider.id === 'groq')
+  const mistral = settings?.providers.find(provider => provider.id === 'mistral')
+  const cloudflare = settings?.providers.find(provider => provider.id === 'cloudflare')
   return <main className="settings-page">
     <header><p className="settings-kicker">LUNA · COGNIÇÃO</p><h1>IA e modelos</h1><p>Estas escolhas são aplicadas na próxima tarefa. Uma resposta em andamento mantém a configuração com que começou.</p></header>
     {settings ? <>
@@ -309,6 +326,11 @@ export default function AiSettingsApp() {
         <div className="settings-actions"><button disabled={busy || !geminiKey.trim()} onClick={() => void credential('gemini', 'set')}>Guardar Gemini</button><button disabled={busy || !gemini?.configured} onClick={() => void credential('gemini', 'delete')}>Remover Gemini</button></div>
         <label>Chave API Groq <input type="password" autoComplete="off" value={groqKey} onChange={event => setGroqKey(event.target.value)} placeholder="Definir ou substituir chave Groq" /></label>
         <div className="settings-actions"><button disabled={busy || !groqKey.trim()} onClick={() => void credential('groq', 'set')}>Guardar Groq</button><button disabled={busy || !groq?.configured} onClick={() => void credential('groq', 'delete')}>Remover Groq</button></div>
+        <label>Chave API Mistral <input type="password" autoComplete="off" value={mistralKey} onChange={event => setMistralKey(event.target.value)} placeholder="Definir ou substituir chave Mistral" /></label>
+        <div className="settings-actions"><button disabled={busy || !mistralKey.trim()} onClick={() => void credential('mistral', 'set')}>Guardar Mistral</button><button disabled={busy || !mistral?.configured} onClick={() => void credential('mistral', 'delete')}>Remover Mistral</button></div>
+        <label>Token API Cloudflare <input type="password" autoComplete="off" value={cloudflareToken} onChange={event => setCloudflareToken(event.target.value)} placeholder="Definir token Cloudflare" /></label>
+        <label>Account ID Cloudflare <input type="password" autoComplete="off" value={cloudflareAccountId} onChange={event => setCloudflareAccountId(event.target.value)} placeholder="Definir Account ID" /></label>
+        <div className="settings-actions"><button disabled={busy || !cloudflareToken.trim() || !cloudflareAccountId.trim()} onClick={() => void cloudflareCredentials('set')}>Guardar Cloudflare</button><button disabled={busy || !cloudflare?.configured} onClick={() => void cloudflareCredentials('delete')}>Remover Cloudflare</button></div>
         {notice && <p role="status">{notice}</p>}
         {settings.providers.map(provider => settings.providerTimeouts[provider.id] && <TimeoutForm key={provider.id} provider={provider} initial={settings.providerTimeouts[provider.id]} onSaved={saved => setSettings(current => current && ({ ...current, providerTimeouts: { ...current.providerTimeouts, [provider.id]: saved } }))} />)}
       </section>

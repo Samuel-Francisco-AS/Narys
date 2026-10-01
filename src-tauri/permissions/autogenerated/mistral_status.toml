@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mistral-status"
+description = "Enables the mistral_status command without any pre-configured scope."
+commands.allow = ["mistral_status"]
+
+[[permission]]
+identifier = "deny-mistral-status"
+description = "Denies the mistral_status command without any pre-configured scope."
+commands.deny = ["mistral_status"]

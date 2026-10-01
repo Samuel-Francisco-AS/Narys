@@ -314,8 +314,9 @@ auditar com segurança, a branch poderá ser dividida em no máximo três entreg
 2. **D2.5B — Cloudflare Workers AI**;
 3. **D2.5C — redundância multi-provider + hardening/gate final**.
 
-Essa decomposição é contingência, não o plano inicial. Ela não muda escopo nem
-critério de fechamento.
+Essa decomposição é contingência, não o plano executado nesta branch. A fase
+segue como uma única LR-7D2.5, com checkpoints e commits internos coerentes;
+ela não muda escopo nem critério de fechamento.
 
 ## Relação com LR-7D3
 
@@ -374,3 +375,36 @@ LR-7D2.5 só pode ser declarada PASS completo quando:
 - D3 ainda não tiver sido antecipada.
 
 Somente depois disso começa **LR-7D3 — task graph mínimo + subtarefas independentes**.
+
+## Estado da implementação nesta branch
+
+Implementação candidata ao gate humano, não PASS final. O runtime agora registra
+quatro providers (`gemini`, `groq`, `mistral` e `cloudflare`) no mesmo catálogo e
+no mesmo Scheduler, sem regra comercial por marca. Mistral usa a API Chat
+Completions oficial com `mistral-small-2603`; Cloudflare Workers AI usa o endpoint
+OpenAI-compatible por Account ID com `@cf/zai-org/glm-4.7-flash`.
+
+O catálogo representa uma lista tipada de credenciais por integração. O
+SecretStore adiciona `MistralApiKey`, `CloudflareApiToken` e
+`CloudflareAccountId`; a presença do Cloudflare só é configurada quando ambas
+estão presentes e continua sendo consultada em um único batch serializado. A UI
+aceita/substitui/remove os valores sem devolver valores persistidos ao frontend.
+
+As integrações implementam streaming SSE, `[DONE]`, usage opcional, cancelamento,
+timeouts de request/idle, limites de modelo, classificação de HTTP e
+`Retry-After`. Nenhuma capability além de `text_stream` é anunciada para
+Cloudflare; reasoning não é emitido como resposta nem persistido. O Cloudflare
+não inventa métricas de Neurons, quota ou custo.
+
+O gate de privacidade da Mistral permanece humano: no Free mode, probes devem usar
+conteúdo sintético até a confirmação explícita do opt-out de
+training/improvement. Esta branch não executou chamadas externas e não afirma
+Zero Data Retention.
+
+Validação automatizada já executada nesta branch: `npm run typecheck`, `npm run
+build`, `cargo check`, `cargo test` (264 passaram, 2 ignorados), e `git diff
+--check`. O build mantém apenas o warning preexistente de chunk JavaScript grande;
+os warnings Rust de dead code e testes existentes também permanecem conhecidos.
+Ainda dependem de validação posterior: rustfmt dos arquivos tocados,
+`cargo check --release`, auditoria independente, probes reais com credenciais,
+fallback externo real, restart real e experiência da UI.

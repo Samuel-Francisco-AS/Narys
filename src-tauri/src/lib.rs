@@ -75,6 +75,50 @@ pub fn run() {
                     groq_adapter,
                 )
                 .expect("unique Groq ID");
+            let mistral_adapter = std::sync::Arc::new(
+                cognition::mistral::MistralProvider::new(
+                    cognition::mistral::MistralConfig::default(),
+                    secrets.clone(),
+                )
+                .map_err(|_| "mistral_http_client_unavailable")?,
+            );
+            let mistral_timeouts = mistral_adapter.timeout_handle();
+            *mistral_timeouts.write().unwrap_or_else(|p| p.into_inner()) =
+                persistence::provider_timeouts::load(&conn, "mistral")
+                    .map_err(|_| "provider_settings_unavailable")?;
+            providers
+                .register(
+                    cognition::types::ProviderConfig {
+                        id: "mistral".into(),
+                        enabled: true,
+                        priority: 3,
+                        capabilities: cognition::types::ProviderCapabilities::text_stream(),
+                    },
+                    mistral_adapter,
+                )
+                .expect("unique Mistral ID");
+            let cloudflare_adapter = std::sync::Arc::new(
+                cognition::cloudflare::CloudflareProvider::new(
+                    cognition::cloudflare::CloudflareConfig::default(),
+                    secrets.clone(),
+                )
+                .map_err(|_| "cloudflare_http_client_unavailable")?,
+            );
+            let cloudflare_timeouts = cloudflare_adapter.timeout_handle();
+            *cloudflare_timeouts.write().unwrap_or_else(|p| p.into_inner()) =
+                persistence::provider_timeouts::load(&conn, "cloudflare")
+                    .map_err(|_| "provider_settings_unavailable")?;
+            providers
+                .register(
+                    cognition::types::ProviderConfig {
+                        id: "cloudflare".into(),
+                        enabled: true,
+                        priority: 4,
+                        capabilities: cognition::types::ProviderCapabilities::text_stream(),
+                    },
+                    cloudflare_adapter,
+                )
+                .expect("unique Cloudflare ID");
             let runtime = cognition::ProviderRuntime::new(providers);
             let scheduler = runtime.scheduler.clone();
             let available_secrets = secrets.clone();
@@ -102,6 +146,8 @@ pub fn run() {
                 std::collections::HashMap::from([
                     ("gemini".to_string(), gemini_timeouts.clone()),
                     ("groq".to_string(), groq_timeouts.clone()),
+                    ("mistral".to_string(), mistral_timeouts.clone()),
+                    ("cloudflare".to_string(), cloudflare_timeouts.clone()),
                 ]),
             )));
             app.manage(worker);
@@ -141,6 +187,12 @@ pub fn run() {
         cognition::groq_commands::groq_set_api_key,
         cognition::groq_commands::groq_delete_api_key,
         cognition::groq_commands::groq_probe,
+        cognition::credentials_commands::mistral_status,
+        cognition::credentials_commands::mistral_set_api_key,
+        cognition::credentials_commands::mistral_delete_api_key,
+        cognition::credentials_commands::cloudflare_status,
+        cognition::credentials_commands::cloudflare_set_credentials,
+        cognition::credentials_commands::cloudflare_delete_credentials,
         agents::codex::get_codex_runtime_status,
         agents::codex::probe_codex_app_server,
         agents::codex::probe_codex_planner,
@@ -175,6 +227,12 @@ pub fn run() {
         cognition::groq_commands::groq_set_api_key,
         cognition::groq_commands::groq_delete_api_key,
         cognition::groq_commands::groq_probe,
+        cognition::credentials_commands::mistral_status,
+        cognition::credentials_commands::mistral_set_api_key,
+        cognition::credentials_commands::mistral_delete_api_key,
+        cognition::credentials_commands::cloudflare_status,
+        cognition::credentials_commands::cloudflare_set_credentials,
+        cognition::credentials_commands::cloudflare_delete_credentials,
         agents::codex::get_codex_runtime_status,
         agents::codex::probe_codex_app_server,
         agents::codex::probe_codex_planner,

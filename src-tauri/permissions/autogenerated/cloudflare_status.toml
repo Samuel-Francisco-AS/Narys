@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-cloudflare-status"
+description = "Enables the cloudflare_status command without any pre-configured scope."
+commands.allow = ["cloudflare_status"]
+
+[[permission]]
+identifier = "deny-cloudflare-status"
+description = "Denies the cloudflare_status command without any pre-configured scope."
+commands.deny = ["cloudflare_status"]

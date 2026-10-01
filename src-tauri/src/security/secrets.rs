@@ -31,6 +31,9 @@ pub enum SecretKey {
     Lr3Test,
     GeminiApiKey,
     GroqApiKey,
+    MistralApiKey,
+    CloudflareApiToken,
+    CloudflareAccountId,
 }
 impl SecretKey {
     fn bytes(self) -> &'static [u8] {
@@ -38,6 +41,9 @@ impl SecretKey {
             Self::Lr3Test => b"lr3_test_secret",
             Self::GeminiApiKey => b"gemini_api_key",
             Self::GroqApiKey => b"groq_api_key",
+            Self::MistralApiKey => b"mistral_api_key",
+            Self::CloudflareApiToken => b"cloudflare_api_token",
+            Self::CloudflareAccountId => b"cloudflare_account_id",
         }
     }
 }
