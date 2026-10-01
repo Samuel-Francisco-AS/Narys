@@ -394,7 +394,7 @@ Plano detalhado: [UI-PERFORMANCE-PLAN.md](UI-PERFORMANCE-PLAN.md).
 
 **LR-7C — distribuição real (28/09/2026): PASS completo.** A Conversa persiste policy `Fixed` ou `Preferred`; em `Preferred`, Gemini é o primário e Groq o fallback explícito com model/thinking próprios. A migration 006 preserva `Fixed` por padrão. O preflight consulta a rota real e não bloqueia envio quando Gemini está em cooldown mas Groq está elegível. Foram observados em provider real: Gemini saudável → Gemini; Gemini HTTP 429 antes do primeiro chunk → Groq na mesma tarefa; Gemini já em cooldown → Groq direto. A UI registra origem/destino/motivo reais, e o grounding de provider/modelo foi corrigido e revalidado. Summary permanece `Fixed(gemini)`; Auto, affinity, task graph, paralelismo e Rate Limit Manager completo continuam fora desta rodada. Veja [LR-7C-DISTRIBUTION.md](LR-7C-DISTRIBUTION.md).
 
-**LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente.** **LR-7D0 fechada em PASS completo em 29/09/2026**: Gemini deixou de ser estruturalmente privilegiado; Conversation aceita Gemini/Groq como primary em Fixed/Preferred, Summary Fixed aceita ambos, timeouts são independentes por provider e as escolhas persistem após restart. Antes da LR-7D1, a mini-trilha **LR-7D0.5 — Codex Agent Bridge** prepara Codex como backend agentivo separado de CognitiveProvider. **D0.5A fechou em PASS completo e foi integrada à `main` em 29/09/2026**, cobrindo descoberta segura do runtime/autenticação. **D0.5B também fechou em PASS completo e foi integrada à `main` em 29/09/2026**, com ponte efêmera Rust ↔ `codex app-server --stdio`, handshake real e cleanup repetido sem processo órfão. **D0.5C também fechou em PASS técnico e foi integrada à `main` em 29/09/2026**, estabelecendo `AgentBackend`, tipos agentivos próprios e `AgentRegistry` independente dos Cognitive Providers. **D0.5D também fechou em PASS completo após auditoria e gate humano**, com `CodexAgentBackend` real, Planner read-only e `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. **D0.5E fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026**, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. **D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026**, encerrando **LR-7D0.5 em PASS completo**. A próxima etapa é **LR-7D1 — Orchestrator/Planner configurável**; depois seguem **LR-7D2** fallback chain + Auto/score + affinity e **LR-7D3** task graph mínimo. Plano detalhado: [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
+**LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente.** **LR-7D0 fechada em PASS completo em 29/09/2026**: Gemini deixou de ser estruturalmente privilegiado; Conversation aceita Gemini/Groq como primary em Fixed/Preferred, Summary Fixed aceita ambos, timeouts são independentes por provider e as escolhas persistem após restart. Antes da LR-7D1, a mini-trilha **LR-7D0.5 — Codex Agent Bridge** prepara Codex como backend agentivo separado de CognitiveProvider. **D0.5A fechou em PASS completo e foi integrada à `main` em 29/09/2026**, cobrindo descoberta segura do runtime/autenticação. **D0.5B também fechou em PASS completo e foi integrada à `main` em 29/09/2026**, com ponte efêmera Rust ↔ `codex app-server --stdio`, handshake real e cleanup repetido sem processo órfão. **D0.5C também fechou em PASS técnico e foi integrada à `main` em 29/09/2026**, estabelecendo `AgentBackend`, tipos agentivos próprios e `AgentRegistry` independente dos Cognitive Providers. **D0.5D também fechou em PASS completo após auditoria e gate humano**, com `CodexAgentBackend` real, Planner read-only e `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. **D0.5E fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026**, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. **D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026**, encerrando **LR-7D0.5 em PASS completo**. A LR-7D1 está fechada; a LR-7D2 está implementada / candidata ao gate. Após D2 = PASS completo, a sequência passa a ser **LR-7D2.5 — provider redundancy + Gemini de-risking** e só então **LR-7D3** task graph mínimo. Plano detalhado: [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
 
 **Segundo provider escolhido:** Groq (LR-7B).
 
@@ -421,6 +421,32 @@ Essa fase prova que a arquitetura é de verdade multi-provider.
 ### Gate
 
 Uma única tarefa pode ser completada usando dois providers diferentes sem perder identidade/estado.
+
+### LR-7D2.5 — provider redundancy + Gemini de-risking
+
+**Estado: PLANEJADA; começa somente depois de LR-7D2 = PASS completo e integrada.**
+
+Antes do task graph da D3, ampliar a redundância real da camada cognitiva:
+
+- adicionar pelo menos dois Cognitive Providers reais além de Gemini/Groq;
+- candidatos iniciais: **Mistral API direta** e **Cloudflare Workers AI**;
+- revalidar acesso/compatibilidade/custo obrigatório no início da implementação;
+- se um candidato deixar de atender, substituí-lo por outro provider direto e independente;
+- extrair transporte OpenAI-compatible apenas onde houver compatibilidade real;
+- manter capabilities, erros, streaming, rate-limit e credenciais específicos por provider;
+- validar Fixed/Preferred/Auto com 3+ targets reais;
+- garantir que Gemini desabilitado/em cooldown/indisponível não impeça Conversation
+  nem os papéis compatíveis quando existirem alternativas autorizadas;
+- não antecipar sinais de LR-8, task graph, paralelismo ou ferramentas.
+
+OpenRouter pode ser adicionado futuramente como agregador/fallback, mas não conta
+como uma das duas novas rotas principais desta fase.
+
+O gate da D3 deixa de exigir Gemini + Groq nominalmente: deve usar **pelo menos
+dois Cognitive Providers independentes, autorizados e elegíveis**. Gemini permanece
+suportado, mas não obrigatório.
+
+Plano: [LR-7D2.5-PROVIDER-REDUNDANCY.md](LR-7D2.5-PROVIDER-REDUNDANCY.md).
 
 ## 12. LR-8 — Rate Limit Manager completo
 
@@ -553,13 +579,16 @@ Luna consegue:
 
 ## 16. LR-12 — provider pack adicional
 
+A LR-7D2.5 antecipa a redundância essencial que antes morava parcialmente aqui:
+dois providers adicionais e a primeira base OpenAI-compatible, se tecnicamente
+adequada. LR-12 fica como expansão posterior, não como correção de dependência.
+
 Depois da arquitetura provada:
 
-- Cloudflare Workers AI;
-- adapter OpenAI-compatible;
 - OpenRouter;
 - Cohere;
 - Hugging Face experimental;
+- outros providers diretos que acrescentem capacidade/quota útil;
 - OpenAI API paga.
 
 Cada provider só entra se acrescentar capacidade, quota ou fallback útil.
@@ -716,7 +745,7 @@ Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáve
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7A/FIX → LR-7D0 fechadas em PASS** e **LR-7D0.5A → LR-7D0.5F encerradas e integradas em PASS completo**, a trilha já possui Gemini + Groq reais, fallback/overflow funcional, seleção configurável de provider e Codex como `AgentBackend` real com planejamento estruturado read-only, cancelamento, eventos factuais e recovery de lifecycle validados no runtime real. A LR-7D1 foi fechada em PASS completo após auditoria e gate humano em 30/09/2026 e integrada pela PR #10. A LR-7D2 está implementada / candidata ao gate; a próxima ação é auditoria independente e gate humano, antes de iniciar LR-7D3. LR-8 permanece separada para Rate Limit Manager e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7A/FIX → LR-7D0 fechadas em PASS** e **LR-7D0.5A → LR-7D0.5F encerradas e integradas em PASS completo**, a trilha já possui Gemini + Groq reais, fallback/overflow funcional, seleção configurável de provider e Codex como `AgentBackend` real com planejamento estruturado read-only, cancelamento, eventos factuais e recovery de lifecycle validados no runtime real. A LR-7D1 foi fechada em PASS completo após auditoria e gate humano em 30/09/2026 e integrada pela PR #10. A LR-7D2 está implementada / candidata ao gate; a próxima ação é auditoria independente e gate humano. **Após D2 = PASS completo, iniciar LR-7D2.5 — provider redundancy + Gemini de-risking; LR-7D3 fica bloqueada até o fechamento dessa mini-trilha.** LR-8 permanece separada para Rate Limit Manager e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland fica para UIP-7 ou investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual está documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
@@ -726,7 +755,7 @@ A primeira versão da “Luna estrutural” estará demonstrada quando houver:
 - TaskEvent via Channel;
 - Identity persistente;
 - Memory v0 persistente;
-- Gemini + segundo provider;
+- múltiplos Cognitive Providers independentes, sem provider individual obrigatório;
 - Scheduler econômico;
 - rate limit/fallback;
 - feedback em andamento;
@@ -774,5 +803,6 @@ histórico. Nenhuma ferramenta, task graph, paralelismo ou LR-8 foi antecipada.
 
 Próxima ação: auditoria independente da PR e gate humano Gemini/Groq descritos
 em [LR-7D2-SMART-ROUTING.md](LR-7D2-SMART-ROUTING.md). Não declarar D2 PASS completo
-antes de ambos. **LR-7D3 é o próximo checkpoint somente após fechar a D2**.
+antes de ambos. **Após fechar a D2, iniciar LR-7D2.5; LR-7D3 somente depois do
+fechamento da D2.5.**
 Blender, identidade/memória e fronteira Codex permanecem independentes.
