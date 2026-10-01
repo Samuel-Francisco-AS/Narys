@@ -1,8 +1,8 @@
 # LR-7D2.5 — provider redundancy + Gemini de-risking
 
-Estado: **FIX DE HARDENING IMPLEMENTADA NA BRANCH; aguardando gate humano, sem merge na main.**
+Estado: **ENCERRADA em 01/10/2026 — PASS técnico + gate humano do escopo revisado; merge para `main` autorizado, com dívida operacional formal de substituir Mistral por OpenAI API paga quando houver orçamento para ativação.**
 Posição no roadmap: **LR-7D2 → LR-7D2.5 → LR-7D3**.
-Branch de implementação: `lr-7d25-provider-redundancy`.
+Branch de implementação/fechamento: `lr-7d25-provider-redundancy`.
 
 ## Motivação
 
@@ -391,25 +391,44 @@ Uma chamada de provider que já tenha saído antes do instante em que a opção 
 desativada pode terminar externamente, mas seu resultado não deve reativar a fila
 nem persistir resumo em uma sessão já neutralizada.
 
-## Critério de fechamento
+## Critério de fechamento — decisão final de escopo
 
-LR-7D2.5 só pode ser declarada PASS completo quando:
+O critério original previa duas novas rotas operacionais gratuitas e pelo menos três
+infraestruturas independentes utilizáveis no gate final. O gate real mostrou uma
+restrição externa que torna esse critério inviável sem gasto imediato:
 
-- Mistral e Cloudflare Workers AI estiverem integrados e validados como rotas cognitivas reais,
-  ou uma candidata tiver sido substituída formalmente conforme os critérios acima;
-- Gemini puder ser retirado do conjunto ativo sem tornar a Luna incapaz de conversar
-  e planejar nos papéis suportados;
-- o Scheduler operar com 3+ targets reais sem regra por marca;
-- pelo menos três infraestruturas de inferência independentes permanecerem
-  operacionalmente utilizáveis;
-- os gates técnico, auditoria independente e gate humano passarem;
-- D3 ainda não tiver sido antecipada.
+- **Cloudflare Workers AI:** integração técnica e gate humano reais aprovados em
+  Conversation e Orchestrator/PlanV1;
+- **Mistral:** integração técnica concluída, credencial salva no Stronghold e
+  privacidade opt-out confirmada, porém a conta Free usada no gate retorna
+  `429 rate_limited` com limite efetivo de requests igual a zero e o Studio informa
+  que é necessário upgrade para ativar as API keys;
+- **Summary:** deixou de ser requisito operacional. O usuário aprovou a opção de
+  desativá-lo; com resumo automático desligado, novas sessões fechadas permanecem
+  `summary_status=none` e não geram chamadas de provider;
+- **Gemini/Groq:** permanecem suportados; Gemini não é estruturalmente privilegiado.
 
-Somente depois disso começa **LR-7D3 — task graph mínimo + subtarefas independentes**.
+Por decisão explícita do usuário em 01/10/2026, a D2.5 é encerrada sem introduzir
+cobrança agora. O requisito de uma terceira infraestrutura operacional é convertido
+em **dívida formal**, não maquiado como gate Mistral aprovado.
 
-## Estado da implementação nesta branch
+Dívida registrada:
 
-Implementação candidata ao gate humano, não PASS final. O runtime agora registra
+> quando houver orçamento para a ativação inicial de uma API paga, substituir
+> **Mistral como rota operacional planejada por OpenAI API**, preservando o contrato
+> genérico `Provider`, Stronghold, routing Fixed/Preferred/Auto e os invariantes de
+> privacidade/segurança existentes.
+
+A implementação Mistral pode permanecer no código como adapter integrado, mas não
+é tratada como rota operacional validada no fechamento desta fase.
+
+Com esse escopo revisado, LR-7D2.5 é considerada encerrada e **LR-7D3 — task graph
+mínimo + subtarefas independentes** pode começar.
+
+## Estado final da implementação
+
+Fechamento aprovado pelo usuário em 01/10/2026. O escopo revisado está em PASS
+técnico + humano, com a limitação Mistral/OpenAI registrada como dívida operacional. O runtime agora registra
 quatro providers (`gemini`, `groq`, `mistral` e `cloudflare`) no mesmo catálogo e
 no mesmo Scheduler, sem regra comercial por marca. Mistral usa a API Chat
 Completions oficial com `mistral-small-2603`; Cloudflare Workers AI usa o endpoint
@@ -497,3 +516,25 @@ retornam `Protocol`. `finish_reason: null` é permitido somente em chunks
 intermediários. Assim, truncamento é distinguido de JSON semanticamente inválido
 e não chega ao parser estrito de Summary como sucesso. Reasoning e
 `reasoning_content` continuam ignorados e não são logados.
+
+
+## Evidência final do gate humano — 01/10/2026
+
+- Cloudflare credentials: PASS no Stronghold.
+- Cloudflare Conversation `Fixed`: PASS real.
+- Cloudflare Orchestrator/PlanV1 `Fixed`: PASS real, plano validado pelo Core.
+- Cloudflare Summary: apresentou incompatibilidades/lifecycle durante o gate; o
+  recurso foi reclassificado como opcional e ganhou toggle explícito de desativação.
+- Summary desativado: PASS humano; uma nova conversa fechada apareceu no Histórico
+  sem `resumindo…` e sem `resumo indisponível`.
+- Mistral credentials/configuração local: PASS.
+- Mistral API real: BLOCKED externamente pela política da conta Free/upgrade,
+  confirmado por HTTP 429 e limite efetivo zero; não é contado como PASS operacional.
+- Gates locais após o FIX de Summary opcional: Rust `272 passed; 0 failed; 2 ignored`
+  e `npm run typecheck` PASS após correção final do escopo React.
+- Nenhum secret foi persistido no SQLite ou documentado.
+- D3/LR-8 não foram antecipadas.
+
+A decisão de fechamento não afirma que Mistral foi validada em produção. Ela
+preserva a verdade do gate e adia somente a substituição operacional por OpenAI API
+até existir orçamento para ativação.
