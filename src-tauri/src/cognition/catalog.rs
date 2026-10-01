@@ -11,7 +11,7 @@ pub struct Integration {
     pub id: &'static str,
     pub display_name: &'static str,
     pub default_model: Option<&'static str>,
-    pub secret: SecretKey,
+    pub secrets: &'static [SecretKey],
     pub thinking: &'static [ThinkingLevel],
 }
 
@@ -25,15 +25,29 @@ pub const INTEGRATIONS: &[Integration] = &[
         id: "gemini",
         display_name: "Gemini",
         default_model: Some(super::gemini::MODEL),
-        secret: SecretKey::GeminiApiKey,
+        secrets: &[SecretKey::GeminiApiKey],
         thinking: LEVELS,
     },
     Integration {
         id: "groq",
         display_name: "Groq",
         default_model: Some(super::groq::MODEL),
-        secret: SecretKey::GroqApiKey,
+        secrets: &[SecretKey::GroqApiKey],
         thinking: LEVELS,
+    },
+    Integration {
+        id: "mistral",
+        display_name: "Mistral",
+        default_model: Some(super::mistral::MODEL),
+        secrets: &[SecretKey::MistralApiKey],
+        thinking: LEVELS,
+    },
+    Integration {
+        id: "cloudflare",
+        display_name: "Cloudflare Workers AI",
+        default_model: Some(super::cloudflare::MODEL),
+        secrets: &[SecretKey::CloudflareApiToken, SecretKey::CloudflareAccountId],
+        thinking: &[],
     },
 ];
 
@@ -48,8 +62,9 @@ pub fn configured_many(
 ) -> Result<HashMap<String, bool>, SecretError> {
     let keys: Vec<_> = ids
         .iter()
-        .filter_map(|id| integration(id).map(|item| item.secret))
-        .collect();
+        .flat_map(|id| integration(id).into_iter().flat_map(|item| item.secrets))
+        .copied()
+        .collect::<Vec<_>>();
     let presence = store.secret_presence(&keys).inspect_err(|error| {
         #[cfg(debug_assertions)]
         eprintln!(
@@ -64,7 +79,11 @@ pub fn configured_many(
         .map(|id| {
             (
                 (*id).to_owned(),
-                integration(id).is_some_and(|item| presence.get(&item.secret) == Some(&true)),
+                integration(id).is_some_and(|item| {
+                    item.secrets
+                        .iter()
+                        .all(|secret| presence.get(secret) == Some(&true))
+                }),
             )
         })
         .collect())

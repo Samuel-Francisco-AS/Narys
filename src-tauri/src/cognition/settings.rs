@@ -6,6 +6,7 @@ use super::{
 };
 use crate::{
     persistence::{
+        conversation,
         database::Database,
         general_settings::{self, GeneralSettings},
         provider_timeouts,
@@ -147,12 +148,20 @@ pub async fn update_cognitive_role_policy(
     policy: CognitiveRolePolicy,
 ) -> Result<CognitiveRolePolicy, String> {
     policy.validate().map_err(str::to_owned)?;
-    catalog::validate_policy(&policy, &runtime.scheduler.status(), &store)
-        .map_err(str::to_owned)?;
+    let summary_disabled =
+        policy.role == CognitiveRole::Summary && policy.summary_input_max_bytes == 0;
+    if !summary_disabled {
+        catalog::validate_policy(&policy, &runtime.scheduler.status(), &store)
+            .map_err(str::to_owned)?;
+    }
     let db = db.inner().clone();
     let saved = tauri::async_runtime::spawn_blocking(move || {
         let mut conn = db.open().map_err(|e| e.code())?;
-        policy::save(&mut conn, &policy).map_err(|e| e.code())
+        let saved = policy::save(&mut conn, &policy).map_err(|e| e.code())?;
+        if saved.role == CognitiveRole::Summary && saved.summary_input_max_bytes == 0 {
+            conversation::disable_pending_summaries(&conn).map_err(|e| e.code())?;
+        }
+        Ok::<_, &'static str>(saved)
     })
     .await
     .map_err(|_| "worker_failed".to_string())?

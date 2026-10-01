@@ -318,7 +318,7 @@ mod tests {
         }
     }
     #[test]
-    fn v8_to_v9_preserves_effective_routes_budgets_timestamp_reopen_and_integrity() {
+    fn v8_to_v10_preserves_effective_routes_budgets_timestamp_reopen_and_integrity() {
         let (db, dir) = fixture();
         let conn = Connection::open(dir.join("policy.sqlite3")).unwrap();
         conn.execute_batch(concat!(
@@ -342,7 +342,7 @@ mod tests {
         assert_eq!(
             conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
                 .unwrap(),
-            9
+            10
         );
         let conversation = load(&conn, CognitiveRole::Conversation).unwrap();
         assert_eq!(conversation.routing_mode, RoutingMode::Preferred);

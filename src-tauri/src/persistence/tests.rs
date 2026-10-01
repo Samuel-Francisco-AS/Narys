@@ -49,7 +49,7 @@ fn migration_empty_and_twice() {
     let v: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(v, 9);
+    assert_eq!(v, 10);
     assert_sqlite_integrity(&conn);
     drop(conn);
     assert_sqlite_integrity(&db.open().unwrap());
@@ -69,7 +69,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 9);
+    assert_eq!(version, 10);
     let title: String = conn
         .query_row(
             "SELECT title FROM conversation_sessions WHERE id=1",
@@ -263,6 +263,77 @@ fn history_list_detail_and_orphan_normalization_are_isolated() {
         )
         .unwrap();
     assert_eq!(active_status, "active");
+}
+
+#[test]
+fn summary_input_zero_disables_automatic_queueing_and_clears_pending() {
+    let (db, _) = fixture();
+    let mut conn = db.open().unwrap();
+
+    conn.execute(
+        "UPDATE cognitive_role_policies SET summary_input_max_bytes=0 WHERE role='summary'",
+        [],
+    )
+    .unwrap();
+
+    let disabled = conversation::create_session(&conn).unwrap();
+    conversation::append_exchange_to_session(
+        &mut conn,
+        disabled,
+        "SUMMARY-DISABLED-1",
+        "Resposta",
+    )
+    .unwrap();
+    assert!(conversation::close_session(&conn, disabled).unwrap());
+    assert_eq!(
+        conversation::history_session(&conn, disabled)
+            .unwrap()
+            .unwrap()
+            .summary_status,
+        "none"
+    );
+    assert!(conversation::claim_next_pending_summary(&mut conn)
+        .unwrap()
+        .is_none());
+
+    conn.execute(
+        "UPDATE cognitive_role_policies SET summary_input_max_bytes=32768 WHERE role='summary'",
+        [],
+    )
+    .unwrap();
+    let queued = conversation::create_session(&conn).unwrap();
+    conversation::append_exchange_to_session(
+        &mut conn,
+        queued,
+        "SUMMARY-ENABLED-2",
+        "Resposta",
+    )
+    .unwrap();
+    assert!(conversation::close_session(&conn, queued).unwrap());
+    assert_eq!(
+        conversation::history_session(&conn, queued)
+            .unwrap()
+            .unwrap()
+            .summary_status,
+        "pending"
+    );
+
+    conn.execute(
+        "UPDATE cognitive_role_policies SET summary_input_max_bytes=0 WHERE role='summary'",
+        [],
+    )
+    .unwrap();
+    assert_eq!(conversation::disable_pending_summaries(&conn).unwrap(), 1);
+    assert_eq!(
+        conversation::history_session(&conn, queued)
+            .unwrap()
+            .unwrap()
+            .summary_status,
+        "none"
+    );
+    assert!(conversation::claim_next_pending_summary(&mut conn)
+        .unwrap()
+        .is_none());
 }
 
 #[test]
@@ -1045,7 +1116,7 @@ fn migration_004_preserves_v3_policy_and_seeds_advanced_defaults() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 9);
+    assert_eq!(version, 10);
     let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
     assert_eq!(conversation.targets[0].model, "gemini-custom");
@@ -1155,7 +1226,7 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 9);
+    assert_eq!(version, 10);
     assert_eq!(super::general_settings::load(&conn).unwrap().active_fps, 45);
     assert_eq!(
         crate::cognition::policy::load(
@@ -1194,7 +1265,7 @@ fn migration_006_preserves_fixed_behavior_and_seeds_groq_fallback_config() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 9);
+    assert_eq!(version, 10);
     let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
     assert_eq!(conversation.targets[0].model, "gemini-custom");
@@ -1232,7 +1303,7 @@ fn migration_007_preserves_v6_policy_and_gemini_timeout() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        9
+        10
     );
     let before = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();

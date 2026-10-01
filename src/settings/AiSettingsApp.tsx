@@ -72,18 +72,20 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   const [backoff, setBackoff] = useState(String(initial.retryBackoffMs))
   const [historyMessages, setHistoryMessages] = useState(String(initial.historyMaxMessages))
   const [historyBytes, setHistoryBytes] = useState(String(initial.historyMaxBytes))
-  const [summaryBytes, setSummaryBytes] = useState(String(initial.summaryInputMaxBytes))
+  const [summaryBytes, setSummaryBytes] = useState(String(initial.summaryInputMaxBytes || 32768))
+  const [summaryEnabled, setSummaryEnabled] = useState(initial.role !== 'summary' || initial.summaryInputMaxBytes > 0)
   const [contextBytes, setContextBytes] = useState(String(initial.contextMaxBytes))
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const summaryDisabled = initial.role === 'summary' && !summaryEnabled
   async function save() {
     const maxProviderCalls = numberValue(calls)
     const maxOutputTokens = policy.maxOutputTokens === null ? null : numberValue(customOutput)
     if (policy.targets.length < (policy.routingMode === 'fixed' ? 1 : 2) || policy.targets.length > 8 || (policy.routingMode === 'fixed' && policy.targets.length !== 1) || new Set(policy.targets.map(target => target.providerId)).size !== policy.targets.length) { setError('Quantidade de targets inválida para este modo.'); return }
     for (const target of policy.targets) {
       const provider = providers.find(item => item.id === target.providerId)
-      if (!usable(provider)) { setError('Configure uma credencial para cada provider habilitado e compatível antes de salvar.'); return }
+      if (!summaryDisabled && !usable(provider)) { setError('Configure uma credencial para cada provider habilitado e compatível antes de salvar.'); return }
       if (!target.model.trim() || target.model !== target.model.trim() || new TextEncoder().encode(target.model).length > 128 || /[\u0000-\u001f\u007f]/.test(target.model)) { setError('Modelo inválido: use até 128 bytes, sem controles.'); return }
       if (target.thinkingLevel && !provider?.supportedThinkingLevels.includes(target.thinkingLevel)) { setError('Thinking indisponível neste target.'); return }
     }
@@ -92,7 +94,7 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
     if (maxOutputTokens !== null && (!Number.isSafeInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > 4294967295)) { setError('O limite de output deve estar entre 1 e 4294967295.'); return }
     const maxRetries = numberValue(retries), retryBackoffMs = numberValue(backoff)
     const historyMaxMessages = numberValue(historyMessages), historyMaxBytes = numberValue(historyBytes)
-    const summaryInputMaxBytes = numberValue(summaryBytes)
+    const summaryInputMaxBytes = initial.role === 'summary' && !summaryEnabled ? 0 : numberValue(summaryBytes)
     const contextMaxBytes = numberValue(contextBytes)
     if ([maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes, contextMaxBytes].some(value => !Number.isSafeInteger(value) || value < 0 || value > 4294967295) || contextMaxBytes < 1) { setError('Limites avançados devem ser inteiros não negativos até 4294967295.'); return }
     setBusy(true); setError(''); setMessage('')
@@ -105,6 +107,14 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   return <section className="settings-card role-card" aria-label={labels[initial.role]}>
     <div className="role-header"><div><p className="settings-kicker">PAPEL COGNITIVO</p><h2>{labels[initial.role]}</h2></div><span>{initial.role}</span></div>
     <div className="settings-fields">
+      {initial.role === 'summary' && <fieldset><legend>Resumo automático</legend>
+        <label className="radio"><input type="checkbox" checked={summaryEnabled} onChange={event => {
+          const enabled = event.target.checked
+          setSummaryEnabled(enabled)
+          if (enabled && numberValue(summaryBytes) <= 0) setSummaryBytes('32768')
+        }} />Gerar título e resumo automaticamente ao encerrar uma conversa</label>
+        <small>Desativado: novas sessões fechadas não geram chamadas de provider e permanecem sem resumo automático.</small>
+      </fieldset>}
       <fieldset><legend>Roteamento</legend>
         <label>Modo<select value={policy.routingMode} onChange={event => changeMode(event.target.value as Routing)}><option value="fixed">Fixed</option><option value="preferred" disabled={providers.length < 2}>Preferred</option><option value="auto" disabled={providers.length < 2}>Auto</option></select></label>
         {policy.routingMode === 'fixed' && <small>Usa exatamente o único target definido.</small>}
@@ -114,7 +124,7 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
           const provider = providers.find(item => item.id === target.providerId)
           return <li key={target.providerId}><fieldset><legend>Target {index + 1}</legend>
             <label>Provider<select value={target.providerId} onChange={event => changeProvider(index, event.target.value)}>{providers.filter(item => item.id === target.providerId || !policy.targets.some(other => other.providerId === item.id)).map(item => <option key={item.id} value={item.id}>{item.displayName}{!usable(item) ? ' · indisponível' : ''}</option>)}</select></label>
-            {!usable(provider) && <p className="settings-warning">Provider desabilitado, incompatível ou sem credencial.</p>}
+            {!summaryDisabled && !usable(provider) && <p className="settings-warning">Provider desabilitado, incompatível ou sem credencial.</p>}
             <label>Modelo <small>Default: {provider?.defaultModel ?? '—'}</small><input value={target.model} maxLength={128} onChange={event => replaceTarget(index, { ...target, model: event.target.value })} /></label>
             <label>Thinking<select value={target.thinkingLevel ?? ''} onChange={event => replaceTarget(index, { ...target, thinkingLevel: (event.target.value || null) as Thinking })}><option value="">Padrão do provider</option>{provider?.supportedThinkingLevels.filter((level): level is Exclude<Thinking, null> => level !== null).map(level => <option key={level} value={level}>{level}</option>)}</select></label>
             <div className="settings-actions"><button type="button" aria-label={`Mover target ${index + 1} para cima`} disabled={index === 0} onClick={() => moveTarget(index, -1)}>↑</button><button type="button" aria-label={`Mover target ${index + 1} para baixo`} disabled={index === policy.targets.length - 1} onClick={() => moveTarget(index, 1)}>↓</button><button type="button" disabled={policy.targets.length <= (policy.routingMode === 'fixed' ? 1 : 2)} onClick={() => { targetConfigs.current[target.providerId] = target; setPolicy({ ...policy, targets: policy.targets.filter((_, i) => i !== index) }) }}>Remover</button></div>
@@ -148,8 +158,8 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
         <small>O planejamento usa somente o objetivo atual e identidade técnica mínima; histórico e memória não são enviados.</small>
       </fieldset>}
       {initial.role === 'summary' && <fieldset><legend>Input do resumo</legend>
-        <label>Máximo de bytes<input type="number" min="0" value={summaryBytes} onChange={event => setSummaryBytes(event.target.value)} /></label>
-        <small>Limita quanto do transcript fechado pode ser enviado para gerar título e resumo.</small>
+        <label>Máximo de bytes<input type="number" min="1" disabled={!summaryEnabled} value={summaryBytes} onChange={event => setSummaryBytes(event.target.value)} /></label>
+        <small>{summaryEnabled ? 'Limita quanto do transcript fechado pode ser enviado para gerar título e resumo.' : 'Resumo automático desativado.'}</small>
       </fieldset>}
     </div>
     <div className="settings-actions"><button type="button" disabled={busy} onClick={() => void save()}>Salvar {labels[initial.role].toLowerCase()}</button>{message && <span role="status">{message}</span>}</div>
@@ -191,6 +201,9 @@ export default function AiSettingsApp() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [geminiKey, setGeminiKey] = useState('')
   const [groqKey, setGroqKey] = useState('')
+  const [mistralKey, setMistralKey] = useState('')
+  const [cloudflareToken, setCloudflareToken] = useState('')
+  const [cloudflareAccountId, setCloudflareAccountId] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -274,16 +287,28 @@ export default function AiSettingsApp() {
       if (orchestratorTaskRef.current !== null) void invoke<boolean>('cancel_task', { taskId: orchestratorTaskRef.current })
     }
   }, [])
-  async function credential(provider: 'gemini' | 'groq', action: 'set' | 'delete') {
+  async function credential(provider: 'gemini' | 'groq' | 'mistral', action: 'set' | 'delete') {
     setBusy(true); setError(''); setNotice('')
     const command = `${provider}_${action === 'set' ? 'set_api_key' : 'delete_api_key'}`
-    const value = provider === 'gemini' ? geminiKey : groqKey
+    const value = provider === 'gemini' ? geminiKey : provider === 'groq' ? groqKey : mistralKey
     try {
       await invoke(command, action === 'set' ? { apiKey: value } : {})
-      if (provider === 'gemini') setGeminiKey(''); else setGroqKey('')
+      if (provider === 'gemini') setGeminiKey(''); else if (provider === 'groq') setGroqKey(''); else setMistralKey('')
       await refresh()
-      setNotice(`${provider === 'gemini' ? 'Gemini' : 'Groq'}: ${action === 'set' ? 'chave guardada no SecretStore' : 'chave removida'}.`)
+      const name = provider === 'gemini' ? 'Gemini' : provider === 'groq' ? 'Groq' : 'Mistral'
+      setNotice(`${name}: ${action === 'set' ? 'chave guardada no SecretStore' : 'chave removida'}.`)
     } catch { setError('Não foi possível alterar a credencial no SecretStore.') }
+    finally { setBusy(false) }
+  }
+  async function cloudflareCredentials(action: 'set' | 'delete') {
+    setBusy(true); setError(''); setNotice('')
+    try {
+      await invoke(action === 'set' ? 'cloudflare_set_credentials' : 'cloudflare_delete_credentials',
+        action === 'set' ? { apiToken: cloudflareToken, accountId: cloudflareAccountId } : {})
+      setCloudflareToken(''); setCloudflareAccountId('')
+      await refresh()
+      setNotice(`Cloudflare Workers AI: ${action === 'set' ? 'credenciais guardadas no SecretStore' : 'credenciais removidas'}.`)
+    } catch { setError('Não foi possível alterar as credenciais Cloudflare no SecretStore.') }
     finally { setBusy(false) }
   }
   async function probeGroq() {
@@ -299,6 +324,8 @@ export default function AiSettingsApp() {
   }
   const gemini = settings?.providers.find(provider => provider.id === 'gemini')
   const groq = settings?.providers.find(provider => provider.id === 'groq')
+  const mistral = settings?.providers.find(provider => provider.id === 'mistral')
+  const cloudflare = settings?.providers.find(provider => provider.id === 'cloudflare')
   return <main className="settings-page">
     <header><p className="settings-kicker">LUNA · COGNIÇÃO</p><h1>IA e modelos</h1><p>Estas escolhas são aplicadas na próxima tarefa. Uma resposta em andamento mantém a configuração com que começou.</p></header>
     {settings ? <>
@@ -309,6 +336,11 @@ export default function AiSettingsApp() {
         <div className="settings-actions"><button disabled={busy || !geminiKey.trim()} onClick={() => void credential('gemini', 'set')}>Guardar Gemini</button><button disabled={busy || !gemini?.configured} onClick={() => void credential('gemini', 'delete')}>Remover Gemini</button></div>
         <label>Chave API Groq <input type="password" autoComplete="off" value={groqKey} onChange={event => setGroqKey(event.target.value)} placeholder="Definir ou substituir chave Groq" /></label>
         <div className="settings-actions"><button disabled={busy || !groqKey.trim()} onClick={() => void credential('groq', 'set')}>Guardar Groq</button><button disabled={busy || !groq?.configured} onClick={() => void credential('groq', 'delete')}>Remover Groq</button></div>
+        <label>Chave API Mistral <input type="password" autoComplete="off" value={mistralKey} onChange={event => setMistralKey(event.target.value)} placeholder="Definir ou substituir chave Mistral" /></label>
+        <div className="settings-actions"><button disabled={busy || !mistralKey.trim()} onClick={() => void credential('mistral', 'set')}>Guardar Mistral</button><button disabled={busy || !mistral?.configured} onClick={() => void credential('mistral', 'delete')}>Remover Mistral</button></div>
+        <label>Token API Cloudflare <input type="password" autoComplete="off" value={cloudflareToken} onChange={event => setCloudflareToken(event.target.value)} placeholder="Definir token Cloudflare" /></label>
+        <label>Account ID Cloudflare <input type="password" autoComplete="off" value={cloudflareAccountId} onChange={event => setCloudflareAccountId(event.target.value)} placeholder="Definir Account ID" /></label>
+        <div className="settings-actions"><button disabled={busy || !cloudflareToken.trim() || !cloudflareAccountId.trim()} onClick={() => void cloudflareCredentials('set')}>Guardar Cloudflare</button><button disabled={busy || !cloudflare?.configured} onClick={() => void cloudflareCredentials('delete')}>Remover Cloudflare</button></div>
         {notice && <p role="status">{notice}</p>}
         {settings.providers.map(provider => settings.providerTimeouts[provider.id] && <TimeoutForm key={provider.id} provider={provider} initial={settings.providerTimeouts[provider.id]} onSaved={saved => setSettings(current => current && ({ ...current, providerTimeouts: { ...current.providerTimeouts, [provider.id]: saved } }))} />)}
       </section>
