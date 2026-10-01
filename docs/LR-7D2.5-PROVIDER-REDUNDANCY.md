@@ -1,6 +1,6 @@
 # LR-7D2.5 — provider redundancy + Gemini de-risking
 
-Estado: **ENCERRADA em 01/10/2026 — PASS técnico + gate humano do escopo revisado; merge para `main` autorizado, com dívida operacional formal de substituir Mistral por OpenAI API paga quando houver orçamento para ativação.**
+Estado: **ENCERRADA em 01/10/2026 — PASS técnico + gate humano do escopo revisado e integrada à `main` pela PR #12; dívida operacional formal: substituir Mistral por OpenAI API paga quando houver orçamento para ativação.**
 Posição no roadmap: **LR-7D2 → LR-7D2.5 → LR-7D3**.
 Branch de implementação/fechamento: `lr-7d25-provider-redundancy`.
 
