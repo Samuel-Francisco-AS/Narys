@@ -26,10 +26,31 @@ pub enum SessionRole { User, Assistant }
 pub struct SessionTurn { pub role: SessionRole, pub content: String }
 #[derive(Debug)]
 pub struct ClaimedSummary { pub id: i64, pub messages: Vec<ConversationMessage>, pub truncated: bool }
+fn automatic_summary_enabled(conn: &Connection) -> Result<bool, PersistenceError> {
+  let bytes: i64 = conn
+    .query_row("SELECT summary_input_max_bytes FROM cognitive_role_policies WHERE role='summary'", [], |row| row.get(0))
+    .map_err(|_| PersistenceError::Read)?;
+  Ok(bytes > 0)
+}
+
 /// Startup recovery runs after orphan closure and before the summary worker starts.
 pub fn reset_interrupted_summaries(conn: &Connection) -> Result<usize, PersistenceError> {
-  conn.execute("UPDATE conversation_sessions SET summary_status='pending' WHERE kind='product' AND status='closed' AND summary_status='running'", [])
+  let state = if automatic_summary_enabled(conn)? { "pending" } else { "none" };
+  conn.execute("UPDATE conversation_sessions SET summary_status=?1 WHERE kind='product' AND status='closed' AND summary_status='running'", [state])
     .map_err(|_| PersistenceError::Write)
+}
+
+/// Disabling automatic summaries must leave no queued/running session looking active.
+pub fn disable_pending_summaries(conn: &Connection) -> Result<usize, PersistenceError> {
+  conn.execute("UPDATE conversation_sessions SET summary_status='none',summary=NULL,summary_updated_at=NULL
+    WHERE kind='product' AND status='closed' AND summary_status IN ('pending','running')", [])
+    .map_err(|_| PersistenceError::Write)
+}
+
+pub fn clear_claimed_summary(conn: &Connection, id: i64) -> Result<bool, PersistenceError> {
+  Ok(conn.execute("UPDATE conversation_sessions SET summary_status='none',summary=NULL,summary_updated_at=NULL
+    WHERE id=?1 AND kind='product' AND status='closed' AND summary_status='running'", [id])
+    .map_err(|_| PersistenceError::Write)? == 1)
 }
 pub fn claim_next_pending_summary(conn: &mut Connection) -> Result<Option<ClaimedSummary>, PersistenceError> {
   let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate).map_err(|_| PersistenceError::Write)?;
@@ -74,12 +95,13 @@ pub fn is_active_session(conn: &Connection, id: i64) -> Result<bool, Persistence
 }
 pub fn close_session(conn: &Connection, id: i64) -> Result<bool, PersistenceError> {
   if id <= 0 { return Ok(false); }
+  let summary_enabled = automatic_summary_enabled(conn)?;
   Ok(conn.execute("UPDATE conversation_sessions SET status='closed',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
-      summary_status=CASE WHEN summary_status='none' AND
+      summary_status=CASE WHEN ?2=1 AND summary_status='none' AND
         EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=?1 AND role='user') AND
         EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=?1 AND role='assistant')
         THEN 'pending' ELSE summary_status END
-      WHERE id=?1 AND kind='product' AND status='active'", [id])
+      WHERE id=?1 AND kind='product' AND status='active'", rusqlite::params![id, if summary_enabled { 1 } else { 0 }])
     .map_err(|_| PersistenceError::Write)? == 1)
 }
 /// The caller holds CurrentRunSessions across this transaction and registry update.
@@ -105,12 +127,13 @@ pub fn resume_session(conn: &mut Connection, target_id: i64, current_id: Option<
 }
 /// Called once in Tauri setup, while CurrentRunSessions is still empty.
 pub fn close_orphaned_product_sessions(conn: &Connection) -> Result<usize, PersistenceError> {
+  let summary_enabled = automatic_summary_enabled(conn)?;
   conn.execute("UPDATE conversation_sessions SET status='closed',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
-    summary_status=CASE WHEN summary_status='none' AND
+    summary_status=CASE WHEN ?1=1 AND summary_status='none' AND
       EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=conversation_sessions.id AND role='user') AND
       EXISTS(SELECT 1 FROM conversation_messages WHERE session_id=conversation_sessions.id AND role='assistant')
       THEN 'pending' ELSE summary_status END
-    WHERE kind='product' AND status='active'", [])
+    WHERE kind='product' AND status='active'", [if summary_enabled { 1 } else { 0 }])
     .map_err(|_| PersistenceError::Write)
 }
 fn short_text(value: &str, max_chars: usize) -> String {
