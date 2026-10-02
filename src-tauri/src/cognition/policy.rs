@@ -455,14 +455,20 @@ mod tests {
     fn all_roles_roundtrip_auto_order_and_independent_configuration() {
         let (db, dir) = fixture();
         let mut conn = db.open().unwrap();
-        let untouched = load(&conn, CognitiveRole::Summary).unwrap();
-        let mut policies = vec![];
-        for role in [
+        let roles = [
             CognitiveRole::Conversation,
             CognitiveRole::Orchestrator,
             CognitiveRole::Summary,
             CognitiveRole::Worker,
-        ] {
+        ];
+        let mut policies = vec![];
+        for role in roles {
+            let untouched: Vec<_> = roles
+                .iter()
+                .copied()
+                .filter(|other| *other != role)
+                .map(|other| (other, load(&conn, other).unwrap()))
+                .collect();
             let mut policy = load(&conn, role).unwrap();
             policy.routing_mode = RoutingMode::Auto;
             policy.targets = vec![target("b"), target("a"), target("c")];
@@ -471,8 +477,8 @@ mod tests {
             policy.max_output_tokens = None;
             save(&mut conn, &policy).unwrap();
             assert_eq!(load(&conn, role).unwrap(), policy);
-            if role != CognitiveRole::Summary {
-                assert_eq!(load(&conn, CognitiveRole::Summary).unwrap(), untouched);
+            for (other, previous) in untouched {
+                assert_eq!(load(&conn, other).unwrap(), previous);
             }
             policies.push(policy);
         }
