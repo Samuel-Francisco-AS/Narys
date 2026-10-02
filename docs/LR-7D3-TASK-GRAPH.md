@@ -1,7 +1,7 @@
 # LR-7D3 — Task graph mínimo + subtarefas independentes
 
-Estado da branch: **CANDIDATA À VALIDAÇÃO TÉCNICA LOCAL**.  
-Branch: `lr-7d3-task-graph`.  
+Estado da branch: **CANDIDATA À VALIDAÇÃO TÉCNICA LOCAL**.
+Branch: `lr-7d3-task-graph`.
 Base: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
 
 Este documento registra a implementação candidata. **Não é registro de PASS**:
