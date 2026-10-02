@@ -1,12 +1,46 @@
 # LR-7D3 — Task graph mínimo + subtarefas independentes
 
-Estado da branch: **CANDIDATA COM FIX-5 IMPLEMENTADA; gates locais concluídos, revisão e gate humano pendentes**.
+Estado da branch: **CANDIDATA COM FIX-6 IMPLEMENTADA; validação local e novo gate humano pendentes**.
 Branch: `lr-7d3-task-graph`.
 Base: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
 
 Este documento registra a implementação candidata. **Não é registro de PASS
 da LR-7D3/LR-7**: os gates locais estão registrados abaixo; a revisão independente
 da FIX e o novo gate humano com providers reais continuam pendentes.
+
+## FIX-6 — tolerância idempotente de terminal Cloudflare
+
+Implementação candidata de 02/10/2026, após gate humano real da FIX-5. O gate
+comprovou Planner Groq estruturado, compilação do TaskGraph, despacho paralelo
+de dois Workers e conclusão do Worker Groq. O Worker Cloudflare falhou antes da
+validação do envelope cognitivo com diagnóstico sanitizado:
+
+`phase=terminal done=false finish=duplicate usage_present=true usage_valid=true content_bytes=0 error=duplicate_finish`.
+
+A correção é deliberadamente estreita no adapter Cloudflare: um
+`finish_reason` repetido com **o mesmo valor** é tratado como terminal
+idempotente e não altera estado, usage, conteúdo ou decisão final. Um terminal
+posterior conflitante continua retornando `provider_protocol_error`. Assim,
+`stop → stop` preserva `stop`, enquanto `stop → length` ou
+`stop → tool_calls` falha fechado. `length → length` e
+`tool_calls → tool_calls` continuam chegando às classificações já existentes
+(`provider_incomplete` e `provider_requires_action`) em vez de serem
+promovidos a sucesso.
+
+A regra não altera Scheduler, budgets, routing, TaskGraph, Worker envelope,
+capabilities ou streaming de outros providers. Teste HTTP local reproduz a
+sequência observada de terminal repetido no chunk posterior de usage e confirma
+sucesso somente quando a duplicata é idêntica; um terminal conflitante continua
+rejeitado.
+
+A documentação atual da Cloudflare registra historicamente uma correção para
+streaming que deveria impedir `finish_reason` duplicado no endpoint
+OpenAI-compatible; apesar disso, o gate real de 02/10/2026 observou novamente
+essa condição com `@cf/zai-org/glm-4.7-flash`. A compatibilidade local é,
+portanto, defensiva e restrita à repetição semanticamente idempotente.
+
+**Nenhum PASS novo é declarado nesta FIX.** Gates locais e novo gate humano
+Groq + Cloudflare permanecem obrigatórios.
 
 ## FIX-5 — Structured Planner Invocation & Runtime Diagnostics
 

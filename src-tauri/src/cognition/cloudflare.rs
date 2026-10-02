@@ -335,9 +335,26 @@ impl Provider for CloudflareProvider {
                         }
                         StreamEvent::Usage(value) => usage = Some(value),
                         StreamEvent::Finish(reason) => {
-                            if finish_reason.replace(reason).is_some() {
-                                diagnostic(&request.target.invocation.model, "terminal", done, Some("duplicate"), usage.is_some(), usage.is_some(), text.len(), "duplicate_finish");
-                                return Err(ProviderError::Protocol);
+                            match record_finish_reason(&mut finish_reason, reason) {
+                                Ok(false) => {}
+                                Ok(true) => {
+                                    // Cloudflare's OpenAI-compatible stream has been observed
+                                    // repeating the same terminal reason on a later usage chunk.
+                                    // Identical repetition is idempotent; it changes no outcome.
+                                }
+                                Err(error) => {
+                                    diagnostic(
+                                        &request.target.invocation.model,
+                                        "terminal",
+                                        done,
+                                        Some("conflict"),
+                                        usage.is_some(),
+                                        usage.is_some(),
+                                        text.len(),
+                                        "conflicting_finish",
+                                    );
+                                    return Err(error);
+                                }
                             }
                         }
                         StreamEvent::Done => {
@@ -391,12 +408,30 @@ enum StreamEvent {
     Ignore,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FinishReason {
     Stop,
     Length,
     ToolCalls,
     Unknown,
+}
+
+/// Record a terminal reason exactly once. Some OpenAI-compatible Cloudflare
+/// streams can repeat the same finish_reason on a later usage chunk. Repeating
+/// the same terminal state is idempotent; conflicting terminal states remain a
+/// protocol violation and fail closed.
+fn record_finish_reason(
+    slot: &mut Option<FinishReason>,
+    incoming: FinishReason,
+) -> Result<bool, ProviderError> {
+    match slot {
+        None => {
+            *slot = Some(incoming);
+            Ok(false)
+        }
+        Some(existing) if *existing == incoming => Ok(true),
+        Some(_) => Err(ProviderError::Protocol),
+    }
 }
 
 fn finish_label(reason: Option<&FinishReason>) -> Option<&'static str> {
@@ -773,6 +808,68 @@ data: [DONE]
             parser
                 .push(b"data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\ndata: [DONE]\n\n"),
             Ok(vec![StreamEvent::Text("x".into()), StreamEvent::Done])
+        );
+    }
+
+    #[test]
+    fn duplicate_finish_reason_is_idempotent_but_conflict_fails_closed() {
+        let duplicate = "data: {\"choices\":[{\"delta\":{\"content\":\"visible\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\n\ndata: [DONE]\n\n";
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) =
+            super::super::transport::test_support::server("200 OK", duplicate, false, Duration::ZERO);
+        let provider = CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 500,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ))
+        .unwrap();
+        handle.join().unwrap();
+        assert_eq!(result.text, "visible");
+        assert!(result.usage.output_tokens_measured);
+        assert_eq!(result.usage.output_tokens, 1);
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let conflicting = "data: {\"choices\":[{\"delta\":{\"content\":\"visible\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\n\ndata: [DONE]\n\n";
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) =
+            super::super::transport::test_support::server("200 OK", conflicting, false, Duration::ZERO);
+        let provider = CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts {
+                request_timeout_ms: 500,
+                stream_idle_timeout_ms: 500,
+            }),
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        handle.join().unwrap();
+        assert_eq!(result, Err(ProviderError::Protocol));
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let mut finish = None;
+        assert_eq!(record_finish_reason(&mut finish, FinishReason::Stop), Ok(false));
+        assert_eq!(record_finish_reason(&mut finish, FinishReason::Stop), Ok(true));
+        assert_eq!(
+            record_finish_reason(&mut finish, FinishReason::ToolCalls),
+            Err(ProviderError::Protocol)
         );
     }
 
