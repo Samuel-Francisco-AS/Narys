@@ -83,10 +83,14 @@ impl MinimalOutboundContext {
         if !valid_model(model) {
             return Err(ProviderError::InvalidRequest);
         }
-        let execution_instruction = format!(
+        let mut execution_instruction = format!(
       "{}\nMetadado técnico da execução atual: provider cognitivo=Groq (id groq); modelo={model}. Esse metadado não altera sua identidade. Se o usuário perguntar qual provider ou modelo processa esta mensagem, responda usando este metadado e não infira pelo histórico. Não mencione esse metadado sem relevância. Você conhece apenas a execução atual; não invente uma rota anterior.",
       self.system_instruction
     );
+        if let Some(internal) = request.internal_system_instruction.as_deref() {
+            execution_instruction.push_str("\nInstrução técnica interna do Luna Core (prioritária):\n");
+            execution_instruction.push_str(internal);
+        }
         let mut messages = vec![json!({"role":"system","content":execution_instruction})];
         for message in &request.history {
             messages.push(json!({
@@ -228,6 +232,7 @@ impl Provider for GroqProvider {
             let mut parser = SseParser::default();
             let mut text = String::new();
             let mut usage = None;
+            let mut finish_reason = None;
             let mut done = false;
             'stream: loop {
                 let next = tokio::select! {
@@ -243,6 +248,11 @@ impl Provider for GroqProvider {
                             on_chunk(ProviderChunk { text: piece })?;
                         }
                         StreamEvent::Usage(value) => usage = Some(value),
+                        StreamEvent::Finish(reason) => {
+                            if finish_reason.replace(reason).is_some() {
+                                return Err(ProviderError::Protocol);
+                            }
+                        }
                         StreamEvent::Done => {
                             done = true;
                             break 'stream;
@@ -254,10 +264,17 @@ impl Provider for GroqProvider {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
             }
-            if !done || text.trim().is_empty() {
+            if !done {
                 return Err(ProviderError::Protocol);
             }
-            let usage = usage.ok_or(ProviderError::Protocol)?;
+            match finish_reason {
+                Some(FinishReason::Stop) if !text.trim().is_empty() => {}
+                Some(FinishReason::Stop) => return Err(ProviderError::Protocol),
+                Some(FinishReason::Length) => return Err(ProviderError::Incomplete),
+                Some(FinishReason::ToolCalls) => return Err(ProviderError::RequiresAction),
+                Some(FinishReason::Unknown) | None => return Err(ProviderError::Protocol),
+            }
+            let usage = usage.unwrap_or_default();
             Ok(ProviderResponse { text, usage })
         })
     }
@@ -267,8 +284,17 @@ impl Provider for GroqProvider {
 enum StreamEvent {
     Text(String),
     Usage(ProviderUsage),
+    Finish(FinishReason),
     Done,
     Ignore,
+}
+
+#[derive(Debug, PartialEq)]
+enum FinishReason {
+    Stop,
+    Length,
+    ToolCalls,
+    Unknown,
 }
 
 #[derive(Default)]
@@ -318,6 +344,23 @@ impl SseParser {
             return Err(ProviderError::Protocol);
         }
         let mut events = Vec::new();
+        if let Some(choices) = value.get("choices").and_then(Value::as_array) {
+            if choices.len() > 1 {
+                return Err(ProviderError::Protocol);
+            }
+            if let Some(raw_reason) = choices.first().and_then(|choice| choice.get("finish_reason")) {
+                if !raw_reason.is_null() {
+                    let reason = match raw_reason.as_str() {
+                        Some("stop") => FinishReason::Stop,
+                        Some("length") => FinishReason::Length,
+                        Some("tool_calls") | Some("function_call") => FinishReason::ToolCalls,
+                        Some(_) => FinishReason::Unknown,
+                        None => return Err(ProviderError::Protocol),
+                    };
+                    events.push(StreamEvent::Finish(reason));
+                }
+            }
+        }
         if let Some(content) = value
             .pointer("/choices/0/delta/content")
             .and_then(Value::as_str)
@@ -336,6 +379,7 @@ impl SseParser {
                 output_tokens,
                 total_tokens: Some(total_tokens),
                 thought_tokens: None,
+                output_tokens_measured: true,
             }));
         }
         if events.is_empty() {
@@ -439,6 +483,7 @@ mod tests {
 
     fn request(thinking_level: Option<ThinkingLevel>) -> ProviderRequest {
         ProviderRequest {
+            internal_system_instruction: None,
             input: "Olá".into(),
             history: vec![],
             context: context(),
@@ -458,6 +503,7 @@ mod tests {
     fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
         ProviderTaskRequest {
             input: request.input,
+            internal_system_instruction: request.internal_system_instruction,
             history: request.history,
             context: request.context,
             max_output_tokens: request.max_output_tokens,
@@ -525,7 +571,26 @@ mod tests {
         (url, handle)
     }
 
-    const SSE: &str = "data: {\"choices\":[{\"delta\":{\"content\":\"Conexão \"}}],\"usage\":null}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"confirmada.\",\"reasoning\":\"segredo\"}}],\"usage\":null}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":3,\"total_tokens\":15}}\n\ndata: [DONE]\n\n";
+    const SSE: &str = "data: {\"choices\":[{\"delta\":{\"content\":\"Conexão \"}}],\"usage\":null}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"confirmada.\",\"reasoning\":\"segredo\"},\"finish_reason\":\"stop\"}],\"usage\":null}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":3,\"total_tokens\":15}}\n\ndata: [DONE]\n\n";
+
+    fn execute_sse(body: &str) -> Result<ProviderResponse, ProviderError> {
+        let (store, dir) = fixture();
+        let (url, handle) = server("200 OK", body, "", true);
+        let provider = GroqProvider::new(
+            GroqConfig { endpoint: url, ..Default::default() },
+            store,
+        ).unwrap();
+        let mut request = request(None);
+        request.target.invocation.model = MODEL.into();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &request,
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        let _ = handle.join().unwrap();
+        fs::remove_dir_all(dir).unwrap();
+        result
+    }
 
     #[test]
     fn payload_is_provider_specific_private_and_reasoning_hidden() {
@@ -589,10 +654,39 @@ mod tests {
                 input_tokens: 5,
                 output_tokens: 2,
                 total_tokens: Some(7),
-                thought_tokens: None
+                thought_tokens: None,
+                output_tokens_measured: true,
             })
         );
         assert_eq!(events[2], StreamEvent::Done);
+    }
+
+    #[test]
+    fn http_finish_reason_is_a_required_terminal_contract() {
+        let stop = "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+        assert_eq!(execute_sse(stop).unwrap().text, "{}");
+
+        for body in [
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"version\\\":1\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n",
+        ] {
+            assert!(matches!(execute_sse(body), Err(ProviderError::Incomplete)));
+        }
+        for reason in ["tool_calls", "function_call"] {
+            let body = format!("data: {{\"choices\":[{{\"delta\":{{}},\"finish_reason\":\"{reason}\"}}]}}\n\ndata: [DONE]\n\n");
+            assert!(matches!(execute_sse(&body), Err(ProviderError::RequiresAction)));
+        }
+        for body in [
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"}}]}\n\ndata: [DONE]\n\n".to_owned(),
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"mystery\"}]}\n\ndata: [DONE]\n\n".to_owned(),
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n".to_owned(),
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n".to_owned(),
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"stop\"},{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n".to_owned(),
+        ] {
+            assert!(matches!(execute_sse(&body), Err(ProviderError::Protocol)));
+        }
+        let empty_stop = "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+        assert!(matches!(execute_sse(empty_stop), Err(ProviderError::Protocol)));
     }
 
     #[test]

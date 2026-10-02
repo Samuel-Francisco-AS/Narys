@@ -82,10 +82,14 @@ impl MinimalOutboundContext {
         if !valid_model(model) {
             return Err(ProviderError::InvalidRequest);
         }
-        let execution_instruction = format!(
+        let mut execution_instruction = format!(
       "{}\nMetadado técnico da execução atual: provider cognitivo=Cloudflare (id cloudflare); modelo={model}. Esse metadado não altera sua identidade. Se o usuário perguntar qual provider ou modelo processa esta mensagem, responda usando este metadado e não infira pelo histórico. Não mencione esse metadado sem relevância. Você conhece apenas a execução atual; não invente uma rota anterior.",
       self.system_instruction
     );
+        if let Some(internal) = request.internal_system_instruction.as_deref() {
+            execution_instruction.push_str("\nInstrução técnica interna do Luna Core (prioritária):\n");
+            execution_instruction.push_str(internal);
+        }
         let mut messages = vec![json!({"role":"system","content":execution_instruction})];
         for message in &request.history {
             messages.push(json!({
@@ -291,7 +295,24 @@ impl Provider for CloudflareProvider {
                     result.map_err(|_| ProviderError::Timeout)?.map_err(|error| network_error(&error))?,
                 };
                 let Some(bytes) = next else { break };
-                for event in parser.push(&bytes)? {
+                let parsed = parser.push(&bytes);
+                let parsed = match parsed {
+                    Ok(events) => events,
+                    Err(error) => {
+                        diagnostic(
+                            &request.target.invocation.model,
+                            "sse_decode",
+                            done,
+                            finish_label(finish_reason.as_ref()),
+                            usage.is_some() || String::from_utf8_lossy(&bytes).contains("\"usage\""),
+                            false,
+                            text.len(),
+                            "malformed_sse_or_usage",
+                        );
+                        return Err(error);
+                    }
+                };
+                for event in parsed {
                     match event {
                         StreamEvent::Text(piece) => {
                             text.push_str(&piece);
@@ -300,6 +321,7 @@ impl Provider for CloudflareProvider {
                         StreamEvent::Usage(value) => usage = Some(value),
                         StreamEvent::Finish(reason) => {
                             if finish_reason.replace(reason).is_some() {
+                                diagnostic(&request.target.invocation.model, "terminal", done, Some("duplicate"), usage.is_some(), usage.is_some(), text.len(), "duplicate_finish");
                                 return Err(ProviderError::Protocol);
                             }
                         }
@@ -315,16 +337,30 @@ impl Provider for CloudflareProvider {
                 return Err(ProviderError::Cancelled);
             }
             if !done {
+                diagnostic(&request.target.invocation.model, "terminal", done, finish_label(finish_reason.as_ref()), usage.is_some(), usage.is_some(), text.len(), "missing_done");
                 return Err(ProviderError::Protocol);
             }
-            match finish_reason {
+            match finish_reason.as_ref() {
                 Some(FinishReason::Stop) if !text.trim().is_empty() => {}
-                Some(FinishReason::Length) => return Err(ProviderError::Incomplete),
-                Some(FinishReason::ToolCalls) => return Err(ProviderError::RequiresAction),
-                Some(FinishReason::Unknown) | None => return Err(ProviderError::Protocol),
-                Some(FinishReason::Stop) => return Err(ProviderError::Protocol),
+                Some(FinishReason::Length) => {
+                    diagnostic(&request.target.invocation.model, "terminal", done, Some("length"), usage.is_some(), usage.is_some(), text.len(), "incomplete");
+                    return Err(ProviderError::Incomplete);
+                }
+                Some(FinishReason::ToolCalls) => {
+                    diagnostic(&request.target.invocation.model, "terminal", done, Some("tool_calls"), usage.is_some(), usage.is_some(), text.len(), "requires_action");
+                    return Err(ProviderError::RequiresAction);
+                }
+                Some(FinishReason::Unknown) | None => {
+                    diagnostic(&request.target.invocation.model, "terminal", done, finish_label(finish_reason.as_ref()), usage.is_some(), usage.is_some(), text.len(), "invalid_finish_reason");
+                    return Err(ProviderError::Protocol);
+                }
+                Some(FinishReason::Stop) => {
+                    diagnostic(&request.target.invocation.model, "terminal", done, Some("stop"), usage.is_some(), usage.is_some(), text.len(), "empty_content");
+                    return Err(ProviderError::Protocol);
+                }
             }
             let usage = usage.unwrap_or_default();
+            diagnostic(&request.target.invocation.model, "complete", done, Some("stop"), true, usage.output_tokens_measured, text.len(), "none");
             Ok(ProviderResponse { text, usage })
         })
     }
@@ -346,6 +382,25 @@ enum FinishReason {
     ToolCalls,
     Unknown,
 }
+
+fn finish_label(reason: Option<&FinishReason>) -> Option<&'static str> {
+    match reason {
+        Some(FinishReason::Stop) => Some("stop"),
+        Some(FinishReason::Length) => Some("length"),
+        Some(FinishReason::ToolCalls) => Some("tool_calls"),
+        Some(FinishReason::Unknown) => Some("unknown"),
+        None => None,
+    }
+}
+
+#[cfg(debug_assertions)]
+fn diagnostic(model: &str, phase: &str, done: bool, finish: Option<&str>, usage_present: bool, usage_valid: bool, content_bytes: usize, error: &str) {
+    let safe_model: String = model.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '@' | '/' | '.' | '_' | '-')).take(128).collect();
+    eprintln!("[Cloudflare][diag] provider=cloudflare model={safe_model} phase={phase} done={done} finish={} usage_present={usage_present} usage_valid={usage_valid} content_bytes={content_bytes} error={error}", finish.unwrap_or("absent"));
+}
+
+#[cfg(not(debug_assertions))]
+fn diagnostic(_model: &str, _phase: &str, _done: bool, _finish: Option<&str>, _usage_present: bool, _usage_valid: bool, _content_bytes: usize, _error: &str) {}
 
 #[derive(Default)]
 struct SseParser {
@@ -427,6 +482,7 @@ impl SseParser {
                 output_tokens,
                 total_tokens: Some(total_tokens),
                 thought_tokens: None,
+                output_tokens_measured: true,
             }));
         }
         if events.is_empty() {
@@ -496,6 +552,7 @@ mod tests {
 
     fn http_request(timeouts: ProviderTimeouts) -> ProviderRequest {
         ProviderRequest {
+            internal_system_instruction: None,
             input: "hello".into(),
             history: vec![],
             context: std::sync::Arc::new(ContextBundle {
@@ -587,7 +644,8 @@ mod tests {
                 input_tokens: 2,
                 output_tokens: 3,
                 total_tokens: Some(5),
-                thought_tokens: None
+                thought_tokens: None,
+                output_tokens_measured: true,
             })
         );
     }
@@ -669,7 +727,8 @@ data: [DONE]
                     input_tokens: 1,
                     output_tokens: 2,
                     total_tokens: Some(3),
-                    thought_tokens: None
+                    thought_tokens: None,
+                    output_tokens_measured: true,
                 }),
                 StreamEvent::Done
             ]
@@ -818,6 +877,22 @@ data: [DONE]
             }),
             &AtomicBool::new(false),
             &mut |_| Ok(()),
+        ));
+        handle.join().unwrap();
+        assert!(matches!(result, Err(ProviderError::Protocol)));
+        std::fs::remove_dir_all(directory).unwrap();
+
+        let (store, directory) = http_fixture();
+        let (endpoint, handle) = super::super::transport::test_support::server(
+            "200 OK",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":\"bad\",\"completion_tokens\":2,\"total_tokens\":2}}\n\ndata: [DONE]\n\n",
+            false,
+            Duration::ZERO,
+        );
+        let provider = CloudflareProvider::new(CloudflareConfig { endpoint, ..Default::default() }, store).unwrap();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &http_request(ProviderTimeouts { request_timeout_ms: 500, stream_idle_timeout_ms: 500 }),
+            &AtomicBool::new(false), &mut |_| Ok(()),
         ));
         handle.join().unwrap();
         assert!(matches!(result, Err(ProviderError::Protocol)));

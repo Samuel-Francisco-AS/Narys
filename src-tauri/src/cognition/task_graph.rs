@@ -52,6 +52,8 @@ impl TaskGraph {
             return Err("task_graph_user_input_required");
         }
         if plan.steps.iter().any(|step| {
+            step.required_capabilities.is_empty()
+                ||
             step.required_capabilities.iter().any(|capability| {
                 !matches!(capability, PlanCapability::Planning | PlanCapability::StructuredOutput)
             })
@@ -194,6 +196,18 @@ mod tests {
         let mut operational = step("write",&[]);
         operational.required_capabilities = vec![PlanCapability::FileWrite];
         assert_eq!(TaskGraph::compile(&plan(vec![operational])).unwrap_err(), "task_graph_capability_unsupported");
+    }
+
+    #[test]
+    fn empty_capability_is_rejected_only_at_the_task_graph_boundary() {
+        let mut empty = step("a", &[]);
+        empty.required_capabilities.clear();
+        assert_eq!(
+            TaskGraph::compile(&plan(vec![empty])).unwrap_err(),
+            "task_graph_capability_unsupported"
+        );
+        // PlanV1 validation stays owned by the D1 planner contract.
+        assert!(plan(vec![step("a", &[])]).validate().is_ok());
     }
 
     #[test]

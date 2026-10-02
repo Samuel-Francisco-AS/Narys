@@ -88,6 +88,7 @@ fn context(db: &Database) -> super::types::ContextBundle {
 fn request(db: &Database, ids: &[&str]) -> ProviderTaskRequest {
     ProviderTaskRequest {
         input: "synthetic".into(),
+        internal_system_instruction: None,
         history: vec![],
         context: Arc::new(context(db)),
         max_output_tokens: Some(30),
@@ -891,6 +892,7 @@ fn scheduler_retries_only_transient_errors_before_a_chunk() {
                             output_tokens: 1,
                             total_tokens: Some(2),
                             thought_tokens: None,
+                            output_tokens_measured: true,
                         },
                     })
                 }
@@ -902,6 +904,8 @@ fn scheduler_retries_only_transient_errors_before_a_chunk() {
     for (error, retryable) in [
         (ProviderError::QuotaExceeded, false),
         (ProviderError::Authentication, false),
+        (ProviderError::Protocol, false),
+        (ProviderError::RequiresAction, false),
         (ProviderError::Fatal, false),
         (
             ProviderError::Unavailable {
@@ -952,6 +956,49 @@ fn scheduler_retries_only_transient_errors_before_a_chunk() {
             assert_eq!(retries, 0);
         }
     }
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn task_graph_conservatively_accounts_unknown_output_usage() {
+    use super::{
+        provider::{Provider, ProviderFuture},
+        types::{ProviderChunk, ProviderResponse, ProviderUsage},
+    };
+    struct NoUsage;
+    impl Provider for NoUsage {
+        fn execute<'a>(
+            &'a self,
+            _request: &'a ProviderRequest,
+            _cancelled: &'a AtomicBool,
+            _on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+        ) -> ProviderFuture<'a> {
+            Box::pin(async {
+                Ok(ProviderResponse {
+                    text: "resposta sem telemetria".into(),
+                    usage: ProviderUsage::default(),
+                })
+            })
+        }
+    }
+    let (db, dir) = fixture();
+    seed(&db);
+    let mut registry = ProviderRegistry::default();
+    registry.register(
+        ProviderConfig { id: "only".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() },
+        Arc::new(NoUsage),
+    ).unwrap();
+    let scheduler = Scheduler::new(registry);
+    let result = tauri::async_runtime::block_on(scheduler.run_with_retry_conservative_output(
+        request(&db, &["only"]),
+        TaskBudget { max_provider_calls: 1, max_output_tokens: Some(17) },
+        super::types::RetryPolicy { enabled: false, max_retries: 0, initial_backoff_ms: 0 },
+        &AtomicBool::new(false),
+        &mut |_| Ok(()),
+    )).unwrap();
+    assert_eq!(result.usage.output_tokens, 0);
+    assert!(!result.usage.output_tokens_measured);
+    assert_eq!(result.usage.output_tokens_accounted, 17);
     fs::remove_dir_all(dir).unwrap();
 }
 

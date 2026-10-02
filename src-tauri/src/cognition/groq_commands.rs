@@ -150,6 +150,7 @@ pub async fn groq_probe(
     let timeouts = *handle.read().unwrap_or_else(|poison| poison.into_inner());
     let request = ProviderTaskRequest {
         input: "Responda em uma frase curta: conexão Groq confirmada.".into(),
+        internal_system_instruction: None,
         history: vec![],
         context: Arc::new(context),
         max_output_tokens: Some(96),

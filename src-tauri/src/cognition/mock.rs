@@ -52,7 +52,7 @@ impl Provider for MockProvider {
       }
       Ok(ProviderResponse { text, usage: ProviderUsage { calls: 1,
         input_tokens: 8 + request.context.relevant_memories.len() as u32 * 2 + request.context.recent_messages.len() as u32 * 2,
-        output_tokens, total_tokens: None, thought_tokens: None } })
+        output_tokens, total_tokens: None, thought_tokens: None, output_tokens_measured: true } })
     })
   }
 }

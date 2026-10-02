@@ -1,4 +1,5 @@
 use std::{collections::HashMap, sync::{atomic::{AtomicBool, Ordering}, Arc}};
+use serde::Deserialize;
 
 use tauri::ipc::Channel;
 
@@ -125,10 +126,51 @@ pub(crate) fn worker_input(
     Ok(input)
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StructuredWorkerResult {
+    subtask_id: String,
+    text: String,
+}
+
+const MAX_STRUCTURED_WORKER_RESULT_BYTES: usize = 16 * 1024;
+
+pub(crate) struct WorkerTiming {
+    pub started_at: String,
+    pub finished_at: String,
+}
+
+fn parse_structured_worker_result(raw: &str, expected_id: &str) -> Result<String, &'static str> {
+    if raw.len() > MAX_STRUCTURED_WORKER_RESULT_BYTES {
+        return Err("task_graph_worker_result_invalid");
+    }
+    let result: StructuredWorkerResult = serde_json::from_str(raw)
+        .map_err(|_| "task_graph_worker_result_invalid")?;
+    if result.subtask_id != expected_id
+        || result.subtask_id.trim().is_empty()
+        || result.text.trim().is_empty()
+        || result.text.len() > MAX_STRUCTURED_WORKER_RESULT_BYTES
+    {
+        return Err("task_graph_worker_result_invalid");
+    }
+    Ok(result.text)
+}
+
+pub(crate) fn worker_system_instruction(step: &PlanStepV1) -> Option<String> {
+    step.required_capabilities
+        .contains(&crate::agents::planner::PlanCapability::StructuredOutput)
+        .then(|| format!(
+            "Execute somente a unidade cognitiva {id}; não execute ferramentas nem ações externas. Retorne somente um objeto JSON cru com exatamente os campos subtaskId e text, sem markdown, prefixos ou sufixos. subtaskId deve ser exatamente {id}; text deve ser não vazio e conter o resultado útil. Não inclua campos adicionais.",
+            id = step.id
+        ))
+}
+
 pub(crate) fn add_usage(total: &mut SchedulerUsage, item: &SchedulerUsage) {
     total.provider_calls = total.provider_calls.saturating_add(item.provider_calls);
     total.input_tokens = total.input_tokens.saturating_add(item.input_tokens);
     total.output_tokens = total.output_tokens.saturating_add(item.output_tokens);
+    total.output_tokens_accounted = total.output_tokens_accounted.saturating_add(item.output_tokens_accounted);
+    total.output_tokens_measured &= item.output_tokens_measured;
     total.retries = total.retries.saturating_add(item.retries);
     total.fallbacks = total.fallbacks.saturating_add(item.fallbacks);
     for provider in &item.providers_used {
@@ -148,6 +190,7 @@ pub(crate) async fn run_worker(
     subtask_id: String,
     target: ProviderTarget,
     input: String,
+    internal_system_instruction: Option<String>,
     max_output_tokens: Option<u32>,
     max_provider_calls: u32,
     retry_policy: RetryPolicy,
@@ -155,12 +198,12 @@ pub(crate) async fn run_worker(
     cancelled: &AtomicBool,
     channel: &Channel<TaskEvent>,
     sequence: &std::sync::atomic::AtomicU32,
-) -> Result<TaskResult, &'static str> {
+) -> (Option<WorkerTiming>, Result<TaskResult, &'static str>) {
     if cancelled.load(Ordering::Acquire) {
-        return Err("cancelled");
+        return (None, Err("cancelled"));
     }
     let provider_id = target.provider_id.clone();
-    emit(
+    if emit(
         channel,
         root,
         sequence,
@@ -170,12 +213,15 @@ pub(crate) async fn run_worker(
             provider_id: provider_id.clone(),
         },
     )
-    .map_err(|_| {
+    .is_err()
+    {
         cancelled.store(true, Ordering::Release);
-        "channel_closed"
-    })?;
+        return (None, Err("channel_closed"));
+    }
+    let started = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let request = ProviderTaskRequest {
         input,
+        internal_system_instruction: internal_system_instruction.clone(),
         history: vec![],
         context,
         max_output_tokens,
@@ -186,8 +232,9 @@ pub(crate) async fn run_worker(
         required_capabilities: ProviderCapabilities::text_stream(),
     };
     let mut events = worker_events(&subtask_id, channel, root, sequence, cancelled);
-    scheduler
-        .run_with_retry(
+    let structured_result = internal_system_instruction.is_some();
+    let result = scheduler
+        .run_with_retry_conservative_output(
             request,
             TaskBudget {
                 max_provider_calls,
@@ -198,5 +245,54 @@ pub(crate) async fn run_worker(
             &mut events,
         )
         .await
-        .map_err(|error| error.code())
+        .map_err(|error| error.code());
+    let result = match result {
+        Ok(result) => result,
+        Err(code) => return (Some(WorkerTiming {
+            started_at: started.clone(),
+            finished_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        }), Err(code)),
+    };
+    let mut result = result;
+    if structured_result {
+        match parse_structured_worker_result(&result.text, &subtask_id) {
+            Ok(text) => result.text = text,
+            Err(code) => return (Some(WorkerTiming {
+                started_at: started.clone(),
+                finished_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            }), Err(code)),
+        }
+    }
+    (Some(WorkerTiming {
+        started_at: started,
+        finished_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+    }), Ok(result))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_structured_worker_result;
+
+    #[test]
+    fn structured_worker_result_is_strict_and_bounded() {
+        assert_eq!(
+            parse_structured_worker_result(r#"{"subtaskId":"unit-1","text":"resultado"}"#, "unit-1"),
+            Ok("resultado".into())
+        );
+        for raw in [
+            r#"```json
+{"subtaskId":"unit-1","text":"resultado"}
+```"#,
+            r#"prefixo {"subtaskId":"unit-1","text":"resultado"}"#,
+            r#"{"subtaskId":"unit-1","text":"resultado"} sufixo"#,
+            r#"{"subtaskId":"unit-2","text":"resultado"}"#,
+            r#"{"subtaskId":"unit-1","text":" "}"#,
+            r#"{"subtaskId":"unit-1","text":"resultado","extra":true}"#,
+            r#"{"subtaskId":"unit-1","text":"resultado"} {"subtaskId":"unit-1","text":"outro"}"#,
+        ] {
+            assert_eq!(parse_structured_worker_result(raw, "unit-1"), Err("task_graph_worker_result_invalid"));
+        }
+        let oversized = format!(r#"{{"subtaskId":"unit-1","text":"{}"}}"#, "x".repeat(16 * 1024));
+        assert_eq!(parse_structured_worker_result(&oversized, "unit-1"), Err("task_graph_worker_result_invalid"));
+    }
 }

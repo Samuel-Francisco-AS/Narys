@@ -1,6 +1,6 @@
 # LR-7D3 — Task graph mínimo + subtarefas independentes
 
-Estado da branch: **CANDIDATA À VALIDAÇÃO TÉCNICA LOCAL**.
+Estado da branch: **CANDIDATA COM FIX-2 IMPLEMENTADA; validação final pendente**.
 Branch: `lr-7d3-task-graph`.
 Base: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
 
@@ -31,8 +31,11 @@ Nesta fase, somente `planning` e `structured_output` são elegíveis.
 passo do `PlanV1`; ela **não promove** Groq/Cloudflare para
 `ProviderCapabilities::structured_output=true`. Como definido na D1, esses
 adapters continuam anunciando apenas `text_stream()`; nenhum suporte nativo a
-structured output é inventado. O Core só aceita saída estruturada onde exista
-um contrato/parser próprio para validá-la.
+structured output é inventado. Na D3, `StructuredOutput` exige um envelope
+mínimo de resultado Worker (`subtaskId`, `text`) parseado como JSON estrito,
+sem campos extras, fences, prefixos ou sufixos. `planning` continua aceitando
+resultado textual. `requiredCapabilities` vazio é rejeitado especificamente na
+compilação do TaskGraph; a validação geral do `PlanV1` da D1 permanece separada.
 
 A migration 011 adiciona o papel cognitivo persistido `worker` e
 `task_subtask_records`. O default Worker é:
@@ -111,8 +114,45 @@ considerando retry. A divisão de output da onda nunca excede o output restante.
 
 Como o Scheduler não devolve usage parcial quando uma chamada termina em erro,
 a D3 não agenda novas ondas depois de uma falha de worker. Isso preserva o teto
-sem inventar consumo. Accounting mais sofisticado, filas e concurrency dinâmica
-continuam na LR-8.
+sem inventar consumo. Quando um provider conclui sem reportar output usage, o
+Scheduler marca a medição como indisponível e debita no ledger o máximo
+autorizado para aquela tentativa. O saldo desconhecido não é reutilizado em
+ondas posteriores. `outputTokens` continua sendo a soma medida; quando uma ou
+mais unidades não reportam usage, a UI marca a medição agregada como incompleta
+e expõe a parcela medida e `outputTokensAccounted` separadamente. Accounting mais
+sofisticado, filas e concurrency dinâmica continuam na LR-8.
+
+## FIX-2 — fronteira provider/planner e invariantes
+
+O contrato interno do Orchestrator é enviado pelo Core em um campo interno
+opcional, separado do objetivo não confiável do usuário e anexado pelos adapters
+de produção à instrução de sistema existente da Luna. Ele exige JSON cru PlanV1,
+schema e invariantes e proíbe ferramentas e ações externas. `PlanV1` continua
+sendo a única fonte do plano; o parser continua rejeitando markdown, prefixos,
+sufixos, múltiplos objetos e formatos alternativos.
+
+O adapter Groq agora valida exatamente um `finish_reason`: `stop` requer texto,
+`length` é incompleto, chamadas de ferramenta exigem ação e valor ausente,
+desconhecido ou conflitante é erro de protocolo. Esses erros mantêm a classe de
+retry/fallback da LR-7D2. Nenhum adapter anuncia structured output nativo.
+Diagnósticos DEV do Cloudflare incluem somente provider/model sanitizados, fase,
+marcadores de terminal/usage, tamanho agregado e categoria de erro; nunca
+conteúdo, prompt, reasoning, corpo remoto ou credenciais.
+
+Eventos de seleção, retry, fallback e observação textual do Planner aparecem na
+seção DEV LR-7D3 com provider/model/rota/tentativa e motivo. O texto parcial do
+plano não é exibido. Nenhum evento de subtarefa é emitido antes de o Core
+compilar o `TaskGraph`.
+
+O teste de integração local executa os adapters de produção Groq e Cloudflare
+por HTTP/SSE fragmentado, inclusive bytes UTF-8 divididos, passando pelo
+Scheduler, `orchestrator::plan`, parser PlanV1, compilação e despacho de dois
+workers. Fixtures locais também cobrem terminais inválidos do Groq, EOF e usage
+inválido no Cloudflare, parser estrito PlanV1, resultado estruturado,
+cancelamento no primeiro evento e preservação de worker concluído quando a irmã
+é cancelada. Os testes usam credenciais sintéticas; o gate humano real de
+Orchestrator Groq/Cloudflare e cancelamento em execução continua pendente e este
+documento não registra PASS.
 
 ## D3C — resultado e provenance
 

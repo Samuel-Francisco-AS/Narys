@@ -96,6 +96,8 @@ pub struct ProviderTarget {
 #[derive(Debug)]
 pub struct ProviderTaskRequest {
     pub input: String,
+    /// Trusted instruction supplied by the Core. User content never populates this field.
+    pub internal_system_instruction: Option<String>,
     pub history: Vec<ProviderMessage>,
     pub context: Arc<ContextBundle>,
     pub max_output_tokens: Option<u32>,
@@ -111,6 +113,7 @@ pub struct ProviderTaskRequest {
 #[derive(Debug)]
 pub struct ProviderRequest {
     pub input: String,
+    pub internal_system_instruction: Option<String>,
     pub history: Vec<ProviderMessage>,
     pub context: Arc<ContextBundle>,
     pub max_output_tokens: Option<u32>,
@@ -139,6 +142,8 @@ pub struct ProviderUsage {
     pub output_tokens: u32,
     pub total_tokens: Option<u32>,
     pub thought_tokens: Option<u32>,
+    /// False when the adapter could not obtain provider-reported output usage.
+    pub output_tokens_measured: bool,
 }
 #[derive(Clone, Debug)]
 pub struct ProviderResponse {
@@ -208,6 +213,10 @@ pub struct SchedulerUsage {
     pub provider_calls: u32,
     pub input_tokens: u32,
     pub output_tokens: u32,
+    /// Sum of provider-reported output tokens; meaningful only when measured is true.
+    pub output_tokens_measured: bool,
+    /// Output budget conservatively debited, including attempts without usage.
+    pub output_tokens_accounted: u32,
     pub total_tokens: Option<u32>,
     pub thought_tokens: Option<u32>,
     pub providers_used: Vec<ProviderId>,

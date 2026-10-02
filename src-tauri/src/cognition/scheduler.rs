@@ -20,6 +20,7 @@ use std::{
 pub enum SchedulerEvent {
     Selected {
         provider_id: String,
+        model: String,
         attempt: u32,
         routing_reason: &'static str,
         score: Option<u32>,
@@ -214,7 +215,35 @@ impl Scheduler {
         cancelled: &AtomicBool,
         on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
     ) -> Result<TaskResult, SchedulerError> {
-        if cancelled.load(Ordering::Acquire) {
+        self.run_with_retry_mode(request, budget, retry_policy, cancelled, on_event, false)
+            .await
+    }
+
+    /// Task graph calls use a conservative output ledger because some providers do
+    /// not return usage. Each possible attempt receives a share of the remaining
+    /// budget; unknown attempts debit their full share.
+    pub async fn run_with_retry_conservative_output(
+        &self,
+        request: ProviderTaskRequest,
+        budget: TaskBudget,
+        retry_policy: RetryPolicy,
+        cancelled: &AtomicBool,
+        on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
+    ) -> Result<TaskResult, SchedulerError> {
+        self.run_with_retry_mode(request, budget, retry_policy, cancelled, on_event, true)
+            .await
+    }
+
+    async fn run_with_retry_mode(
+        &self,
+        request: ProviderTaskRequest,
+        budget: TaskBudget,
+        retry_policy: RetryPolicy,
+        cancelled: &AtomicBool,
+        on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
+        conservative_output: bool,
+    ) -> Result<TaskResult, SchedulerError> {
+        if cancelled.load(Ordering::Acquire) && !conservative_output {
             return Err(SchedulerError::Cancelled);
         }
         let output_limit = match (budget.max_output_tokens, request.max_output_tokens) {
@@ -222,7 +251,10 @@ impl Scheduler {
             (Some(a), None) | (None, Some(a)) => Some(a),
             (None, None) => None,
         };
-        let mut usage = SchedulerUsage::default();
+        let mut usage = SchedulerUsage {
+            output_tokens_measured: true,
+            ..SchedulerUsage::default()
+        };
         let mut last_error: Option<ProviderError> = None;
         let mut last_provider: Option<String> = None;
         if request.targets.is_empty()
@@ -321,7 +353,14 @@ impl Scheduler {
                     return Err(SchedulerError::Cancelled);
                 }
                 if usage.provider_calls >= budget.max_provider_calls
-                    || output_limit.is_some_and(|limit| usage.output_tokens >= limit)
+                    || output_limit.is_some_and(|limit| {
+                        let spent = if conservative_output {
+                            usage.output_tokens_accounted
+                        } else {
+                            usage.output_tokens
+                        };
+                        spent >= limit
+                    })
                 {
                     return Err(SchedulerError::BudgetExceeded);
                 }
@@ -349,6 +388,7 @@ impl Scheduler {
                 }
                 on_event(SchedulerEvent::Selected {
                     provider_id: entry.config.id.clone(),
+                    model: target.invocation.model.clone(),
                     attempt,
                     routing_reason: match request.selection {
                         ProviderSelection::Fixed(_) => "fixed",
@@ -379,11 +419,29 @@ impl Scheduler {
                         ProviderError::EventSinkClosed
                     })
                 };
+                let spent_output = if conservative_output {
+                    usage.output_tokens_accounted
+                } else {
+                    usage.output_tokens
+                };
+                let remaining_output = output_limit.map(|limit| limit.saturating_sub(spent_output));
+                let remaining_calls = budget.max_provider_calls.saturating_sub(usage.provider_calls);
+                let attempt_output_limit = if conservative_output {
+                    remaining_output.map(|remaining| {
+                        remaining
+                            .saturating_add(remaining_calls.saturating_sub(1))
+                            .checked_div(remaining_calls.max(1))
+                            .unwrap_or(0)
+                    })
+                } else {
+                    remaining_output
+                };
                 let attempt_request = ProviderRequest {
                     input: request.input.clone(),
+                    internal_system_instruction: request.internal_system_instruction.clone(),
                     history: request.history.clone(),
                     context: request.context.clone(),
-                    max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens),
+                    max_output_tokens: attempt_output_limit,
                     target: (*target).clone(),
                     attempt,
                 };
@@ -397,16 +455,29 @@ impl Scheduler {
                 }
                 match result {
                     Ok(response) => {
-                        if cancelled.load(Ordering::Acquire) {
+                        if cancelled.load(Ordering::Acquire) && !conservative_output {
                             return Err(SchedulerError::Cancelled);
                         }
                         if output_limit.is_some_and(|limit| {
-                            response.usage.output_tokens > limit - usage.output_tokens
+                            let spent = if conservative_output {
+                                usage.output_tokens_accounted
+                            } else {
+                                usage.output_tokens
+                            };
+                            response.usage.output_tokens > limit - spent
                         }) {
                             return Err(SchedulerError::BudgetExceeded);
                         }
                         usage.input_tokens += response.usage.input_tokens;
                         usage.output_tokens += response.usage.output_tokens;
+                        usage.output_tokens_measured &= response.usage.output_tokens_measured;
+                        usage.output_tokens_accounted = usage.output_tokens_accounted.saturating_add(
+                            if response.usage.output_tokens_measured {
+                                response.usage.output_tokens
+                            } else {
+                                attempt_request.max_output_tokens.unwrap_or_default()
+                            },
+                        );
                         usage.total_tokens = response.usage.total_tokens;
                         usage.thought_tokens = response.usage.thought_tokens;
                         let text = if response.text.is_empty() {
@@ -432,6 +503,11 @@ impl Scheduler {
                         return Err(SchedulerError::EventSinkClosed)
                     }
                     Err(error) => {
+                        if conservative_output {
+                            usage.output_tokens_accounted = usage
+                                .output_tokens_accounted
+                                .saturating_add(attempt_output_limit.unwrap_or_default());
+                        }
                         if cancelled.load(Ordering::Acquire) {
                             return Err(SchedulerError::Cancelled);
                         }

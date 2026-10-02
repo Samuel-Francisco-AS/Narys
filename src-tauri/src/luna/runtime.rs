@@ -298,6 +298,7 @@ fn chat_budget_and_request(
     );
     let request = ProviderTaskRequest {
         input: message,
+        internal_system_instruction: None,
         history,
         context: Arc::new(context),
         max_output_tokens: policy.max_output_tokens,
@@ -490,11 +491,13 @@ pub fn start_conversation(
                         let kind = match event {
                             SchedulerEvent::Selected {
                                 provider_id,
+                                model,
                                 attempt,
                                 routing_reason,
                                 score,
                             } => TaskEventKind::ProviderSelected {
                                 provider_id,
+                                model,
                                 attempt,
                                 routing_reason: routing_reason.into(),
                                 score,
@@ -848,6 +851,7 @@ pub fn start_cognition(
                 };
                 let request = ProviderTaskRequest {
                     input: "Execute o diagnóstico cognitivo LR-5.".into(),
+                    internal_system_instruction: None,
                     history: vec![],
                     context: Arc::new(context),
                     max_output_tokens: budget.max_output_tokens,
@@ -876,11 +880,13 @@ pub fn start_cognition(
                             let kind = match event {
                                 SchedulerEvent::Selected {
                                     provider_id,
+                                    model,
                                     attempt,
                                     routing_reason,
                                     score,
                                 } => TaskEventKind::ProviderSelected {
                                     provider_id,
+                                    model,
                                     attempt,
                                     routing_reason: routing_reason.into(),
                                     score,

@@ -16,8 +16,8 @@ use super::{
     policy::{self, CognitiveRole},
     scheduler::SchedulerEvent,
     task_graph::{SubtaskState, TaskGraph, TaskGraphResult, TaskGraphSubtaskResult},
-    task_graph_worker::{add_usage, run_worker, worker_input},
-    types::{ProviderCapabilities, SchedulerError, SchedulerUsage},
+    task_graph_worker::{add_usage, run_worker, worker_input, worker_system_instruction, WorkerTiming},
+    types::{ProviderCapabilities, SchedulerError, SchedulerUsage, TaskResult},
     ProviderRuntime,
 };
 use crate::{
@@ -83,11 +83,13 @@ fn scheduler_events<'a>(
         let kind = match event {
             SchedulerEvent::Selected {
                 provider_id,
+                model,
                 attempt,
                 routing_reason,
                 score,
             } => TaskEventKind::ProviderSelected {
                 provider_id,
+                model,
                 attempt,
                 routing_reason: routing_reason.into(),
                 score,
@@ -371,7 +373,7 @@ async fn execute(
     };
     let mut provider_cursor = 0usize;
     let mut results: HashMap<String, TaskGraphSubtaskResult> = HashMap::new();
-    let mut worker_usage = SchedulerUsage::default();
+    let mut worker_usage = SchedulerUsage { output_tokens_measured: true, ..SchedulerUsage::default() };
 
     while !graph.all_completed() {
         if cancelled.load(Ordering::Acquire) {
@@ -409,7 +411,7 @@ async fn execute(
             .min(MAX_PARALLEL_SUBTASKS)
             .min(by_calls as usize);
         if let Some(limit) = worker_policy.max_output_tokens {
-            let remaining_output = limit.saturating_sub(worker_usage.output_tokens);
+            let remaining_output = limit.saturating_sub(worker_usage.output_tokens_accounted);
             count = count.min(remaining_output as usize);
         }
         if count == 0 {
@@ -425,7 +427,7 @@ async fn execute(
 
         let output_share = worker_policy.max_output_tokens.map(|limit| {
             limit
-                .saturating_sub(worker_usage.output_tokens)
+                .saturating_sub(worker_usage.output_tokens_accounted)
                 .checked_div(count as u32)
                 .unwrap_or(0)
         });
@@ -471,26 +473,25 @@ async fn execute(
                     };
                 }
             };
-            if graph.mark_running(&subtask_id).is_err() {
-                graph.block_unfinished();
-                return ExecutionOutcome {
-                    state: TaskState::Failed,
-                    error_code: Some("subtask_state_invalid"),
-                    graph: Some(graph),
-                    meta,
-                    result: None,
-                };
-            }
-            let started_at = now();
             if let Some(value) = meta.get_mut(&subtask_id) {
                 value.provider_id = Some(provider_id.clone());
-                value.started_at = Some(started_at);
             }
-            specs.push((subtask_id, provider_id, target, input));
+            let internal_instruction = worker_system_instruction(&step);
+            specs.push((
+                subtask_id,
+                provider_id,
+                target,
+                input,
+                internal_instruction,
+            ));
         }
         provider_cursor = (provider_cursor + specs.len()) % ranked.len();
 
-        let mut outcomes = Vec::with_capacity(specs.len());
+        let mut outcomes: Vec<(
+            String,
+            String,
+            (Option<WorkerTiming>, Result<TaskResult, &'static str>),
+        )> = Vec::with_capacity(specs.len());
         if specs.len() == 2 {
             let a = &specs[0];
             let b = &specs[1];
@@ -500,6 +501,7 @@ async fn execute(
                 a.0.clone(),
                 a.2.clone(),
                 a.3.clone(),
+                a.4.clone(),
                 output_share,
                 reserved_calls,
                 retry,
@@ -514,6 +516,7 @@ async fn execute(
                 b.0.clone(),
                 b.2.clone(),
                 b.3.clone(),
+                b.4.clone(),
                 output_share,
                 reserved_calls,
                 retry,
@@ -533,6 +536,7 @@ async fn execute(
                 item.0.clone(),
                 item.2.clone(),
                 item.3.clone(),
+                item.4.clone(),
                 output_share,
                 reserved_calls,
                 retry,
@@ -547,39 +551,39 @@ async fn execute(
 
         // Delivery failure outranks cancellation: the shared cancellation flag is
         // also used to stop sibling workers when the Channel closes.
-        if outcomes
-            .iter()
-            .any(|(_, _, outcome)| matches!(outcome, Err("channel_closed")))
-        {
-            cancelled.store(true, Ordering::Release);
-            graph.cancel_unfinished();
-            return ExecutionOutcome {
-                state: TaskState::Failed,
-                error_code: Some("channel_closed"),
-                graph: Some(graph),
-                meta,
-                result: None,
-            };
-        }
-        if cancelled.load(Ordering::Acquire) {
-            graph.cancel_unfinished();
-            return ExecutionOutcome {
-                state: TaskState::Cancelled,
-                error_code: Some("cancelled"),
-                graph: Some(graph),
-                meta,
-                result: None,
-            };
-        }
-
         let mut wave_failed = false;
-        for (subtask_id, provider_id, outcome) in outcomes {
-            let finished_at = now();
-            if let Some(value) = meta.get_mut(&subtask_id) {
-                value.finished_at = Some(finished_at);
+        let mut wave_channel_failed = false;
+        for (subtask_id, provider_id, (started, outcome)) in outcomes {
+            if let Some(timing) = started {
+                if graph.mark_running(&subtask_id).is_err() {
+                    graph.block_unfinished();
+                    return ExecutionOutcome {
+                        state: TaskState::Failed,
+                        error_code: Some("subtask_state_invalid"),
+                        graph: Some(graph),
+                        meta,
+                        result: None,
+                    };
+                }
+                if let Some(value) = meta.get_mut(&subtask_id) {
+                    value.started_at = Some(timing.started_at);
+                    value.finished_at = Some(timing.finished_at);
+                }
             }
             match outcome {
                 Ok(result) => {
+                    if graph.state(&subtask_id) == Some(SubtaskState::Pending)
+                        && graph.mark_running(&subtask_id).is_err()
+                    {
+                        graph.block_unfinished();
+                        return ExecutionOutcome {
+                            state: TaskState::Failed,
+                            error_code: Some("subtask_state_invalid"),
+                            graph: Some(graph),
+                            meta,
+                            result: None,
+                        };
+                    }
                     if graph.mark_completed(&subtask_id).is_err() {
                         graph.block_unfinished();
                         return ExecutionOutcome {
@@ -621,22 +625,19 @@ async fn execute(
                         };
                     }
                 }
-                Err(code) if code == "cancelled" || cancelled.load(Ordering::Acquire) => {
-                    graph.cancel_unfinished();
-                    return ExecutionOutcome {
-                        state: if code == "channel_closed" {
-                            TaskState::Failed
-                        } else {
-                            TaskState::Cancelled
-                        },
-                        error_code: Some(code),
-                        graph: Some(graph),
-                        meta,
-                        result: None,
-                    };
+                Err("channel_closed") => {
+                    wave_channel_failed = true;
+                    cancelled.store(true, Ordering::Release);
                 }
+                Err("cancelled") => {}
                 Err(code) => {
+                    if cancelled.load(Ordering::Acquire) {
+                        continue;
+                    }
                     wave_failed = true;
+                    if graph.state(&subtask_id) == Some(SubtaskState::Pending) {
+                        let _ = graph.mark_running(&subtask_id);
+                    }
                     let _ = graph.mark_failed(&subtask_id);
                     if let Some(value) = meta.get_mut(&subtask_id) {
                         value.error_code = Some(code.into());
@@ -666,6 +667,26 @@ async fn execute(
                     }
                 }
             }
+        }
+        if wave_channel_failed {
+            graph.cancel_unfinished();
+            return ExecutionOutcome {
+                state: TaskState::Failed,
+                error_code: Some("channel_closed"),
+                graph: Some(graph),
+                meta,
+                result: None,
+            };
+        }
+        if cancelled.load(Ordering::Acquire) {
+            graph.cancel_unfinished();
+            return ExecutionOutcome {
+                state: TaskState::Cancelled,
+                error_code: Some("cancelled"),
+                graph: Some(graph),
+                meta,
+                result: None,
+            };
         }
         if wave_failed {
             graph.block_unfinished();
@@ -723,22 +744,30 @@ pub fn start_task(
         let _active = ActiveTask::new(registry.clone(), id);
         let sequence = AtomicU32::new(0);
         registry.mark_running(id);
-        if emit(
+        let start_delivery_failed = emit(
             &channel,
             id,
             &sequence,
             TaskState::Running,
             TaskEventKind::TaskStarted,
         )
-        .is_err()
-        {
+        .is_err();
+        if start_delivery_failed {
             cancelled.store(true, Ordering::Release);
         }
 
-        let mut execution = if cancelled.load(Ordering::Acquire) {
+        let mut execution = if start_delivery_failed {
             ExecutionOutcome {
                 state: TaskState::Failed,
                 error_code: Some("channel_closed"),
+                graph: None,
+                meta: HashMap::new(),
+                result: None,
+            }
+        } else if cancelled.load(Ordering::Acquire) {
+            ExecutionOutcome {
+                state: TaskState::Cancelled,
+                error_code: Some("cancelled"),
                 graph: None,
                 meta: HashMap::new(),
                 result: None,
