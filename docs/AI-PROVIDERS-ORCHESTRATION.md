@@ -44,6 +44,25 @@ Uma seleção explícita do usuário tem precedência sobre a heurística do Sch
 
 **Decisão LR-7D (28/09/2026; ampliada em 30/09/2026):** não existe uma “LLM principal da Luna”. O Luna Core é a autoridade do sistema; Gemini, Groq e futuros providers ocupam papéis cognitivos substituíveis. LR-7D0 remove hardcodes comerciais das policies de Conversation/Summary e torna primary/fallback configuráveis por provider registrado. LR-7D1 adiciona um papel cognitivo real `orchestrator`/Planner, também configurável, sem transferir ao modelo autoridade sobre permissões ou execução. LR-7D2 fechou em PASS completo em 01/10/2026 com fallback chain + Auto/score + affinity, preflight responsivo e validação batch de credenciais. **LR-7D2.5 foi encerrada em 01/10/2026** com Cloudflare validada em Conversation e Orchestrator/PlanV1, Summary automático opcional e Mistral tecnicamente integrada porém bloqueada operacionalmente pela exigência de upgrade da conta Free. A substituição operacional por OpenAI API paga ficou registrada como dívida para quando houver orçamento. Gemini permanece suportado, mas não é gate nem dependência funcional obrigatória. A próxima etapa é LR-7D3/task graph. Consulte [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
 
+### Atualização candidata LR-7D3 FIX-5 — 02/10/2026
+
+A invocação agora explicita formato (`Text`/`JsonSchema`) e transporte
+(`Streaming`/`NonStreaming`). Capabilities globais são a união dos modos
+implementados; `Provider::supports_invocation` verifica modelo/thinking/modo
+antes de selecionar um target e consumir chamadas. Orchestrator standalone e
+TaskGraph requerem o schema real de PlanV1, geração estrita e non-streaming.
+A integração comprovada desta FIX é Groq `openai/gpt-oss-20b`. Cloudflare
+GLM-4.7-Flash permanece text streaming, sem capability estruturada inventada.
+Gemini/Mistral não ganharam modo estruturado nesta FIX. Targets incompatíveis
+são ignorados em Preferred/Auto; Fixed incompatível falha antes do request.
+O registro histórico LR-7D2.5 acima usava o caminho textual anterior do Planner.
+
+Parser/validação Rust e compilação do TaskGraph continuam obrigatórios.
+Accounting conservador, limite incremental de bytes e eventos coalescidos
+pertencem ao contrato de output. Nenhuma ferramenta/permissão foi habilitada.
+Detalhes e fontes: [LR-7D3-TASK-GRAPH.md](LR-7D3-TASK-GRAPH.md).
+**LR-7D3/LR-7 e novo gate humano continuam pendentes.**
+
 ## 2. Tipos de integração
 
 ### Cognitive Provider

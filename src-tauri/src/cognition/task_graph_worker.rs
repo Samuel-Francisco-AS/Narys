@@ -63,7 +63,7 @@ fn worker_events<'a>(
             cancelled.store(true, Ordering::Release);
             SchedulerError::EventSinkClosed
         }),
-        SchedulerEvent::Chunk { provider_id, .. } => emit(
+        SchedulerEvent::Chunk { provider_id, .. } | SchedulerEvent::OutputObserved { provider_id } => emit(
             channel,
             root,
             sequence,
@@ -217,6 +217,7 @@ pub(crate) async fn run_worker(
     }
     let started = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let request = ProviderTaskRequest {
+        mode: crate::cognition::types::InvocationMode::default(),
         input,
         internal_system_instruction: internal_system_instruction.clone(),
         history: vec![],

@@ -69,6 +69,10 @@ impl GraphProvider {
 }
 
 impl Provider for GraphProvider {
+    fn supports_invocation(&self, invocation: &super::types::ProviderInvocationConfig, mode: &super::types::InvocationMode) -> bool {
+        invocation.valid() && mode.valid() && (mode.text_stream() || self.planner_steps.is_some())
+    }
+
     fn execute<'a>(
         &'a self,
         request: &'a ProviderRequest,
@@ -279,7 +283,7 @@ fn fixture_with_staggered_workers(
                     id: id.into(),
                     enabled: true,
                     priority,
-                    capabilities: ProviderCapabilities::text_stream(),
+                    capabilities: if planner.is_some() { ProviderCapabilities::with_structured_output() } else { ProviderCapabilities::text_stream() },
                 },
                 Arc::new(GraphProvider {
                     label: id,
@@ -383,10 +387,11 @@ fn wait_for(receiver: &mpsc::Receiver<String>, needle: &str) -> Vec<String> {
     events
 }
 
-fn local_sse_server(bodies: Vec<String>) -> (String, std::thread::JoinHandle<()>) {
+fn local_sse_server(bodies: Vec<String>) -> (String, std::thread::JoinHandle<Vec<serde_json::Value>>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     let handle = std::thread::spawn(move || {
+        let mut payloads = Vec::new();
         for body in bodies {
             let (mut conn, _) = listener.accept().unwrap();
             conn.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
@@ -405,9 +410,11 @@ fn local_sse_server(bodies: Vec<String>) -> (String, std::thread::JoinHandle<()>
                     if request.len() >= end + 4 + length { break; }
                 }
             }
+            let end = request.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+            payloads.push(serde_json::from_slice(&request[end..]).unwrap());
             let head = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                body.len()
+                "HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                if body.starts_with("data:") { "text/event-stream" } else { "application/json" }, body.len()
             );
             conn.write_all(head.as_bytes()).unwrap();
             // Deliberately split every byte, including bytes inside UTF-8 code points.
@@ -417,8 +424,15 @@ fn local_sse_server(bodies: Vec<String>) -> (String, std::thread::JoinHandle<()>
                 std::thread::sleep(Duration::from_micros(100));
             }
         }
+        payloads
     });
     (format!("http://{addr}"), handle)
+}
+
+fn groq_completion(text: &str, finish: &str, usage: bool) -> String {
+    let mut value = serde_json::json!({"choices":[{"message":{"role":"assistant","content":text},"finish_reason":finish}]});
+    if usage { value["usage"] = serde_json::json!({"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}); }
+    value.to_string()
 }
 
 fn groq_sse(text: &str, usage: bool) -> String {
@@ -551,7 +565,7 @@ fn independent_workers_overlap_use_distinct_providers_and_persist_provenance() {
 }
 
 #[test]
-fn production_adapters_stream_plan_through_scheduler_and_dispatch_two_workers() {
+fn production_structured_groq_plan_through_scheduler_and_dispatch_two_workers() {
     use super::{cloudflare::{CloudflareConfig, CloudflareProvider}, groq::{GroqConfig, GroqProvider}, policy::{CognitiveTargetPolicy, RoutingMode}};
 
     let (db, _synthetic_runtime, store, _active, _max_active, dir) = fixture("http-boundary", 2, 1);
@@ -565,7 +579,7 @@ fn production_adapters_stream_plan_through_scheduler_and_dispatch_two_workers() 
         "risks": [], "needsUserInput": false, "questions": []
     }).to_string();
     let (groq_endpoint, groq_server) = local_sse_server(vec![
-        groq_sse(&planner_json, true),
+        groq_completion(&planner_json, "stop", true),
         groq_sse("Análise concluída pelo Worker Groq.", true),
     ]);
     let (cloudflare_endpoint, cloudflare_server) = local_sse_server(vec![
@@ -580,7 +594,7 @@ fn production_adapters_stream_plan_through_scheduler_and_dispatch_two_workers() 
         ..Default::default()
     }, store.clone()).unwrap());
     let mut provider_registry = ProviderRegistry::default();
-    provider_registry.register(ProviderConfig { id: "groq".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() }, groq).unwrap();
+    provider_registry.register(ProviderConfig { id: "groq".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::with_structured_output() }, groq).unwrap();
     provider_registry.register(ProviderConfig { id: "cloudflare".into(), enabled: true, priority: 2, capabilities: ProviderCapabilities::text_stream() }, cloudflare).unwrap();
     let runtime = Arc::new(ProviderRuntime::new(provider_registry));
     {
@@ -606,7 +620,15 @@ fn production_adapters_stream_plan_through_scheduler_and_dispatch_two_workers() 
     let (channel, receiver) = channel();
     let id = start_task(registry.clone(), db.clone(), runtime, store, "analisar vantagens e riscos de cache local em desktop".into(), channel).unwrap();
     let events = collect(&receiver);
-    groq_server.join().unwrap();
+    let payloads = groq_server.join().unwrap();
+    assert_eq!(payloads[0]["stream"], false);
+    assert!(payloads[0].get("stream_options").is_none());
+    assert_eq!(payloads[0]["response_format"]["type"], "json_schema");
+    assert_eq!(payloads[0]["response_format"]["json_schema"]["strict"], true);
+    assert_eq!(payloads[0]["response_format"]["json_schema"]["schema"], crate::agents::planner::output_schema());
+    assert_eq!(payloads[1]["stream"], true);
+    assert!(payloads[1].get("response_format").is_none());
+    assert_eq!(events.iter().filter(|e| e.contains("\"provider_output_observed\"")).count(), 1);
     cloudflare_server.join().unwrap();
     assert_eq!(terminal_count(&events), 1);
     assert!(events.iter().any(|event| event.contains("\"task_completed\"")), "{events:?}");
@@ -632,10 +654,7 @@ fn production_groq_incomplete_plan_fails_before_any_worker_is_compiled_or_starte
     use super::{cloudflare::{CloudflareConfig, CloudflareProvider}, groq::{GroqConfig, GroqProvider}, policy::{CognitiveTargetPolicy, RoutingMode}};
 
     let (db, _synthetic_runtime, store, _active, _max_active, dir) = fixture("http-incomplete", 2, 1);
-    let partial_event = serde_json::json!({
-        "choices": [{"delta": {"content": "{\"version\":1,\"objective\":\"partial\""}, "finish_reason": "length"}]
-    });
-    let partial = format!("data: {partial_event}\n\ndata: {{\"choices\":[],\"usage\":{{\"prompt_tokens\":10,\"completion_tokens\":256,\"total_tokens\":266}}}}\n\ndata: [DONE]\n\n");
+    let partial = groq_completion("{\"version\":1,\"objective\":\"partial\"", "length", true);
     let (groq_endpoint, groq_server) = local_sse_server(vec![partial]);
     let (unused_cloudflare_endpoint, unused_cloudflare_server) = local_sse_server(vec![]);
     let groq = Arc::new(GroqProvider::new(GroqConfig {
@@ -645,7 +664,7 @@ fn production_groq_incomplete_plan_fails_before_any_worker_is_compiled_or_starte
         endpoint: unused_cloudflare_endpoint, ..Default::default()
     }, store.clone()).unwrap());
     let mut provider_registry = ProviderRegistry::default();
-    provider_registry.register(ProviderConfig { id: "groq".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() }, groq).unwrap();
+    provider_registry.register(ProviderConfig { id: "groq".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::with_structured_output() }, groq).unwrap();
     provider_registry.register(ProviderConfig { id: "cloudflare".into(), enabled: true, priority: 2, capabilities: ProviderCapabilities::text_stream() }, cloudflare).unwrap();
     let runtime = Arc::new(ProviderRuntime::new(provider_registry));
     {
@@ -677,7 +696,7 @@ fn production_groq_incomplete_plan_fails_before_any_worker_is_compiled_or_starte
 }
 
 #[test]
-fn production_cloudflare_orchestrator_also_compiles_and_dispatches_real_worker_units() {
+fn production_cloudflare_is_skipped_as_structured_planner_but_remains_worker() {
     use super::{cloudflare::{CloudflareConfig, CloudflareProvider}, groq::{GroqConfig, GroqProvider}, policy::{CognitiveTargetPolicy, RoutingMode}};
 
     let (db, _synthetic_runtime, store, _active, _max_active, dir) = fixture("cloudflare-planner", 2, 1);
@@ -688,9 +707,8 @@ fn production_cloudflare_orchestrator_also_compiles_and_dispatches_real_worker_u
             {"id":"riscos","description":"Avaliar riscos e privacidade","requiredCapabilities":["planning"],"dependsOn":[]}
         ],"risks":[],"needsUserInput":false,"questions":[]
     }).to_string();
-    let (groq_endpoint, groq_server) = local_sse_server(vec![groq_sse("Worker Groq real-style.", true)]);
+    let (groq_endpoint, groq_server) = local_sse_server(vec![groq_completion(&planner_json, "stop", true), groq_sse("Worker Groq real-style.", true)]);
     let (cloudflare_endpoint, cloudflare_server) = local_sse_server(vec![
-        cloudflare_sse(&planner_json),
         cloudflare_sse("Worker Cloudflare real-style."),
     ]);
     let groq = Arc::new(GroqProvider::new(GroqConfig {
@@ -700,15 +718,18 @@ fn production_cloudflare_orchestrator_also_compiles_and_dispatches_real_worker_u
         endpoint: cloudflare_endpoint, ..Default::default()
     }, store.clone()).unwrap());
     let mut providers = ProviderRegistry::default();
-    providers.register(ProviderConfig { id:"groq".into(), enabled:true, priority:1, capabilities:ProviderCapabilities::text_stream() }, groq).unwrap();
+    providers.register(ProviderConfig { id:"groq".into(), enabled:true, priority:1, capabilities:ProviderCapabilities::with_structured_output() }, groq).unwrap();
     providers.register(ProviderConfig { id:"cloudflare".into(), enabled:true, priority:2, capabilities:ProviderCapabilities::text_stream() }, cloudflare).unwrap();
     let runtime = Arc::new(ProviderRuntime::new(providers));
     {
         let mut conn = db.open().unwrap();
         let mut planner = policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
-        planner.routing_mode = RoutingMode::Fixed;
-        planner.targets = vec![CognitiveTargetPolicy { provider_id:"cloudflare".into(), model:"@cf/zai-org/glm-4.7-flash".into(), thinking_level:None }];
-        planner.max_provider_calls = 1;
+        planner.routing_mode = RoutingMode::Preferred;
+        planner.targets = vec![
+            CognitiveTargetPolicy { provider_id:"cloudflare".into(), model:"@cf/zai-org/glm-4.7-flash".into(), thinking_level:None },
+            CognitiveTargetPolicy { provider_id:"groq".into(), model:"openai/gpt-oss-20b".into(), thinking_level:None },
+        ];
+        planner.max_provider_calls = 2;
         planner.retry_enabled = false;
         planner.max_retries = 0;
         policy::save(&mut conn, &planner).unwrap();
@@ -720,6 +741,9 @@ fn production_cloudflare_orchestrator_also_compiles_and_dispatches_real_worker_u
     groq_server.join().unwrap();
     cloudflare_server.join().unwrap();
     assert_eq!(terminal_count(&events), 1);
+    assert!(events.iter().filter(|e| e.contains("\"provider_selected\""))
+        .all(|e| e.contains("\"provider_id\":\"groq\"")));
+    assert!(!events.iter().any(|e| e.contains("\"provider_fallback\"")));
     assert!(events.iter().any(|event| event.contains("\"task_completed\"")), "{events:?}");
     assert!(events.iter().any(|event| event.contains("\"provider_id\":\"groq\"")));
     assert!(events.iter().any(|event| event.contains("\"provider_id\":\"cloudflare\"")));
@@ -926,4 +950,39 @@ fn worker_channel_failure_is_failed_and_stops_parallel_sibling() {
     assert_eq!(root.1.as_deref(), Some("channel_closed"));
     drop(conn);
     fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn fix5_production_structured_invalid_planner_never_starts_workers_and_terminal_is_unique() {
+    use super::{groq::{GroqConfig, GroqProvider}, policy::{CognitiveTargetPolicy, RoutingMode}};
+    for (output, code) in [
+        ("{".to_owned(), "orchestrator_json_syntax_invalid"),
+        (serde_json::json!({"version":1,"objective":"cache","steps":[
+            {"id":"a","description":"A","requiredCapabilities":["planning"],"dependsOn":["a"]}],
+            "risks":[],"needsUserInput":false,"questions":[]}).to_string(), "orchestrator_plan_semantic_invalid"),
+    ] {
+        let (db, _synthetic, store, _, _, dir) = fixture("fix5-invalid", 2, 1);
+        let (endpoint, server) = local_sse_server(vec![groq_completion(&output, "stop", true)]);
+        let mut providers = ProviderRegistry::default();
+        providers.register(ProviderConfig { id:"groq".into(), enabled:true, priority:1, capabilities:ProviderCapabilities::with_structured_output() },
+            Arc::new(GroqProvider::new(GroqConfig { endpoint, ..Default::default() }, store.clone()).unwrap())).unwrap();
+        // Workers use the production text streaming Cloudflare adapter. Neither can be called on planner failure.
+        providers.register(ProviderConfig { id:"cloudflare".into(), enabled:true, priority:2, capabilities:ProviderCapabilities::text_stream() },
+            Arc::new(super::cloudflare::CloudflareProvider::new(super::cloudflare::CloudflareConfig { endpoint:"http://127.0.0.1:1".into(), ..Default::default() }, store.clone()).unwrap())).unwrap();
+        {
+            let mut conn = db.open().unwrap(); let mut planner = policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
+            planner.routing_mode = RoutingMode::Fixed;
+            planner.targets = vec![CognitiveTargetPolicy { provider_id:"groq".into(), model:super::groq::MODEL.into(), thinking_level:None }];
+            planner.retry_enabled = false; planner.max_provider_calls = 1;
+            policy::save(&mut conn, &planner).unwrap();
+        }
+        let (channel, receiver) = channel();
+        let id = start_task(Arc::new(TaskRegistry::default()), db.clone(), Arc::new(ProviderRuntime::new(providers)), store, "cache desktop".into(), channel).unwrap();
+        let events = collect(&receiver); assert_eq!(server.join().unwrap().len(), 1);
+        assert_eq!(terminal_count(&events), 1);
+        assert!(events.iter().any(|e| e.contains("\"task_failed\"") && e.contains(code)));
+        assert!(!events.iter().any(|e| e.contains("\"subtask_started\"") || e.contains("\"task_planned\"")));
+        let count: i64 = db.open().unwrap().query_row("SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1", [id.0], |r| r.get(0)).unwrap();
+        assert_eq!(count, 0); fs::remove_dir_all(dir).unwrap();
+    }
 }

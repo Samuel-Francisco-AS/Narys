@@ -17,6 +17,11 @@ async fn delay(cancelled: &AtomicBool, millis: u64) -> Result<(), ProviderError>
   if cancelled.load(Ordering::Acquire) { Err(ProviderError::Cancelled) } else { Ok(()) }
 }
 impl Provider for MockProvider {
+  #[cfg(test)]
+  fn supports_invocation(&self, invocation: &super::types::ProviderInvocationConfig, mode: &super::types::InvocationMode) -> bool {
+    invocation.valid() && mode.valid()
+  }
+
   fn execute<'a>(&'a self, request: &'a ProviderRequest, cancelled: &'a AtomicBool,
     on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send)) -> ProviderFuture<'a> {
     Box::pin(async move {

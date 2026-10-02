@@ -87,6 +87,7 @@ fn context(db: &Database) -> super::types::ContextBundle {
 }
 fn request(db: &Database, ids: &[&str]) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        mode: crate::cognition::types::InvocationMode::default(),
         input: "synthetic".into(),
         internal_system_instruction: None,
         history: vec![],

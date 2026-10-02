@@ -70,7 +70,7 @@ pub fn run() {
                         id: "groq".into(),
                         enabled: true,
                         priority: 2,
-                        capabilities: cognition::types::ProviderCapabilities::text_stream(),
+                        capabilities: cognition::types::ProviderCapabilities::with_structured_output(),
                     },
                     groq_adapter,
                 )

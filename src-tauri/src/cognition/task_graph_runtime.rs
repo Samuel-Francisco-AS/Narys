@@ -110,7 +110,7 @@ fn scheduler_events<'a>(
                 to_provider_id: to,
                 reason_code: reason_code.into(),
             },
-            SchedulerEvent::Chunk { provider_id, .. } => {
+            SchedulerEvent::Chunk { provider_id, .. } | SchedulerEvent::OutputObserved { provider_id } => {
                 TaskEventKind::ProviderOutputObserved { provider_id }
             }
         };

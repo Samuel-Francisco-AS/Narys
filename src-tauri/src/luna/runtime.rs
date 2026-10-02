@@ -297,6 +297,7 @@ fn chat_budget_and_request(
         },
     );
     let request = ProviderTaskRequest {
+        mode: crate::cognition::types::InvocationMode::default(),
         input: message,
         internal_system_instruction: None,
         history,
@@ -502,6 +503,7 @@ pub fn start_conversation(
                                 routing_reason: routing_reason.into(),
                                 score,
                             },
+                            SchedulerEvent::OutputObserved { provider_id } => TaskEventKind::ProviderOutputObserved { provider_id },
                             SchedulerEvent::Chunk { provider_id, text } => {
                                 TaskEventKind::ProviderChunk {
                                     provider_id,
@@ -850,6 +852,7 @@ pub fn start_cognition(
                     }
                 };
                 let request = ProviderTaskRequest {
+                    mode: crate::cognition::types::InvocationMode::default(),
                     input: "Execute o diagnóstico cognitivo LR-5.".into(),
                     internal_system_instruction: None,
                     history: vec![],
@@ -891,6 +894,7 @@ pub fn start_cognition(
                                     routing_reason: routing_reason.into(),
                                     score,
                                 },
+                                SchedulerEvent::OutputObserved { provider_id } => TaskEventKind::ProviderOutputObserved { provider_id },
                                 SchedulerEvent::Chunk { provider_id, text } => {
                                     TaskEventKind::ProviderChunk {
                                         provider_id,

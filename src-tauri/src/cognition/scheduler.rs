@@ -25,6 +25,9 @@ pub enum SchedulerEvent {
         routing_reason: &'static str,
         score: Option<u32>,
     },
+    OutputObserved {
+        provider_id: String,
+    },
     Chunk {
         provider_id: String,
         text: String,
@@ -257,7 +260,8 @@ impl Scheduler {
         };
         let mut last_error: Option<ProviderError> = None;
         let mut last_provider: Option<String> = None;
-        if request.targets.is_empty()
+        if !request.mode.valid()
+            || request.targets.is_empty()
             || request.targets.len() > super::policy::MAX_TARGETS
             || request
                 .affinity_key
@@ -292,13 +296,22 @@ impl Scheduler {
                 .registry
                 .get(&target.provider_id)
                 .ok_or(SchedulerError::NoProvider)?;
-            if !entry.config.enabled
-                || !entry
-                    .config
-                    .capabilities
-                    .supports(&request.required_capabilities)
-            {
+            if !entry.config.enabled {
                 return Err(SchedulerError::NoProvider);
+            }
+            if !entry
+                .config
+                .capabilities
+                .supports(&request.required_capabilities)
+                || !entry
+                    .provider
+                    .supports_invocation(&target.invocation, &request.mode)
+            {
+                if request.mode.text_stream() {
+                    return Err(SchedulerError::NoProvider);
+                }
+                // An incompatible target consumes neither a call nor retry/fallback.
+                continue;
             }
             eligible.push(entry);
             if self.cooling(&entry.config.id) {
@@ -404,21 +417,37 @@ impl Scheduler {
                 })?;
                 let mut chunks = String::new();
                 let mut emitted_chunk = false;
-                let mut on_chunk = |chunk: ProviderChunk| -> Result<(), ProviderError> {
-                    if cancelled.load(Ordering::Acquire) {
-                        return Err(ProviderError::Cancelled);
-                    }
-                    emitted_chunk = true;
-                    chunks.push_str(&chunk.text);
-                    on_event(SchedulerEvent::Chunk {
-                        provider_id: entry.config.id.clone(),
-                        text: chunk.text,
-                    })
-                    .map_err(|_| {
-                        cancelled.store(true, Ordering::Release);
-                        ProviderError::EventSinkClosed
-                    })
-                };
+                let mut on_chunk =
+                    |chunk: ProviderChunk| -> Result<(), ProviderError> {
+                        if cancelled.load(Ordering::Acquire) {
+                            return Err(ProviderError::Cancelled);
+                        }
+                        if request.mode.max_bytes().is_some_and(|limit| {
+                            chunks.len().saturating_add(chunk.text.len()) > limit
+                        }) {
+                            return Err(ProviderError::OutputLimitExceeded);
+                        }
+                        let first = !emitted_chunk;
+                        emitted_chunk = true;
+                        chunks.push_str(&chunk.text);
+                        if request.mode.max_bytes().is_some() && !first {
+                            return Ok(());
+                        }
+                        on_event(if request.mode.max_bytes().is_some() {
+                            SchedulerEvent::OutputObserved {
+                                provider_id: entry.config.id.clone(),
+                            }
+                        } else {
+                            SchedulerEvent::Chunk {
+                                provider_id: entry.config.id.clone(),
+                                text: chunk.text,
+                            }
+                        })
+                        .map_err(|_| {
+                            cancelled.store(true, Ordering::Release);
+                            ProviderError::EventSinkClosed
+                        })
+                    };
                 let spent_output = if conservative_output {
                     usage.output_tokens_accounted
                 } else {
@@ -440,6 +469,7 @@ impl Scheduler {
                     remaining_output
                 };
                 let attempt_request = ProviderRequest {
+                    mode: request.mode.clone(),
                     input: request.input.clone(),
                     internal_system_instruction: request.internal_system_instruction.clone(),
                     history: request.history.clone(),
@@ -458,8 +488,35 @@ impl Scheduler {
                 }
                 match result {
                     Ok(response) => {
+                        if request
+                            .mode
+                            .max_bytes()
+                            .is_some_and(|limit| response.text.len() > limit)
+                        {
+                            return Err(SchedulerError::Provider(
+                                ProviderError::OutputLimitExceeded,
+                            ));
+                        }
+                        if request.mode.max_bytes().is_some()
+                            && !emitted_chunk
+                            && !response.text.is_empty()
+                        {
+                            on_event(SchedulerEvent::OutputObserved {
+                                provider_id: entry.config.id.clone(),
+                            })
+                            .map_err(|_| {
+                                cancelled.store(true, Ordering::Release);
+                                SchedulerError::EventSinkClosed
+                            })?;
+                        }
                         if cancelled.load(Ordering::Acquire) && !conservative_output {
                             return Err(SchedulerError::Cancelled);
+                        }
+                        if conservative_output
+                            && attempt_output_limit
+                                .is_some_and(|limit| response.usage.output_tokens > limit)
+                        {
+                            return Err(SchedulerError::BudgetExceeded);
                         }
                         if output_limit.is_some_and(|limit| {
                             let spent = if conservative_output {
@@ -474,13 +531,13 @@ impl Scheduler {
                         usage.input_tokens += response.usage.input_tokens;
                         usage.output_tokens += response.usage.output_tokens;
                         usage.output_tokens_measured &= response.usage.output_tokens_measured;
-                        usage.output_tokens_accounted = usage.output_tokens_accounted.saturating_add(
-                            if response.usage.output_tokens_measured {
+                        usage.output_tokens_accounted = usage
+                            .output_tokens_accounted
+                            .saturating_add(if response.usage.output_tokens_measured {
                                 response.usage.output_tokens
                             } else {
                                 attempt_request.max_output_tokens.unwrap_or_default()
-                            },
-                        );
+                            });
                         usage.total_tokens = response.usage.total_tokens;
                         usage.thought_tokens = response.usage.thought_tokens;
                         let text = if response.text.is_empty() {
@@ -507,6 +564,7 @@ impl Scheduler {
                     }
                     Err(error) => {
                         if conservative_output {
+                            usage.output_tokens_measured = false;
                             usage.output_tokens_accounted = usage
                                 .output_tokens_accounted
                                 .saturating_add(attempt_output_limit.unwrap_or_default());
@@ -560,17 +618,15 @@ impl Scheduler {
                             && retries_used < retry_policy.max_retries
                             && usage.provider_calls < budget.max_provider_calls
                             && (!conservative_output
-                                || output_limit.map_or(true, |limit| {
-                                    usage.output_tokens_accounted < limit
-                                }));
+                                || output_limit
+                                    .map_or(true, |limit| usage.output_tokens_accounted < limit));
                         #[cfg(debug_assertions)]
                         if retry_policy.enabled && eligible_error && !can_retry {
                             let reason = if usage.provider_calls >= budget.max_provider_calls {
                                 "call_budget"
                             } else if conservative_output
-                                && output_limit.is_some_and(|limit| {
-                                    usage.output_tokens_accounted >= limit
-                                })
+                                && output_limit
+                                    .is_some_and(|limit| usage.output_tokens_accounted >= limit)
                             {
                                 "output_budget"
                             } else {
@@ -644,7 +700,7 @@ impl Scheduler {
                 } else {
                     let now = Instant::now();
                     let cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
-                    for entry in eligible {
+                    for entry in &eligible {
                         let cooldown_ms = cooldowns
                             .get(&entry.config.id)
                             .map(|until| until.saturating_duration_since(now).as_millis() as u64)
@@ -654,7 +710,11 @@ impl Scheduler {
                     }
                 }
             }
-            Err(SchedulerError::NoProvider)
+            if eligible.is_empty() && !request.mode.text_stream() {
+                Err(SchedulerError::Provider(ProviderError::UnsupportedMode))
+            } else {
+                Err(SchedulerError::NoProvider)
+            }
         } else {
             Err(SchedulerError::Provider(last_error.unwrap_or(
                 ProviderError::Unavailable {

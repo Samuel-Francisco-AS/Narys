@@ -13,7 +13,7 @@ use std::{
 
 use super::{
     provider::{Provider, ProviderFuture},
-    transport::{cancellation, network_error, retry_after_ms},
+    transport::{cancellation, diagnosed_network_error, timeout_error, TimeoutPhase, retry_after_ms},
     types::{
         ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse,
         ProviderRole, ProviderTimeouts, ProviderUsage,
@@ -190,6 +190,11 @@ fn valid_model(model: &str) -> bool {
 }
 
 impl Provider for CloudflareProvider {
+    fn supports_invocation(&self, invocation: &super::types::ProviderInvocationConfig, mode: &super::types::InvocationMode) -> bool {
+        invocation.valid() && valid_model(&invocation.model) && invocation.thinking_level.is_none()
+            && mode.valid() && mode.text_stream()
+    }
+
     fn execute<'a>(
         &'a self,
         request: &'a ProviderRequest,
@@ -205,6 +210,9 @@ impl Provider for CloudflareProvider {
                 || !valid_model(&request.target.invocation.model)
             {
                 return Err(ProviderError::InvalidRequest);
+            }
+            if !self.supports_invocation(&request.target.invocation, &request.mode) {
+                return Err(ProviderError::UnsupportedMode);
             }
             let secrets = self.secrets.clone();
             let credentials = tokio::select! {
@@ -251,6 +259,8 @@ impl Provider for CloudflareProvider {
                 .invocation
                 .timeouts
                 .unwrap_or_else(|| *self.timeouts.read().unwrap_or_else(|p| p.into_inner()));
+            let started = std::time::Instant::now();
+            let connect_ms = self.config.connect_timeout.as_millis().min(u64::MAX as u128) as u64;
             let send = self
                 .client
                 .post(&endpoint)
@@ -260,24 +270,29 @@ impl Provider for CloudflareProvider {
                 .send();
             let mut response = tokio::select! {
               _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
-              result = send => result.map_err(|error| network_error(&error))?,
+              result = send => result.map_err(|error| diagnosed_network_error(&error, "cloudflare", request, timeouts, connect_ms, started))?,
             };
+            if matches!(response.status().as_u16(), 408 | 504) {
+                let phase = if response.status().as_u16() == 408 { TimeoutPhase::Http408 } else { TimeoutPhase::Http504 };
+                return Err(timeout_error("cloudflare", request, phase, timeouts, connect_ms, started));
+            }
             if !response.status().is_success() {
                 const MAX_ERROR_BODY: usize = 64 * 1024;
                 let status = response.status();
                 let headers = response.headers().clone();
                 let mut body = Vec::new();
-                while let Some(chunk) =
-                    response
-                        .chunk()
-                        .await
-                        .map_err(|_| ProviderError::Unavailable {
-                            retry_after_ms: retry_after_ms(&headers),
-                        })?
-                {
-                    if body.len().saturating_add(chunk.len()) > MAX_ERROR_BODY {
-                        break;
-                    }
+                loop {
+                    let chunk = tokio::select! {
+                        _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
+                        result = response.chunk() => result.map_err(|error| {
+                            match diagnosed_network_error(&error, "cloudflare", request, timeouts, connect_ms, started) {
+                                ProviderError::Unavailable { .. } => ProviderError::Unavailable { retry_after_ms: retry_after_ms(&headers) },
+                                error => error,
+                            }
+                        })?,
+                    };
+                    let Some(chunk) = chunk else { break };
+                    if body.len().saturating_add(chunk.len()) > MAX_ERROR_BODY { break; }
                     body.extend_from_slice(&chunk);
                 }
                 return Err(Self::classify(status, &headers, &body));
@@ -292,7 +307,7 @@ impl Provider for CloudflareProvider {
                 let next = tokio::select! {
                   _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
                   result = tokio::time::timeout(Duration::from_millis(timeouts.stream_idle_timeout_ms as u64), response.chunk()) =>
-                    result.map_err(|_| ProviderError::Timeout)?.map_err(|error| network_error(&error))?,
+                    result.map_err(|_| timeout_error("cloudflare", request, TimeoutPhase::StreamIdle, timeouts, connect_ms, started))?.map_err(|error| diagnosed_network_error(&error, "cloudflare", request, timeouts, connect_ms, started))?,
                 };
                 let Some(bytes) = next else { break };
                 let parsed = parser.push(&bytes);
@@ -359,8 +374,9 @@ impl Provider for CloudflareProvider {
                     return Err(ProviderError::Protocol);
                 }
             }
+            let usage_present = usage.is_some();
             let usage = usage.unwrap_or_default();
-            diagnostic(&request.target.invocation.model, "complete", done, Some("stop"), true, usage.output_tokens_measured, text.len(), "none");
+            diagnostic(&request.target.invocation.model, "complete", done, Some("stop"), usage_present, usage.output_tokens_measured, text.len(), "none");
             Ok(ProviderResponse { text, usage })
         })
     }
@@ -552,6 +568,7 @@ mod tests {
 
     fn http_request(timeouts: ProviderTimeouts) -> ProviderRequest {
         ProviderRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
             internal_system_instruction: None,
             input: "hello".into(),
             history: vec![],

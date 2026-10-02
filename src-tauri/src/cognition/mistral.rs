@@ -193,6 +193,9 @@ impl Provider for MistralProvider {
             {
                 return Err(ProviderError::InvalidRequest);
             }
+            if !self.supports_invocation(&request.target.invocation, &request.mode) {
+                return Err(ProviderError::UnsupportedMode);
+            }
             let secrets = self.secrets.clone();
             let key = tokio::select! {
               _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
@@ -444,6 +447,7 @@ mod tests {
 
     fn http_request(timeouts: ProviderTimeouts) -> ProviderRequest {
         ProviderRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
             internal_system_instruction: None,
             input: "hello".into(),
             history: vec![],
@@ -568,6 +572,7 @@ mod tests {
             },
         };
         let request = ProviderRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
             internal_system_instruction: None,
             input: "hello".into(),
             history: vec![],

@@ -1,12 +1,158 @@
 # LR-7D3 — Task graph mínimo + subtarefas independentes
 
-Estado da branch: **CANDIDATA COM FIX-4 IMPLEMENTADA; validação final e gate humano pendentes**.
+Estado da branch: **CANDIDATA COM FIX-5 IMPLEMENTADA; gates locais concluídos, revisão e gate humano pendentes**.
 Branch: `lr-7d3-task-graph`.
 Base: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
 
-Este documento registra a implementação candidata. **Não é registro de PASS**:
-typecheck/build, gates Rust e gate humano com providers reais ainda precisam ser
-executados no Fedora antes do fechamento da LR-7.
+Este documento registra a implementação candidata. **Não é registro de PASS
+da LR-7D3/LR-7**: os gates locais estão registrados abaixo; a revisão independente
+da FIX e o novo gate humano com providers reais continuam pendentes.
+
+## FIX-5 — Structured Planner Invocation & Runtime Diagnostics
+
+Implementação candidata de 02/10/2026. LR-7D3, LR-7 e o novo gate humano
+continuam pendentes; os gates locais não substituem a aprovação humana.
+
+### Contrato e compatibilidade
+
+`ProviderTaskRequest` e `ProviderRequest` carregam `InvocationMode`: formato
+`Text` ou `JsonSchema`, transporte `Streaming` ou `NonStreaming`. O contrato
+estruturado carrega diretamente `agents::planner::output_schema()` e
+`MAX_PLAN_BYTES`; não existe um segundo schema PlanV1. Orchestrator standalone
+e TaskGraph exigem JSON Schema estrito non-streaming. O schema e a instrução
+são dados confiáveis do Core; o objetivo permanece exclusivamente no input
+não confiável. Respostas continuam não confiáveis até `PlanV1::parse/validate`
+e, para D3, `TaskGraph::compile`. A instrução Worker continua estática; IDs
+continuam machine-safe e nenhuma ferramenta/permissão foi habilitada.
+
+O método `Provider::supports_invocation(target, mode)` pertence ao adapter.
+O Scheduler consulta esse método e as capabilities antes de seleção, eventos
+de execução e consumo de chamadas. A declaração global do Registry é a união
+dos modos implementados, não uma promessa sobre todos os modelos do provider.
+Não há model discovery remoto nem decisões por marca no Orchestrator/Scheduler.
+
+| Integração/target | Texto streaming | JSON Schema estrito non-streaming |
+|---|---|---|
+| Groq `openai/gpt-oss-20b` | Sim | Sim, implementado nesta FIX |
+| Outros modelos Groq | Caminho textual existente | Não anunciado nesta FIX |
+| Cloudflare `@cf/zai-org/glm-4.7-flash` | Sim | Não comprovado; inelegível |
+| Gemini/Mistral, adapters atuais | Caminho textual existente | Não implementado nesta FIX |
+
+Groq envia `response_format.type=json_schema`, `json_schema.strict=true`,
+`json_schema.name=PlanV1`, o schema existente e `stream=false`. Não envia
+`stream_options` nesse modo. O limite de tokens e o thinking continuam vindo
+da policy. Conversation, Summary e Workers preservam texto/SSE; nenhum
+parâmetro Groq é enviado aos demais adapters. `None` de thinking significa
+omissão do parâmetro, não raciocínio desativado.
+
+A documentação Cloudflare expõe `response_format` no modelo, mas a documentação
+JSON Mode não lista GLM-4.7-Flash, não promete aderência estrita e não suporta
+streaming nesse modo. Nenhuma compatibilidade equivalente à Groq foi inventada.
+Cloudflare continua utilizável nos Workers e na Conversation. Uma rota
+Preferred/Auto ignora targets incompatíveis e escolhe os compatíveis, sem
+consumir chamada ou registrar fallback fictício; uma rota Fixed incompatível,
+ou sem target compatível, termina com `provider_mode_unsupported`. Preflight
+continua exigindo registro/configuração/credenciais segundo a policy existente.
+Uma policy antiga Fixed Gemini/Cloudflare precisa ser configurada explicitamente
+com um target compatível para o Planner; a FIX não reescreve policies do usuário.
+
+### Accounting e progresso
+
+O Planner usa o ledger conservador: cada tentativa recebe uma parcela do saldo
+pelas chamadas ainda possíveis. Falhas sem usage debitam a reserva inteira;
+respostas sem usage também debitam sua reserva. Output medido não é inventado:
+`output_tokens` registra somente medição recebida,
+`output_tokens_accounted` é o ledger e `output_tokens_measured=false` quando
+uma tentativa tem consumo desconhecido. Usage que excede a reserva da tentativa
+falha fechado. Retry antes de fallback permanece inalterado; com duas chamadas,
+um retry ainda pode esgotar o budget antes de um fallback.
+
+Na resposta non-streaming, um guard incremental acompanha os bytes UTF-8
+decodificados de `choices[0].message.content`, inclusive escapes JSON e pares
+surrogate, e interrompe a leitura assim que superar `MAX_PLAN_BYTES`.
+O envelope HTTP também é limitado a `6 * max_bytes + 64 KiB`, permitindo
+escapes e metadados finitos. O guard só limita tamanho: não repara JSON,
+não extrai respostas alternativas e não substitui o parser estrito final.
+O Scheduler aplica defesa adicional antes de acumular chunks/resultados.
+Excesso produz `provider_output_limit_exceeded` e não inicia Workers.
+
+`SchedulerEvent::OutputObserved` representa um fato por tentativa, sem texto.
+O Planner coalesce chunks; uma resposta non-streaming aceita pelo adapter
+produz uma observação sem simular streaming. Seleção, retry e fallback
+continuam factuais. O streaming normal dos demais papéis não foi convertido.
+
+### Diagnostics sanitizados
+
+Groq/Cloudflare em DEV distinguem `connect_timeout`,
+`request_overall_timeout`, `stream_idle_timeout`, `http_408` e `http_504`.
+Metadados: provider, modelo sanitizado, attempt, timeout configurado, duração e
+status allowlisted. Nenhum prompt, output, reasoning, corpo remoto, credencial
+ou header sensível é registrado. O erro público permanece `timeout`.
+O timeout HTTP inclui leitura do corpo; idle é espera por fragmento HTTP depois
+dos headers, não espera por conteúdo textual útil. Non-streaming usa timeout
+total e cancelamento, sem aplicar idle de SSE. A presença de usage Cloudflare
+é capturada antes de `unwrap_or_default()`.
+
+Fixtures locais verificam payload/schema, respostas válidas e inválidas,
+fronteira do TaskGraph, inelegibilidade Cloudflare, uso de dois providers Worker,
+retry/accounting, expiração HTTP real (inclusive TLS de conexão), tamanho
+incremental/UTF-8 e centenas de chunks coalescidos. Nenhum teste automático
+novo depende da internet ou de credenciais reais.
+
+Fontes oficiais consultadas em 02/10/2026:
+
+- [Groq Structured Outputs](https://console.groq.com/docs/structured-outputs)
+  — modo estrito do GPT-OSS 20B e incompatibilidade com streaming.
+- [Groq API Reference](https://console.groq.com/docs/api-reference)
+  — Chat Completions, formato, usage e reasoning.
+- [Cloudflare GLM-4.7-Flash](https://developers.cloudflare.com/workers-ai/models/glm-4.7-flash/).
+- [Cloudflare JSON Mode](https://developers.cloudflare.com/workers-ai/features/json-mode/).
+- [Cloudflare API OpenAI-compatible](https://developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility/).
+
+### Gates locais FIX-5 — 02/10/2026
+
+| Gate | Resultado |
+|---|---|
+| `npm run typecheck` | PASS |
+| `npm run build` | PASS |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | PASS |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 310 testes: 308 passaram, 0 falharam, 2 ignorados/manual-only |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | PASS |
+| `git diff --check` e `git diff --check main...HEAD` | Sem erros |
+
+Execução direta: `cargo test --manifest-path src-tauri/Cargo.toml fix5_ -- --test-threads=4`
+passou os 13 testes novos (structured Groq, capability/mode, fases HTTP,
+accounting, byte limit, coalescimento e Planner inválido sem Workers).
+O teste de fases inclui também non-streaming antes/depois dos headers e timeout
+durante leitura do corpo de erro Cloudflare. A execução direta de
+`cognition::task_graph_runtime_tests::production_` passou os três cenários de
+integração com adapters reais e HTTP local, incluindo dois providers Worker.
+Fixtures sintéticas existentes foram adaptadas ao contrato explícito; somente
+backends de teste anunciam schema genérico para exercitar routing/fallback.
+Os builds emitiram avisos de código não utilizado e bundle acima de 500 KiB,
+sem falhar. Nenhuma chamada externa foi usada como teste automático.
+
+A autoauditoria do diff confirmou schema único, gates de modo antes de HTTP,
+ausência de parâmetros Groq nos demais adapters, input não confiável separado,
+diagnostics sem conteúdo remoto, budgets de retry limitados e streaming dos
+outros papéis preservado. Isso não substitui a revisão independente nem o gate
+humano. O teto local interrompe a leitura; não comprova cancelamento de computação
+ou cobrança no serviço remoto.
+
+### Próximo gate humano (ainda não executado)
+
+1. Revisar esta FIX e configurar Orchestrator Fixed Groq `openai/gpt-oss-20b`,
+   thinking low, 4096 tokens, 2 calls, retry 1; manter timeouts 45000/15000 ms.
+2. Configurar Worker Preferred Groq + Cloudflare, 4096 tokens e 4 calls.
+3. Executar o objetivo controlado de duas análises independentes de cache local.
+4. Exigir plano validado/compilado, exatamente dois Workers, providers distintos,
+   terminal único, provenance persistida, medição/ledger identificados e no máximo
+   uma observação do Planner por tentativa.
+5. Executar Orchestrator standalone; depois testar rota Auto/Preferred com
+   Cloudflare antes de Groq: nenhum request Planner Cloudflare deve ocorrer.
+6. Revalidar conversa streaming Groq/Cloudflare, envelope Worker, cancelamento
+   e preservação de sessão/identidade. Em qualquer falha, registrar somente
+   metadados sanitizados; não capturar saída bruta.
 
 ## FIX-4 — alinhamento do contrato executável D3
 
@@ -60,10 +206,10 @@ A D3 mantém `PlanV1` como fonte única do plano. O Core compila seus
 Nesta fase, somente `planning` e `structured_output` são elegíveis.
 
 `PlanCapability::StructuredOutput` continua sendo uma capability declarativa do
-passo do `PlanV1`; ela **não promove** Groq/Cloudflare para
-`ProviderCapabilities::structured_output=true`. Como definido na D1, esses
-adapters continuam anunciando apenas `text_stream()`; nenhum suporte nativo a
-structured output é inventado. Na D3, `StructuredOutput` exige um envelope
+passo do `PlanV1`; ela não promove automaticamente um target a suporte nativo.
+Na FIX-5, somente o modo comprovado Groq GPT-OSS 20B anuncia saída estruturada
+estrita, verificada por target/mode. Cloudflare continua somente text streaming.
+Essa capability do Planner é distinta do envelope cognitivo do Worker. Na D3, `StructuredOutput` exige um envelope
 mínimo de resultado Worker (`subtaskId`, `text`) parseado como JSON estrito,
 sem campos extras, fences, prefixos ou sufixos. `planning` continua aceitando
 resultado textual. `requiredCapabilities` vazio é rejeitado especificamente na

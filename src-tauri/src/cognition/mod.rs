@@ -1,3 +1,6 @@
+mod bounded_json;
+#[cfg(test)]
+mod fix5_tests;
 pub mod catalog;
 pub mod cloudflare;
 pub mod context;

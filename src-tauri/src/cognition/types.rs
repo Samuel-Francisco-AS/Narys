@@ -38,11 +38,84 @@ impl ProviderCapabilities {
             && (!required.tool_calling || self.tool_calling)
             && (!required.structured_output || self.structured_output)
     }
+    /// Union of implemented adapter modes, not a claim about every model.
+    pub fn with_structured_output() -> Self {
+        Self {
+            structured_output: true,
+            ..Self::text_stream()
+        }
+    }
+    pub fn structured() -> Self {
+        Self {
+            text_generation: true,
+            structured_output: true,
+            ..Self::default()
+        }
+    }
     pub fn text_stream() -> Self {
         Self {
             text_generation: true,
             streaming: true,
             ..Self::default()
+        }
+    }
+}
+
+/// Core-owned output intent. JSON Schema always requests native strict generation;
+/// local semantic validation remains mandatory after transport succeeds.
+#[derive(Clone, Debug, PartialEq)]
+pub enum OutputContract {
+    Text,
+    JsonSchema {
+        name: String,
+        schema: serde_json::Value,
+        max_bytes: usize,
+    },
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransportMode {
+    Streaming,
+    NonStreaming,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct InvocationMode {
+    pub output: OutputContract,
+    pub transport: TransportMode,
+}
+impl Default for InvocationMode {
+    fn default() -> Self {
+        Self {
+            output: OutputContract::Text,
+            transport: TransportMode::Streaming,
+        }
+    }
+}
+impl InvocationMode {
+    pub fn text_stream(&self) -> bool {
+        matches!(self.output, OutputContract::Text) && self.transport == TransportMode::Streaming
+    }
+    pub fn max_bytes(&self) -> Option<usize> {
+        match &self.output {
+            OutputContract::Text => None,
+            OutputContract::JsonSchema { max_bytes, .. } => Some(*max_bytes),
+        }
+    }
+    pub fn valid(&self) -> bool {
+        match &self.output {
+            OutputContract::Text => true,
+            OutputContract::JsonSchema {
+                name,
+                schema,
+                max_bytes,
+            } => {
+                !name.is_empty()
+                    && name.len() <= 64
+                    && name
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
+                    && schema.is_object()
+                    && *max_bytes > 0
+            }
         }
     }
 }
@@ -95,6 +168,7 @@ pub struct ProviderTarget {
 
 #[derive(Debug)]
 pub struct ProviderTaskRequest {
+    pub mode: InvocationMode,
     pub input: String,
     /// Trusted instruction supplied by the Core. User content never populates this field.
     pub internal_system_instruction: Option<String>,
@@ -112,6 +186,7 @@ pub struct ProviderTaskRequest {
 // Only the Scheduler constructs this for a selected target.
 #[derive(Debug)]
 pub struct ProviderRequest {
+    pub mode: InvocationMode,
     pub input: String,
     pub internal_system_instruction: Option<String>,
     pub history: Vec<ProviderMessage>,
@@ -166,6 +241,8 @@ pub enum ProviderError {
     InvalidRequest,
     Unavailable { retry_after_ms: Option<u64> },
     EventSinkClosed,
+    UnsupportedMode,
+    OutputLimitExceeded,
 }
 impl ProviderError {
     pub fn code(&self) -> &'static str {
@@ -183,6 +260,8 @@ impl ProviderError {
             Self::InvalidRequest => "model_or_request_rejected",
             Self::Unavailable { .. } => "unavailable",
             Self::EventSinkClosed => "channel_closed",
+            Self::UnsupportedMode => "provider_mode_unsupported",
+            Self::OutputLimitExceeded => "provider_output_limit_exceeded",
         }
     }
 }
@@ -213,7 +292,7 @@ pub struct SchedulerUsage {
     pub provider_calls: u32,
     pub input_tokens: u32,
     pub output_tokens: u32,
-    /// Sum of provider-reported output tokens; meaningful only when measured is true.
+    /// Sum of provider-reported output tokens; incomplete when any attempt is unmeasured.
     pub output_tokens_measured: bool,
     /// Output budget conservatively debited, including attempts without usage.
     pub output_tokens_accounted: u32,
