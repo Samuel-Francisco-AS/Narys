@@ -1135,6 +1135,20 @@ mod tests {
         assert!(!gemini.input.contains("JSON Schema"));
         assert!(gemini.internal_system_instruction.as_deref().unwrap().contains("JSON Schema"));
         assert!(gemini.internal_system_instruction.as_deref().unwrap().contains("JSON cru"));
+        assert!(!groq.internal_system_instruction.as_deref().unwrap().contains("TaskGraph D3"));
+        let task_graph = task_graph_request(
+            "user objective marker",
+            &policy,
+            test_timeouts(super::super::types::ProviderTimeouts {
+                request_timeout_ms: 31,
+                stream_idle_timeout_ms: 32,
+            }),
+        );
+        assert!(task_graph.input.contains("OBJETIVO:\nuser objective marker"));
+        let task_graph_internal = task_graph.internal_system_instruction.as_deref().unwrap();
+        assert!(task_graph_internal.contains("TaskGraph D3"));
+        assert!(task_graph_internal.contains("ASCII alfanuméricos"));
+        assert!(!task_graph_internal.contains("user objective marker"));
         assert_eq!(gemini.max_output_tokens, Some(321));
         assert_eq!(
             groq.targets[0]

@@ -178,7 +178,7 @@ compilar o `TaskGraph`.
 
 O teste de integração local executa os adapters de produção Groq e Cloudflare
 por HTTP/SSE fragmentado, inclusive bytes UTF-8 divididos, passando pelo
-Scheduler, `orchestrator::plan`, parser PlanV1, compilação e despacho de dois
+Scheduler, `orchestrator::plan_task_graph`, parser PlanV1, compilação e despacho de dois
 workers. Fixtures locais também cobrem terminais inválidos do Groq, EOF e usage
 inválido no Cloudflare, parser estrito PlanV1, resultado estruturado,
 cancelamento no primeiro evento e preservação de worker concluído quando a irmã
