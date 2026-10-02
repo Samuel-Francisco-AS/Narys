@@ -1,12 +1,27 @@
 # LR-7D3 — Task graph mínimo + subtarefas independentes
 
-Estado da branch: **CANDIDATA COM FIX-3 IMPLEMENTADA; validação final e gate humano pendentes**.
+Estado da branch: **CANDIDATA COM FIX-4 IMPLEMENTADA; validação final e gate humano pendentes**.
 Branch: `lr-7d3-task-graph`.
 Base: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
 
 Este documento registra a implementação candidata. **Não é registro de PASS**:
 typecheck/build, gates Rust e gate humano com providers reais ainda precisam ser
 executados no Fedora antes do fechamento da LR-7.
+
+## FIX-4 — alinhamento do contrato executável D3
+
+O Orchestrator genérico continua usando o contrato PlanV1 consolidado da D1.
+Somente a entrada usada pelo TaskGraph D3 acrescenta, em instrução interna
+confiável do Core, as restrições que o consumidor realmente exige: `step.id`
+machine-safe (ASCII alfanumérico, `_` ou `-`, até 64 bytes) e
+`requiredCapabilities` não vazio limitado a `planning` ou
+`structured_output`. O objetivo do usuário continua separado e não pode
+alterar essas regras.
+
+O diagnóstico DEV de retry também distingue agora bloqueio por `call_budget`,
+`output_budget` e `retry_limit`, sem alterar a decisão operacional do
+Scheduler. Esta FIX não declara PASS; gates locais e gate humano real continuam
+pendentes.
 
 ## FIX-3 — accounting e fronteira de confiança
 

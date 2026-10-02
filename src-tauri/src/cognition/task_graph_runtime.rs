@@ -236,7 +236,7 @@ async fn execute(
     }
 
     let mut planner_events = scheduler_events(channel, root, sequence, &cancelled);
-    let planner = orchestrator::plan(
+    let planner = orchestrator::plan_task_graph(
         runtime.scheduler.clone(),
         orchestrator_policy,
         objective,

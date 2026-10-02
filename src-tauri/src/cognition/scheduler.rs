@@ -567,6 +567,12 @@ impl Scheduler {
                         if retry_policy.enabled && eligible_error && !can_retry {
                             let reason = if usage.provider_calls >= budget.max_provider_calls {
                                 "call_budget"
+                            } else if conservative_output
+                                && output_limit.is_some_and(|limit| {
+                                    usage.output_tokens_accounted >= limit
+                                })
+                            {
+                                "output_budget"
                             } else {
                                 "retry_limit"
                             };
