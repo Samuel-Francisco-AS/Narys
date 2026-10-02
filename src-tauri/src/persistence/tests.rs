@@ -1256,7 +1256,7 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
 
 #[test]
 fn migration_006_preserves_fixed_behavior_and_seeds_groq_fallback_config() {
-    use crate::cognition::policy::{self, CognitiveRole, RoutingMode, ThinkingLevel};
+    use crate::cognition::policy::{self, CognitiveRole, RoutingMode};
     let conn = rusqlite::Connection::open_in_memory().unwrap();
     conn.execute_batch(&format!(
         "{} {} {} {} {} PRAGMA user_version=5;",
