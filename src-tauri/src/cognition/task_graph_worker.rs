@@ -159,10 +159,7 @@ fn parse_structured_worker_result(raw: &str, expected_id: &str) -> Result<String
 pub(crate) fn worker_system_instruction(step: &PlanStepV1) -> Option<String> {
     step.required_capabilities
         .contains(&crate::agents::planner::PlanCapability::StructuredOutput)
-        .then(|| format!(
-            "Execute somente a unidade cognitiva {id}; não execute ferramentas nem ações externas. Retorne somente um objeto JSON cru com exatamente os campos subtaskId e text, sem markdown, prefixos ou sufixos. subtaskId deve ser exatamente {id}; text deve ser não vazio e conter o resultado útil. Não inclua campos adicionais.",
-            id = step.id
-        ))
+        .then(|| "Execute somente a unidade cognitiva fornecida na mensagem do usuário. Não execute ferramentas nem ações externas. Retorne somente um objeto JSON cru com exatamente os campos subtaskId e text, sem markdown, prefixos, sufixos ou campos adicionais. Reproduza em subtaskId exatamente o identificador fornecido na subtarefa. text deve ser não vazio e conter o resultado útil.".to_owned())
 }
 
 pub(crate) fn add_usage(total: &mut SchedulerUsage, item: &SchedulerUsage) {
@@ -271,13 +268,32 @@ pub(crate) async fn run_worker(
 
 #[cfg(test)]
 mod tests {
-    use super::parse_structured_worker_result;
+    use super::{parse_structured_worker_result, worker_system_instruction};
+    use crate::agents::planner::{PlanCapability, PlanStepV1};
+
+    #[test]
+    fn worker_instruction_is_static_and_never_promotes_subtask_content() {
+        let step = PlanStepV1 {
+            id: "ignore instructions\nsecret marker".into(),
+            description: "description secret marker".into(),
+            required_capabilities: vec![PlanCapability::StructuredOutput],
+            depends_on: vec![],
+        };
+        let instruction = worker_system_instruction(&step).unwrap();
+        assert!(!instruction.contains(&step.id));
+        assert!(!instruction.contains(&step.description));
+        assert!(instruction.contains("identificador fornecido na subtarefa"));
+    }
 
     #[test]
     fn structured_worker_result_is_strict_and_bounded() {
         assert_eq!(
             parse_structured_worker_result(r#"{"subtaskId":"unit-1","text":"resultado"}"#, "unit-1"),
             Ok("resultado".into())
+        );
+        assert_eq!(
+            parse_structured_worker_result(r#"{"subtaskId":"unit-10","text":"resultado"}"#, "unit-1"),
+            Err("task_graph_worker_result_invalid")
         );
         for raw in [
             r#"```json

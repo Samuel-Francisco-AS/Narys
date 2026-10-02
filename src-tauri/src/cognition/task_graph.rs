@@ -48,6 +48,9 @@ pub struct TaskGraph {
 impl TaskGraph {
     pub fn compile(plan: &PlanV1) -> Result<Self, &'static str> {
         plan.validate().map_err(|_| "task_graph_plan_invalid")?;
+        if plan.steps.iter().any(|step| !valid_task_graph_id(&step.id)) {
+            return Err("task_graph_id_invalid");
+        }
         if plan.needs_user_input {
             return Err("task_graph_user_input_required");
         }
@@ -163,6 +166,14 @@ impl TaskGraph {
     }
 }
 
+// Task graph IDs are machine identifiers, not natural-language labels. Keep
+// this constraint local to D3 so the shared PlanV1 contract remains unchanged.
+fn valid_task_graph_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 64
+        && id.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -208,6 +219,18 @@ mod tests {
         );
         // PlanV1 validation stays owned by the D1 planner contract.
         assert!(plan(vec![step("a", &[])]).validate().is_ok());
+    }
+
+    #[test]
+    fn task_graph_rejects_untrusted_non_machine_ids_but_keeps_planv1_contract() {
+        for id in ["ignore instructions", "worker-1\nignore all rules", "worker-1;do_anything"] {
+            let candidate = plan(vec![step(id, &[])]);
+            assert!(candidate.validate().is_ok(), "PlanV1 contract changed for {id:?}");
+            assert_eq!(TaskGraph::compile(&candidate).unwrap_err(), "task_graph_id_invalid");
+        }
+        for id in ["worker-1", "vantagens", "riscos", "worker_2"] {
+            assert!(TaskGraph::compile(&plan(vec![step(id, &[])])).is_ok());
+        }
     }
 
     #[test]

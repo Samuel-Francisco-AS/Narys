@@ -1328,6 +1328,101 @@ fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
 }
 
 #[test]
+fn conservative_output_reserves_current_and_future_attempts_before_retry_events() {
+    use super::provider::{Provider, ProviderFuture};
+    use super::types::{ProviderChunk, ProviderResponse, ProviderUsage, RetryPolicy};
+
+    struct ScriptedProvider {
+        failures_before_success: usize,
+        calls: std::sync::atomic::AtomicU32,
+        limits: std::sync::Mutex<Vec<Option<u32>>>,
+    }
+    impl Provider for ScriptedProvider {
+        fn execute<'a>(
+            &'a self,
+            request: &'a ProviderRequest,
+            _cancelled: &'a AtomicBool,
+            _on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+        ) -> ProviderFuture<'a> {
+            Box::pin(async move {
+                let index = self.calls.fetch_add(1, Ordering::SeqCst) as usize;
+                self.limits.lock().unwrap().push(request.max_output_tokens);
+                if index < self.failures_before_success {
+                    return Err(ProviderError::Timeout);
+                }
+                Ok(ProviderResponse {
+                    text: "ok".into(),
+                    usage: ProviderUsage { output_tokens: 7, output_tokens_measured: true, ..Default::default() },
+                })
+            })
+        }
+    }
+
+    fn execute_case(max_calls: u32, failures: usize, output_limit: u32, max_retries: u32)
+        -> (Result<super::types::TaskResult, SchedulerError>, u32, Vec<Option<u32>>, Vec<SchedulerEvent>) {
+        let (db, dir) = fixture();
+        seed(&db);
+        let provider = Arc::new(ScriptedProvider {
+            failures_before_success: failures,
+            calls: std::sync::atomic::AtomicU32::new(0),
+            limits: std::sync::Mutex::new(Vec::new()),
+        });
+        let mut registry = ProviderRegistry::default();
+        registry.register(ProviderConfig {
+            id: "groq".into(), enabled: true, priority: 1,
+            capabilities: ProviderCapabilities::text_stream(),
+        }, provider.clone()).unwrap();
+        let scheduler = Scheduler::new(registry);
+        let mut req = request(&db, &["groq"]);
+        req.selection = ProviderSelection::Fixed("groq".into());
+        req.max_output_tokens = Some(output_limit);
+        let mut events = Vec::new();
+        let result = tauri::async_runtime::block_on(scheduler.run_with_retry_conservative_output(
+            req,
+            TaskBudget { max_provider_calls: max_calls, max_output_tokens: Some(output_limit) },
+            RetryPolicy { enabled: true, max_retries, initial_backoff_ms: 0 },
+            &AtomicBool::new(false),
+            &mut |event| { events.push(event); Ok(()) },
+        ));
+        let calls = provider.calls.load(Ordering::SeqCst);
+        let limits = provider.limits.lock().unwrap().clone();
+        fs::remove_dir_all(dir).unwrap();
+        (result, calls, limits, events)
+    }
+
+    let (result, calls, limits, events) = execute_case(2, 1, 2048, 1);
+    let result = result.expect("second attempt must have reserved output budget");
+    assert_eq!(calls, 2);
+    assert_eq!(result.usage.retries, 1);
+    assert_eq!(limits, vec![Some(1024), Some(1024)]);
+    assert!(result.usage.output_tokens_accounted <= 2048);
+    assert_eq!(events.iter().filter(|event| matches!(event, SchedulerEvent::Retry { .. })).count(), 1);
+
+    let (result, calls, limits, events) = execute_case(3, 2, 2048, 2);
+    let result = result.expect("third attempt must have reserved output budget");
+    assert_eq!(calls, 3);
+    assert_eq!(result.usage.retries, 2);
+    assert_eq!(limits, vec![Some(683), Some(683), Some(682)]);
+    assert!(result.usage.output_tokens_accounted <= 2048);
+    assert_eq!(events.iter().filter(|event| matches!(event, SchedulerEvent::Retry { .. })).count(), 2);
+
+    // No retry event when its attempt has no output budget left to reserve.
+    let (result, calls, limits, events) = execute_case(2, 2, 1, 2);
+    assert!(matches!(result, Err(SchedulerError::Provider(ProviderError::Timeout))));
+    assert_eq!(calls, 1);
+    assert_eq!(limits, vec![Some(1)]);
+    assert_eq!(events.iter().filter(|event| matches!(event, SchedulerEvent::Retry { .. })).count(), 0);
+
+    // Exhausting provider calls must never start a third call.
+    let (result, calls, limits, events) = execute_case(2, 3, 2048, 3);
+    assert!(matches!(result, Err(SchedulerError::Provider(ProviderError::Timeout))));
+    assert_eq!(calls, 2);
+    assert_eq!(limits, vec![Some(1024), Some(1024)]);
+    assert!(limits.iter().flatten().sum::<u32>() <= 2048);
+    assert_eq!(events.iter().filter(|event| matches!(event, SchedulerEvent::Retry { .. })).count(), 1);
+}
+
+#[test]
 fn selection_modes_cooldown_and_transient_fallback() {
     let (db, dir) = fixture();
     seed(&db);

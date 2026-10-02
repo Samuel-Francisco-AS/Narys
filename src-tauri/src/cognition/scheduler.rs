@@ -425,13 +425,16 @@ impl Scheduler {
                     usage.output_tokens
                 };
                 let remaining_output = output_limit.map(|limit| limit.saturating_sub(spent_output));
-                let remaining_calls = budget.max_provider_calls.saturating_sub(usage.provider_calls);
+                // Include the call about to start: divide the remaining ledger
+                // across this attempt and every call still available afterward.
+                let attempts_remaining = budget
+                    .max_provider_calls
+                    .saturating_sub(usage.provider_calls.saturating_sub(1))
+                    .max(1);
                 let attempt_output_limit = if conservative_output {
                     remaining_output.map(|remaining| {
-                        remaining
-                            .saturating_add(remaining_calls.saturating_sub(1))
-                            .checked_div(remaining_calls.max(1))
-                            .unwrap_or(0)
+                        remaining / attempts_remaining
+                            + u32::from(remaining % attempts_remaining != 0)
                     })
                 } else {
                     remaining_output
@@ -555,7 +558,11 @@ impl Scheduler {
                         let can_retry = retry_policy.enabled
                             && eligible_error
                             && retries_used < retry_policy.max_retries
-                            && usage.provider_calls < budget.max_provider_calls;
+                            && usage.provider_calls < budget.max_provider_calls
+                            && (!conservative_output
+                                || output_limit.map_or(true, |limit| {
+                                    usage.output_tokens_accounted < limit
+                                }));
                         #[cfg(debug_assertions)]
                         if retry_policy.enabled && eligible_error && !can_retry {
                             let reason = if usage.provider_calls >= budget.max_provider_calls {

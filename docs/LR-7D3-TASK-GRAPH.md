@@ -1,12 +1,29 @@
 # LR-7D3 — Task graph mínimo + subtarefas independentes
 
-Estado da branch: **CANDIDATA COM FIX-2 IMPLEMENTADA; validação final pendente**.
+Estado da branch: **CANDIDATA COM FIX-3 IMPLEMENTADA; validação final e gate humano pendentes**.
 Branch: `lr-7d3-task-graph`.
 Base: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
 
 Este documento registra a implementação candidata. **Não é registro de PASS**:
 typecheck/build, gates Rust e gate humano com providers reais ainda precisam ser
 executados no Fedora antes do fechamento da LR-7.
+
+## FIX-3 — accounting e fronteira de confiança
+
+O accounting conservador de output divide o saldo pelos provider calls ainda
+possíveis, incluindo a tentativa que está prestes a começar. Uma falha sem
+usage debitável consome sua reserva; retry só é anunciado quando há chamada e
+saldo de output para iniciá-lo. `output_tokens` permanece a medição observada e
+`output_tokens_accounted` permanece o ledger conservador limitado ao budget.
+
+Na compilação D3, IDs de subtarefa aceitam somente ASCII alfanumérico, `_` e
+`-` (até 64 bytes). Essa validação é local ao TaskGraph; o contrato global
+PlanV1 não foi alterado. A instrução interna do Worker é estática e não incorpora
+IDs, descrições ou outros dados do Planner. O Core continua validando
+deterministicamente o `subtaskId` retornado contra o ID esperado.
+
+Esta atualização registra a implementação candidata da FIX-3, sem declarar
+PASS técnico final nem aprovação do gate humano com Groq e Cloudflare reais.
 
 ## Objetivo
 
