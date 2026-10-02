@@ -42,7 +42,6 @@ pub struct GraphSubtask {
 
 #[derive(Clone, Debug)]
 pub struct TaskGraph {
-    pub objective: String,
     subtasks: Vec<GraphSubtask>,
 }
 
@@ -60,7 +59,6 @@ impl TaskGraph {
             return Err("task_graph_capability_unsupported");
         }
         Ok(Self {
-            objective: plan.objective.clone(),
             subtasks: plan.steps.iter().cloned().map(|step| GraphSubtask {
                 step,
                 state: SubtaskState::Pending,
@@ -83,6 +81,7 @@ impl TaskGraph {
             .collect()
     }
 
+    #[cfg(test)]
     pub fn waiting_dependencies(&self, id: &str) -> Option<Vec<String>> {
         let item = self.subtasks.iter().find(|item| item.step.id == id)?;
         (item.state == SubtaskState::Pending).then(|| {
