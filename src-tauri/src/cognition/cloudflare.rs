@@ -861,7 +861,7 @@ data: [DONE]
             &mut |_| Ok(()),
         ));
         handle.join().unwrap();
-        assert_eq!(result, Err(ProviderError::Protocol));
+        assert!(matches!(result, Err(ProviderError::Protocol)));
         std::fs::remove_dir_all(directory).unwrap();
 
         let mut finish = None;
