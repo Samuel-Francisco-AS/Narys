@@ -81,6 +81,24 @@ fn scheduler_events<'a>(
 ) -> impl FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send + 'a {
     move |event| {
         let kind = match event {
+            SchedulerEvent::Queued {
+                provider_id,
+                traffic_class,
+                queue_depth,
+            } => TaskEventKind::ProviderQueued {
+                provider_id,
+                traffic_class,
+                queue_depth,
+            },
+            SchedulerEvent::Admitted {
+                provider_id,
+                traffic_class,
+                queue_delay_ms,
+            } => TaskEventKind::ProviderAdmitted {
+                provider_id,
+                traffic_class,
+                queue_delay_ms,
+            },
             SchedulerEvent::Selected {
                 provider_id,
                 model,

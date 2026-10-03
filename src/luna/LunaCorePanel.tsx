@@ -30,6 +30,8 @@ function eventLabel(event: TaskEvent): string {
     case 'task_cancelled': return 'Tarefa cancelada'
     case 'task_failed': return `Tarefa falhou: ${event.detail}`
     case 'context_built': return `Contexto: ${event.memory_count} memórias`
+    case 'provider_queued': return `${event.provider_id}: aguardando vaga`
+    case 'provider_admitted': return `${event.provider_id}: tentativa admitida após ${event.queue_delay_ms} ms`
     case 'provider_selected': return `${event.provider_id}: tentativa ${event.attempt}`
     case 'provider_chunk': return `Chunk: ${event.chunk}`
     case 'provider_retry': return `${event.provider_id}: retry (${event.reason_code})`

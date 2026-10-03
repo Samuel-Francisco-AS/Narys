@@ -40,6 +40,16 @@ pub enum TaskEventKind {
         memory_count: usize,
         recent_message_count: usize,
     },
+    ProviderQueued {
+        provider_id: String,
+        traffic_class: crate::cognition::admission::TrafficClass,
+        queue_depth: usize,
+    },
+    ProviderAdmitted {
+        provider_id: String,
+        traffic_class: crate::cognition::admission::TrafficClass,
+        queue_delay_ms: u64,
+    },
     ProviderSelected {
         provider_id: String,
         model: String,

@@ -1,6 +1,6 @@
 # LR-8 — Rate Limit Manager completo
 
-Estado: **EM EXECUÇÃO — LR-8A PASS técnico/auditoria em 03/10/2026; LR-8B liberada.**
+Estado: **EM EXECUÇÃO — LR-8A encerrada; LR-8B IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna; LR-8C bloqueada.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
 Próxima subfase: **LR-8B — admission control + fila + concurrency**.
 
@@ -503,6 +503,228 @@ Introduzir uma fronteira única antes de toda chamada cognitiva real.
 Sob contenção sintética, foreground progride antes de background, nenhuma
 chamada ultrapassa concurrency configurada e nenhuma tarefa cancelada "vaza" da
 fila para o provider.
+
+---
+
+## LR-8B — implementação candidata
+
+**IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna**
+
+**LR-8C bloqueada.** Base obrigatória:
+`main@78b966db5a4f76ff0a41c5fc346cf056d6a3ccf5`, com LR-8A integrada pela PR #14.
+Branch: `lr-8b-admission-control`. Nenhum fechamento técnico/auditado da 8B é
+presumido pelos resultados dos testes abaixo.
+
+### Ownership e configuração local
+
+`ProviderRuntime → Scheduler → AdmissionController → estado por provider`.
+Todos os consumidores de produção usam o Scheduler compartilhado. O mapa de IDs
+é inicializado a partir do Registry, fica imutável e não possui lock global. Cada
+provider tem seu próprio `Mutex<State>` e `Notify`; fila de um não impede admission
+de outro. O controller não conhece marcas, modelos, prompts, credentials, quota,
+routing ou callbacks de adapters. Gemini/Groq/Cloudflare/Mistral não ganharam
+semáforos nem prioridade. As mudanças nos arquivos Gemini/Groq são só fixtures de
+teste que agora explicitam a classe do request do Scheduler.
+
+`AdmissionConfig::default()` centraliza exclusivamente limites locais da Luna:
+
+| Campo | Default | Significado |
+|---|---:|---|
+| `max_concurrency_per_provider` | 2 | Tentativas cognitivas simultaneamente admitidas por provider |
+| `queue_capacity_per_provider` | 64 | Tickets aguardando por provider; proteção de memória/runtime |
+| `queue_timeout_ms` | 60.000 | Timeout exclusivo de espera, iniciado no enqueue monotônico |
+| `max_priority_bypasses` | 8 | Máximo de ultrapassagens por prioridade superior |
+
+O concurrency 2 acompanha o paralelismo mínimo existente da LR-7D3; não afirma
+nenhum limite comercial de provider. `Scheduler::with_admission_config` permite
+contratos menores em testes. Concurrency/timeout zero e números fora do bound
+JSON-safe são rejeitados; capacidade de fila zero permite somente admission
+imediata, bypasses zero resulta em FIFO entre todas as classes. Sem migration,
+persistência, edição na UI ou configuração externa nesta subfase.
+
+### Prioridade e fairness
+
+O Core preenche `ProviderTaskRequest.traffic_class` explicitamente:
+
+- `ForegroundInteractive`: Conversation e diagnóstico solicitado, incluindo Groq probe;
+- `ForegroundTask`: Orchestrator/Planner e TaskGraph Workers;
+- `Background`: Summary automático/oportunista.
+
+`ProviderRequest` não carrega a classe para os adapters. A fila guarda somente
+identificador interno (identidade de `Arc<()>`), classe, contador de bypasses e
+`Instant` de entrada; a ordem do `VecDeque` é a ordem de chegada. Não guarda
+prompt, resposta, reasoning, contexto, segredo ou headers.
+
+Ao haver vaga, ganha o ticket protegido mais antigo (`bypasses >= limite`); na
+ausência de protegido, ganha a maior classe, com a chegada mais antiga como
+desempate. Cada admission aumenta o contador dos tickets anteriores de classe
+inferior que ultrapassou. Somente ultrapassagens efetivas por admission contam,
+nunca chegada/seleção. Tickets anteriores da mesma classe têm contador pelo
+menos igual ao dos posteriores: proteção não quebra FIFO da classe. Novos
+requests entram na fila se existir qualquer waiter, mesmo com vaga livre.
+
+Após oito ultrapassagens, o ticket antigo ganha a próxima oportunidade elegível
+antes de novas ultrapassagens. Tickets protegidos anteriores podem vir primeiro;
+a fila é finita e novos tickets não entram à frente deles. Não há weighted
+scheduling, aging por wall-clock ou preemption. Uma chamada Background admitida
+continua normalmente quando chega Conversation.
+
+### Lifecycle, cancellation e erros
+
+O Scheduler decide o target pelos contratos anteriores, constrói sua invocação
+e adquire o permit na fronteira imediatamente anterior a `execute_observed()`.
+Emite `Selected → [Queued] → Admitted → invocation`; chamadas imediatas omitem
+`Queued` e têm delay zero. `Queued.queue_depth` é o tamanho factual no enqueue,
+não promessa de posição futura; `Admitted.queue_delay_ms` mede tempo monotônico.
+Os eventos atravessam os canais Core e o diagnóstico Groq sem conteúdo privado.
+
+O slot representa **tentativa cognitiva admitida pelo Scheduler**, incluindo
+preflight do adapter; não comprova socket HTTP aberto. O permit não é clonável e
+seu Drop libera exatamente um slot. É explicitamente descartado logo após
+retorno do Provider, antes de observar resultado/processar resposta, retry,
+backoff, fallback ou consolidação Core. RAII também cobre retorno antecipado,
+channel failure, cancellation, unwind e descarte do future. Cada retry/fallback
+adquire um novo permit, e source/destination não ficam presos simultaneamente.
+
+`AdmissionQueueFull` (`admission_queue_full`) e `AdmissionTimeout`
+(`admission_timeout`) são erros locais do Scheduler. Encerram diretamente sem
+RateLimited/Unavailable/QuotaExceeded, cooldown, retry ou fallback automático.
+Timeout de fila não consome timeout de request/connect/stream. Começa quando o
+ticket entra em espera, sem relação com nascimento da task raiz.
+
+Cancellation mantém o `AtomicBool` existente. É checada antes do enqueue, sob
+lock antes de admission e de novo pelo Scheduler antes da invocation. Em espera,
+a detecção usa polling assíncrono bounded de 25 ms, como o backoff existente,
+porque esse contrato não tem wake handle de cancelamento. Release/mudança de fila
+acorda por Notify imediatamente. Cancellation observada vence vaga/timeout;
+permit concedido não agenda execução futura, e cancellation que vence antes da
+fronteira de invocation impede Provider. Cancellation depois dessa fronteira
+continua pelos caminhos atuais do adapter, sem preemption por prioridade.
+
+O ticket possui guard RAII: erro de sink, cancellation, timeout ou abort do future
+remove a espera e acorda peers. Não há concessão de permit em Drop/release;
+apenas o próprio waiter elegível, sob lock, pode remover seu ticket e incrementar
+active. `Notified::enable()` precede a checagem de estado para impedir lost wake
+na race release/espera. Nenhum lock atravessa await; callbacks e notify ocorrem
+fora dos locks. Drop só faz trabalho local, bounded pela capacidade da fila.
+`EventSinkClosed` em Queued/Admitted encerra sem invocation e limpa ticket/permit.
+
+### Routing, LR-8A, Summary e TaskGraph
+
+Não há leitura de admission no ranking/score/affinity/cooldown. Fixed espera no
+escolhido; Preferred conserva a ordem autorizada; Auto conserva score e affinity.
+Saturação e fila não criam fallback. Somente os erros remotos já autorizados
+podem fazê-lo. Quota zero e Retry-After factual da 8A não governam admission.
+
+`TelemetryStore` permanece semanticamente intacto. **Queued ≠ request; admitted
+≠ request; fronteira real de envio HTTP do adapter = request factual.** Espera
+cancelada/timeout/full/sink fechado antes de envio conservam requests zero para
+a tentativa. Usage/reportingRequests, quota provider/model, retry hints,
+accounting conservador D3 e privacidade de credencial permanecem os anteriores.
+
+Summary conserva `foreground_provider_tasks` como fast-path para não iniciar
+trabalho oportunista novo enquanto Conversation está registrada. Não é uma
+segunda autoridade de prioridade: uma tentativa Summary que já entrou em
+admission segue a fila Background e fairness central, sem cancelamento por
+chegada de foreground. Summary já executando também não é interrompido. Falha
+local de admission deixa o resumo pending e encerra o drain, aguardando kick
+futuro; não faz retry imediato ou fallback por capacidade.
+
+TaskGraph conserva PlanV1, compilação, dependências, no máximo duas subtarefas
+independentes, distribuição de targets e consolidação determinística. Com duas
+Workers no mesmo provider, cap 1 serializa suas tentativas e cap 2 admite ambas.
+Os testes verificam também ordem da consolidação e provenance persistida das
+duas subtarefas.
+
+### Snapshot read-only
+
+`Scheduler::admission_snapshot()` e campo aditivo `get_ai_settings.admission`
+expõem por provider: ID, max concurrency local, active, queue depth/capacity,
+queued por classe (inclusive zeros), admissions, total que entrou em espera,
+delay acumulado/recente e amostras, queue full/timeout counts e saturação numérica.
+Cada snapshot de provider é coerente sob seu lock; providers são capturados em
+sequência, sem alegar captura atômica de todo o runtime. Delay/amostras contam
+somente tickets que esperaram e foram admitidos; cancelados/timeout permanecem
+em totalWaited, sem amostra de admission. Admissions incluem permit liberado
+antes de HTTP por preflight/cancellation/channel failure.
+
+Contadores saturam em `2^53−1` com flag, gauges são bounded pela configuração
+validada. O snapshot não tem request, prompt, output, reasoning, contexto,
+credential, headers ou quota remota. `providerAdmission.ts` e os eventos
+TypeScript tipam leitura; nenhum painel operacional LR-8E foi construído.
+
+### Testes e gates da candidata
+
+24 testes novos: 18 em `admission_tests`, dois internos do controller, dois de
+Summary e dois TaskGraph. Usam channels/notifies/oneshots para controlar admission
+e completion; waits temporizados possuem deadline de harness. Apenas o teste de
+timeout usa espera real curta para demonstrar independência dos timeouts de 1 ms
+da invocação. A race cancellation/release executa 40 ciclos em runtime multithread.
+
+Cobertura inclui cap 1/2/terceiro waiter, isolamento por provider, FIFO, ultrapassagem
+Interactive/Task sobre Background, nenhuma preemption, bypass limits 1/2,
+cancellation queued e após Admitted, abort de espera/permit, queue full/timeout
+terminais, todos os códigos de erro Provider, preflight Authentication sem request,
+sink fechado em Queued/Admitted, retry readquirindo após backoff, fallback liberando
+source, quota zero sem gate, ranking/modes/score/affinity/cooldown preservados,
+privacidade, aritmética JSON-safe, integração foreground/Summary e Workers cap 1/2
+com consolidação/provenance. A suíte completa inclui os testes LR-7D3 e LR-8A.
+
+Gates sobre o código final (03/10/2026):
+
+| Gate | Resultado |
+|---|---|
+| `npm run typecheck` | Exit 0 |
+| `npm run build` | Exit 0; aviso de chunk acima de 500 KiB |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | Exit 0; 12 warnings |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | Exit 0; 365 aprovados, 0 falhas, 2 ignorados; main/doc-tests sem falhas |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | Exit 0; 38 warnings |
+| `git diff --check` | Sem erros |
+| `git diff --check main...HEAD` | Sem erros no commit candidato |
+
+Os dois ignorados são gates Codex locais/manuais preexistentes
+(`real_app_server_handshake`, `manual_final_codex_agent_bridge_gate`), fora da 8B.
+A compilação de testes tem também dois warnings de campos existentes. Warnings
+Rust são unused/dead-code preexistentes e `UserConfiguration` observacional da
+8A; não houve supressão. O frontend conserva o aviso de bundle acima de 500 KiB.
+
+A primeira execução completa terminou com 364 aprovados, uma falha e dois
+ignorados. A falha `fix5_event_coalescing_hundreds_of_chunks_and_scheduler_byte_guard`
+foi reproduzida isoladamente: esperava dois eventos e recebeu três por causa do
+novo Admitted. A asserção foi adaptada para exigir exatamente
+Selected → Admitted → OutputObserved, mantendo coalescing e proteção de bytes.
+A reprodução isolada corrigida passou; depois a suíte completa paralela final
+passou, incluindo os 24 testes novos, em 205,90 s. Não foi classificada como flake,
+nenhum timeout foi aumentado e não foi necessário recorrer à suíte serial.
+Fixtures HTTP/SecretStore existentes acima de 60 s concluíram com sucesso.
+O gate frontend inicialmente detectou o switch TypeScript que ainda não tinha
+os dois eventos aditivos; o consumidor foi completado antes dos gates finais.
+
+### Autoauditoria e limitações
+
+Revisão direcionada de locks/await, callbacks sob lock, Drop/Notify/lost wake,
+ownership único dos permits, active/depth em terminais, race cancellation,
+FIFO/proteção bounded, Summary e ausência de preemption; nenhuma dependência de
+quota/score/routing na fronteira local, nenhum request factual por fila/admission,
+nenhum permit durante backoff/fallback/consolidação, nenhum dado privado em fila,
+snapshot ou novos eventos. Auditoria independente deve conferir especialmente
+a linearização cancellation/admission/invocation, fairness entre protegidos,
+as amostras de delay e a proteção oportunista do Summary.
+
+Estado in-memory e por ID de provider, compartilhado entre modelos desse ID.
+O override de configuração é de construção, sem atualização dinâmica. Cancelamento
+na fila não tem notificação própria; polling conserva o contrato existente e pode
+ser atrasado por scheduling do executor. Fairness pressupõe progresso do executor
+e término/cancellation das chamadas em execução; não interrompe um Provider travado.
+O slot inclui preflight e não mede sockets. Nenhum teste novo usa credencial ou
+provider comercial real; gate operacional humano continua posterior.
+
+A dívida de invalidação/versionamento do contexto credencial/quota permanece
+intacta e pertence à LR-8C antes de quota governar admission. RPM/TPM/RPD/TPD,
+buckets/reservations/janelas/budgets diários/persistência ficam para 8C;
+jitter/circuit breaker/health e unificação cooldown para 8D; painel/gate final
+para 8E. Capacity-aware routing e configuração externa permanecem adiados.
+**LR-8C bloqueada.**
 
 ---
 

@@ -168,6 +168,7 @@ pub struct ProviderTarget {
 
 #[derive(Debug)]
 pub struct ProviderTaskRequest {
+    pub traffic_class: super::admission::TrafficClass,
     pub mode: InvocationMode,
     pub input: String,
     /// Trusted instruction supplied by the Core. User content never populates this field.
@@ -313,6 +314,8 @@ pub struct TaskResult {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SchedulerError {
+    AdmissionQueueFull,
+    AdmissionTimeout,
     BudgetExceeded,
     Cancelled,
     EventSinkClosed,
@@ -323,6 +326,8 @@ pub enum SchedulerError {
 impl SchedulerError {
     pub fn code(&self) -> &'static str {
         match self {
+            Self::AdmissionQueueFull => "admission_queue_full",
+            Self::AdmissionTimeout => "admission_timeout",
             Self::BudgetExceeded => "budget_exceeded",
             Self::Cancelled => "cancelled",
             Self::EventSinkClosed => "channel_closed",

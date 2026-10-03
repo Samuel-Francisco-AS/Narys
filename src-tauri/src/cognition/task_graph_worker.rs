@@ -45,6 +45,20 @@ fn worker_events<'a>(
 ) -> impl FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send + 'a {
     move |event| match event {
         SchedulerEvent::Selected { .. } => Ok(()),
+        SchedulerEvent::Queued { provider_id, traffic_class, queue_depth } => emit(
+            channel, root, sequence, TaskState::Running,
+            TaskEventKind::ProviderQueued { provider_id, traffic_class, queue_depth },
+        ).map_err(|_| {
+            cancelled.store(true, Ordering::Release);
+            SchedulerError::EventSinkClosed
+        }),
+        SchedulerEvent::Admitted { provider_id, traffic_class, queue_delay_ms } => emit(
+            channel, root, sequence, TaskState::Running,
+            TaskEventKind::ProviderAdmitted { provider_id, traffic_class, queue_delay_ms },
+        ).map_err(|_| {
+            cancelled.store(true, Ordering::Release);
+            SchedulerError::EventSinkClosed
+        }),
         SchedulerEvent::Retry {
             provider_id,
             reason_code,
@@ -217,6 +231,7 @@ pub(crate) async fn run_worker(
     }
     let started = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let request = ProviderTaskRequest {
+        traffic_class: crate::cognition::admission::TrafficClass::ForegroundTask,
         mode: crate::cognition::types::InvocationMode::default(),
         input,
         internal_system_instruction: internal_system_instruction.clone(),

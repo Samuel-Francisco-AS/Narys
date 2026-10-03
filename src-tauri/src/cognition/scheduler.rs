@@ -18,6 +18,16 @@ use std::{
 
 #[derive(Clone, Debug)]
 pub enum SchedulerEvent {
+    Queued {
+        provider_id: String,
+        traffic_class: super::admission::TrafficClass,
+        queue_depth: usize,
+    },
+    Admitted {
+        provider_id: String,
+        traffic_class: super::admission::TrafficClass,
+        queue_delay_ms: u64,
+    },
     Selected {
         provider_id: String,
         model: String,
@@ -108,6 +118,7 @@ fn auto_score(
 }
 
 pub struct Scheduler {
+    pub(super) admission: super::admission::AdmissionController,
     registry: ProviderRegistry,
     cooldowns: Mutex<HashMap<String, Instant>>,
     affinities: Mutex<Affinities>,
@@ -116,15 +127,30 @@ pub struct Scheduler {
 
 impl Scheduler {
     pub fn new(registry: ProviderRegistry) -> Self {
+        Self::with_admission_config(registry, super::admission::AdmissionConfig::default())
+            .expect("valid local admission defaults")
+    }
+    pub fn with_admission_config(
+        registry: ProviderRegistry,
+        config: super::admission::AdmissionConfig,
+    ) -> Result<Self, &'static str> {
+        let admission = super::admission::AdmissionController::new(
+            registry.configs().into_iter().map(|c| c.id.clone()),
+            config,
+        )?;
         let telemetry = super::telemetry::TelemetryStore::new(
             registry.configs().into_iter().map(|c| c.id.clone()),
         );
-        Self {
+        Ok(Self {
+            admission,
             telemetry,
             registry,
             cooldowns: Mutex::new(HashMap::new()),
             affinities: Mutex::new(Affinities::default()),
-        }
+        })
+    }
+    pub fn admission_snapshot(&self) -> Vec<super::admission::AdmissionSnapshot> {
+        self.admission.snapshots()
     }
     pub fn telemetry_snapshot(&self) -> Vec<super::telemetry::ProviderTelemetrySnapshot> {
         self.telemetry.snapshots()
@@ -423,6 +449,67 @@ impl Scheduler {
                     cancelled.store(true, Ordering::Release);
                     SchedulerError::EventSinkClosed
                 })?;
+                let spent_output = if conservative_output {
+                    usage.output_tokens_accounted
+                } else {
+                    usage.output_tokens
+                };
+                let remaining_output = output_limit.map(|limit| limit.saturating_sub(spent_output));
+                // Include the call about to start: divide the remaining ledger
+                // across this attempt and every call still available afterward.
+                let attempts_remaining = budget
+                    .max_provider_calls
+                    .saturating_sub(usage.provider_calls.saturating_sub(1))
+                    .max(1);
+                let attempt_output_limit = if conservative_output {
+                    remaining_output.map(|remaining| {
+                        remaining / attempts_remaining
+                            + u32::from(remaining % attempts_remaining != 0)
+                    })
+                } else {
+                    remaining_output
+                };
+                let attempt_request = ProviderRequest {
+                    mode: request.mode.clone(),
+                    input: request.input.clone(),
+                    internal_system_instruction: request.internal_system_instruction.clone(),
+                    history: request.history.clone(),
+                    context: request.context.clone(),
+                    max_output_tokens: attempt_output_limit,
+                    target: (*target).clone(),
+                    attempt,
+                };
+                let permit = self
+                    .admission
+                    .acquire(
+                        &entry.config.id,
+                        request.traffic_class,
+                        cancelled,
+                        &mut |queue_depth| {
+                            on_event(SchedulerEvent::Queued {
+                                provider_id: entry.config.id.clone(),
+                                traffic_class: request.traffic_class,
+                                queue_depth,
+                            })
+                            .map_err(|_| {
+                                cancelled.store(true, Ordering::Release);
+                                SchedulerError::EventSinkClosed
+                            })
+                        },
+                    )
+                    .await?;
+                on_event(SchedulerEvent::Admitted {
+                    provider_id: entry.config.id.clone(),
+                    traffic_class: request.traffic_class,
+                    queue_delay_ms: permit.queue_delay_ms,
+                })
+                .map_err(|_| {
+                    cancelled.store(true, Ordering::Release);
+                    SchedulerError::EventSinkClosed
+                })?;
+                if cancelled.load(Ordering::Acquire) {
+                    return Err(SchedulerError::Cancelled);
+                }
                 let mut chunks = String::new();
                 let mut emitted_chunk = false;
                 let mut on_chunk =
@@ -456,42 +543,18 @@ impl Scheduler {
                             ProviderError::EventSinkClosed
                         })
                     };
-                let spent_output = if conservative_output {
-                    usage.output_tokens_accounted
-                } else {
-                    usage.output_tokens
-                };
-                let remaining_output = output_limit.map(|limit| limit.saturating_sub(spent_output));
-                // Include the call about to start: divide the remaining ledger
-                // across this attempt and every call still available afterward.
-                let attempts_remaining = budget
-                    .max_provider_calls
-                    .saturating_sub(usage.provider_calls.saturating_sub(1))
-                    .max(1);
-                let attempt_output_limit = if conservative_output {
-                    remaining_output.map(|remaining| {
-                        remaining / attempts_remaining
-                            + u32::from(remaining % attempts_remaining != 0)
-                    })
-                } else {
-                    remaining_output
-                };
-                let attempt_request = ProviderRequest {
-                    mode: request.mode.clone(),
-                    input: request.input.clone(),
-                    internal_system_instruction: request.internal_system_instruction.clone(),
-                    history: request.history.clone(),
-                    context: request.context.clone(),
-                    max_output_tokens: attempt_output_limit,
-                    target: (*target).clone(),
-                    attempt,
-                };
                 // Keep the same structured context across retry/fallback; adapters decide serialization.
                 let observation = self.telemetry.attempt(&entry.config.id);
+                // Final cancellation check at the provider invocation boundary.
+                if cancelled.load(Ordering::Acquire) {
+                    return Err(SchedulerError::Cancelled);
+                }
                 let result = entry
                     .provider
                     .execute_observed(&attempt_request, cancelled, &mut on_chunk, &observation)
                     .await;
+                // Release before response processing, retry backoff, fallback or Core consolidation.
+                drop(permit);
                 observation.finished(result.as_ref().err());
                 if matches!(result, Err(ProviderError::EventSinkClosed)) {
                     return Err(SchedulerError::EventSinkClosed);

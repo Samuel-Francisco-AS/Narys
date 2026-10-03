@@ -733,6 +733,7 @@ fn fix5_event_coalescing_hundreds_of_chunks_and_scheduler_byte_guard() {
             )
             .unwrap();
         let req = ProviderTaskRequest {
+            traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
             mode: mode(limit),
             input: "data".into(),
             internal_system_instruction: None,
@@ -786,7 +787,10 @@ fn fix5_event_coalescing_hundreds_of_chunks_and_scheduler_byte_guard() {
         assert!(!events
             .iter()
             .any(|e| matches!(e, SchedulerEvent::Chunk { .. })));
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.len(), 3);
+        assert!(matches!(events[0], SchedulerEvent::Selected { .. }));
+        assert!(matches!(events[1], SchedulerEvent::Admitted { .. }));
+        assert!(matches!(events[2], SchedulerEvent::OutputObserved { .. }));
     }
 }
 
@@ -838,6 +842,7 @@ fn fix5_scheduler_rejects_fixed_incompatible_mode_without_selection_or_remote_ca
             target.invocation.model = "unproven-model".into();
         }
         let req = ProviderTaskRequest {
+            traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
             mode: mode(MAX_PLAN_BYTES),
             input: "data".into(),
             internal_system_instruction: None,

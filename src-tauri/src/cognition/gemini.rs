@@ -743,6 +743,7 @@ mod tests {
     }
     fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
         ProviderTaskRequest {
+            traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
             mode: crate::cognition::types::InvocationMode::default(),
             input: request.input,
             internal_system_instruction: request.internal_system_instruction,
@@ -1863,6 +1864,7 @@ mod tests {
         let signal = AtomicBool::new(false);
         let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
             ProviderTaskRequest {
+                traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
                 mode: crate::cognition::types::InvocationMode::default(),
                 input: "Quanto é 2 + 2?".into(),
                 internal_system_instruction: None,

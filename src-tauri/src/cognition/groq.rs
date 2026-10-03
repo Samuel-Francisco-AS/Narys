@@ -732,6 +732,7 @@ mod tests {
 
     fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
         ProviderTaskRequest {
+            traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
             mode: crate::cognition::types::InvocationMode::default(),
             input: request.input,
             internal_system_instruction: request.internal_system_instruction,

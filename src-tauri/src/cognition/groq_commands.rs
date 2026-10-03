@@ -112,6 +112,22 @@ pub async fn groq_delete_api_key(
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum GroqProbeEvent {
+    Queued {
+        #[serde(rename = "providerId")]
+        provider_id: String,
+        #[serde(rename = "trafficClass")]
+        traffic_class: super::admission::TrafficClass,
+        #[serde(rename = "queueDepth")]
+        queue_depth: usize,
+    },
+    Admitted {
+        #[serde(rename = "providerId")]
+        provider_id: String,
+        #[serde(rename = "trafficClass")]
+        traffic_class: super::admission::TrafficClass,
+        #[serde(rename = "queueDelayMs")]
+        queue_delay_ms: u64,
+    },
     Selected {
         #[serde(rename = "providerId")]
         provider_id: String,
@@ -149,6 +165,7 @@ pub async fn groq_probe(
     let handle = handles.0.get("groq").ok_or("provider_unavailable")?;
     let timeouts = *handle.read().unwrap_or_else(|poison| poison.into_inner());
     let request = ProviderTaskRequest {
+        traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
         mode: crate::cognition::types::InvocationMode::default(),
         input: "Responda em uma frase curta: conexão Groq confirmada.".into(),
         internal_system_instruction: None,
@@ -189,6 +206,8 @@ pub async fn groq_probe(
                         attempt,
                     }),
                     SchedulerEvent::Chunk { text, .. } => Some(GroqProbeEvent::Chunk { text }),
+                    SchedulerEvent::Queued { provider_id, traffic_class, queue_depth } => Some(GroqProbeEvent::Queued { provider_id, traffic_class, queue_depth }),
+                    SchedulerEvent::Admitted { provider_id, traffic_class, queue_delay_ms } => Some(GroqProbeEvent::Admitted { provider_id, traffic_class, queue_delay_ms }),
                     SchedulerEvent::Retry { .. } | SchedulerEvent::Fallback { .. } | SchedulerEvent::OutputObserved { .. } => None,
                 };
                 if let Some(event) = outbound {

@@ -986,3 +986,179 @@ fn fix5_production_structured_invalid_planner_never_starts_workers_and_terminal_
         assert_eq!(count, 0); fs::remove_dir_all(dir).unwrap();
     }
 }
+
+/// Worker completion is controlled by channels; no overlap assertion depends on sleeps.
+struct AdmissionGraphWorker {
+    entered: mpsc::Sender<(String, tokio::sync::oneshot::Sender<()>)>,
+}
+impl Provider for AdmissionGraphWorker {
+    fn execute<'a>(
+        &'a self,
+        request: &'a ProviderRequest,
+        _: &'a AtomicBool,
+        _: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+    ) -> ProviderFuture<'a> {
+        Box::pin(async move {
+            let id = request
+                .input
+                .split("SUBTAREFA ")
+                .nth(1)
+                .unwrap()
+                .split(':')
+                .next()
+                .unwrap()
+                .to_owned();
+            let (tx, rx) = tokio::sync::oneshot::channel();
+            self.entered.send((id.clone(), tx)).unwrap();
+            rx.await.unwrap();
+            Ok(ProviderResponse {
+                text: serde_json::json!({"subtaskId":id,"text":format!("result-{id}")}).to_string(),
+                usage: ProviderUsage {
+                    calls: 1,
+                    output_tokens: 3,
+                    output_tokens_measured: true,
+                    ..ProviderUsage::default()
+                },
+            })
+        })
+    }
+}
+fn same_provider_workers_admission(cap: usize) {
+    use super::{admission::AdmissionConfig, scheduler::Scheduler};
+    let (db, _old_runtime, store, active, max_active, dir) = fixture("lr8b-workers", 2, 0);
+    let mut conn = db.open().unwrap();
+    let mut worker = policy::load(&conn, CognitiveRole::Worker).unwrap();
+    worker.routing_mode = policy::RoutingMode::Fixed;
+    worker.targets = vec![policy::CognitiveTargetPolicy {
+        provider_id: "groq".into(),
+        model: "openai/gpt-oss-20b".into(),
+        thinking_level: Some(policy::ThinkingLevel::Low),
+    }];
+    worker.retry_enabled = false;
+    policy::save(&mut conn, &worker).unwrap();
+    drop(conn);
+    let (tx, entered) = mpsc::channel();
+    let mut providers = ProviderRegistry::default();
+    providers
+        .register(
+            ProviderConfig {
+                id: "gemini".into(),
+                enabled: true,
+                priority: 1,
+                capabilities: ProviderCapabilities::with_structured_output(),
+            },
+            Arc::new(GraphProvider {
+                label: "gemini",
+                planner_steps: Some(2),
+                delay_ms: 0,
+                active,
+                max_active,
+            }),
+        )
+        .unwrap();
+    providers
+        .register(
+            ProviderConfig {
+                id: "groq".into(),
+                enabled: true,
+                priority: 2,
+                capabilities: ProviderCapabilities::text_stream(),
+            },
+            Arc::new(AdmissionGraphWorker { entered: tx }),
+        )
+        .unwrap();
+    let runtime = Arc::new(ProviderRuntime {
+        scheduler: Arc::new(
+            Scheduler::with_admission_config(
+                providers,
+                AdmissionConfig {
+                    max_concurrency_per_provider: cap,
+                    ..AdmissionConfig::default()
+                },
+            )
+            .unwrap(),
+        ),
+    });
+    let (channel, receiver) = channel();
+    let task = start_task(
+        Arc::new(TaskRegistry::default()),
+        db.clone(),
+        runtime.clone(),
+        store,
+        "Gate sintético".into(),
+        channel,
+    )
+    .unwrap();
+    let first = entered
+        .recv_timeout(Duration::from_secs(10))
+        .expect("first worker admitted");
+    assert_eq!(first.0, "worker-1");
+    let mut events = vec![];
+    let second = if cap == 1 {
+        events.extend(wait_for(&receiver, "\"provider_queued\""));
+        assert!(entered.try_recv().is_err());
+        let s = runtime
+            .scheduler
+            .admission_snapshot()
+            .into_iter()
+            .find(|s| s.provider_id == "groq")
+            .unwrap();
+        assert_eq!((s.active_calls, s.queue_depth), (1, 1));
+        first.1.send(()).unwrap();
+        entered
+            .recv_timeout(Duration::from_secs(10))
+            .expect("second worker admitted after release")
+    } else {
+        let second = entered
+            .recv_timeout(Duration::from_secs(10))
+            .expect("both workers admitted before release");
+        let s = runtime
+            .scheduler
+            .admission_snapshot()
+            .into_iter()
+            .find(|s| s.provider_id == "groq")
+            .unwrap();
+        assert_eq!((s.active_calls, s.queue_depth), (2, 0));
+        first.1.send(()).unwrap();
+        second
+    };
+    assert_eq!(second.0, "worker-2");
+    second.1.send(()).unwrap();
+    events.extend(collect(&receiver));
+    assert_eq!(terminal_count(&events), 1);
+    assert!(
+        events.iter().any(|e| e.contains("\"task_completed\"")),
+        "{events:?}"
+    );
+    let result: serde_json::Value = events
+        .iter()
+        .map(|e| serde_json::from_str::<serde_json::Value>(e).unwrap())
+        .find(|e| e["type"] == "task_graph_result_ready")
+        .unwrap()["result"]
+        .clone();
+    assert_eq!(result["subtasks"][0]["subtaskId"], "worker-1");
+    assert_eq!(result["subtasks"][1]["subtaskId"], "worker-2");
+    assert_eq!(result["subtasks"][0]["providerId"], "groq");
+    assert_eq!(result["subtasks"][1]["providerId"], "groq");
+    let consolidated = result["consolidatedText"].as_str().unwrap();
+    assert!(
+        consolidated.find("result-worker-1").unwrap()
+            < consolidated.find("result-worker-2").unwrap()
+    );
+    let conn = db.open().unwrap();
+    let rows:i64=conn.query_row("SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1 AND provider_id='groq' AND state='completed'",[task.0],|row|row.get(0)).unwrap();
+    assert_eq!(rows, 2);
+    drop(conn);
+    for s in runtime.scheduler.admission_snapshot() {
+        assert_eq!((s.active_calls, s.queue_depth), (0, 0));
+    }
+    fs::remove_dir_all(dir).unwrap();
+}
+#[test]
+fn lr8b_task_graph_cap_one_serializes_same_provider_workers_with_provenance() {
+    same_provider_workers_admission(1);
+}
+#[test]
+fn lr8b_task_graph_cap_two_admits_parallel_same_provider_workers_with_provenance() {
+    same_provider_workers_admission(2);
+}
