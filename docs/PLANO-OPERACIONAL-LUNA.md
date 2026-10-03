@@ -451,37 +451,27 @@ Plano: [LR-7D2.5-PROVIDER-REDUNDANCY.md](LR-7D2.5-PROVIDER-REDUNDANCY.md).
 
 ## 12. LR-8 — Rate Limit Manager completo
 
-Pode começar parcialmente antes, mas fecha aqui.
+**Estado: LIBERADA após LR-7 = PASS completo em 03/10/2026.**
 
-### Requisitos
+Para reduzir correções tardias, a LR-8 foi formalmente decomposta em subfases
+sequenciais, cada uma implementada pelo agente e auditada independentemente pela
+Luna antes da liberação da seguinte:
 
-- RPM;
-- TPM;
-- RPD/TPD;
-- concurrency;
-- token bucket;
-- fila;
-- header parsing;
-- retry-after;
-- exponential backoff + jitter;
-- cooldown;
-- circuit breaker;
-- daily/task budget;
-- telemetry.
+1. **LR-8A — modelo de quota + telemetria factual**;
+2. **LR-8B — admission control + fila + concurrency**;
+3. **LR-8C — rate accounting + token buckets + budgets**;
+4. **LR-8D — backoff, jitter, cooldown + circuit breaker**;
+5. **LR-8E — painel operacional + integração/gate final**.
 
-### Painel
+A trilha mantém como requisitos finais RPM, TPM, RPD/TPD quando factuais,
+concurrency, fila, token bucket, parsing de headers, Retry-After, backoff +
+jitter, cooldown, circuit breaker, budgets e telemetria. Quota/custo/saúde
+desconhecidos permanecem explicitamente desconhecidos; nenhuma regra comercial
+mutável é hardcoded no Luna Core.
 
-Mostrar por provider:
-
-- enabled;
-- health;
-- queue;
-- requests;
-- tokens;
-- quota known/unknown;
-- cooldown;
-- custo;
-- uso recente.
+**Próxima ação: LR-8A.** Nenhuma decisão adicional de produto é necessária para
+iniciá-la. O contrato detalhado, limites de escopo, gates e protocolo de auditoria
+estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md).
 
 ## 13. LR-9 — Luna Voice e feedback natural
 
