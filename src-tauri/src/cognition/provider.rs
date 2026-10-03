@@ -18,6 +18,18 @@ pub trait Provider: Send + Sync {
         invocation.valid() && mode.valid() && mode.text_stream()
     }
 
+    /// Conservative default makes no claim about remote invocation or usage.
+    /// Adapters opt in explicitly after their credential/payload preflight.
+    fn execute_observed<'a>(
+        &'a self,
+        request: &'a ProviderRequest,
+        cancelled: &'a AtomicBool,
+        on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+        _observation: &'a super::telemetry::InvocationObservation<'_>,
+    ) -> ProviderFuture<'a> {
+        self.execute(request, cancelled, on_chunk)
+    }
+
     fn execute<'a>(
         &'a self,
         request: &'a ProviderRequest,

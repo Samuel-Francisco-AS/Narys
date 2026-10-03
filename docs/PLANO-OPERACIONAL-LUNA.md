@@ -457,7 +457,7 @@ Para reduzir correções tardias, a LR-8 foi formalmente decomposta em subfases
 sequenciais, cada uma implementada pelo agente e auditada independentemente pela
 Luna antes da liberação da seguinte:
 
-1. **LR-8A — modelo de quota + telemetria factual**;
+1. **LR-8A — modelo de quota + telemetria factual — PASS em 03/10/2026**;
 2. **LR-8B — admission control + fila + concurrency**;
 3. **LR-8C — rate accounting + token buckets + budgets**;
 4. **LR-8D — backoff, jitter, cooldown + circuit breaker**;
@@ -469,9 +469,11 @@ jitter, cooldown, circuit breaker, budgets e telemetria. Quota/custo/saúde
 desconhecidos permanecem explicitamente desconhecidos; nenhuma regra comercial
 mutável é hardcoded no Luna Core.
 
-**Próxima ação: LR-8A.** Nenhuma decisão adicional de produto é necessária para
-iniciá-la. O contrato detalhado, limites de escopo, gates e protocolo de auditoria
-estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md).
+**Próxima ação: LR-8B — admission control + fila + concurrency.** A LR-8A fechou
+em PASS técnico + auditoria independente em 03/10/2026. O contrato detalhado, limites de escopo, gates e protocolo de auditoria
+estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md). A dívida de
+invalidação/versionamento de fatos de quota quando o contexto de credencial mudar
+é obrigatória antes de enforcement na LR-8C.
 
 ## 13. LR-9 — Luna Voice e feedback natural
 

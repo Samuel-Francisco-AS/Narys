@@ -25,6 +25,9 @@ mod task_graph_worker;
 mod task_graph_runtime_tests;
 mod transport;
 pub mod types;
+pub mod telemetry;
+#[cfg(test)]
+mod telemetry_tests;
 
 use mock::{MockProvider, MockScenario};
 use registry::ProviderRegistry;

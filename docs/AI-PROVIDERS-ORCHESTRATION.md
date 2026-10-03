@@ -467,7 +467,7 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 4. LR-7D2 fecha fallback chain + Auto/score + affinity.
 5. **LR-7D2.5 adiciona pelo menos dois providers reais**, com Mistral API direta e Cloudflare Workers AI como candidatos iniciais; a fase valida operação sem Gemini obrigatório e extrai transporte OpenAI-compatible somente quando seguro.
 6. **LR-7D3 fechada em 03/10/2026**: task graph mínimo validado com Groq + Cloudflare em trabalho útil e provenance persistida.
-7. **Próxima etapa:** LR-8 — Rate Limit Manager completo, decomposta em LR-8A → LR-8E com auditoria independente entre subfases; consulte [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md).
+7. **LR-8 em execução:** LR-8A fechou em PASS técnico + auditoria em 03/10/2026; próxima subfase **LR-8B — admission control + fila + concurrency**. A invalidação/versionamento de fatos de quota por mudança de contexto de credencial é dívida obrigatória antes do enforcement da LR-8C; consulte [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md).
 8. OpenRouter/Cohere/Hugging Face como experimentos/fallback posteriores.
 9. GitHub Copilot SDK como SpecialistAgent.
 10. Codex amplia sua integração agentiva já iniciada na D0.5.

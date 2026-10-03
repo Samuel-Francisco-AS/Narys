@@ -217,6 +217,20 @@ impl Provider for GroqProvider {
         on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
     ) -> ProviderFuture<'a> {
         Box::pin(async move {
+            let observation = super::telemetry::InvocationObservation::disabled();
+            self.execute_observed(request, cancelled, on_chunk, &observation)
+                .await
+        })
+    }
+
+    fn execute_observed<'a>(
+        &'a self,
+        request: &'a ProviderRequest,
+        cancelled: &'a AtomicBool,
+        on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+        observation: &'a super::telemetry::InvocationObservation<'_>,
+    ) -> ProviderFuture<'a> {
+        Box::pin(async move {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
             }
@@ -261,11 +275,25 @@ impl Provider for GroqProvider {
                 .timeout(Duration::from_millis(timeouts.request_timeout_ms as u64))
                 .header(AUTHORIZATION, auth)
                 .json(&payload)
-                .send();
+                .build()
+                .map_err(|error| diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started))?;
             let mut response = tokio::select! {
               _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
-              result = send => result.map_err(|error| diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started))?,
+              result = async {
+                  if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
+                  // Client rejects unsupported URL schemes before any HTTP invocation.
+                  if matches!(send.url().scheme(), "http" | "https") && send.url().host_str().is_some() {
+                      observation.started();
+                  }
+                  self.client.execute(send).await.map_err(|error| diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started))
+              } => result?,
             };
+            observation.retry_hint(super::transport::factual_retry_after(response.headers()));
+            observe_rate_headers(
+                response.headers(),
+                &request.target.invocation.model,
+                observation,
+            );
             if matches!(response.status().as_u16(), 408 | 504) {
                 let phase = if response.status().as_u16() == 408 {
                     TimeoutPhase::Http408
@@ -302,7 +330,21 @@ impl Provider for GroqProvider {
                     guard.push(&bytes)?;
                     body.extend_from_slice(&bytes);
                 }
-                return parse_non_streaming(&body, limit);
+                let value: Value =
+                    serde_json::from_slice(&body).map_err(|_| ProviderError::Protocol)?;
+                // Only a successful HTTP chat-completion envelope can supply usage.
+                // Semantic rejection of its content does not erase measured consumption.
+                if value.get("error").is_none()
+                    && value
+                        .get("choices")
+                        .and_then(Value::as_array)
+                        .is_some_and(|v| v.len() == 1 && v[0].get("message").is_some_and(Value::is_object))
+                {
+                    if let Ok(usage) = non_streaming_usage(&value) {
+                        observation.usage(usage);
+                    }
+                }
+                return parse_non_streaming(&value, limit);
             }
             let mut parser = SseParser::default();
             let mut text = String::new();
@@ -329,7 +371,10 @@ impl Provider for GroqProvider {
                             text.push_str(&piece);
                             on_chunk(ProviderChunk { text: piece })?;
                         }
-                        StreamEvent::Usage(value) => usage = Some(value),
+                        StreamEvent::Usage(value) => {
+                            observation.usage(value);
+                            usage = Some(value);
+                        }
                         StreamEvent::Finish(reason) => {
                             if finish_reason.replace(reason).is_some() {
                                 return Err(ProviderError::Protocol);
@@ -362,8 +407,7 @@ impl Provider for GroqProvider {
     }
 }
 
-fn parse_non_streaming(body: &[u8], limit: usize) -> Result<ProviderResponse, ProviderError> {
-    let value: Value = serde_json::from_slice(body).map_err(|_| ProviderError::Protocol)?;
+fn parse_non_streaming(value: &Value, limit: usize) -> Result<ProviderResponse, ProviderError> {
     if value.get("error").is_some() {
         return Err(ProviderError::Protocol);
     }
@@ -396,7 +440,15 @@ fn parse_non_streaming(body: &[u8], limit: usize) -> Result<ProviderResponse, Pr
     if text.trim().is_empty() {
         return Err(ProviderError::Protocol);
     }
-    let usage = match value.get("usage").filter(|v| !v.is_null()) {
+    let usage = non_streaming_usage(value)?;
+    Ok(ProviderResponse {
+        text: text.into(),
+        usage,
+    })
+}
+
+fn non_streaming_usage(value: &Value) -> Result<ProviderUsage, ProviderError> {
+    Ok(match value.get("usage").filter(|v| !v.is_null()) {
         Some(raw) => ProviderUsage {
             calls: 1,
             input_tokens: token_field(raw, "prompt_tokens")?,
@@ -406,11 +458,52 @@ fn parse_non_streaming(body: &[u8], limit: usize) -> Result<ProviderResponse, Pr
             output_tokens_measured: true,
         },
         None => ProviderUsage::default(),
-    };
-    Ok(ProviderResponse {
-        text: text.into(),
-        usage,
     })
+}
+
+/// Official semantics: requests=RPD, tokens=TPM, scoped to the called model
+/// within the current organization context. No commercial limits or remote IDs.
+/// https://console.groq.com/docs/rate-limits (verified 2026-10-03).
+fn observe_rate_headers(
+    headers: &HeaderMap,
+    model: &str,
+    observation: &super::telemetry::InvocationObservation<'_>,
+) {
+    use super::telemetry::{QuotaDimension, QuotaScope, MAX_FACT_VALUE};
+    // Duplicates, fractions, signs, overflow and non-decimal values are unknown.
+    let number = |name: &str| -> Option<u64> {
+        let mut values = headers.get_all(name).iter();
+        let value = values.next()?.to_str().ok()?;
+        if values.next().is_some() || value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit())
+        {
+            return None;
+        }
+        value.parse::<u64>().ok().filter(|n| *n <= MAX_FACT_VALUE)
+    };
+    for (dim, limit, remaining) in [
+        (
+            QuotaDimension::RequestsPerDay,
+            "x-ratelimit-limit-requests",
+            "x-ratelimit-remaining-requests",
+        ),
+        (
+            QuotaDimension::TokensPerMinute,
+            "x-ratelimit-limit-tokens",
+            "x-ratelimit-remaining-tokens",
+        ),
+    ] {
+        // The store rejects inconsistent pairs. Missing/invalid individual fields
+        // remain unknown. Reset grammar is not formally specified by Groq.
+        observation.quota(
+            QuotaScope::Model {
+                model: model.into(),
+            },
+            dim,
+            number(limit),
+            number(remaining),
+            None,
+        );
+    }
 }
 
 #[derive(Debug, PartialEq)]
