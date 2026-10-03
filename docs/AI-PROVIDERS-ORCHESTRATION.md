@@ -514,7 +514,7 @@ As APIs atuais não são anunciadas como structured output nativo. O runtime usa
 JSON textual estrito e valida a resposta com o contrato único `PlanV1` do Luna
 Core. Markdown, texto extra e reparos são rejeitados.
 
-## LR-7D2 — roteamento autorizado / candidata ao gate
+## LR-7D2 — roteamento autorizado / PASS completo
 
 A migration 009 (schema 9) substitui primary/fallback por targets ordenados,
 com configuração individual e orçamento/retry por papel. Fixed usa um target;
@@ -525,12 +525,13 @@ latência histórica ou quotas fictícias. Affinity de Conversation é por sess�
 bounded (256), in-memory e não altera Fixed/Preferred. Summary/Orchestrator
 não inventam continuidade. Credenciais são verificadas por target no preflight,
 nunca persistidas no SQLite ou devolvidas ao frontend. JSON/PlanV1 inválido após
-sucesso não dispara fallback de provider. LR-8 e task graph continuam posteriores.
-[Detalhes e gate humano pendente](LR-7D2-SMART-ROUTING.md).
+sucesso não dispara fallback de provider. A fase fechou em PASS completo em
+01/10/2026; task graph veio depois na LR-7D3 e LR-8 permaneceu separada.
+[Detalhes e fechamento](LR-7D2-SMART-ROUTING.md).
 
 ## LR-7D2.5 — redundância real de providers
 
-**Planejada para iniciar somente após LR-7D2 = PASS completo.** O objetivo é
+**Encerrada em 01/10/2026 com escopo revisado.** O objetivo foi
 evitar que a indisponibilidade de Gemini — incluindo os 503 observados em gates
 reais — tenha peso estrutural na Luna. A fase adicionará pelo menos dois
 Cognitive Providers reais e independentes; Mistral API direta e Cloudflare

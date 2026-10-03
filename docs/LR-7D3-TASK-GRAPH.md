@@ -137,13 +137,14 @@ OpenAI-compatible; apesar disso, o gate real de 02/10/2026 observou novamente
 essa condição com `@cf/zai-org/glm-4.7-flash`. A compatibilidade local é,
 portanto, defensiva e restrita à repetição semanticamente idempotente.
 
-**Nenhum PASS novo é declarado nesta FIX.** Gates locais e novo gate humano
-Groq + Cloudflare permanecem obrigatórios.
+**Naquele checkpoint nenhum PASS novo foi declarado.** Os gates posteriores e
+o fechamento final estão registrados no início deste documento.
 
 ## FIX-5 — Structured Planner Invocation & Runtime Diagnostics
 
-Implementação candidata de 02/10/2026. LR-7D3, LR-7 e o novo gate humano
-continuam pendentes; os gates locais não substituem a aprovação humana.
+Implementação candidata registrada em 02/10/2026. Naquele checkpoint LR-7D3,
+LR-7 e o novo gate humano ainda estavam pendentes; o fechamento final posterior
+está registrado no início deste documento.
 
 ### Contrato e compatibilidade
 
