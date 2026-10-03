@@ -790,9 +790,10 @@ Groq, responsividade e cancelamento em `running` com Groq/Gemini foram
 validados. No gate final, Gemini respondeu HTTP 503 `service_unavailable` com
 `Retry-After` de 30 s; o tratamento de erro/cooldown foi correto, mas essa
 rodada não é registrada como sucesso Gemini → `PlanV1`. D2/D3, LR-8 e novas
-permissões do Codex permanecem adiadas. LR-7D2 agora está implementada / candidata ao gate, conforme atualização abaixo.
+permissões do Codex permaneciam adiadas naquele checkpoint. O estado posterior
+e o fechamento da LR-7 estão registrados na seção de próxima ação acima.
 
-## LR-7D2 — implementada / candidata ao gate
+## LR-7D2 — registro histórico da implementação candidata
 
 A branch `lr-7d2-smart-routing`, criada da main com PR #10 integrada, entrega
 migration 009 / schema 9, lista ordenada de targets, Preferred chain e Auto com
@@ -802,8 +803,7 @@ target; a UI edita a ordem e os eventos mostram motivo/score factual. Luna Core
 continua autoridade; Orchestrator propõe somente PlanV1 e Summary preserva o
 histórico. Nenhuma ferramenta, task graph, paralelismo ou LR-8 foi antecipada.
 
-Próxima ação: auditoria independente da PR e gate humano Gemini/Groq descritos
-em [LR-7D2-SMART-ROUTING.md](LR-7D2-SMART-ROUTING.md). Não declarar D2 PASS completo
-antes de ambos. **Após fechar a D2, iniciar LR-7D2.5; LR-7D3 somente depois do
-fechamento da D2.5.**
-Blender, identidade/memória e fronteira Codex permanecem independentes.
+Naquele checkpoint, a próxima ação era auditoria independente e gate humano
+Gemini/Groq descritos em [LR-7D2-SMART-ROUTING.md](LR-7D2-SMART-ROUTING.md).
+A D2 foi posteriormente fechada, seguida por D2.5 e D3. Blender,
+identidade/memória e fronteira Codex permaneceram independentes.
