@@ -439,7 +439,9 @@ inclusive em lote SSE, evitando alteração de chunks/fallback.
 
 ### Fechamento auditado da LR-8A
 
-**Resultado: PASS.** A reauditoria independente confirmou os seis pontos da FIX:
+**Resultado: PASS. Integrada à `main` pela PR #14 em 03/10/2026, merge
+`3e89fe67a28e31c928ef09e3378ea39fbeab0978`.** A reauditoria independente
+confirmou os seis pontos da FIX:
 quota com scope explícito provider/model, headers dinâmicos Groq normalizados como
 RPD/TPM sem hardcode comercial, Retry-After factual separado do clamp operacional,
 Registry como autoridade dos IDs, default conservador de `execute_observed` e
