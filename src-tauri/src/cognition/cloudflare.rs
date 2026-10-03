@@ -302,7 +302,7 @@ impl Provider for CloudflareProvider {
                   self.client.execute(send).await.map_err(|error| diagnosed_network_error(&error, "cloudflare", request, timeouts, connect_ms, started))
               } => result?,
             };
-            observation.retry_hint(super::transport::factual_retry_after_ms(response.headers()));
+            observation.retry_hint(super::transport::factual_retry_after(response.headers()));
             if matches!(response.status().as_u16(), 408 | 504) {
                 let phase = if response.status().as_u16() == 408 { TimeoutPhase::Http408 } else { TimeoutPhase::Http504 };
                 return Err(timeout_error("cloudflare", request, phase, timeouts, connect_ms, started));

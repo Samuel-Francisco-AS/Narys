@@ -411,7 +411,7 @@ impl Provider for GeminiProvider {
                   self.client.execute(send).await.map_err(|e| network_error(&e))
               } => result?,
             };
-            observation.retry_hint(super::transport::factual_retry_after_ms(response.headers()));
+            observation.retry_hint(super::transport::factual_retry_after(response.headers()));
             if !response.status().is_success() {
                 return Err(http_error(&mut response, cancelled).await);
             }
@@ -431,9 +431,11 @@ impl Provider for GeminiProvider {
                             text.push_str(&piece);
                             on_chunk(ProviderChunk { text: piece })?;
                         }
-                        StreamEvent::Completed(result) => {
+                        StreamEvent::Completed(result, factual_usage) => {
+                            if let Some(value) = factual_usage {
+                                observation.usage(value);
+                            }
                             let value = result?;
-                            observation.usage(value);
                             usage = Some(value);
                         }
                         StreamEvent::Done => break 'stream,
@@ -456,11 +458,31 @@ impl Provider for GeminiProvider {
 
 enum StreamEvent {
     Text(String),
-    Completed(Result<ProviderUsage, ProviderError>),
+    Completed(Result<ProviderUsage, ProviderError>, Option<ProviderUsage>),
     Done,
     Error(ProviderError),
     Ignore,
 }
+/// Usage has its own typed validation, independent of terminal content/status.
+fn terminal_usage(value: &Value) -> Result<ProviderUsage, ProviderError> {
+    let raw = value
+        .pointer("/interaction/usage")
+        .ok_or(ProviderError::Protocol)?;
+    let count = |field| {
+        raw.get(field)
+            .and_then(Value::as_u64)
+            .and_then(|n| u32::try_from(n).ok())
+    };
+    Ok(ProviderUsage {
+        calls: 1,
+        input_tokens: count("total_input_tokens").ok_or(ProviderError::Protocol)?,
+        output_tokens: count("total_output_tokens").ok_or(ProviderError::Protocol)?,
+        total_tokens: Some(count("total_tokens").ok_or(ProviderError::Protocol)?),
+        thought_tokens: count("total_thought_tokens"),
+        output_tokens_measured: true,
+    })
+}
+
 #[derive(Default)]
 struct SseParser {
     pending: Vec<u8>,
@@ -549,28 +571,7 @@ impl SseParser {
             "interaction.completed" => {
                 let status = value.pointer("/interaction/status").and_then(Value::as_str);
                 let result = match status {
-                    Some("completed") => {
-                        let raw = value
-                            .pointer("/interaction/usage")
-                            .ok_or(ProviderError::Protocol)?;
-                        let count = |field| {
-                            raw.get(field)
-                                .and_then(Value::as_u64)
-                                .and_then(|n| u32::try_from(n).ok())
-                        };
-                        Ok(ProviderUsage {
-                            calls: 1,
-                            input_tokens: count("total_input_tokens")
-                                .ok_or(ProviderError::Protocol)?,
-                            output_tokens: count("total_output_tokens")
-                                .ok_or(ProviderError::Protocol)?,
-                            total_tokens: Some(
-                                count("total_tokens").ok_or(ProviderError::Protocol)?,
-                            ),
-                            thought_tokens: count("total_thought_tokens"),
-                            output_tokens_measured: true,
-                        })
-                    }
+                    Some("completed") => Ok(terminal_usage(&value)?),
                     Some("incomplete") => {
                         #[cfg(debug_assertions)]
                         eprintln!("[Gemini][diag] incomplete");
@@ -598,7 +599,15 @@ impl SseParser {
                         .unwrap_or(ProviderError::Fatal)),
                     _ => Err(ProviderError::Protocol),
                 };
-                StreamEvent::Completed(result)
+                let factual_usage = if matches!(
+                    status,
+                    Some("completed" | "incomplete" | "requires_action" | "cancelled" | "failed")
+                ) {
+                    terminal_usage(&value).ok()
+                } else {
+                    None
+                };
+                StreamEvent::Completed(result, factual_usage)
             }
             "error" => StreamEvent::Error(
                 error_code(&value)

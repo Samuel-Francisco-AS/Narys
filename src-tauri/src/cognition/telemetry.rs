@@ -87,6 +87,30 @@ impl Timing {
         }
     }
 }
+/// Scope is explicit: a model observation is never a provider-wide limit.
+/// Model IDs come from validated local targets, never remote account/project IDs.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum QuotaScope {
+    Provider,
+    Model { model: String },
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct ScopedQuotas {
+    pub scope: QuotaScope,
+    pub dimensions: BTreeMap<QuotaDimension, QuotaSnapshot>,
+}
+impl ScopedQuotas {
+    fn new(scope: QuotaScope) -> Self {
+        Self {
+            scope,
+            dimensions: QuotaDimension::ALL
+                .into_iter()
+                .map(|d| (d, QuotaSnapshot::default()))
+                .collect(),
+        }
+    }
+}
 /// Fields are independent; remaining is never inferred from observed usage.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -134,7 +158,7 @@ pub struct ProviderTelemetrySnapshot {
     pub captured_at_unix_ms: Option<u64>,
     pub updated_age_ms: Option<u64>,
     pub usage: BTreeMap<UsageDimension, UsageCounter>,
-    pub quotas: BTreeMap<QuotaDimension, QuotaSnapshot>,
+    pub quotas: Vec<ScopedQuotas>,
     /// Last observed hint (historical, not permission to execute or wait).
     pub retry_hint: Fact<Timing>,
     pub last_outcome: Fact<Outcome>,
@@ -163,10 +187,7 @@ impl State {
                 captured_at_unix_ms: None,
                 updated_age_ms: None,
                 usage,
-                quotas: QuotaDimension::ALL
-                    .into_iter()
-                    .map(|d| (d, QuotaSnapshot::default()))
-                    .collect(),
+                quotas: vec![ScopedQuotas::new(QuotaScope::Provider)],
                 retry_hint: Fact::Unknown,
                 last_outcome: Fact::Unknown,
             },
@@ -200,11 +221,11 @@ pub struct TelemetryStore {
     states: Mutex<BTreeMap<String, State>>,
 }
 impl TelemetryStore {
+    /// IDs are trusted from the Registry, the authority that exposes them in status.
     pub fn new(ids: impl IntoIterator<Item = String>) -> Self {
         Self {
             states: Mutex::new(
                 ids.into_iter()
-                    .filter(|id| valid_id(id))
                     .map(|id| (id.clone(), State::new(id)))
                     .collect(),
             ),
@@ -239,6 +260,7 @@ impl TelemetryStore {
     pub fn observe_quota(
         &self,
         id: &str,
+        scope: QuotaScope,
         dim: QuotaDimension,
         limit: Option<u64>,
         remaining: Option<u64>,
@@ -255,7 +277,15 @@ impl TelemetryStore {
             return;
         }
         self.update(id, |state| {
-            state.snapshot.quotas.insert(
+            let quotas = &mut state.snapshot.quotas;
+            let index = match quotas.iter().position(|q| q.scope == scope) {
+                Some(index) => index,
+                None => {
+                    quotas.push(ScopedQuotas::new(scope));
+                    quotas.len() - 1
+                }
+            };
+            quotas[index].dimensions.insert(
                 dim,
                 QuotaSnapshot {
                     limit: limit.map_or(Fact::Unknown, |n| Fact::known(n, source)),
@@ -273,13 +303,6 @@ impl TelemetryStore {
             attempt: Mutex::new(Attempt::default()),
         }
     }
-}
-fn valid_id(id: &str) -> bool {
-    !id.is_empty()
-        && id.len() <= 64
-        && id
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-'))
 }
 #[derive(Default)]
 struct Attempt {
@@ -373,17 +396,41 @@ impl InvocationObservation<'_> {
             });
         }
     }
-    pub fn retry_hint(&self, ms: Option<u64>) {
+    /// Adapter boundary accepts normalized scoped facts, never raw HTTP headers.
+    pub fn quota(
+        &self,
+        scope: QuotaScope,
+        dim: QuotaDimension,
+        limit: Option<u64>,
+        remaining: Option<u64>,
+        reset: Option<Timing>,
+    ) {
+        let attempt = self.attempt.lock().unwrap_or_else(|p| p.into_inner());
+        if !attempt.started {
+            return;
+        }
+        if let Some(store) = self.store {
+            store.observe_quota(
+                self.id,
+                scope,
+                dim,
+                limit,
+                remaining,
+                reset,
+                Provenance::ProviderHeader,
+            );
+        }
+    }
+    pub fn retry_hint(&self, timing: Option<Timing>) {
         let attempt = self.attempt.lock().unwrap_or_else(|p| p.into_inner());
         if !attempt.started {
             return;
         }
         if let Some(store) = self.store {
             store.update(self.id, |state| {
-                state.snapshot.retry_hint = ms
-                    .filter(|n| *n <= MAX_FACT_VALUE)
-                    .map_or(Fact::Unknown, |n| {
-                        Fact::known(Timing::DelayMs(n), Provenance::ProviderHeader)
+                state.snapshot.retry_hint =
+                    timing.filter(|n| n.valid()).map_or(Fact::Unknown, |n| {
+                        Fact::known(n, Provenance::ProviderHeader)
                     });
                 state.touch();
             });

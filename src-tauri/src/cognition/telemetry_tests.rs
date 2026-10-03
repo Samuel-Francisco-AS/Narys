@@ -383,6 +383,7 @@ fn telemetry_unknown_dimensions_and_invalid_metadata_are_not_zero() {
     let store = TelemetryStore::new(["a".into()]);
     store.observe_quota(
         "a",
+        QuotaScope::Provider,
         QuotaDimension::TokensPerMinute,
         Some(u64::MAX),
         None,
@@ -391,6 +392,7 @@ fn telemetry_unknown_dimensions_and_invalid_metadata_are_not_zero() {
     );
     store.observe_quota(
         "a",
+        QuotaScope::Provider,
         QuotaDimension::RequestsPerDay,
         Some(2),
         Some(3),
@@ -399,6 +401,7 @@ fn telemetry_unknown_dimensions_and_invalid_metadata_are_not_zero() {
     );
     store.observe_quota(
         "a",
+        QuotaScope::Provider,
         QuotaDimension::Concurrency,
         None,
         None,
@@ -406,11 +409,12 @@ fn telemetry_unknown_dimensions_and_invalid_metadata_are_not_zero() {
         Provenance::ProviderHeader,
     );
     let a = &store.snapshots()[0];
-    for quota in a.quotas.values() {
+    for quota in a.quotas[0].dimensions.values() {
         assert_eq!(quota, &QuotaSnapshot::default());
     }
     store.observe_quota(
         "a",
+        QuotaScope::Provider,
         QuotaDimension::RequestsPerMinute,
         Some(0),
         Some(0),
@@ -419,11 +423,11 @@ fn telemetry_unknown_dimensions_and_invalid_metadata_are_not_zero() {
     );
     let a = &store.snapshots()[0];
     assert_eq!(
-        number(&a.quotas[&QuotaDimension::RequestsPerMinute].limit),
+        number(&a.quotas[0].dimensions[&QuotaDimension::RequestsPerMinute].limit),
         Some(0)
     );
     assert!(matches!(
-        a.quotas[&QuotaDimension::RequestsPerMinute].limit,
+        a.quotas[0].dimensions[&QuotaDimension::RequestsPerMinute].limit,
         Fact::Known {
             provenance: Provenance::UserConfiguration,
             ..
@@ -517,6 +521,7 @@ fn telemetry_quotas_and_outcomes_do_not_affect_fixed_preferred_auto_or_affinity(
         ] {
             s.telemetry.observe_quota(
                 "a",
+                QuotaScope::Provider,
                 dim,
                 Some(0),
                 Some(0),
@@ -568,9 +573,6 @@ fn telemetry_snapshot_has_no_sensitive_input_output_model_or_headers() {
     ] {
         assert!(!json.contains(marker));
     }
-    assert!(TelemetryStore::new(["Bearer secret\n".into()])
-        .snapshots()
-        .is_empty());
 }
 #[test]
 fn telemetry_retry_after_positive_negative_and_extreme_fixtures() {
@@ -592,13 +594,14 @@ fn telemetry_retry_after_positive_negative_and_extreme_fixtures() {
         a.started();
         let parsed = super::transport::retry_after_ms(&headers);
         assert_eq!(parsed, expected);
-        a.retry_hint(super::transport::factual_retry_after_ms(&headers));
+        a.retry_hint(super::transport::factual_retry_after(&headers));
         assert_eq!(
             matches!(store.snapshots()[0].retry_hint, Fact::Known { .. }),
-            expected.is_some() && value != "18446744073709551615"
+            (expected.is_some() && value != "18446744073709551615")
+                || value == "Thu, 01 Jan 1970 00:00:00 GMT"
         );
-        assert!(store.snapshots()[0]
-            .quotas
+        assert!(store.snapshots()[0].quotas[0]
+            .dimensions
             .values()
             .all(|q| q == &QuotaSnapshot::default()));
     }
@@ -788,8 +791,8 @@ fn telemetry_production_all_adapters_http_usage_and_preflight_boundaries() {
             Some(3),
             "{id}"
         );
-        assert!(facts
-            .quotas
+        assert!(facts.quotas[0]
+            .dimensions
             .values()
             .all(|q| q == &QuotaSnapshot::default()));
         let json = serde_json::to_string(&facts).unwrap();
@@ -934,8 +937,8 @@ fn telemetry_production_retry_after_is_normalized_without_changing_cooldown() {
                 }
             );
             assert!(s.status()[0].cooldown_ms > 0);
-            assert!(facts
-                .quotas
+            assert!(facts.quotas[0]
+                .dimensions
                 .values()
                 .all(|q| q == &QuotaSnapshot::default()));
             assert!(!serde_json::to_string(&facts)
@@ -1016,28 +1019,22 @@ fn telemetry_factual_retry_date_and_ambiguous_values_use_controlled_clock() {
     let date = httpdate::fmt_http_date(now + Duration::from_secs(2));
     headers.insert(RETRY_AFTER, HeaderValue::from_str(&date).unwrap());
     assert_eq!(
-        super::transport::factual_retry_after_at(&headers, now),
-        Some(2000)
+        super::transport::factual_retry_after(&headers),
+        Some(Timing::UnixMs(1_800_000_002_000))
     );
     let date = httpdate::fmt_http_date(now + Duration::from_secs(700_000));
     headers.insert(RETRY_AFTER, HeaderValue::from_str(&date).unwrap());
     assert_eq!(
-        super::transport::factual_retry_after_at(&headers, now),
-        None
+        super::transport::factual_retry_after(&headers),
+        Some(Timing::UnixMs(1_800_700_000_000))
     );
-    for value in ["+1", "18446744073709551615", "700000", "1, 2"] {
+    for value in ["+1", "18446744073709551615", "1, 2"] {
         headers.insert(RETRY_AFTER, HeaderValue::from_str(value).unwrap());
-        assert_eq!(
-            super::transport::factual_retry_after_at(&headers, now),
-            None
-        );
+        assert_eq!(super::transport::factual_retry_after(&headers), None);
     }
     headers.insert(RETRY_AFTER, HeaderValue::from_static("2"));
     headers.append(RETRY_AFTER, HeaderValue::from_static("3"));
-    assert_eq!(
-        super::transport::factual_retry_after_at(&headers, now),
-        None
-    );
+    assert_eq!(super::transport::factual_retry_after(&headers), None);
 }
 #[test]
 fn telemetry_independent_usage_dimensions_preserve_unknown_and_zero() {
@@ -1062,6 +1059,7 @@ fn telemetry_independent_usage_dimensions_preserve_unknown_and_zero() {
     assert!(json["usage"]["input_tokens"]["observed"]["observedAtUnixMs"].is_number());
     store.observe_quota(
         "a",
+        QuotaScope::Provider,
         QuotaDimension::TokensPerMinute,
         Some(9),
         Some(8),
@@ -1070,6 +1068,7 @@ fn telemetry_independent_usage_dimensions_preserve_unknown_and_zero() {
     );
     store.observe_quota(
         "a",
+        QuotaScope::Provider,
         QuotaDimension::TokensPerMinute,
         Some(u64::MAX),
         None,
@@ -1077,7 +1076,508 @@ fn telemetry_independent_usage_dimensions_preserve_unknown_and_zero() {
         Provenance::ProviderHeader,
     );
     assert_eq!(
-        number(&store.snapshots()[0].quotas[&QuotaDimension::TokensPerMinute].limit),
+        number(&store.snapshots()[0].quotas[0].dimensions[&QuotaDimension::TokensPerMinute].limit),
         Some(9)
     );
+}
+
+fn scoped_dimensions<'a>(
+    facts: &'a ProviderTelemetrySnapshot,
+    scope: &QuotaScope,
+) -> &'a std::collections::BTreeMap<QuotaDimension, QuotaSnapshot> {
+    &facts
+        .quotas
+        .iter()
+        .find(|q| &q.scope == scope)
+        .unwrap()
+        .dimensions
+}
+
+#[test]
+fn lr8a_fix_quota_scopes_isolate_two_models_and_provider() {
+    let store = TelemetryStore::new(["p".into()]);
+    let a = QuotaScope::Model {
+        model: "model/a".into(),
+    };
+    let b = QuotaScope::Model {
+        model: "model/b".into(),
+    };
+    for (scope, limit) in [(a.clone(), 31), (b.clone(), 73), (QuotaScope::Provider, 11)] {
+        store.observe_quota(
+            "p",
+            scope,
+            QuotaDimension::RequestsPerDay,
+            Some(limit),
+            Some(limit - 1),
+            None,
+            Provenance::ProviderHeader,
+        );
+    }
+    store.observe_quota(
+        "p",
+        a.clone(),
+        QuotaDimension::RequestsPerDay,
+        Some(41),
+        None,
+        None,
+        Provenance::ProviderHeader,
+    );
+    let facts = &store.snapshots()[0];
+    for (scope, limit) in [(a, 41), (b, 73), (QuotaScope::Provider, 11)] {
+        let dimensions = scoped_dimensions(facts, &scope);
+        assert_eq!(
+            number(&dimensions[&QuotaDimension::RequestsPerDay].limit),
+            Some(limit)
+        );
+        assert_eq!(
+            dimensions[&QuotaDimension::TokensPerMinute],
+            QuotaSnapshot::default()
+        );
+    }
+    let json = serde_json::to_value(facts).unwrap();
+    assert!(json["quotas"].is_array());
+    assert_eq!(
+        json["quotas"][1]["scope"],
+        serde_json::json!({"kind":"model","model":"model/a"})
+    );
+}
+
+#[test]
+fn lr8a_fix_registry_ids_never_disappear_from_telemetry() {
+    let id = "custom.provider/target:v1";
+    let s = scheduler(&[(id, vec![Action::Success(measured())])]);
+    assert_eq!(snapshot(&s, id).provider_id, id);
+    run(&s, &[id], ProviderSelection::Fixed(id.into())).unwrap();
+    assert_eq!(
+        counter(&snapshot(&s, id), UsageDimension::Requests),
+        Some(1)
+    );
+}
+
+struct DefaultPreflight;
+impl Provider for DefaultPreflight {
+    fn execute<'a>(
+        &'a self,
+        _: &'a ProviderRequest,
+        _: &'a AtomicBool,
+        _: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+    ) -> ProviderFuture<'a> {
+        Box::pin(async { Err(ProviderError::Authentication) })
+    }
+}
+#[test]
+fn lr8a_fix_default_provider_preflight_never_fabricates_request() {
+    let mut registry = ProviderRegistry::default();
+    registry
+        .register(
+            ProviderConfig {
+                id: "local".into(),
+                enabled: true,
+                priority: 1,
+                capabilities: ProviderCapabilities::text_stream(),
+            },
+            Arc::new(DefaultPreflight),
+        )
+        .unwrap();
+    let s = Scheduler::new(registry);
+    assert_eq!(
+        run(&s, &["local"], ProviderSelection::Fixed("local".into())).unwrap_err(),
+        SchedulerError::Provider(ProviderError::Authentication)
+    );
+    let facts = snapshot(&s, "local");
+    assert_eq!(counter(&facts, UsageDimension::Requests), Some(0));
+    assert_eq!(counter(&facts, UsageDimension::InputTokens), None);
+    assert!(matches!(facts.last_outcome, Fact::Unknown));
+}
+
+#[test]
+fn lr8a_fix_factual_retry_after_is_independent_of_operational_clamp() {
+    use reqwest::header::{HeaderMap, HeaderValue, RETRY_AFTER};
+    let mut headers = HeaderMap::new();
+    for (value, expected) in [
+        ("700000", Some(Timing::DelayMs(700_000_000))),
+        (
+            "9007199254740",
+            Some(Timing::DelayMs(9_007_199_254_740_000)),
+        ),
+        ("18446744073709551615", None),
+        ("9007199254741", None),
+    ] {
+        headers.insert(RETRY_AFTER, HeaderValue::from_str(value).unwrap());
+        assert_eq!(super::transport::factual_retry_after(&headers), expected);
+        assert_eq!(
+            super::transport::retry_after_ms(&headers),
+            Some(604_800_000)
+        );
+    }
+    let padded = format!(" \t{}2\t ", "0".repeat(160));
+    headers.insert(RETRY_AFTER, HeaderValue::from_str(&padded).unwrap());
+    assert_eq!(
+        super::transport::factual_retry_after(&headers),
+        Some(Timing::DelayMs(2000))
+    );
+    headers.insert(
+        RETRY_AFTER,
+        HeaderValue::from_static("Fri, 01 Jan 2100 00:00:00 GMT"),
+    );
+    assert_eq!(
+        super::transport::factual_retry_after(&headers),
+        Some(Timing::UnixMs(4_102_444_800_000))
+    );
+    assert_eq!(
+        super::transport::retry_after_ms(&headers),
+        Some(604_800_000)
+    );
+    headers.insert(
+        RETRY_AFTER,
+        HeaderValue::from_static("Thu, 01 Jan 1970 00:00:00 GMT"),
+    );
+    assert_eq!(
+        super::transport::factual_retry_after(&headers),
+        Some(Timing::UnixMs(0))
+    );
+    assert_eq!(super::transport::retry_after_ms(&headers), None);
+}
+
+// Two real HTTP responses on one endpoint exercise one Scheduler/store and two targets.
+fn groq_two_models_server() -> (String, std::thread::JoinHandle<()>) {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+    };
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        for (limit, remaining) in [(31, 29), (73, 70)] {
+            let (mut connection, _) = listener.accept().unwrap();
+            connection
+                .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                .unwrap();
+            let mut request = Vec::new();
+            let mut buffer = [0; 1024];
+            while !request.windows(4).any(|w| w == b"\r\n\r\n") {
+                let read = connection.read(&mut buffer).unwrap();
+                assert!(read > 0);
+                request.extend_from_slice(&buffer[..read]);
+            }
+            let body = sse(
+                "groq",
+                r#"{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}"#,
+            );
+            write!(connection, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nx-ratelimit-limit-requests: {limit}\r\nx-ratelimit-remaining-requests: {remaining}\r\nx-ratelimit-limit-tokens: {}\r\nx-ratelimit-remaining-tokens: {}\r\nx-ratelimit-reset-requests: 2m59.56s\r\nx-ratelimit-reset-tokens: 7.66s\r\nSet-Cookie: private-cookie-marker\r\nConnection: close\r\n\r\n{body}", body.len(), limit * 10, remaining * 10).unwrap();
+        }
+    });
+    (url, server)
+}
+#[test]
+fn lr8a_fix_groq_real_headers_isolate_models_and_map_rpd_tpm() {
+    let f = HttpFixture::new(true);
+    let (url, server) = groq_two_models_server();
+    let s = remote_scheduler("groq", url, f.store.clone());
+    for model in [super::groq::MODEL, "test/model-b"] {
+        let mut r = remote_request("groq");
+        r.targets[0].invocation.model = model.into();
+        let result = run_remote(&s, r).unwrap();
+        // Existing D3 measured/accounted ledger remains independent and unchanged.
+        assert!(result.usage.output_tokens_measured);
+        assert_eq!(result.usage.output_tokens, 3);
+        assert_eq!(result.usage.output_tokens_accounted, 3);
+        assert_eq!(result.usage.provider_calls, 1);
+    }
+    server.join().unwrap();
+    let facts = snapshot(&s, "groq");
+    for (model, limit, remaining) in [(super::groq::MODEL, 31, 29), ("test/model-b", 73, 70)] {
+        let dims = scoped_dimensions(
+            &facts,
+            &QuotaScope::Model {
+                model: model.into(),
+            },
+        );
+        for (dim, multiplier) in [
+            (QuotaDimension::RequestsPerDay, 1),
+            (QuotaDimension::TokensPerMinute, 10),
+        ] {
+            assert_eq!(number(&dims[&dim].limit), Some(limit * multiplier));
+            assert_eq!(number(&dims[&dim].remaining), Some(remaining * multiplier));
+            assert_eq!(dims[&dim].reset, Fact::Unknown);
+            assert!(matches!(
+                dims[&dim].limit,
+                Fact::Known {
+                    provenance: Provenance::ProviderHeader,
+                    ..
+                }
+            ));
+        }
+        assert_eq!(
+            dims[&QuotaDimension::RequestsPerMinute],
+            QuotaSnapshot::default()
+        );
+    }
+    assert!(scoped_dimensions(&facts, &QuotaScope::Provider)
+        .values()
+        .all(|q| q == &QuotaSnapshot::default()));
+    assert_eq!(counter(&facts, UsageDimension::Requests), Some(2));
+    assert_eq!(counter(&facts, UsageDimension::TotalTokens), Some(20));
+    assert_eq!(
+        facts.usage[&UsageDimension::TotalTokens].reporting_requests,
+        2
+    );
+    let json = serde_json::to_string(&facts).unwrap();
+    for marker in [
+        "private-cookie-marker",
+        "synthetic-secret-marker",
+        "synthetic-account-marker",
+        "private-output-marker",
+        "private-prompt-marker",
+        "x-ratelimit",
+    ] {
+        assert!(!json.contains(marker));
+    }
+}
+
+#[test]
+fn lr8a_fix_groq_http_absent_partial_and_invalid_headers_stay_unknown() {
+    let f = HttpFixture::new(true);
+    let mut fixtures = vec![(String::new(), None, None),
+        ("\r\nx-ratelimit-limit-requests: 37\r\nx-ratelimit-remaining-tokens: 19".into(), Some(37), Some(19)),
+        ("\r\nx-ratelimit-limit-requests: 5\r\nx-ratelimit-remaining-requests: 6\r\nx-ratelimit-limit-tokens: 7\r\nx-ratelimit-remaining-tokens: 8".into(), None, None),
+        ("\r\nx-ratelimit-limit-requests: 5\r\nx-ratelimit-limit-requests: 6\r\nx-ratelimit-remaining-tokens: 1, 2".into(), None, None)];
+    for invalid in [
+        "-1",
+        "+1",
+        "1.5",
+        "18446744073709551616",
+        "9007199254740992",
+        "garbage",
+    ] {
+        fixtures.push((format!("\r\nx-ratelimit-limit-requests: {invalid}\r\nx-ratelimit-remaining-requests: {invalid}\r\nx-ratelimit-limit-tokens: {invalid}\r\nx-ratelimit-remaining-tokens: {invalid}"), None, None));
+    }
+    for (headers, limit, remaining) in fixtures {
+        let (url, server) = super::transport::test_support::server(
+            &format!("200 OK{headers}"),
+            &sse("groq", "null"),
+            false,
+            std::time::Duration::ZERO,
+        );
+        let s = remote_scheduler("groq", url, f.store.clone());
+        run_remote(&s, remote_request("groq")).unwrap();
+        server.join().unwrap();
+        let facts = snapshot(&s, "groq");
+        // If both updates are invalid, no model scope is created: still unknown.
+        let scope = QuotaScope::Model {
+            model: super::groq::MODEL.into(),
+        };
+        let unknown = [
+            QuotaDimension::RequestsPerDay,
+            QuotaDimension::TokensPerMinute,
+        ]
+        .into_iter()
+        .map(|d| (d, QuotaSnapshot::default()))
+        .collect();
+        let dims = facts
+            .quotas
+            .iter()
+            .find(|q| q.scope == scope)
+            .map(|q| &q.dimensions)
+            .unwrap_or(&unknown);
+        assert_eq!(
+            number(&dims[&QuotaDimension::RequestsPerDay].limit),
+            limit,
+            "{headers}"
+        );
+        assert_eq!(
+            number(&dims[&QuotaDimension::RequestsPerDay].remaining),
+            None
+        );
+        assert_eq!(
+            number(&dims[&QuotaDimension::TokensPerMinute].remaining),
+            remaining,
+            "{headers}"
+        );
+        assert_eq!(number(&dims[&QuotaDimension::TokensPerMinute].limit), None);
+        assert_eq!(counter(&facts, UsageDimension::Requests), Some(1));
+        assert_eq!(counter(&facts, UsageDimension::OutputTokens), None);
+    }
+}
+
+fn structured_groq_request() -> ProviderTaskRequest {
+    let mut r = remote_request("groq");
+    r.mode = InvocationMode {
+        output: OutputContract::JsonSchema {
+            name: "PlanV1".into(),
+            schema: crate::agents::planner::output_schema(),
+            max_bytes: 1000,
+        },
+        transport: TransportMode::NonStreaming,
+    };
+    r.required_capabilities = ProviderCapabilities::structured();
+    r
+}
+#[test]
+fn lr8a_fix_groq_rejected_non_streaming_keeps_valid_usage() {
+    let f = HttpFixture::new(true);
+    for (finish, content, expected) in [
+        ("length", serde_json::json!("{}"), ProviderError::Incomplete),
+        (
+            "tool_calls",
+            serde_json::json!("{}"),
+            ProviderError::RequiresAction,
+        ),
+        ("stop", serde_json::Value::Null, ProviderError::Protocol),
+    ] {
+        let body =
+            serde_json::json!({"choices":[{"finish_reason":finish,"message":{"content":content}}],
+            "usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}})
+            .to_string();
+        let (url, server) = super::transport::test_support::server(
+            "200 OK",
+            &body,
+            false,
+            std::time::Duration::ZERO,
+        );
+        let s = remote_scheduler("groq", url, f.store.clone());
+        assert_eq!(
+            run_remote(&s, structured_groq_request()).unwrap_err(),
+            SchedulerError::Provider(expected)
+        );
+        server.join().unwrap();
+        let facts = snapshot(&s, "groq");
+        assert_eq!(counter(&facts, UsageDimension::Requests), Some(1));
+        assert_eq!(counter(&facts, UsageDimension::InputTokens), Some(7));
+        assert_eq!(counter(&facts, UsageDimension::OutputTokens), Some(3));
+        assert_eq!(counter(&facts, UsageDimension::TotalTokens), Some(10));
+        assert_eq!(
+            facts.usage[&UsageDimension::TotalTokens].reporting_requests,
+            1
+        );
+    }
+}
+#[test]
+fn lr8a_fix_groq_invalid_usage_and_http_error_body_never_supply_tokens() {
+    let f = HttpFixture::new(true);
+    for raw in [
+        "null",
+        r#"{"prompt_tokens":-1,"completion_tokens":3,"total_tokens":10}"#,
+        r#"{"prompt_tokens":7,"completion_tokens":1.5,"total_tokens":10}"#,
+        r#"{"prompt_tokens":4294967296,"completion_tokens":3,"total_tokens":10}"#,
+        r#"{"prompt_tokens":7,"completion_tokens":3}"#,
+        r#"{"prompt_tokens":7,"completion_tokens":3,"total_tokens":9}"#,
+    ] {
+        let body = format!(
+            r#"{{"choices":[{{"finish_reason":"length","message":{{"content":"{{}}"}}}}],"usage":{raw}}}"#
+        );
+        let (url, server) = super::transport::test_support::server(
+            "200 OK",
+            &body,
+            false,
+            std::time::Duration::ZERO,
+        );
+        let s = remote_scheduler("groq", url, f.store.clone());
+        assert_eq!(
+            run_remote(&s, structured_groq_request()).unwrap_err(),
+            SchedulerError::Provider(ProviderError::Incomplete)
+        );
+        server.join().unwrap();
+        let facts = snapshot(&s, "groq");
+        assert_eq!(counter(&facts, UsageDimension::Requests), Some(1));
+        for dim in [
+            UsageDimension::InputTokens,
+            UsageDimension::OutputTokens,
+            UsageDimension::TotalTokens,
+        ] {
+            assert_eq!(counter(&facts, dim), None, "{raw}");
+        }
+    }
+    let body = r#"{"error":{"message":"private-error-marker"},"usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}}"#;
+    for (status, body) in [
+        ("400 Bad Request", body),
+        ("200 OK", body),
+        (
+            "200 OK",
+            r#"{"choices":[{}],"usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}}"#,
+        ),
+    ] {
+        let (url, server) =
+            super::transport::test_support::server(status, body, false, std::time::Duration::ZERO);
+        let s = remote_scheduler("groq", url, f.store.clone());
+        assert!(run_remote(&s, structured_groq_request()).is_err());
+        server.join().unwrap();
+        assert_eq!(
+            counter(&snapshot(&s, "groq"), UsageDimension::OutputTokens),
+            None
+        );
+    }
+}
+#[test]
+fn lr8a_fix_gemini_incomplete_keeps_only_valid_terminal_usage() {
+    let f = HttpFixture::new(true);
+    for (raw, expected) in [
+        (
+            r#"{"total_input_tokens":7,"total_output_tokens":3,"total_tokens":10}"#,
+            Some(3),
+        ),
+        (
+            r#"{"total_input_tokens":7,"total_output_tokens":-3,"total_tokens":10}"#,
+            None,
+        ),
+        (
+            r#"{"total_input_tokens":7,"total_output_tokens":3,"total_tokens":9}"#,
+            None,
+        ),
+        ("null", None),
+    ] {
+        let body =
+            sse("gemini", raw).replace("\"status\":\"completed\"", "\"status\":\"incomplete\"");
+        let (url, server) = super::transport::test_support::server(
+            "200 OK",
+            &body,
+            false,
+            std::time::Duration::ZERO,
+        );
+        let s = remote_scheduler("gemini", url, f.store.clone());
+        assert_eq!(
+            run_remote(&s, remote_request("gemini")).unwrap_err(),
+            SchedulerError::Provider(ProviderError::Incomplete)
+        );
+        server.join().unwrap();
+        let facts = snapshot(&s, "gemini");
+        assert_eq!(counter(&facts, UsageDimension::Requests), Some(1));
+        assert_eq!(counter(&facts, UsageDimension::OutputTokens), expected);
+        assert_eq!(
+            counter(&facts, UsageDimension::InputTokens),
+            expected.map(|_| 7)
+        );
+        assert_eq!(
+            counter(&facts, UsageDimension::TotalTokens),
+            expected.map(|_| 10)
+        );
+    }
+}
+#[test]
+fn lr8a_fix_http_retry_date_is_factual_without_changing_error_or_cooldown() {
+    let f = HttpFixture::new(true);
+    for header in ["700000", "Fri, 01 Jan 2100 00:00:00 GMT"] {
+        let (url, server) = super::transport::test_support::server(
+            &format!("429 Too Many Requests\r\nRetry-After: {header}"),
+            "{}",
+            false,
+            std::time::Duration::ZERO,
+        );
+        let s = remote_scheduler("groq", url, f.store.clone());
+        assert_eq!(
+            run_remote(&s, remote_request("groq")).unwrap_err(),
+            SchedulerError::Provider(ProviderError::RateLimited {
+                retry_after_ms: Some(604_800_000)
+            })
+        );
+        server.join().unwrap();
+        let expected = if header == "700000" {
+            Timing::DelayMs(700_000_000)
+        } else {
+            Timing::UnixMs(4_102_444_800_000)
+        };
+        assert!(
+            matches!(snapshot(&s, "groq").retry_hint, Fact::Known { value, .. } if value == expected)
+        );
+    }
 }

@@ -249,7 +249,7 @@ impl Provider for MistralProvider {
                   self.client.execute(send).await.map_err(|error| network_error(&error))
               } => result?,
             };
-            observation.retry_hint(super::transport::factual_retry_after_ms(response.headers()));
+            observation.retry_hint(super::transport::factual_retry_after(response.headers()));
             if !response.status().is_success() {
                 return Err(Self::classify(response.status(), response.headers()));
             }

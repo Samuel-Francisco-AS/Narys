@@ -131,22 +131,29 @@ pub fn retry_after_ms(headers: &HeaderMap) -> Option<u64> {
 
 /// Strict factual counterpart to the existing operational Retry-After parser.
 /// No clamped value is presented as a provider-reported fact (RFC 9110 §10.2.3).
-pub(super) fn factual_retry_after_ms(headers: &HeaderMap) -> Option<u64> {
-    factual_retry_after_at(headers, SystemTime::now())
-}
-pub(super) fn factual_retry_after_at(headers: &HeaderMap, now: SystemTime) -> Option<u64> {
-    const MAX_HINT_MS: u64 = 7 * 24 * 60 * 60 * 1000;
+pub(super) fn factual_retry_after(headers: &HeaderMap) -> Option<super::telemetry::Timing> {
+    use super::telemetry::{Timing, MAX_FACT_VALUE};
     let mut values = headers.get_all(RETRY_AFTER).iter();
-    let value = values.next()?.to_str().ok()?;
-    if values.next().is_some() || value.is_empty() || value.len() > 128 {
+    let value = values.next()?.to_str().ok()?.trim_matches([' ', '\t']);
+    if values.next().is_some() || value.is_empty() {
         return None;
     }
     if value.bytes().all(|b| b.is_ascii_digit()) {
-        return value.parse::<u64>().ok()?.checked_mul(1000)
-            .filter(|n| *n <= MAX_HINT_MS);
+        return value
+            .parse::<u64>()
+            .ok()?
+            .checked_mul(1000)
+            .filter(|n| *n <= MAX_FACT_VALUE)
+            .map(Timing::DelayMs);
     }
-    let duration = httpdate::parse_http_date(value).ok()?.duration_since(now).ok()?;
-    u64::try_from(duration.as_millis()).ok().filter(|n| *n <= MAX_HINT_MS)
+    let duration = httpdate::parse_http_date(value)
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?;
+    u64::try_from(duration.as_millis())
+        .ok()
+        .filter(|n| *n <= MAX_FACT_VALUE)
+        .map(Timing::UnixMs)
 }
 
 pub fn network_error(error: &Error) -> ProviderError {
