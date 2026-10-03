@@ -342,6 +342,20 @@ impl Provider for GeminiProvider {
         on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
     ) -> ProviderFuture<'a> {
         Box::pin(async move {
+            let observation = super::telemetry::InvocationObservation::disabled();
+            self.execute_observed(request, cancelled, on_chunk, &observation)
+                .await
+        })
+    }
+
+    fn execute_observed<'a>(
+        &'a self,
+        request: &'a ProviderRequest,
+        cancelled: &'a AtomicBool,
+        on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+        observation: &'a super::telemetry::InvocationObservation<'_>,
+    ) -> ProviderFuture<'a> {
+        Box::pin(async move {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
             }
@@ -384,11 +398,20 @@ impl Provider for GeminiProvider {
                 .timeout(Duration::from_millis(timeouts.request_timeout_ms as u64))
                 .header("x-goog-api-key", key)
                 .json(&payload)
-                .send();
+                .build()
+                .map_err(|e| network_error(&e))?;
             let mut response = tokio::select! {
               _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
-              result = send => result.map_err(|e| network_error(&e))?,
+              result = async {
+                  if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
+                  // Client rejects unsupported URL schemes before any HTTP invocation.
+                  if matches!(send.url().scheme(), "http" | "https") && send.url().host_str().is_some() {
+                      observation.started();
+                  }
+                  self.client.execute(send).await.map_err(|e| network_error(&e))
+              } => result?,
             };
+            observation.retry_hint(super::transport::factual_retry_after_ms(response.headers()));
             if !response.status().is_success() {
                 return Err(http_error(&mut response, cancelled).await);
             }
@@ -408,7 +431,11 @@ impl Provider for GeminiProvider {
                             text.push_str(&piece);
                             on_chunk(ProviderChunk { text: piece })?;
                         }
-                        StreamEvent::Completed(result) => usage = Some(result?),
+                        StreamEvent::Completed(result) => {
+                            let value = result?;
+                            observation.usage(value);
+                            usage = Some(value);
+                        }
                         StreamEvent::Done => break 'stream,
                         StreamEvent::Error(error) => return Err(error),
                         StreamEvent::Ignore => {}

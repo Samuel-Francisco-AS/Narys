@@ -111,15 +111,23 @@ pub struct Scheduler {
     registry: ProviderRegistry,
     cooldowns: Mutex<HashMap<String, Instant>>,
     affinities: Mutex<Affinities>,
+    pub(super) telemetry: super::telemetry::TelemetryStore,
 }
 
 impl Scheduler {
     pub fn new(registry: ProviderRegistry) -> Self {
+        let telemetry = super::telemetry::TelemetryStore::new(
+            registry.configs().into_iter().map(|c| c.id.clone()),
+        );
         Self {
+            telemetry,
             registry,
             cooldowns: Mutex::new(HashMap::new()),
             affinities: Mutex::new(Affinities::default()),
         }
+    }
+    pub fn telemetry_snapshot(&self) -> Vec<super::telemetry::ProviderTelemetrySnapshot> {
+        self.telemetry.snapshots()
     }
     fn cooling(&self, id: &str) -> bool {
         self.cooldowns
@@ -479,10 +487,12 @@ impl Scheduler {
                     attempt,
                 };
                 // Keep the same structured context across retry/fallback; adapters decide serialization.
+                let observation = self.telemetry.attempt(&entry.config.id);
                 let result = entry
                     .provider
-                    .execute(&attempt_request, cancelled, &mut on_chunk)
+                    .execute_observed(&attempt_request, cancelled, &mut on_chunk, &observation)
                     .await;
+                observation.finished(result.as_ref().err());
                 if matches!(result, Err(ProviderError::EventSinkClosed)) {
                     return Err(SchedulerError::EventSinkClosed);
                 }
