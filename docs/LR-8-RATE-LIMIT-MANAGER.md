@@ -1,8 +1,8 @@
 # LR-8 — Rate Limit Manager completo
 
-Estado: **PLANEJADA / liberada após LR-7 = PASS completo em 03/10/2026.**
+Estado: **EM EXECUÇÃO — LR-8A PASS técnico/auditoria em 03/10/2026; LR-8B liberada.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
-Próxima subfase: **LR-8A — modelo de quota + telemetria factual**.
+Próxima subfase: **LR-8B — admission control + fila + concurrency**.
 
 ## Objetivo
 
@@ -113,13 +113,14 @@ sei" sobre usage/capacidade sem alterar qual chamada seria executada.
 
 ---
 
-## LR-8A — implementação candidata (03/10/2026)
+## LR-8A — implementação e fechamento (03/10/2026)
 
-**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna.**
-Branch: `lr-8a-rate-model-telemetry`, base
+**PASS técnico + auditoria independente da Luna em 03/10/2026.**
+Branch de implementação: `lr-8a-rate-model-telemetry`, base
 `977caacb76f0b867432cbaab8e54b469e6e9ee26`.
-**LR-8B continua bloqueada** até auditoria/PASS da 8A. Nenhum merge ou gate
-humano de providers comerciais é declarado por esta implementação.
+Candidata final auditada em `1622b80c6d50a967d22a07eeccab89426b8d7133`.
+**LR-8B está liberada.** A 8A permanece deliberadamente observacional: nenhum
+admission control, fila, token bucket ou circuit breaker foi ativado.
 
 ### Arquitetura e ownership
 
@@ -434,6 +435,40 @@ observação deduplicada; store único; locks síncronos; nenhuma leitura por se
 ou admission; nenhum header/body/credencial no snapshot. A validação de usage do
 terminal completed Gemini conserva a propagação de erro do parser anterior,
 inclusive em lote SSE, evitando alteração de chunks/fallback.
+
+
+### Fechamento auditado da LR-8A
+
+**Resultado: PASS.** A reauditoria independente confirmou os seis pontos da FIX:
+quota com scope explícito provider/model, headers dinâmicos Groq normalizados como
+RPD/TPM sem hardcode comercial, Retry-After factual separado do clamp operacional,
+Registry como autoridade dos IDs, default conservador de `execute_observed` e
+preservação de usage factual em respostas Groq/Gemini posteriormente rejeitadas.
+
+A suíte final reportada pelo agente fechou com **341 testes Rust aprovados, 0
+falhas e 2 ignorados/manual Codex**, além de typecheck, build, checks debug/release
+e `git diff --check` verdes. O repositório não possui CI/status check associado
+ao HEAD desta subfase; a auditoria independente foi estática sobre diff, contratos
+e testes presentes no remoto.
+
+#### Dívida formal para LR-8C — geração de contexto de credencial/quota
+
+Os snapshots da 8A são históricos e in-memory. Quotas model-scoped observadas em
+headers são válidas no contexto de credenciais/projeto vigente no instante da
+chamada, mas a troca de API key, conta, organização ou projeto durante o mesmo
+runtime **não invalida automaticamente fatos anteriores**.
+
+Isso não bloqueia 8A nem 8B porque telemetria ainda não governa admission. Porém,
+**antes de LR-8C usar quota para bloquear, esperar ou autorizar chamadas**, o
+runtime deve impedir que fatos de um contexto de credencial antigo sejam tratados
+como capacidade atual. A 8C deve implementar uma estratégia explícita, sem
+persistir segredos, como epoch/generation local do contexto de credencial ou
+invalidação equivalente, e cobrir rotação/restart com testes determinísticos.
+
+Até essa dívida ser resolvida, nenhuma quota histórica da 8A pode ser promovida
+a autoridade de enforcement após mudança de credencial/contexto remoto.
+
+**Próxima etapa oficial: LR-8B — admission control + fila + concurrency.**
 
 ---
 
