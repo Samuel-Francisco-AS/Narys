@@ -157,6 +157,7 @@ impl Provider for RecordingProvider {
                     output_tokens: 3,
                     total_tokens: Some(5),
                     thought_tokens: None,
+                    output_tokens_measured: true,
                 },
             })
         })

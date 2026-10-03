@@ -83,10 +83,14 @@ impl MinimalOutboundContext {
         if !valid_model(model) {
             return Err(ProviderError::InvalidRequest);
         }
-        let execution_instruction = format!(
+        let mut execution_instruction = format!(
       "{}\nMetadado técnico da execução atual: provider cognitivo=Mistral (id mistral); modelo={model}. Esse metadado não altera sua identidade. Se o usuário perguntar qual provider ou modelo processa esta mensagem, responda usando este metadado e não infira pelo histórico. Não mencione esse metadado sem relevância. Você conhece apenas a execução atual; não invente uma rota anterior.",
       self.system_instruction
     );
+        if let Some(internal) = request.internal_system_instruction.as_deref() {
+            execution_instruction.push_str("\nInstrução técnica interna do Luna Core (prioritária):\n");
+            execution_instruction.push_str(internal);
+        }
         let mut messages = vec![json!({"role":"system","content":execution_instruction})];
         for message in &request.history {
             messages.push(json!({
@@ -188,6 +192,9 @@ impl Provider for MistralProvider {
                 || !valid_model(&request.target.invocation.model)
             {
                 return Err(ProviderError::InvalidRequest);
+            }
+            if !self.supports_invocation(&request.target.invocation, &request.mode) {
+                return Err(ProviderError::UnsupportedMode);
             }
             let secrets = self.secrets.clone();
             let key = tokio::select! {
@@ -376,6 +383,7 @@ impl SseParser {
                 output_tokens,
                 total_tokens: Some(total_tokens),
                 thought_tokens: None,
+                output_tokens_measured: true,
             }));
         }
         if events.is_empty() {
@@ -439,6 +447,8 @@ mod tests {
 
     fn http_request(timeouts: ProviderTimeouts) -> ProviderRequest {
         ProviderRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
+            internal_system_instruction: None,
             input: "hello".into(),
             history: vec![],
             context: std::sync::Arc::new(ContextBundle {
@@ -562,6 +572,8 @@ mod tests {
             },
         };
         let request = ProviderRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
+            internal_system_instruction: None,
             input: "hello".into(),
             history: vec![],
             context: std::sync::Arc::new(context),
@@ -610,7 +622,8 @@ mod tests {
                 input_tokens: 2,
                 output_tokens: 3,
                 total_tokens: Some(5),
-                thought_tokens: None
+                thought_tokens: None,
+                output_tokens_measured: true,
             })
         );
     }

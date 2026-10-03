@@ -15,6 +15,31 @@ Estado: **PASS técnico + PASS humano em 28/09/2026.** A LR-7B adiciona Groq com
 
 Nenhuma quota comercial é hardcoded. LR-8 continuará responsável pelo Rate Limit Manager completo.
 
+## Extensão LR-7D3 FIX-5 — candidato, sem aprovação do gate humano
+
+O adapter preserva texto/SSE para Conversation, Summary e Workers. Requests
+que exigem JSON Schema estrito usam, somente no target comprovado
+`openai/gpt-oss-20b`, Chat Completions com `stream=false` e
+`response_format={type:"json_schema",json_schema:{name,strict:true,schema}}`.
+`stream_options` é omitido nesse modo; usage é lido do envelope JSON quando
+presente. O schema PlanV1 vem do Core; o adapter não mantém cópia própria.
+Outros modelos não recebem essa capability automaticamente. Compatibilidade
+é checada pelo Scheduler e novamente pelo adapter antes de credenciais/HTTP.
+
+O corpo JSON é lido sob cancelamento/timeout total, com limite incremental do
+conteúdo decodificado e teto de envelope. Reasoning nunca é emitido/logado.
+Terminal `stop`, conteúdo não vazio e uma única choice são obrigatórios;
+`length`, ferramentas/refusal e protocolo inválido falham fechado. O conteúdo
+retornado ainda passa por validação Rust; formato nativo não concede autoridade.
+
+Diagnostics DEV de timeout contêm apenas provider/modelo sanitizado, fase,
+attempt, duração, timeout configurado e status allowlisted. Consulte
+[LR-7D3-TASK-GRAPH.md](LR-7D3-TASK-GRAPH.md) para accounting, limites e novo gate.
+
+Fonte: [Structured Outputs oficial Groq](https://console.groq.com/docs/structured-outputs),
+consultada em 02/10/2026: schema estrito para GPT-OSS 20B sem suporte a streaming.
+O PASS histórico abaixo pertence à LR-7B; não aprova LR-7D3/LR-7.
+
 ## Privacidade e contexto outbound
 
 O adapter constrói uma fronteira outbound própria. Ele envia somente o nome canônico da assistente e idioma primário em uma system instruction mínima, o histórico explicitamente fornecido pela tarefa e a mensagem atual. O adapter não serializa automaticamente memórias globais, relationship, traits, source context nem outras sessões.

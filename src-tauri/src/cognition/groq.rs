@@ -14,7 +14,9 @@ use std::{
 use super::{
     policy::ThinkingLevel,
     provider::{Provider, ProviderFuture},
-    transport::{cancellation, network_error, retry_after_ms},
+    transport::{
+        cancellation, diagnosed_network_error, retry_after_ms, timeout_error, TimeoutPhase,
+    },
     types::{
         ContextBundle, ProviderChunk, ProviderError, ProviderRequest, ProviderResponse,
         ProviderRole, ProviderTimeouts, ProviderUsage,
@@ -83,10 +85,15 @@ impl MinimalOutboundContext {
         if !valid_model(model) {
             return Err(ProviderError::InvalidRequest);
         }
-        let execution_instruction = format!(
+        let mut execution_instruction = format!(
       "{}\nMetadado técnico da execução atual: provider cognitivo=Groq (id groq); modelo={model}. Esse metadado não altera sua identidade. Se o usuário perguntar qual provider ou modelo processa esta mensagem, responda usando este metadado e não infira pelo histórico. Não mencione esse metadado sem relevância. Você conhece apenas a execução atual; não invente uma rota anterior.",
       self.system_instruction
     );
+        if let Some(internal) = request.internal_system_instruction.as_deref() {
+            execution_instruction
+                .push_str("\nInstrução técnica interna do Luna Core (prioritária):\n");
+            execution_instruction.push_str(internal);
+        }
         let mut messages = vec![json!({"role":"system","content":execution_instruction})];
         for message in &request.history {
             messages.push(json!({
@@ -102,6 +109,21 @@ impl MinimalOutboundContext {
           "stream_options": {"include_usage": true},
           "include_reasoning": false
         });
+        match (&request.mode.output, request.mode.transport) {
+            (super::types::OutputContract::Text, super::types::TransportMode::Streaming) => {}
+            (
+                super::types::OutputContract::JsonSchema { name, schema, .. },
+                super::types::TransportMode::NonStreaming,
+            ) if model == MODEL && request.mode.valid() => {
+                payload["stream"] = json!(false);
+                payload.as_object_mut().unwrap().remove("stream_options");
+                payload["response_format"] = json!({
+                    "type": "json_schema",
+                    "json_schema": { "name": name, "strict": true, "schema": schema }
+                });
+            }
+            _ => return Err(ProviderError::UnsupportedMode),
+        }
         if let Some(limit) = request.max_output_tokens {
             payload["max_completion_tokens"] = json!(limit);
         }
@@ -174,6 +196,20 @@ fn valid_model(model: &str) -> bool {
 }
 
 impl Provider for GroqProvider {
+    fn supports_invocation(
+        &self,
+        invocation: &super::types::ProviderInvocationConfig,
+        mode: &super::types::InvocationMode,
+    ) -> bool {
+        invocation.valid()
+            && valid_model(&invocation.model)
+            && mode.valid()
+            && (mode.text_stream()
+                || (invocation.model == MODEL
+                    && matches!(mode.output, super::types::OutputContract::JsonSchema { .. })
+                    && mode.transport == super::types::TransportMode::NonStreaming))
+    }
+
     fn execute<'a>(
         &'a self,
         request: &'a ProviderRequest,
@@ -189,6 +225,9 @@ impl Provider for GroqProvider {
                 || !valid_model(&request.target.invocation.model)
             {
                 return Err(ProviderError::InvalidRequest);
+            }
+            if !self.supports_invocation(&request.target.invocation, &request.mode) {
+                return Err(ProviderError::UnsupportedMode);
             }
             let secrets = self.secrets.clone();
             let key = tokio::select! {
@@ -210,6 +249,12 @@ impl Provider for GroqProvider {
                 .invocation
                 .timeouts
                 .unwrap_or_else(|| *self.timeouts.read().unwrap_or_else(|p| p.into_inner()));
+            let started = std::time::Instant::now();
+            let connect_ms = self
+                .config
+                .connect_timeout
+                .as_millis()
+                .min(u64::MAX as u128) as u64;
             let send = self
                 .client
                 .post(&self.config.endpoint)
@@ -219,30 +264,77 @@ impl Provider for GroqProvider {
                 .send();
             let mut response = tokio::select! {
               _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
-              result = send => result.map_err(|error| network_error(&error))?,
+              result = send => result.map_err(|error| diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started))?,
             };
+            if matches!(response.status().as_u16(), 408 | 504) {
+                let phase = if response.status().as_u16() == 408 {
+                    TimeoutPhase::Http408
+                } else {
+                    TimeoutPhase::Http504
+                };
+                return Err(timeout_error(
+                    "groq", request, phase, timeouts, connect_ms, started,
+                ));
+            }
             if !response.status().is_success() {
                 return Err(Self::classify(response.status(), response.headers()));
             }
 
+            if request.mode.transport == super::types::TransportMode::NonStreaming {
+                let limit = request
+                    .mode
+                    .max_bytes()
+                    .ok_or(ProviderError::UnsupportedMode)?;
+                let mut guard = super::bounded_json::ContentGuard::new(limit);
+                // Escaped UTF-8 content can occupy up to six wire bytes per output byte.
+                // Metadata/reasoning is never exposed and has its own finite envelope reserve.
+                let envelope_limit = limit.saturating_mul(6).saturating_add(64 * 1024);
+                let mut body = Vec::new();
+                loop {
+                    let next = tokio::select! {
+                        _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
+                        result = response.chunk() => result.map_err(|error| diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started))?,
+                    };
+                    let Some(bytes) = next else { break };
+                    if body.len().saturating_add(bytes.len()) > envelope_limit {
+                        return Err(ProviderError::OutputLimitExceeded);
+                    }
+                    guard.push(&bytes)?;
+                    body.extend_from_slice(&bytes);
+                }
+                return parse_non_streaming(&body, limit);
+            }
             let mut parser = SseParser::default();
             let mut text = String::new();
             let mut usage = None;
+            let mut finish_reason = None;
             let mut done = false;
             'stream: loop {
                 let next = tokio::select! {
                   _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
                   result = tokio::time::timeout(Duration::from_millis(timeouts.stream_idle_timeout_ms as u64), response.chunk()) =>
-                    result.map_err(|_| ProviderError::Timeout)?.map_err(|error| network_error(&error))?,
+                    result.map_err(|_| timeout_error("groq", request, TimeoutPhase::StreamIdle, timeouts, connect_ms, started))?.map_err(|error| diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started))?,
                 };
                 let Some(bytes) = next else { break };
                 for event in parser.push(&bytes)? {
                     match event {
                         StreamEvent::Text(piece) => {
+                            if request
+                                .mode
+                                .max_bytes()
+                                .is_some_and(|limit| text.len().saturating_add(piece.len()) > limit)
+                            {
+                                return Err(ProviderError::OutputLimitExceeded);
+                            }
                             text.push_str(&piece);
                             on_chunk(ProviderChunk { text: piece })?;
                         }
                         StreamEvent::Usage(value) => usage = Some(value),
+                        StreamEvent::Finish(reason) => {
+                            if finish_reason.replace(reason).is_some() {
+                                return Err(ProviderError::Protocol);
+                            }
+                        }
                         StreamEvent::Done => {
                             done = true;
                             break 'stream;
@@ -254,21 +346,88 @@ impl Provider for GroqProvider {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
             }
-            if !done || text.trim().is_empty() {
+            if !done {
                 return Err(ProviderError::Protocol);
             }
-            let usage = usage.ok_or(ProviderError::Protocol)?;
+            match finish_reason {
+                Some(FinishReason::Stop) if !text.trim().is_empty() => {}
+                Some(FinishReason::Stop) => return Err(ProviderError::Protocol),
+                Some(FinishReason::Length) => return Err(ProviderError::Incomplete),
+                Some(FinishReason::ToolCalls) => return Err(ProviderError::RequiresAction),
+                Some(FinishReason::Unknown) | None => return Err(ProviderError::Protocol),
+            }
+            let usage = usage.unwrap_or_default();
             Ok(ProviderResponse { text, usage })
         })
     }
+}
+
+fn parse_non_streaming(body: &[u8], limit: usize) -> Result<ProviderResponse, ProviderError> {
+    let value: Value = serde_json::from_slice(body).map_err(|_| ProviderError::Protocol)?;
+    if value.get("error").is_some() {
+        return Err(ProviderError::Protocol);
+    }
+    let choices = value
+        .get("choices")
+        .and_then(Value::as_array)
+        .ok_or(ProviderError::Protocol)?;
+    if choices.len() != 1 {
+        return Err(ProviderError::Protocol);
+    }
+    match choices[0].get("finish_reason").and_then(Value::as_str) {
+        Some("stop") => {}
+        Some("length") => return Err(ProviderError::Incomplete),
+        Some("tool_calls" | "function_call") => return Err(ProviderError::RequiresAction),
+        _ => return Err(ProviderError::Protocol),
+    }
+    let message = choices[0].get("message").ok_or(ProviderError::Protocol)?;
+    if message.get("tool_calls").is_some_and(|v| !v.is_null())
+        || message.get("refusal").is_some_and(|v| !v.is_null())
+    {
+        return Err(ProviderError::RequiresAction);
+    }
+    let text = message
+        .get("content")
+        .and_then(Value::as_str)
+        .ok_or(ProviderError::Protocol)?;
+    if text.len() > limit {
+        return Err(ProviderError::OutputLimitExceeded);
+    }
+    if text.trim().is_empty() {
+        return Err(ProviderError::Protocol);
+    }
+    let usage = match value.get("usage").filter(|v| !v.is_null()) {
+        Some(raw) => ProviderUsage {
+            calls: 1,
+            input_tokens: token_field(raw, "prompt_tokens")?,
+            output_tokens: token_field(raw, "completion_tokens")?,
+            total_tokens: Some(token_field(raw, "total_tokens")?),
+            thought_tokens: None,
+            output_tokens_measured: true,
+        },
+        None => ProviderUsage::default(),
+    };
+    Ok(ProviderResponse {
+        text: text.into(),
+        usage,
+    })
 }
 
 #[derive(Debug, PartialEq)]
 enum StreamEvent {
     Text(String),
     Usage(ProviderUsage),
+    Finish(FinishReason),
     Done,
     Ignore,
+}
+
+#[derive(Debug, PartialEq)]
+enum FinishReason {
+    Stop,
+    Length,
+    ToolCalls,
+    Unknown,
 }
 
 #[derive(Default)]
@@ -318,6 +477,26 @@ impl SseParser {
             return Err(ProviderError::Protocol);
         }
         let mut events = Vec::new();
+        if let Some(choices) = value.get("choices").and_then(Value::as_array) {
+            if choices.len() > 1 {
+                return Err(ProviderError::Protocol);
+            }
+            if let Some(raw_reason) = choices
+                .first()
+                .and_then(|choice| choice.get("finish_reason"))
+            {
+                if !raw_reason.is_null() {
+                    let reason = match raw_reason.as_str() {
+                        Some("stop") => FinishReason::Stop,
+                        Some("length") => FinishReason::Length,
+                        Some("tool_calls") | Some("function_call") => FinishReason::ToolCalls,
+                        Some(_) => FinishReason::Unknown,
+                        None => return Err(ProviderError::Protocol),
+                    };
+                    events.push(StreamEvent::Finish(reason));
+                }
+            }
+        }
         if let Some(content) = value
             .pointer("/choices/0/delta/content")
             .and_then(Value::as_str)
@@ -336,6 +515,7 @@ impl SseParser {
                 output_tokens,
                 total_tokens: Some(total_tokens),
                 thought_tokens: None,
+                output_tokens_measured: true,
             }));
         }
         if events.is_empty() {
@@ -356,7 +536,6 @@ fn token_field(usage: &Value, name: &str) -> Result<u32, ProviderError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reqwest::header::RETRY_AFTER;
     use crate::{
         cognition::{
             registry::ProviderRegistry,
@@ -369,6 +548,7 @@ mod tests {
         persistence::{conversation::ConversationMessage, identity::IdentityInput},
         security::secrets::{SecretError, UnlockKeyStore},
     };
+    use reqwest::header::RETRY_AFTER;
     use std::{
         fs,
         io::{Read, Write},
@@ -439,6 +619,8 @@ mod tests {
 
     fn request(thinking_level: Option<ThinkingLevel>) -> ProviderRequest {
         ProviderRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
+            internal_system_instruction: None,
             input: "Olá".into(),
             history: vec![],
             context: context(),
@@ -457,7 +639,9 @@ mod tests {
 
     fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
         ProviderTaskRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
             input: request.input,
+            internal_system_instruction: request.internal_system_instruction,
             history: request.history,
             context: request.context,
             max_output_tokens: request.max_output_tokens,
@@ -525,7 +709,30 @@ mod tests {
         (url, handle)
     }
 
-    const SSE: &str = "data: {\"choices\":[{\"delta\":{\"content\":\"Conexão \"}}],\"usage\":null}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"confirmada.\",\"reasoning\":\"segredo\"}}],\"usage\":null}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":3,\"total_tokens\":15}}\n\ndata: [DONE]\n\n";
+    const SSE: &str = "data: {\"choices\":[{\"delta\":{\"content\":\"Conexão \"}}],\"usage\":null}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"confirmada.\",\"reasoning\":\"segredo\"},\"finish_reason\":\"stop\"}],\"usage\":null}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":3,\"total_tokens\":15}}\n\ndata: [DONE]\n\n";
+
+    fn execute_sse(body: &str) -> Result<ProviderResponse, ProviderError> {
+        let (store, dir) = fixture();
+        let (url, handle) = server("200 OK", body, "", true);
+        let provider = GroqProvider::new(
+            GroqConfig {
+                endpoint: url,
+                ..Default::default()
+            },
+            store,
+        )
+        .unwrap();
+        let mut request = request(None);
+        request.target.invocation.model = MODEL.into();
+        let result = tauri::async_runtime::block_on(provider.execute(
+            &request,
+            &AtomicBool::new(false),
+            &mut |_| Ok(()),
+        ));
+        let _ = handle.join().unwrap();
+        fs::remove_dir_all(dir).unwrap();
+        result
+    }
 
     #[test]
     fn payload_is_provider_specific_private_and_reasoning_hidden() {
@@ -589,10 +796,46 @@ mod tests {
                 input_tokens: 5,
                 output_tokens: 2,
                 total_tokens: Some(7),
-                thought_tokens: None
+                thought_tokens: None,
+                output_tokens_measured: true,
             })
         );
         assert_eq!(events[2], StreamEvent::Done);
+    }
+
+    #[test]
+    fn http_finish_reason_is_a_required_terminal_contract() {
+        let stop = "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+        assert_eq!(execute_sse(stop).unwrap().text, "{}");
+
+        for body in [
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"version\\\":1\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n",
+        ] {
+            assert!(matches!(execute_sse(body), Err(ProviderError::Incomplete)));
+        }
+        for reason in ["tool_calls", "function_call"] {
+            let body = format!("data: {{\"choices\":[{{\"delta\":{{}},\"finish_reason\":\"{reason}\"}}]}}\n\ndata: [DONE]\n\n");
+            assert!(matches!(
+                execute_sse(&body),
+                Err(ProviderError::RequiresAction)
+            ));
+        }
+        for body in [
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"}}]}\n\ndata: [DONE]\n\n".to_owned(),
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"mystery\"}]}\n\ndata: [DONE]\n\n".to_owned(),
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n".to_owned(),
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n".to_owned(),
+            "data: {\"choices\":[{\"delta\":{\"content\":\"{}\"},\"finish_reason\":\"stop\"},{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n".to_owned(),
+        ] {
+            assert!(matches!(execute_sse(&body), Err(ProviderError::Protocol)));
+        }
+        let empty_stop =
+            "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
+        assert!(matches!(
+            execute_sse(empty_stop),
+            Err(ProviderError::Protocol)
+        ));
     }
 
     #[test]

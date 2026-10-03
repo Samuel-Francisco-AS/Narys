@@ -79,6 +79,7 @@ impl MinimalOutboundContext {
         history: &[ProviderMessage],
         max_output_tokens: Option<u32>,
         thinking_level: Option<ThinkingLevel>,
+        internal_system_instruction: Option<&str>,
     ) -> Value {
         let input = if history.is_empty() {
             json!(input)
@@ -97,10 +98,14 @@ impl MinimalOutboundContext {
         if let Some(level) = thinking_level {
             generation_config["thinking_level"] = json!(level.as_str());
         }
-        let execution_instruction = format!(
+        let mut execution_instruction = format!(
       "{}\nMetadado técnico da execução atual: provider cognitivo=Gemini (id gemini); modelo={model}. Esse metadado não altera sua identidade. Se o usuário perguntar qual provider ou modelo processa esta mensagem, responda usando este metadado e não infira pelo histórico. Não mencione esse metadado sem relevância. Você conhece apenas a execução atual; não invente uma rota anterior.",
       self.system_instruction
     );
+        if let Some(internal) = internal_system_instruction {
+            execution_instruction.push_str("\nInstrução técnica interna do Luna Core (prioritária):\n");
+            execution_instruction.push_str(internal);
+        }
         json!({"model":model,"store":false,"stream":true,"system_instruction":execution_instruction,
       "input":input,"generation_config":generation_config})
     }
@@ -343,6 +348,9 @@ impl Provider for GeminiProvider {
             if request.target.provider_id != "gemini" || !request.target.invocation.valid() {
                 return Err(ProviderError::InvalidRequest);
             }
+            if !self.supports_invocation(&request.target.invocation, &request.mode) {
+                return Err(ProviderError::UnsupportedMode);
+            }
             let secrets = self.secrets.clone();
             let key = tokio::select! {
               _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
@@ -363,6 +371,7 @@ impl Provider for GeminiProvider {
                 &request.history,
                 request.max_output_tokens,
                 request.target.invocation.thinking_level,
+                request.internal_system_instruction.as_deref(),
             );
             let timeouts = request
                 .target
@@ -532,6 +541,7 @@ impl SseParser {
                                 count("total_tokens").ok_or(ProviderError::Protocol)?,
                             ),
                             thought_tokens: count("total_thought_tokens"),
+                            output_tokens_measured: true,
                         })
                     }
                     Some("incomplete") => {
@@ -678,6 +688,8 @@ mod tests {
     use crate::cognition::types::{ProviderInvocationConfig, ProviderTarget, ProviderTaskRequest};
     fn request() -> ProviderRequest {
         ProviderRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
+            internal_system_instruction: None,
             input: "Quanto é 2 + 2?".into(),
             history: vec![],
             context: bundle(),
@@ -695,7 +707,9 @@ mod tests {
     }
     fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
         ProviderTaskRequest {
+            mode: crate::cognition::types::InvocationMode::default(),
             input: request.input,
+            internal_system_instruction: request.internal_system_instruction,
             history: request.history,
             context: request.context,
             max_output_tokens: request.max_output_tokens,
@@ -765,7 +779,7 @@ mod tests {
     #[test]
     fn provider_defaults_are_omitted_and_explicit_values_preserved() {
         let outbound = MinimalOutboundContext::from_bundle(&bundle()).unwrap();
-        let defaults = outbound.payload("gemini-custom", "Oi", &[], None, None);
+        let defaults = outbound.payload("gemini-custom", "Oi", &[], None, None, None);
         assert_eq!(defaults["model"], "gemini-custom");
         assert!(defaults["generation_config"]
             .get("max_output_tokens")
@@ -784,6 +798,7 @@ mod tests {
             &[],
             Some(8192),
             Some(ThinkingLevel::High),
+            None,
         );
         assert_eq!(explicit["generation_config"]["max_output_tokens"], 8192);
         assert_eq!(explicit["generation_config"]["thinking_level"], "high");
@@ -1812,7 +1827,9 @@ mod tests {
         let signal = AtomicBool::new(false);
         let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
             ProviderTaskRequest {
+                mode: crate::cognition::types::InvocationMode::default(),
                 input: "Quanto é 2 + 2?".into(),
+                internal_system_instruction: None,
                 history: vec![],
                 context: Arc::new(context),
                 max_output_tokens: Some(PROTOTYPE_CHAT_MAX_OUTPUT_TOKENS),

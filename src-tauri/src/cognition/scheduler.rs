@@ -1,8 +1,9 @@
 use super::{
     registry::ProviderRegistry,
     types::{
-        ProviderChunk, ProviderError, ProviderRequest, ProviderSelection, ProviderTaskRequest,
-        RetryPolicy, SchedulerError, SchedulerUsage, TaskBudget, TaskResult,
+        ProviderCapabilities, ProviderChunk, ProviderError, ProviderRequest, ProviderSelection,
+        ProviderTarget, ProviderTaskRequest, RetryPolicy, SchedulerError, SchedulerUsage,
+        TaskBudget, TaskResult,
     },
 };
 use serde::Serialize;
@@ -19,9 +20,13 @@ use std::{
 pub enum SchedulerEvent {
     Selected {
         provider_id: String,
+        model: String,
         attempt: u32,
         routing_reason: &'static str,
         score: Option<u32>,
+    },
+    OutputObserved {
+        provider_id: String,
     },
     Chunk {
         provider_id: String,
@@ -141,6 +146,50 @@ impl Scheduler {
             })
             .collect()
     }
+    pub fn ranked_provider_ids(
+        &self,
+        selection: &ProviderSelection,
+        targets: &[ProviderTarget],
+        required: &ProviderCapabilities,
+    ) -> Result<Vec<String>, SchedulerError> {
+        if targets.is_empty() || targets.len() > super::policy::MAX_TARGETS {
+            return Err(SchedulerError::InvalidTargetConfig);
+        }
+        let mut ids = HashSet::new();
+        let mut ranked = Vec::new();
+        for (ordinal, target) in targets.iter().enumerate() {
+            if !target.invocation.valid() || !ids.insert(&target.provider_id) {
+                return Err(SchedulerError::InvalidTargetConfig);
+            }
+            if let ProviderSelection::Fixed(id) = selection {
+                if &target.provider_id != id {
+                    continue;
+                }
+            }
+            let entry = self
+                .registry
+                .get(&target.provider_id)
+                .ok_or(SchedulerError::NoProvider)?;
+            if !entry.config.enabled
+                || !entry.config.capabilities.supports(required)
+                || self.cooling(&entry.config.id)
+            {
+                continue;
+            }
+            let (score, _) = auto_score(targets.len(), ordinal, entry.config.priority, false, 0);
+            ranked.push((entry.config.id.clone(), ordinal, score));
+        }
+        if matches!(selection, ProviderSelection::Auto) {
+            ranked.sort_by(|a, b| b.2.cmp(&a.2).then(a.1.cmp(&b.1)).then(a.0.cmp(&b.0)));
+        }
+        let result: Vec<_> = ranked.into_iter().map(|item| item.0).collect();
+        if result.is_empty() {
+            Err(SchedulerError::NoProvider)
+        } else {
+            Ok(result)
+        }
+    }
+
     pub async fn run(
         &self,
         request: ProviderTaskRequest,
@@ -169,7 +218,35 @@ impl Scheduler {
         cancelled: &AtomicBool,
         on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
     ) -> Result<TaskResult, SchedulerError> {
-        if cancelled.load(Ordering::Acquire) {
+        self.run_with_retry_mode(request, budget, retry_policy, cancelled, on_event, false)
+            .await
+    }
+
+    /// Task graph calls use a conservative output ledger because some providers do
+    /// not return usage. Each possible attempt receives a share of the remaining
+    /// budget; unknown attempts debit their full share.
+    pub async fn run_with_retry_conservative_output(
+        &self,
+        request: ProviderTaskRequest,
+        budget: TaskBudget,
+        retry_policy: RetryPolicy,
+        cancelled: &AtomicBool,
+        on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
+    ) -> Result<TaskResult, SchedulerError> {
+        self.run_with_retry_mode(request, budget, retry_policy, cancelled, on_event, true)
+            .await
+    }
+
+    async fn run_with_retry_mode(
+        &self,
+        request: ProviderTaskRequest,
+        budget: TaskBudget,
+        retry_policy: RetryPolicy,
+        cancelled: &AtomicBool,
+        on_event: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
+        conservative_output: bool,
+    ) -> Result<TaskResult, SchedulerError> {
+        if cancelled.load(Ordering::Acquire) && !conservative_output {
             return Err(SchedulerError::Cancelled);
         }
         let output_limit = match (budget.max_output_tokens, request.max_output_tokens) {
@@ -177,10 +254,14 @@ impl Scheduler {
             (Some(a), None) | (None, Some(a)) => Some(a),
             (None, None) => None,
         };
-        let mut usage = SchedulerUsage::default();
+        let mut usage = SchedulerUsage {
+            output_tokens_measured: true,
+            ..SchedulerUsage::default()
+        };
         let mut last_error: Option<ProviderError> = None;
         let mut last_provider: Option<String> = None;
-        if request.targets.is_empty()
+        if !request.mode.valid()
+            || request.targets.is_empty()
             || request.targets.len() > super::policy::MAX_TARGETS
             || request
                 .affinity_key
@@ -215,13 +296,22 @@ impl Scheduler {
                 .registry
                 .get(&target.provider_id)
                 .ok_or(SchedulerError::NoProvider)?;
-            if !entry.config.enabled
-                || !entry
-                    .config
-                    .capabilities
-                    .supports(&request.required_capabilities)
-            {
+            if !entry.config.enabled {
                 return Err(SchedulerError::NoProvider);
+            }
+            if !entry
+                .config
+                .capabilities
+                .supports(&request.required_capabilities)
+                || !entry
+                    .provider
+                    .supports_invocation(&target.invocation, &request.mode)
+            {
+                if request.mode.text_stream() {
+                    return Err(SchedulerError::NoProvider);
+                }
+                // An incompatible target consumes neither a call nor retry/fallback.
+                continue;
             }
             eligible.push(entry);
             if self.cooling(&entry.config.id) {
@@ -276,7 +366,14 @@ impl Scheduler {
                     return Err(SchedulerError::Cancelled);
                 }
                 if usage.provider_calls >= budget.max_provider_calls
-                    || output_limit.is_some_and(|limit| usage.output_tokens >= limit)
+                    || output_limit.is_some_and(|limit| {
+                        let spent = if conservative_output {
+                            usage.output_tokens_accounted
+                        } else {
+                            usage.output_tokens
+                        };
+                        spent >= limit
+                    })
                 {
                     return Err(SchedulerError::BudgetExceeded);
                 }
@@ -304,6 +401,7 @@ impl Scheduler {
                 }
                 on_event(SchedulerEvent::Selected {
                     provider_id: entry.config.id.clone(),
+                    model: target.invocation.model.clone(),
                     attempt,
                     routing_reason: match request.selection {
                         ProviderSelection::Fixed(_) => "fixed",
@@ -319,26 +417,64 @@ impl Scheduler {
                 })?;
                 let mut chunks = String::new();
                 let mut emitted_chunk = false;
-                let mut on_chunk = |chunk: ProviderChunk| -> Result<(), ProviderError> {
-                    if cancelled.load(Ordering::Acquire) {
-                        return Err(ProviderError::Cancelled);
-                    }
-                    emitted_chunk = true;
-                    chunks.push_str(&chunk.text);
-                    on_event(SchedulerEvent::Chunk {
-                        provider_id: entry.config.id.clone(),
-                        text: chunk.text,
+                let mut on_chunk =
+                    |chunk: ProviderChunk| -> Result<(), ProviderError> {
+                        if cancelled.load(Ordering::Acquire) {
+                            return Err(ProviderError::Cancelled);
+                        }
+                        if request.mode.max_bytes().is_some_and(|limit| {
+                            chunks.len().saturating_add(chunk.text.len()) > limit
+                        }) {
+                            return Err(ProviderError::OutputLimitExceeded);
+                        }
+                        let first = !emitted_chunk;
+                        emitted_chunk = true;
+                        chunks.push_str(&chunk.text);
+                        if request.mode.max_bytes().is_some() && !first {
+                            return Ok(());
+                        }
+                        on_event(if request.mode.max_bytes().is_some() {
+                            SchedulerEvent::OutputObserved {
+                                provider_id: entry.config.id.clone(),
+                            }
+                        } else {
+                            SchedulerEvent::Chunk {
+                                provider_id: entry.config.id.clone(),
+                                text: chunk.text,
+                            }
+                        })
+                        .map_err(|_| {
+                            cancelled.store(true, Ordering::Release);
+                            ProviderError::EventSinkClosed
+                        })
+                    };
+                let spent_output = if conservative_output {
+                    usage.output_tokens_accounted
+                } else {
+                    usage.output_tokens
+                };
+                let remaining_output = output_limit.map(|limit| limit.saturating_sub(spent_output));
+                // Include the call about to start: divide the remaining ledger
+                // across this attempt and every call still available afterward.
+                let attempts_remaining = budget
+                    .max_provider_calls
+                    .saturating_sub(usage.provider_calls.saturating_sub(1))
+                    .max(1);
+                let attempt_output_limit = if conservative_output {
+                    remaining_output.map(|remaining| {
+                        remaining / attempts_remaining
+                            + u32::from(remaining % attempts_remaining != 0)
                     })
-                    .map_err(|_| {
-                        cancelled.store(true, Ordering::Release);
-                        ProviderError::EventSinkClosed
-                    })
+                } else {
+                    remaining_output
                 };
                 let attempt_request = ProviderRequest {
+                    mode: request.mode.clone(),
                     input: request.input.clone(),
+                    internal_system_instruction: request.internal_system_instruction.clone(),
                     history: request.history.clone(),
                     context: request.context.clone(),
-                    max_output_tokens: output_limit.map(|limit| limit - usage.output_tokens),
+                    max_output_tokens: attempt_output_limit,
                     target: (*target).clone(),
                     attempt,
                 };
@@ -352,16 +488,56 @@ impl Scheduler {
                 }
                 match result {
                     Ok(response) => {
-                        if cancelled.load(Ordering::Acquire) {
+                        if request
+                            .mode
+                            .max_bytes()
+                            .is_some_and(|limit| response.text.len() > limit)
+                        {
+                            return Err(SchedulerError::Provider(
+                                ProviderError::OutputLimitExceeded,
+                            ));
+                        }
+                        if request.mode.max_bytes().is_some()
+                            && !emitted_chunk
+                            && !response.text.is_empty()
+                        {
+                            on_event(SchedulerEvent::OutputObserved {
+                                provider_id: entry.config.id.clone(),
+                            })
+                            .map_err(|_| {
+                                cancelled.store(true, Ordering::Release);
+                                SchedulerError::EventSinkClosed
+                            })?;
+                        }
+                        if cancelled.load(Ordering::Acquire) && !conservative_output {
                             return Err(SchedulerError::Cancelled);
                         }
+                        if conservative_output
+                            && attempt_output_limit
+                                .is_some_and(|limit| response.usage.output_tokens > limit)
+                        {
+                            return Err(SchedulerError::BudgetExceeded);
+                        }
                         if output_limit.is_some_and(|limit| {
-                            response.usage.output_tokens > limit - usage.output_tokens
+                            let spent = if conservative_output {
+                                usage.output_tokens_accounted
+                            } else {
+                                usage.output_tokens
+                            };
+                            response.usage.output_tokens > limit - spent
                         }) {
                             return Err(SchedulerError::BudgetExceeded);
                         }
                         usage.input_tokens += response.usage.input_tokens;
                         usage.output_tokens += response.usage.output_tokens;
+                        usage.output_tokens_measured &= response.usage.output_tokens_measured;
+                        usage.output_tokens_accounted = usage
+                            .output_tokens_accounted
+                            .saturating_add(if response.usage.output_tokens_measured {
+                                response.usage.output_tokens
+                            } else {
+                                attempt_request.max_output_tokens.unwrap_or_default()
+                            });
                         usage.total_tokens = response.usage.total_tokens;
                         usage.thought_tokens = response.usage.thought_tokens;
                         let text = if response.text.is_empty() {
@@ -387,6 +563,12 @@ impl Scheduler {
                         return Err(SchedulerError::EventSinkClosed)
                     }
                     Err(error) => {
+                        if conservative_output {
+                            usage.output_tokens_measured = false;
+                            usage.output_tokens_accounted = usage
+                                .output_tokens_accounted
+                                .saturating_add(attempt_output_limit.unwrap_or_default());
+                        }
                         if cancelled.load(Ordering::Acquire) {
                             return Err(SchedulerError::Cancelled);
                         }
@@ -434,11 +616,19 @@ impl Scheduler {
                         let can_retry = retry_policy.enabled
                             && eligible_error
                             && retries_used < retry_policy.max_retries
-                            && usage.provider_calls < budget.max_provider_calls;
+                            && usage.provider_calls < budget.max_provider_calls
+                            && (!conservative_output
+                                || output_limit
+                                    .map_or(true, |limit| usage.output_tokens_accounted < limit));
                         #[cfg(debug_assertions)]
                         if retry_policy.enabled && eligible_error && !can_retry {
                             let reason = if usage.provider_calls >= budget.max_provider_calls {
                                 "call_budget"
+                            } else if conservative_output
+                                && output_limit
+                                    .is_some_and(|limit| usage.output_tokens_accounted >= limit)
+                            {
+                                "output_budget"
                             } else {
                                 "retry_limit"
                             };
@@ -510,7 +700,7 @@ impl Scheduler {
                 } else {
                     let now = Instant::now();
                     let cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
-                    for entry in eligible {
+                    for entry in &eligible {
                         let cooldown_ms = cooldowns
                             .get(&entry.config.id)
                             .map(|until| until.saturating_duration_since(now).as_millis() as u64)
@@ -520,7 +710,11 @@ impl Scheduler {
                     }
                 }
             }
-            Err(SchedulerError::NoProvider)
+            if eligible.is_empty() && !request.mode.text_stream() {
+                Err(SchedulerError::Provider(ProviderError::UnsupportedMode))
+            } else {
+                Err(SchedulerError::NoProvider)
+            }
         } else {
             Err(SchedulerError::Provider(last_error.unwrap_or(
                 ProviderError::Unavailable {
@@ -551,5 +745,71 @@ mod tests {
     fn affinity_score_is_bounded_even_for_maximum_context_size() {
         assert_eq!(auto_score(8, 7, u16::MAX, true, usize::MAX), (600, 500));
         assert_eq!(auto_score(2, 1, 32, true, 0), (100, 0));
+    }
+
+    #[test]
+    fn task_graph_ranking_respects_authorized_order_fixed_and_auto() {
+        use crate::cognition::{
+            mock::{MockProvider, MockScenario},
+            types::{ProviderConfig, ProviderInvocationConfig, ProviderTimeouts},
+        };
+        let mut registry = ProviderRegistry::default();
+        for (id, priority) in [("a", 10), ("b", 1), ("c", 20)] {
+            registry
+                .register(
+                    ProviderConfig {
+                        id: id.into(),
+                        enabled: true,
+                        priority,
+                        capabilities: ProviderCapabilities::text_stream(),
+                    },
+                    std::sync::Arc::new(MockProvider::new(MockScenario::Normal)),
+                )
+                .unwrap();
+        }
+        let scheduler = Scheduler::new(registry);
+        let target = |id: &str| ProviderTarget {
+            provider_id: id.into(),
+            invocation: ProviderInvocationConfig {
+                model: format!("{id}-model"),
+                thinking_level: None,
+                timeouts: Some(ProviderTimeouts {
+                    request_timeout_ms: 1000,
+                    stream_idle_timeout_ms: 1000,
+                }),
+            },
+        };
+        let targets = vec![target("a"), target("b"), target("c")];
+        assert_eq!(
+            scheduler
+                .ranked_provider_ids(
+                    &ProviderSelection::Preferred,
+                    &targets,
+                    &ProviderCapabilities::text_stream(),
+                )
+                .unwrap(),
+            vec!["a", "b", "c"]
+        );
+        assert_eq!(
+            scheduler
+                .ranked_provider_ids(
+                    &ProviderSelection::Fixed("b".into()),
+                    &targets,
+                    &ProviderCapabilities::text_stream(),
+                )
+                .unwrap(),
+            vec!["b"]
+        );
+        // Policy position is intentionally stronger than registry priority.
+        assert_eq!(
+            scheduler
+                .ranked_provider_ids(
+                    &ProviderSelection::Auto,
+                    &targets,
+                    &ProviderCapabilities::text_stream(),
+                )
+                .unwrap(),
+            vec!["a", "b", "c"]
+        );
     }
 }

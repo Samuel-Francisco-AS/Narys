@@ -70,7 +70,7 @@ pub fn run() {
                         id: "groq".into(),
                         enabled: true,
                         priority: 2,
-                        capabilities: cognition::types::ProviderCapabilities::text_stream(),
+                        capabilities: cognition::types::ProviderCapabilities::with_structured_output(),
                     },
                     groq_adapter,
                 )
@@ -206,6 +206,7 @@ pub fn run() {
         luna::conversation_routing_status,
         luna::start_conversation_task,
         luna::start_orchestrator_planning,
+        luna::start_task_graph,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
@@ -246,6 +247,7 @@ pub fn run() {
         luna::conversation_routing_status,
         luna::start_conversation_task,
         luna::start_orchestrator_planning,
+        luna::start_task_graph,
     ]);
     builder
         .run(tauri::generate_context!())

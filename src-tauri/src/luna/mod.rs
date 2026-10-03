@@ -84,6 +84,28 @@ pub fn start_orchestrator_planning(
     )
 }
 
+#[tauri::command]
+pub fn start_task_graph(
+    registry: State<'_, Arc<TaskRegistry>>,
+    db: State<'_, Database>,
+    runtime: State<'_, Arc<ProviderRuntime>>,
+    store: State<'_, Arc<SecretStore>>,
+    objective: String,
+    channel: Channel<TaskEvent>,
+) -> Result<TaskId, String> {
+    AuditEvent::new(Action::CommandInvoked, Outcome::Allowed)
+        .with_detail("start_task_graph")
+        .emit();
+    crate::cognition::task_graph_runtime::start_task(
+        registry.inner().clone(),
+        db.inner().clone(),
+        runtime.inner().clone(),
+        store.inner().clone(),
+        objective,
+        channel,
+    )
+}
+
 #[cfg(debug_assertions)]
 #[tauri::command]
 pub fn start_mock_cognition_task(

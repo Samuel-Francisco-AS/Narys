@@ -19,6 +19,14 @@ export function taskEventToAnimationIntent(event: TaskEvent): AnimationIntent | 
     case 'provider_retry':
     case 'provider_fallback':
     case 'task_result_ready':
+    case 'task_planned':
+    case 'subtask_waiting':
+    case 'subtask_started':
+    case 'subtask_completed':
+    case 'subtask_retry':
+    case 'subtask_output_observed':
+    case 'subtask_failed':
+    case 'task_graph_result_ready':
       return null
   }
 }

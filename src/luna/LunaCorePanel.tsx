@@ -35,6 +35,14 @@ function eventLabel(event: TaskEvent): string {
     case 'provider_retry': return `${event.provider_id}: retry (${event.reason_code})`
     case 'provider_fallback': return `${event.from_provider_id} → ${event.to_provider_id}: fallback (${event.reason_code})`
     case 'task_result_ready': return `Resultado: ${event.result.providerId}`
+    case 'task_planned': return `Task graph: ${event.step_count} subtarefas planejadas`
+    case 'subtask_waiting': return `${event.subtask_id}: aguardando ${event.depends_on.join(', ') || 'dependências'}`
+    case 'subtask_started': return `${event.subtask_id}: ${event.provider_id} iniciou`
+    case 'subtask_completed': return `${event.subtask_id}: ${event.provider_id} concluiu`
+    case 'subtask_retry': return `${event.subtask_id}: retry em ${event.provider_id} (${event.reason_code})`
+    case 'subtask_output_observed': return `${event.subtask_id}: saída observada de ${event.provider_id}`
+    case 'subtask_failed': return `${event.subtask_id}: falhou (${event.error_code})`
+    case 'task_graph_result_ready': return `Task graph: ${event.result.subtasks.length} resultados consolidados`
   }
 }
 

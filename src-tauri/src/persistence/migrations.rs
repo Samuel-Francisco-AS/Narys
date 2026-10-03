@@ -13,7 +13,7 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(|_| PersistenceError::Migration)?;
-    if version > 10 {
+    if version > 11 {
         return Err(PersistenceError::Migration);
     }
     if version == 0 {
@@ -77,6 +77,14 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
             "BEGIN IMMEDIATE;",
             include_str!("../../migrations/010_provider_timeout_defaults.sql"),
             "PRAGMA user_version = 10; COMMIT;"
+        ))
+        .map_err(|_| PersistenceError::Migration)?;
+    }
+    if version < 11 {
+        conn.execute_batch(concat!(
+            "BEGIN IMMEDIATE;",
+            include_str!("../../migrations/011_worker_role_and_task_graph.sql"),
+            "PRAGMA user_version = 11; COMMIT;"
         ))
         .map_err(|_| PersistenceError::Migration)?;
     }

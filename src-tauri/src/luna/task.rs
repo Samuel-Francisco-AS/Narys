@@ -42,6 +42,7 @@ pub enum TaskEventKind {
     },
     ProviderSelected {
         provider_id: String,
+        model: String,
         attempt: u32,
         routing_reason: String,
         score: Option<u32>,
@@ -67,6 +68,38 @@ pub enum TaskEventKind {
     },
     OrchestratorPlanReady {
         result: crate::cognition::orchestrator::OrchestratorResult,
+    },
+    TaskPlanned {
+        step_count: usize,
+    },
+    SubtaskWaiting {
+        subtask_id: String,
+        depends_on: Vec<String>,
+    },
+    SubtaskStarted {
+        subtask_id: String,
+        provider_id: String,
+    },
+    SubtaskCompleted {
+        subtask_id: String,
+        provider_id: String,
+    },
+    SubtaskRetry {
+        subtask_id: String,
+        provider_id: String,
+        reason_code: String,
+    },
+    SubtaskOutputObserved {
+        subtask_id: String,
+        provider_id: String,
+    },
+    SubtaskFailed {
+        subtask_id: String,
+        provider_id: Option<String>,
+        error_code: String,
+    },
+    TaskGraphResultReady {
+        result: crate::cognition::task_graph::TaskGraphResult,
     },
 }
 

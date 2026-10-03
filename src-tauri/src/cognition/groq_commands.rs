@@ -149,7 +149,9 @@ pub async fn groq_probe(
     let handle = handles.0.get("groq").ok_or("provider_unavailable")?;
     let timeouts = *handle.read().unwrap_or_else(|poison| poison.into_inner());
     let request = ProviderTaskRequest {
+        mode: crate::cognition::types::InvocationMode::default(),
         input: "Responda em uma frase curta: conexão Groq confirmada.".into(),
+        internal_system_instruction: None,
         history: vec![],
         context: Arc::new(context),
         max_output_tokens: Some(96),
@@ -187,7 +189,7 @@ pub async fn groq_probe(
                         attempt,
                     }),
                     SchedulerEvent::Chunk { text, .. } => Some(GroqProbeEvent::Chunk { text }),
-                    SchedulerEvent::Retry { .. } | SchedulerEvent::Fallback { .. } => None,
+                    SchedulerEvent::Retry { .. } | SchedulerEvent::Fallback { .. } | SchedulerEvent::OutputObserved { .. } => None,
                 };
                 if let Some(event) = outbound {
                     channel

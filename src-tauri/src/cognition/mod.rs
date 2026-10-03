@@ -1,3 +1,6 @@
+mod bounded_json;
+#[cfg(test)]
+mod fix5_tests;
 pub mod catalog;
 pub mod cloudflare;
 pub mod context;
@@ -15,6 +18,11 @@ pub mod registry;
 pub mod scheduler;
 pub mod settings;
 pub mod summary;
+pub mod task_graph;
+pub mod task_graph_runtime;
+mod task_graph_worker;
+#[cfg(test)]
+mod task_graph_runtime_tests;
 mod transport;
 pub mod types;
 
