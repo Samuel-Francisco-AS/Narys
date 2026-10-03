@@ -457,7 +457,7 @@ Para reduzir correções tardias, a LR-8 foi formalmente decomposta em subfases
 sequenciais, cada uma implementada pelo agente e auditada independentemente pela
 Luna antes da liberação da seguinte:
 
-1. **LR-8A — modelo de quota + telemetria factual — PASS em 03/10/2026**;
+1. **LR-8A — modelo de quota + telemetria factual — PASS e integrada à `main` pela PR #14 em 03/10/2026**;
 2. **LR-8B — admission control + fila + concurrency**;
 3. **LR-8C — rate accounting + token buckets + budgets**;
 4. **LR-8D — backoff, jitter, cooldown + circuit breaker**;
