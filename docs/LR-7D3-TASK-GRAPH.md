@@ -1,12 +1,42 @@
 # LR-7D3 — Task graph mínimo + subtarefas independentes
 
-Estado da branch: **CANDIDATA COM FIX-6 IMPLEMENTADA; validação local e novo gate humano pendentes**.
+Estado da branch: **CANDIDATA COM FIX-7 IMPLEMENTADA; validação local e novo gate humano pendentes**.
 Branch: `lr-7d3-task-graph`.
 Base: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
 
 Este documento registra a implementação candidata. **Não é registro de PASS
 da LR-7D3/LR-7**: os gates locais estão registrados abaixo; a revisão independente
 da FIX e o novo gate humano com providers reais continuam pendentes.
+
+## FIX-7 — reasoning mínimo explícito no GLM-4.7-Flash
+
+Implementação candidata de 02/10/2026, após novo gate humano real da FIX-6.
+A FIX-6 removeu a rejeição por terminal duplicado, expondo a próxima condição
+real do Worker Cloudflare:
+
+`phase=terminal done=true finish=length usage_present=true usage_valid=true content_bytes=0 error=incomplete`.
+
+O TaskGraph reserva o budget global de Worker entre subtarefas e o Scheduler
+conservador ainda reparte a reserva de cada unidade entre tentativas possíveis.
+No gate observado, o GLM encerrou por `length` sem emitir conteúdo textual.
+Como `@cf/zai-org/glm-4.7-flash` é um modelo de reasoning e a documentação
+atual da Cloudflare declara `reasoning_effort` com `low`, `medium` e
+`high`, esta FIX envia explicitamente `reasoning_effort: "low"` somente
+para esse target conhecido.
+
+A mudança é model-specific no adapter Cloudflare. Outros modelos Cloudflare
+continuam sem campo de reasoning inventado e preservam o default do provider.
+Não há alteração em Scheduler, divisão de budget, retry, routing, TaskGraph,
+capabilities, Worker envelope ou Conversation contract. O objetivo desta FIX
+é testar a causa mais estreita antes de alterar o accounting global.
+
+Teste local de payload exige `reasoning_effort="low"` para
+`@cf/zai-org/glm-4.7-flash`, preserva streaming/usage e confirma ausência do
+campo para um target Cloudflare arbitrário. O gate humano continua obrigatório:
+se o GLM ainda encerrar em `length` sem conteúdo, a próxima investigação volta
+para budget/accounting com evidência de que reasoning mínimo não bastou.
+
+**Nenhum PASS novo é declarado nesta FIX.**
 
 ## FIX-6 — tolerância idempotente de terminal Cloudflare
 

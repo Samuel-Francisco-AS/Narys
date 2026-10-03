@@ -104,6 +104,14 @@ impl MinimalOutboundContext {
           "stream": true,
           "stream_options": {"include_usage": true}
         });
+        // GLM-4.7-Flash is a reasoning model. Cloudflare documents low/medium/high
+        // reasoning effort for this target; use the lowest supported effort so a
+        // bounded Worker response is not consumed entirely by hidden reasoning.
+        // Keep this model-specific: custom Cloudflare targets preserve their
+        // existing provider defaults unless they gain an explicit contract.
+        if model == MODEL {
+            payload["reasoning_effort"] = json!("low");
+        }
         if let Some(limit) = request.max_output_tokens {
             payload["max_completion_tokens"] = json!(limit);
         }
@@ -646,12 +654,35 @@ mod tests {
     }
 
     #[test]
-    fn payload_has_minimal_context_and_hides_reasoning() {
+    fn payload_has_minimal_context_and_uses_model_specific_low_reasoning() {
         assert!(valid_model(MODEL));
         assert!(!valid_model("cloudflare small"));
         assert!(
             !CloudflareProvider::classify(StatusCode::UNAUTHORIZED, &HeaderMap::new(), b"")
                 .eq(&ProviderError::Fatal)
+        );
+
+        let request = http_request(ProviderTimeouts {
+            request_timeout_ms: 500,
+            stream_idle_timeout_ms: 500,
+        });
+        let payload = MinimalOutboundContext::from_bundle(&request.context)
+            .unwrap()
+            .payload(&request)
+            .unwrap();
+        assert_eq!(payload["reasoning_effort"], "low");
+        assert_eq!(payload["stream"], true);
+        assert_eq!(payload["stream_options"]["include_usage"], true);
+
+        let mut custom = request;
+        custom.target.invocation.model = "custom-cloudflare-model".into();
+        let payload = MinimalOutboundContext::from_bundle(&custom.context)
+            .unwrap()
+            .payload(&custom)
+            .unwrap();
+        assert!(
+            payload.get("reasoning_effort").is_none(),
+            "unproven Cloudflare targets must preserve their provider default"
         );
     }
 
