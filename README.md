@@ -140,7 +140,7 @@ Para o contexto cronológico e a oficina de Blender, veja [RETOMADA-BLENDER-LUNA
 
 O trabalho artístico não precisa bloquear a evolução estrutural: **LR-1** separou o runtime de avatar/animação sem mudar o asset atual; em paralelo, o usuário pode continuar produzindo Idle e futuras animações no Blender. A sequência completa está em [PLANO-OPERACIONAL-LUNA.md](docs/PLANO-OPERACIONAL-LUNA.md).
 
-O chat Gemini LR-6 funciona na janela Tauri com credencial mantida no SecretStore. A trilha UIP já transformou a interface em presença desktop transparente/recolhível e estabeleceu o orçamento de performance. Ferramentas operacionais, Android e mensageiros continuam posteriores; **LR-7A/FIX → LR-7C estão fechadas**, com Groq real e fallback/overflow observável. **LR-8** segue separada.
+O chat Gemini LR-6 funciona na janela Tauri com credencial mantida no SecretStore. A trilha UIP já transformou a interface em presença desktop transparente/recolhível e estabeleceu o orçamento de performance. Ferramentas operacionais, Android e mensageiros continuam posteriores; **LR-7 está fechada em PASS completo (03/10/2026)**, incluindo task graph real com dois Cognitive Providers e provenance persistida. **LR-8 — Rate Limit Manager** é a próxima etapa.
 
 
 ### LR-7B — Groq
@@ -154,7 +154,7 @@ A **LR-7C está fechada em PASS técnico + humano (28/09/2026)**. Conversa pode 
 
 ### LR-7D — papéis cognitivos e roteamento configurável
 
-**LR-7D0 fechada em PASS completo em 29/09/2026 e LR-7D1 fechada em PASS completo em 30/09/2026.** Gemini e Groq podem ser escolhidos por configuração nos papéis suportados; o Orchestrator/Planner persistido produz `PlanV1` validado, é cancelável e não executa passos. LR-7D2 fallback chain/Auto/affinity fechou em PASS completo em 01/10/2026; LR-7D2.5 também foi encerrada em 01/10/2026 com Cloudflare real, Summary opcional e dívida formal de substituir a rota Mistral bloqueada por OpenAI API paga quando houver orçamento. A próxima etapa é LR-7D3 task graph mínimo. Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
+**LR-7D0 → LR-7D3 estão fechadas em PASS completo.** Gemini e Groq podem ser escolhidos por configuração nos papéis suportados; o Orchestrator/Planner persistido produz `PlanV1` validado, é cancelável e não executa passos. LR-7D2 fechou fallback chain/Auto/affinity; LR-7D2.5 adicionou Cloudflare real e manteve a dívida de substituir a rota Mistral bloqueada por OpenAI API paga quando houver orçamento. Em 03/10/2026, a LR-7D3 concluiu o gate final: Planner Groq, duas subtarefas independentes em Groq + Cloudflare, execução paralela, consolidação determinística e provenance persistida. **Isso encerrou a LR-7; a próxima etapa é LR-8.** Veja [plano LR-7D](docs/LR-7D-COGNITIVE-ROLES-ROUTING.md).
 
 ### LR-7D0.5A — descoberta segura do Codex
 

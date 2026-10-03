@@ -1,13 +1,13 @@
 # LR-7D — papéis cognitivos, roteamento configurável e distribuição inteligente
 
-Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo em 30/09/2026. LR-7D2 — PASS completo em 01/10/2026 e integrada à `main` pela PR #11. LR-7D2.5 — encerrada em 01/10/2026 com Cloudflare validada, Summary automático opcional e dívida formal de substituir Mistral por OpenAI API paga quando houver orçamento. LR-7D3 possui implementação candidata na branch `lr-7d3-task-graph`; gates técnicos locais e gate humano real ainda estão pendentes.**
+Estado: **LR-7D0 — PASS completo e integrada à `main` em 29/09/2026. LR-7D1 — PASS completo em 30/09/2026. LR-7D2 — PASS completo em 01/10/2026 e integrada à `main` pela PR #11. LR-7D2.5 — encerrada em 01/10/2026 com Cloudflare validada, Summary automático opcional e dívida formal de substituir Mistral por OpenAI API paga quando houver orçamento. LR-7D3 — PASS completo em 03/10/2026, encerrando também a LR-7 e liberando a LR-8.**
 Execução prevista: **LR-7D0 pelo Codex; auditoria independente pela Luna; gate humano pelo usuário.**
 
 ### D0.5 — fronteira futura de agentes
 
 A mini-trilha D0.5 começa após o fechamento da D0 e mantém Codex separado dos
 Cognitive Providers. **D0.5A foi fechada em PASS completo em 29/09/2026** e detecta
-somente o runtime e o estado seguro de autenticação. **D0.5B também foi fechada em PASS e integrada em 29/09/2026**, adicionando a ponte efêmera Rust ↔ `codex app-server --stdio`; **D0.5C também foi integrada em PASS em 29/09/2026**, estabelecendo `AgentBackend` e `AgentRegistry`; D0.5D fechou em PASS completo após auditoria e gate humano, adicionando o primeiro `CodexAgentBackend` real com Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. D0.5E também fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026, encerrando a mini-trilha **LR-7D0.5 em PASS completo**. **LR-7D1 — Orchestrator/Planner configurável — fechou em PASS completo no gate humano de 30/09/2026.** A **LR-7D2 — fallback chain + Auto/score + affinity** fechou em PASS completo em 01/10/2026. A **LR-7D2.5 — provider redundancy + Gemini de-risking** foi encerrada em 01/10/2026. Cloudflare passou gates reais; Mistral ficou tecnicamente integrada, mas seu gate operacional foi bloqueado pela exigência de upgrade da conta Free. A substituição por OpenAI API paga ficou como dívida formal. A próxima etapa é **LR-7D3 — task graph mínimo + subtarefas independentes**. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
+somente o runtime e o estado seguro de autenticação. **D0.5B também foi fechada em PASS e integrada em 29/09/2026**, adicionando a ponte efêmera Rust ↔ `codex app-server --stdio`; **D0.5C também foi integrada em PASS em 29/09/2026**, estabelecendo `AgentBackend` e `AgentRegistry`; D0.5D fechou em PASS completo após auditoria e gate humano, adicionando o primeiro `CodexAgentBackend` real com Planner read-only + `PlanV1`, e foi integrada à `main` pela PR #7 em 29/09/2026. D0.5E também fechou em PASS completo e foi integrada à `main` pela PR #8 em 29/09/2026, adicionando cancelamento remoto, recovery de lifecycle e eventos factuais. D0.5F passou auditoria independente e gate humano real e foi integrada à `main` pela PR #9 em 29/09/2026, encerrando a mini-trilha **LR-7D0.5 em PASS completo**. **LR-7D1 — Orchestrator/Planner configurável — fechou em PASS completo no gate humano de 30/09/2026.** A **LR-7D2 — fallback chain + Auto/score + affinity** fechou em PASS completo em 01/10/2026. A **LR-7D2.5 — provider redundancy + Gemini de-risking** foi encerrada em 01/10/2026. Cloudflare passou gates reais; Mistral ficou tecnicamente integrada, mas seu gate operacional foi bloqueado pela exigência de upgrade da conta Free. A substituição por OpenAI API paga ficou como dívida formal. A **LR-7D3 — task graph mínimo + subtarefas independentes** fechou em PASS completo em 03/10/2026. O gate real distribuiu duas unidades independentes entre Groq e Cloudflare, consolidou um único resultado e persistiu a provenance por subtarefa. A próxima etapa oficial é **LR-8 — Rate Limit Manager completo**. Consulte [LR-7D0.5 — Codex Agent Bridge](LR-7D05-CODEX-AGENT-BRIDGE.md).
 
 ## Princípio central
 
@@ -364,13 +364,13 @@ fechamento foi aprovado com essa limitação externa explicitamente registrada.
 Plano e evidências de fechamento:
 [LR-7D2.5 — provider redundancy + Gemini de-risking](LR-7D2.5-PROVIDER-REDUNDANCY.md).
 
-**Próxima etapa oficial: LR-7D3 — task graph mínimo + subtarefas independentes.**
+**LR-7D3 foi concluída em 03/10/2026. Próxima etapa oficial: LR-8 — Rate Limit Manager completo.**
 
 ---
 
 ## LR-7D3 — task graph mínimo + subtarefas independentes
 
-**Estado na branch de implementação:** candidata à validação técnica local; nenhum PASS registrado ainda. Detalhes: [LR-7D3 — Task graph mínimo](LR-7D3-TASK-GRAPH.md).
+**Estado:** PASS completo em 03/10/2026; a conclusão desta fase encerra a LR-7. Detalhes e evidências: [LR-7D3 — Task graph mínimo](LR-7D3-TASK-GRAPH.md).
 
 ### Objetivo
 
@@ -396,4 +396,6 @@ Uma tarefa real:
 4. consolida um único resultado;
 5. preserva identidade, sessão, estado e cancelamento.
 
-Após esse gate, **LR-7 pode ser declarada encerrada** e LR-8 assume o Rate Limit Manager completo. Gemini pode participar do gate, mas não é obrigatório.
+Gate concluído em 03/10/2026 com Groq + Cloudflare em trabalho útil, Task raiz `166` persistida como `completed`, duas subtarefas `completed` com provenance distinta e consolidação única pelo Core. O Worker foi validado operacionalmente com output global 8192; o seed 4096 permanece configurável e foi registrado como insuficiente para esse cenário GLM + retry. Cancelamento e preservação de sessão/identidade permaneceram verdes na suíte final.
+
+**LR-7 encerrada. LR-8 assume o Rate Limit Manager completo.**

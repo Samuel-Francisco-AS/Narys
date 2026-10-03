@@ -1,12 +1,80 @@
 # LR-7D3 — Task graph mínimo + subtarefas independentes
 
-Estado da branch: **CANDIDATA COM FIX-7 IMPLEMENTADA; validação local e novo gate humano pendentes**.
-Branch: `lr-7d3-task-graph`.
-Base: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
+Estado: **PASS completo em 03/10/2026; LR-7D3 e LR-7 encerradas.**
+Branch de implementação/fechamento: `lr-7d3-task-graph`.
+Base original: `main@b447836ab84224cada5cf2e689d7aab9cf1f45ab`.
 
-Este documento registra a implementação candidata. **Não é registro de PASS
-da LR-7D3/LR-7**: os gates locais estão registrados abaixo; a revisão independente
-da FIX e o novo gate humano com providers reais continuam pendentes.
+A implementação passou revisão independente, gates locais e gate humano real
+com dois Cognitive Providers independentes. O fechamento desta branch integra
+a LR-7D3 à `main` e libera oficialmente a LR-8 — Rate Limit Manager completo.
+
+## Fechamento — gate humano real de 03/10/2026
+
+A Task raiz `166` executou o objetivo controlado de duas análises cognitivas
+independentes sobre cache local. O Orchestrator estava `Fixed` em Groq
+`openai/gpt-oss-20b`, thinking `low`; o Worker estava `Preferred` com
+Groq seguido de Cloudflare `@cf/zai-org/glm-4.7-flash`, retry 1,
+`max_provider_calls=4` e output global configurado em **8192 tokens**.
+
+Evidência observada na execução real:
+
+- Planner Groq: 1 chamada, 171 tokens de output medidos;
+- `PlanV1` validado e compilado em TaskGraph pelo Luna Core;
+- exatamente duas subtarefas independentes liberadas na mesma onda;
+- `step-1 → groq` e `step-2 → cloudflare`;
+- ambos os Workers concluíram trabalho útil sem fallback cruzado;
+- Worker aggregate: 2 chamadas e 2414 tokens de output medidos;
+- Cloudflare terminou com `done=true`, `finish=stop`,
+  `usage_present=true`, `usage_valid=true`, `content_bytes=1942`;
+- o Core produziu uma única consolidação determinística;
+- a Task raiz terminou em `completed`.
+
+A persistência foi verificada diretamente no SQLite. `task_records` contém
+`task_id=166`, `kind=task_graph`, `state=completed`, iniciada em
+`2026-10-03T03:40:07.923Z` e concluída em `2026-10-03T03:40:54.726Z`.
+`task_subtask_records` contém:
+
+| Subtask | Provider | Estado | started_at | finished_at |
+|---|---|---|---|---|
+| `step-1` | `groq` | `completed` | `2026-10-03T03:40:15.423Z` | `2026-10-03T03:40:20.379Z` |
+| `step-2` | `cloudflare` | `completed` | `2026-10-03T03:40:15.423Z` | `2026-10-03T03:40:54.726Z` |
+
+O mesmo `started_at` das duas unidades confirma a onda paralela também na
+provenance persistida. O `finished_at` da raiz coincide com o término da última
+unidade.
+
+### Observação operacional de budget
+
+O seed da migration 011 permanece em `max_output_tokens=4096`; o gate real
+mostrou que esse valor pode ser insuficiente para o GLM-4.7-Flash quando o
+accounting conservador reserva output entre duas subtarefas e possíveis retries.
+Com 4096 globais, o Cloudflare chegou a `finish=length` com
+`content_bytes=0`; `reasoning_effort=low` sozinho não eliminou a condição.
+Ao configurar o Worker com **8192 tokens globais**, a mesma tarefa concluiu sem
+retry Cloudflare e com output útil medido.
+
+Esse resultado não transforma 8192 em constante universal. A policy continua
+configurável; calibração de budget, quota e accounting dinâmico pertence à LR-8.
+Para repetir especificamente o gate validado da D3 com este modelo e retry 1,
+usar 8192 como referência operacional.
+
+### Gates técnicos finais
+
+Após FIX-7, o teste focado do payload Cloudflare passou e a suíte completa Rust
+foi executada serialmente para evitar contenção conhecida do SecretStore:
+**309 passaram, 0 falharam, 2 foram ignorados/manual-only**. `cargo check`,
+`cargo check --release` e `git diff --check main...HEAD` passaram. Os três
+testes TaskGraph que haviam expirado sob execução paralela passaram isolados e
+na suíte serial; o comportamento foi classificado como flake de harness por
+contenção do SecretStore, não regressão funcional. Typecheck/build já estavam
+verdes antes das FIXes exclusivamente Rust/docs posteriores.
+
+Cancelamento raiz, propagação a Workers, terminal único, channel failure e
+preservação de sessão/identidade permanecem cobertos pela suíte automatizada
+final. O gate humano de fechamento comprovou especificamente planejamento real,
+paralelismo multi-provider, trabalho útil, consolidação e provenance persistida.
+
+**LR-7D3 = PASS completo. LR-7 = PASS completo. Próxima etapa: LR-8.**
 
 ## FIX-7 — reasoning mínimo explícito no GLM-4.7-Flash
 
@@ -32,11 +100,11 @@ capabilities, Worker envelope ou Conversation contract. O objetivo desta FIX
 
 Teste local de payload exige `reasoning_effort="low"` para
 `@cf/zai-org/glm-4.7-flash`, preserva streaming/usage e confirma ausência do
-campo para um target Cloudflare arbitrário. O gate humano continua obrigatório:
-se o GLM ainda encerrar em `length` sem conteúdo, a próxima investigação volta
-para budget/accounting com evidência de que reasoning mínimo não bastou.
+campo para um target Cloudflare arbitrário. Historicamente, o primeiro gate após
+esta FIX ainda encerrou em `length` sem conteúdo com Worker 4096; o fechamento
+posterior com Worker 8192 está registrado acima.
 
-**Nenhum PASS novo é declarado nesta FIX.**
+**Esta FIX isoladamente não declarou PASS; o PASS final veio do gate de fechamento.**
 
 ## FIX-6 — tolerância idempotente de terminal Cloudflare
 
@@ -203,7 +271,7 @@ outros papéis preservado. Isso não substitui a revisão independente nem o gat
 humano. O teto local interrompe a leitura; não comprova cancelamento de computação
 ou cobrança no serviço remoto.
 
-### Próximo gate humano (ainda não executado)
+### Gate humano planejado na FIX-5 (registro histórico)
 
 1. Revisar esta FIX e configurar Orchestrator Fixed Groq `openai/gpt-oss-20b`,
    thinking low, 4096 tokens, 2 calls, retry 1; manter timeouts 45000/15000 ms.
@@ -286,8 +354,11 @@ A migration 011 adiciona o papel cognitivo persistido `worker` e
 - Groq `openai/gpt-oss-20b`;
 - Cloudflare Workers AI `@cf/zai-org/glm-4.7-flash`;
 - `max_provider_calls=4`;
-- `max_output_tokens=4096`;
+- `max_output_tokens=4096` como seed histórico da migration 011;
 - retry 1, backoff 750 ms;
+
+O gate humano final foi validado com a policy Worker explicitamente ajustada
+para `max_output_tokens=8192`; consulte a observação operacional do fechamento.
 - `context_max_bytes=16384`.
 
 O Worker é configurável na mesma UI das demais policies. Ele não reutiliza nem
