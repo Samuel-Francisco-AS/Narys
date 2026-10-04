@@ -458,7 +458,7 @@ sequenciais, cada uma implementada pelo agente e auditada independentemente pela
 Luna antes da liberação da seguinte:
 
 1. **LR-8A — modelo de quota + telemetria factual — PASS e integrada à `main` pela PR #14 em 03/10/2026**;
-2. **LR-8B — admission control + fila + concurrency — PASS técnico + auditoria + gate humano em 03/10/2026**;
+2. **LR-8B — admission control + fila + concurrency — PASS técnico + auditoria + gate humano; integrada à `main` pela PR #15 em 03/10/2026**;
 3. **LR-8C — rate accounting + token buckets + budgets**;
 4. **LR-8D — backoff, jitter, cooldown + circuit breaker**;
 5. **LR-8E — painel operacional + integração/gate final**.
