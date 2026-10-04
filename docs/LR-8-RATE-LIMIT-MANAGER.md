@@ -1,8 +1,8 @@
 # LR-8 — Rate Limit Manager completo
 
-Estado: **EM EXECUÇÃO — LR-8A, LR-8B e LR-8C encerradas em PASS; LR-8D liberada.**
+Estado: **EM EXECUÇÃO — LR-8A, LR-8B, LR-8C e LR-8D encerradas em PASS; LR-8E liberada.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
-Subfase corrente: **LR-8D — backoff, jitter, cooldown + circuit breaker**.
+Subfase corrente: **LR-8E — painel operacional + integração/gate final**.
 
 ## Objetivo
 
@@ -2323,3 +2323,43 @@ de commit, divisão de output e a recusa entre admission e início instrumentado
 
 **IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
 **LR-8E bloqueada.**
+
+
+### Fechamento auditado da LR-8D
+
+**Resultado: PASS técnico + reauditoria independente da Luna em 04/10/2026.**
+Branch de implementação: `lr-8d-resilience-circuit-breaker`. Candidata final auditada em
+`c4c49bfd6942fcf4517ad52b91634724df9812bd`.
+
+A fase consolidou uma autoridade única `ResilienceManager` por provider e geração de
+credencial, com exponential backoff + equal jitter, cooldown monotônico, circuit
+breaker `Closed/Open/HalfOpen`, probes HalfOpen bounded e RAII, revalidação após
+fila e na fronteira HTTP, isolamento entre providers e snapshot read-only.
+
+A FIX pós-auditoria introduziu `PendingSchedulerAttempt`, tornando o accounting de
+TaskBudget provisório até o ponto único de commit. Recusas locais por resilience
+antes de HTTP não consomem `provider_calls`, retries, fallbacks ou
+`providers_used`; chamadas que realmente cruzam HTTP nunca perdem o débito.
+Cooldown derivado de `ProviderError` passou a exigir `started=true` e generation
+atual, impedindo preflight local de fabricar estado operacional remoto.
+
+Gates finais reportados pelo agente:
+- `resilience`: **77 aprovados**;
+- `rate_tests`: **69 aprovados**;
+- `admission_tests`: **18 aprovados**;
+- `task_graph_runtime_tests`: **13 aprovados**;
+- suíte global paralela: **518 aprovados, 0 falhas, 2 ignorados**;
+- suíte global serial: **518 aprovados, 0 falhas, 2 ignorados**;
+- typecheck/build/check debug/release e ambos `git diff --check`: PASS.
+
+Não existe workflow/status check remoto associado ao HEAD; os gates são execuções
+locais do agente combinadas com auditoria estática independente do código remoto.
+
+Limitações aceitas e não bloqueantes:
+- health/cooldown continuam provider-scoped, in-memory e não persistidos;
+- restart limpa health transitório sem apagar budgets/rate windows/uncertainty da 8C;
+- resultados normais de preflight legado podem manter accounting conservador do
+  Scheduler distinto do contador factual HTTP;
+- nenhum gate comercial/real foi forçado nesta subfase.
+
+O gate humano integrado permanece para a LR-8E, que está **liberada**.
