@@ -223,13 +223,15 @@ Manter uma sequência no mesmo modelo quando trocar de worker exigiria reenviar 
 Não implementar round-robin cego. O score deve considerar:
 
 - capacidade exigida;
-- compatibilidade com a subtarefa;
-- cota restante;
+- compatibilidade com a subtarefa e quality floor;
+- cota restante e escassez, quando factuais;
 - RPM/TPM/RPD e outros limites;
 - fila e concorrência;
 - latência recente;
-- custo;
-- necessidade de reenvio de contexto;
+- custo monetário conhecido;
+- custo de oportunidade de consumir uma quota escassa;
+- caminho de acesso e billing domain;
+- necessidade de reenvio de contexto e switching cost;
 - erros e cooldown recentes;
 - preferência configurada pelo usuário.
 
@@ -260,6 +262,36 @@ Requisitos:
 - telemetria de consumo.
 
 O objetivo é **prevenir 429**, não apenas reagir depois.
+
+### 7.1. Cognitive Resource Economy
+
+Rate limit e orçamento operacional não bastam para decidir qual recurso deve ser
+consumido. A arquitetura introduz uma camada de alocação econômica, planejada na
+**LR-8.5 — Cognitive Resource Economy & Allocation**.
+
+Ela distingue:
+
+- ProviderFamily de AccessPath;
+- free tier, allowance incluída, créditos estudantis, prepaid, metered e unknown;
+- Cognitive Provider de Specialist Agent;
+- disponibilidade de capacidade funcional;
+- custo monetário de custo de oportunidade;
+- quota abundante, escassa/reservada e esgotada quando esses estados puderem ser
+  derivados sem inventar precisão.
+
+Invariantes:
+
+- unknown não significa grátis, pago, zero ou ilimitado;
+- 429 transitório não autoriza escalada financeira;
+- gastar dinheiro exige policy explícita e budget;
+- recursos escassos podem ser preservados no modo Auto sem bloquear escolha Fixed;
+- handoff automático ocorre apenas em fronteiras seguras da tarefa;
+- Shared Cognitive State continua sendo a autoridade da continuidade.
+
+A camada não compra créditos, não altera planos e não hardcode preços comerciais.
+Ela consome fatos dos adapters/LR-8 e decide entre recursos elegíveis segundo policy.
+
+Detalhes: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md).
 
 ## 8. LLMs como workers e agentes especialistas
 

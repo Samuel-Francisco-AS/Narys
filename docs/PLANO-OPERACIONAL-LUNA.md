@@ -476,6 +476,40 @@ contenção real com dois Workers Groq + uma terceira operação ForegroundInter
 latência de ~1,5–1,8 s observada no SecretStore/preflight permanece uma dívida de
 performance separada do admission control.
 
+## 12.5. LR-8.5 — Cognitive Resource Economy & Allocation
+
+**Estado: PLANEJADA — executar após LR-8 = PASS e antes da LR-9.**
+
+A LR-8 fecha capacidade operacional de cada provider; a LR-8.5 passa a decidir
+qual recurso cognitivo vale consumir entre opções heterogêneas.
+
+O runtime deve distinguir:
+
+- Cognitive Providers, Specialist Agents e Local Cognitive Support;
+- família do provider de seu caminho de acesso;
+- free tier, franquia incluída, créditos estudantis, saldo pré-pago, cobrança
+  medida e estado econômico desconhecido;
+- rate limit transitório de allowance realmente esgotada;
+- quota disponível de capacidade funcionalmente adequada;
+- custo monetário de custo de oportunidade de uma quota escassa.
+
+Princípio: **UNKNOWN != FREE, UNKNOWN != PAID e UNKNOWN != ZERO COST.**
+Nenhum 429 isolado autoriza escalada para recurso pago, e nenhum adapter decide
+sozinho se vale gastar dinheiro.
+
+Decomposição:
+
+1. **LR-8.5A — Resource Domains & Access Paths**;
+2. **LR-8.5B — Allocation & Scarcity Policy**;
+3. **LR-8.5C — Safe Cross-Resource Handoff**.
+
+A fase deve provar com mocks/fixtures preservação de quota escassa, seleção de
+alternativas compatíveis, autorização explícita de gasto e handoff em checkpoint
+sem duplicar efeitos. A prova real Codex ↔ Copilot permanece para LR-10/LR-11;
+providers pagos reais ficam naturalmente para LR-12.
+
+Plano detalhado: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md).
+
 ## 13. LR-9 — Luna Voice e feedback natural
 
 Separar worker de apresentação.
