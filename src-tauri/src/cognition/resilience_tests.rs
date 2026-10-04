@@ -1708,6 +1708,15 @@ async fn resilience_local_preflight_timeout_and_authentication_cannot_change_hea
             retry_after_ms: None,
         },
         ProviderError::Authentication,
+        ProviderError::RateLimited {
+            retry_after_ms: None,
+        },
+        ProviderError::RateLimited {
+            retry_after_ms: Some(123),
+        },
+        ProviderError::Unavailable {
+            retry_after_ms: Some(123),
+        },
     ] {
         let (s, c, _, mut calls) =
             harness(config(), AdmissionConfig::default(), Some(error.clone()));
@@ -1730,6 +1739,8 @@ async fn resilience_local_preflight_timeout_and_authentication_cannot_change_hea
             assert_eq!(factual(&s, "a"), 0);
             let h = snap(&s.resilience, "a");
             assert_eq!(h.consecutive_eligible_failures, if probe { 3 } else { 0 });
+            assert_eq!(h.cooldown_remaining_ms, 0);
+            assert_eq!(h.half_open_probes_active, 0);
             assert_eq!(
                 h.circuit_state,
                 if probe {
@@ -1739,6 +1750,21 @@ async fn resilience_local_preflight_timeout_and_authentication_cannot_change_hea
                 }
             );
             assert!(calls.try_recv().is_err());
+            // No cooldown/health proof: the same target can attempt again.
+            assert_eq!(
+                s.run_with_retry(
+                    fixed(),
+                    budget(),
+                    no_retry(),
+                    &AtomicBool::new(false),
+                    &mut |_| Ok(())
+                )
+                .await
+                .unwrap_err(),
+                SchedulerError::Provider(error.clone())
+            );
+            assert_eq!(factual(&s, "a"), 0);
+            assert_eq!(snap(&s.resilience, "a").cooldown_remaining_ms, 0);
             clean(&s);
         }
     }
@@ -2115,6 +2141,7 @@ async fn resilience_post_http_core_budget_rejection_cannot_degrade_health() {
 
 struct BeforeHttp {
     entered: mpsc::UnboundedSender<oneshot::Sender<()>>,
+    transport: Option<Gate>,
 }
 impl Provider for BeforeHttp {
     fn execute<'a>(
@@ -2127,15 +2154,18 @@ impl Provider for BeforeHttp {
     }
     fn execute_observed<'a>(
         &'a self,
-        _: &'a ProviderRequest,
+        r: &'a ProviderRequest,
         c: &'a AtomicBool,
-        _: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+        on_chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
         o: &'a InvocationObservation<'_>,
     ) -> ProviderFuture<'a> {
         Box::pin(async move {
             let (tx, rx) = oneshot::channel();
             self.entered.send(tx).unwrap();
             rx.await.unwrap();
+            if let Some(transport) = &self.transport {
+                return transport.execute_observed(r, c, on_chunk, o).await;
+            }
             if !o.started_unless_cancelled(c) {
                 return Err(ProviderError::Cancelled);
             }
@@ -2156,7 +2186,10 @@ async fn resilience_http_boundary_rechecks_health_and_era_after_adapter_prefligh
                 enabled: true,
                 capabilities: ProviderCapabilities::text_stream(),
             },
-            Arc::new(BeforeHttp { entered: tx }),
+            Arc::new(BeforeHttp {
+                entered: tx,
+                transport: None,
+            }),
         )
         .unwrap();
         let s = Arc::new(
@@ -2171,11 +2204,15 @@ async fn resilience_http_boundary_rechecks_health_and_era_after_adapter_prefligh
             .unwrap(),
         );
         s.rate.set_policy("a", rpm(3)).unwrap();
-        let (run, _events) = start(
+        let (run, _events) = start_budget(
             s.clone(),
             request(&["a"], ProviderSelection::Fixed("a".into())),
             Arc::new(AtomicBool::new(false)),
             no_retry(),
+            TaskBudget {
+                max_provider_calls: 1,
+                max_output_tokens: None,
+            },
         );
         let proceed = bounded(rx.recv()).await.unwrap();
         match gate {
@@ -2556,6 +2593,13 @@ async fn resilience_real_groq_http_errors_open_only_after_factual_boundary() {
 }
 #[tokio::test]
 async fn resilience_preferred_gate_closed_while_queued_advances_in_authorized_order() {
+    queued_resilience_denial("open").await;
+}
+#[tokio::test]
+async fn resilience_preferred_cooldown_while_queued_preserves_one_call_budget() {
+    queued_resilience_denial("cooldown").await;
+}
+async fn queued_resilience_denial(gate: &str) {
     let (s, _, _, mut calls) = harness(
         config(),
         AdmissionConfig {
@@ -2564,6 +2608,8 @@ async fn resilience_preferred_gate_closed_while_queued_advances_in_authorized_or
         },
         None,
     );
+    s.rate.set_policy("a", rpm(3)).unwrap();
+    s.rate.set_policy("b", rpm(3)).unwrap();
     let hold = s
         .admission
         .acquire(
@@ -2574,22 +2620,77 @@ async fn resilience_preferred_gate_closed_while_queued_advances_in_authorized_or
         )
         .await
         .unwrap();
-    let (run, mut events) = start(
+    let (mut run, mut events) = start_budget(
         s.clone(),
         request(&["a", "b", "c"], ProviderSelection::Preferred),
         Arc::new(AtomicBool::new(false)),
         no_retry(),
+        TaskBudget {
+            max_provider_calls: 1,
+            max_output_tokens: None,
+        },
+    );
+    assert!(
+        matches!(event(&mut events, |e| matches!(e, SchedulerEvent::Selected { .. })).await,
+        SchedulerEvent::Selected { provider_id, attempt: 1, .. } if provider_id == "a")
     );
     event(&mut events, |e| matches!(e, SchedulerEvent::Queued { .. })).await;
-    open(&s.resilience, "a");
+    if gate == "open" {
+        open(&s.resilience, "a");
+    } else {
+        outcome(
+            &s.resilience,
+            "a",
+            Some(ProviderError::RateLimited {
+                retry_after_ms: Some(100),
+            }),
+        );
+    }
     drop(hold);
-    let call = bounded(calls.recv()).await.unwrap();
+    let call = bounded(async {
+        tokio::select! {
+            call = calls.recv() => call.unwrap(),
+            result = &mut run => panic!("authorized B must retain its budget: {result:?}"),
+        }
+    })
+    .await;
     assert_eq!(call.id, "b");
+    assert_eq!(call.attempt, 1);
     call.finish.send(Completion::success()).unwrap();
-    assert_eq!(bounded(run).await.unwrap().unwrap().provider_id, "b");
+    let result = bounded(run).await.unwrap().unwrap();
+    assert_eq!(result.provider_id, "b");
+    assert_eq!(result.usage.provider_calls, 1);
+    assert_eq!(result.usage.providers_used, ["b"]);
+    assert_eq!(result.usage.retries, 0);
+    assert_eq!(result.usage.fallbacks, 0);
     assert_eq!(factual(&s, "a"), 0);
     assert_eq!(factual(&s, "b"), 1);
     assert_eq!(factual(&s, "c"), 0);
+    let remaining: Vec<_> = std::iter::from_fn(|| events.try_recv().ok()).collect();
+    assert!(remaining.iter().any(|e| matches!(e,
+        SchedulerEvent::Selected { provider_id, attempt: 1, .. } if provider_id == "b")));
+    assert!(!remaining.iter().any(|e| matches!(
+        e,
+        SchedulerEvent::Retry { .. } | SchedulerEvent::Fallback { .. }
+    )));
+    assert_eq!(
+        s.rate_snapshot()
+            .iter()
+            .find(|r| r.provider_id == "a")
+            .unwrap()
+            .constraints[0]
+            .consumed,
+        0
+    );
+    assert_eq!(
+        s.rate_snapshot()
+            .iter()
+            .find(|r| r.provider_id == "b")
+            .unwrap()
+            .constraints[0]
+            .consumed,
+        1
+    );
     clean(&s);
 }
 #[tokio::test]
@@ -2631,4 +2732,228 @@ fn resilience_running_closed_success_after_recovery_resets_current_closed() {
     outcome(&m, "a", Some(ProviderError::Timeout));
     old.finish(true, None);
     assert_eq!(snap(&m, "a").consecutive_eligible_failures, 0);
+}
+
+#[tokio::test]
+async fn resilience_boundary_denial_preserves_preferred_one_call_budget() {
+    boundary_denial_accounting(false).await;
+}
+#[tokio::test]
+async fn resilience_retry_denied_at_http_boundary_does_not_commit_new_call() {
+    boundary_denial_accounting(true).await;
+}
+async fn boundary_denial_accounting(retry: bool) {
+    for gate in ["open", "cooldown"] {
+        let (entered, mut preflight) = mpsc::unbounded_channel();
+        let (tx, mut calls) = mpsc::unbounded_channel();
+        let mut registry = ProviderRegistry::default();
+        for id in ["a", "b"] {
+            let transport = Gate {
+                id: id.into(),
+                tx: tx.clone(),
+                preflight: None,
+            };
+            let provider: Arc<dyn Provider> = if id == "a" {
+                Arc::new(BeforeHttp {
+                    entered: entered.clone(),
+                    transport: Some(transport),
+                })
+            } else {
+                Arc::new(transport)
+            };
+            registry
+                .register(
+                    ProviderConfig {
+                        id: id.into(),
+                        enabled: true,
+                        priority: 1,
+                        capabilities: ProviderCapabilities::text_stream(),
+                    },
+                    provider,
+                )
+                .unwrap();
+        }
+        let clock = Arc::new(Clock::default());
+        let scheduler = Arc::new(
+            Scheduler::with_resilience_config(
+                registry,
+                AdmissionConfig::default(),
+                clock.clone(),
+                None,
+                config(),
+                Jitter::new(false),
+            )
+            .unwrap(),
+        );
+        scheduler.rate.set_policy("a", rpm(3)).unwrap();
+        scheduler.rate.set_policy("b", rpm(3)).unwrap();
+        let (mut run, mut events) = start_budget(
+            scheduler.clone(),
+            request(&["a", "b"], ProviderSelection::Preferred),
+            Arc::new(AtomicBool::new(false)),
+            if retry { policy(10) } else { no_retry() },
+            TaskBudget {
+                max_provider_calls: if retry { 2 } else { 1 },
+                max_output_tokens: None,
+            },
+        );
+        if retry {
+            bounded(preflight.recv()).await.unwrap().send(()).unwrap();
+            let first = bounded(calls.recv()).await.unwrap();
+            assert_eq!((first.id.as_str(), first.attempt), ("a", 1));
+            first
+                .finish
+                .send(Completion::error(ProviderError::Timeout))
+                .unwrap();
+            event(&mut events, |e| matches!(e, SchedulerEvent::Retry { .. })).await;
+            bounded(clock.waiting.notified()).await;
+            clock.advance(5);
+        }
+        let proceed = bounded(preflight.recv()).await.unwrap();
+        assert!(
+            matches!(event(&mut events, |e| matches!(e, SchedulerEvent::Selected { .. })).await,
+            SchedulerEvent::Selected { provider_id, attempt, .. }
+                if provider_id == "a" && attempt == if retry { 2 } else { 1 })
+        );
+        if gate == "open" {
+            while snap(&scheduler.resilience, "a").circuit_state == CircuitState::Closed {
+                outcome(&scheduler.resilience, "a", Some(ProviderError::Timeout));
+            }
+        } else {
+            outcome(
+                &scheduler.resilience,
+                "a",
+                Some(ProviderError::RateLimited {
+                    retry_after_ms: Some(100),
+                }),
+            );
+        }
+        proceed.send(()).unwrap();
+        let destination = bounded(async {
+            tokio::select! {
+                call = calls.recv() => call.unwrap(),
+                result = &mut run => panic!("resilience denial must not spend B's call: {result:?}"),
+            }
+        }).await;
+        assert_eq!((destination.id.as_str(), destination.attempt), ("b", 1));
+        destination.finish.send(Completion::success()).unwrap();
+        let result = bounded(run).await.unwrap().unwrap();
+        assert_eq!(result.usage.provider_calls, if retry { 2 } else { 1 });
+        assert_eq!(result.usage.retries, 0);
+        assert_eq!(result.usage.fallbacks, u32::from(retry));
+        assert_eq!(
+            result.usage.providers_used,
+            if retry { vec!["a", "b"] } else { vec!["b"] }
+        );
+        assert_eq!(factual(&scheduler, "a"), u64::from(retry));
+        assert_eq!(factual(&scheduler, "b"), 1);
+        for (id, consumed) in [("a", u64::from(retry)), ("b", 1)] {
+            assert_eq!(
+                scheduler
+                    .rate_snapshot()
+                    .iter()
+                    .find(|r| r.provider_id == id)
+                    .unwrap()
+                    .constraints[0]
+                    .consumed,
+                consumed
+            );
+        }
+        let rest: Vec<_> = std::iter::from_fn(|| events.try_recv().ok()).collect();
+        assert!(!rest
+            .iter()
+            .any(|e| matches!(e, SchedulerEvent::Retry { .. })));
+        assert_eq!(
+            rest.iter()
+                .filter(|e| matches!(e, SchedulerEvent::Fallback { .. }))
+                .count(),
+            usize::from(retry)
+        );
+        assert!(calls.try_recv().is_err());
+        clean(&scheduler);
+    }
+}
+
+#[tokio::test]
+async fn resilience_factual_cooldown_hints_keep_closed_semantics() {
+    factual_cooldown_hints(false).await;
+}
+#[tokio::test]
+async fn resilience_factual_cooldown_hints_keep_probe_semantics() {
+    factual_cooldown_hints(true).await;
+}
+async fn factual_cooldown_hints(probe: bool) {
+    for (error, cooldown, health_failure) in [
+        (
+            ProviderError::RateLimited {
+                retry_after_ms: None,
+            },
+            3000,
+            false,
+        ),
+        (
+            ProviderError::RateLimited {
+                retry_after_ms: Some(123),
+            },
+            123,
+            false,
+        ),
+        (
+            ProviderError::Unavailable {
+                retry_after_ms: Some(123),
+            },
+            123,
+            true,
+        ),
+    ] {
+        let (s, clock, jitter, mut calls) = default_harness();
+        if probe {
+            probe_ready(&s, &clock);
+        }
+        let (run, _events) = start_budget(
+            s.clone(),
+            fixed(),
+            Arc::new(AtomicBool::new(false)),
+            policy(10),
+            TaskBudget {
+                max_provider_calls: 1,
+                max_output_tokens: None,
+            },
+        );
+        bounded(calls.recv())
+            .await
+            .unwrap()
+            .finish
+            .send(Completion::error(error.clone()))
+            .unwrap();
+        assert_eq!(
+            bounded(run).await.unwrap().unwrap_err(),
+            SchedulerError::Provider(error)
+        );
+        assert_eq!(factual(&s, "a"), 1);
+        let health = snap(&s.resilience, "a");
+        assert_eq!(health.cooldown_remaining_ms, cooldown);
+        assert_eq!(health.half_open_probes_active, 0);
+        assert_eq!(
+            health.consecutive_eligible_failures,
+            if probe { 3 } else { 0 } + u64::from(health_failure)
+        );
+        assert_eq!(
+            health.circuit_state,
+            if probe {
+                if health_failure {
+                    CircuitState::Open
+                } else {
+                    CircuitState::HalfOpen
+                }
+            } else {
+                CircuitState::Closed
+            }
+        );
+        assert_eq!(jitter.calls.load(Ordering::SeqCst), 0);
+        assert!(!s.resilience.eligible("a"));
+        clock.advance(cooldown);
+        assert!(s.resilience.authorize("a", 0).is_some());
+        clean(&s);
+    }
 }

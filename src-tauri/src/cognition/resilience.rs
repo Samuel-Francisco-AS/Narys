@@ -415,7 +415,7 @@ impl ResiliencePermit {
         let h = &self.handle;
         let mut states = h.manager.states.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(s) = states.get_mut(&h.id) {
-            if s.generation == h.generation {
+            if started && s.generation == h.generation {
                 let now = h.manager.clock.now().monotonic_ms;
                 // Operational errors remain distinct from factual retryHint.
                 let cooldown = match error {
@@ -439,9 +439,8 @@ impl ResiliencePermit {
                 // A running Closed call can complete after a recovery: its
                 // factual outcome then belongs to Closed. It cannot substitute
                 // for a HalfOpen probe or recover Open. Probes retain epoch scope.
-                if started
-                    && (Arc::ptr_eq(&s.epoch, &h.epoch)
-                        || (!h.probe && s.circuit == CircuitState::Closed))
+                if Arc::ptr_eq(&s.epoch, &h.epoch)
+                    || (!h.probe && s.circuit == CircuitState::Closed)
                 {
                     let failure = match error {
                         Some(ProviderError::Timeout) => Some(false),

@@ -62,7 +62,7 @@ fn scheduler(providers: &[(&str, u16, Arc<Synthetic>)]) -> Scheduler {
                     enabled: true,
                     capabilities: ProviderCapabilities::text_stream(),
                 },
-                provider.clone(),
+                simulated_transport(provider.clone()),
             )
             .unwrap();
     }

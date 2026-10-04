@@ -51,6 +51,30 @@ pub enum SchedulerEvent {
         reason_code: &'static str,
     },
 }
+
+/// Selected/request attempt numbers are provisional until transport denial is
+/// ruled out. Consuming this value commits bookkeeping exactly once; dropping
+/// it changes no ledger. Other provider preflight outcomes retain the existing
+/// conservative call-budget semantics, distinct from LR-8A factual requests.
+struct PendingSchedulerAttempt {
+    number: u32,
+    fallback: bool,
+}
+impl PendingSchedulerAttempt {
+    fn commit(self, attempt: &mut u32, usage: &mut SchedulerUsage, provider_id: &str) {
+        *attempt = self.number;
+        usage.provider_calls += 1;
+        if self.number > 1 {
+            usage.retries += 1;
+        }
+        if self.fallback {
+            usage.fallbacks += 1;
+        }
+        if !usage.providers_used.iter().any(|id| id == provider_id) {
+            usage.providers_used.push(provider_id.to_owned());
+        }
+    }
+}
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderStatus {
@@ -477,7 +501,12 @@ impl Scheduler {
                 {
                     return Err(SchedulerError::BudgetExceeded);
                 }
-                if attempt == 0 {
+                let pending = PendingSchedulerAttempt {
+                    // The budget check guarantees room for one more u32 call.
+                    number: attempt + 1,
+                    fallback: attempt == 0 && last_provider.is_some() && last_error.is_some(),
+                };
+                if pending.fallback {
                     if let (Some(from), Some(error)) = (&last_provider, &last_error) {
                         on_event(SchedulerEvent::Fallback {
                             from: from.clone(),
@@ -488,21 +517,12 @@ impl Scheduler {
                             cancelled.store(true, Ordering::Release);
                             SchedulerError::EventSinkClosed
                         })?;
-                        usage.fallbacks += 1;
                     }
-                }
-                attempt += 1;
-                usage.provider_calls += 1;
-                if attempt > 1 {
-                    usage.retries += 1;
-                }
-                if !usage.providers_used.contains(&entry.config.id) {
-                    usage.providers_used.push(entry.config.id.clone());
                 }
                 on_event(SchedulerEvent::Selected {
                     provider_id: entry.config.id.clone(),
                     model: target.invocation.model.clone(),
-                    attempt,
+                    attempt: pending.number,
                     routing_reason: match request.selection {
                         ProviderSelection::Fixed(_) => "fixed",
                         ProviderSelection::Preferred => "preferred_order",
@@ -525,7 +545,7 @@ impl Scheduler {
                 // across this attempt and every call still available afterward.
                 let attempts_remaining = budget
                     .max_provider_calls
-                    .saturating_sub(usage.provider_calls.saturating_sub(1))
+                    .saturating_sub(usage.provider_calls)
                     .max(1);
                 let attempt_output_limit = if conservative_output {
                     remaining_output.map(|remaining| {
@@ -543,7 +563,7 @@ impl Scheduler {
                     context: request.context.clone(),
                     max_output_tokens: attempt_output_limit,
                     target: (*target).clone(),
-                    attempt,
+                    attempt: pending.number,
                 };
                 let reservation = self.rate.reserve(
                     &entry.config.id,
@@ -639,10 +659,21 @@ impl Scheduler {
                 // RAII covers queue errors, sink failure, cancellation and aborted futures.
                 // Reconcile before any response processing/backoff/fallback.
                 drop(reservation);
-                if let Some(error) = observation.rate_error() {
-                    if error == SchedulerError::NoProvider {
-                        break;
+                let boundary_error = observation.rate_error();
+                if !observation.was_started() {
+                    if let Some(error) = &boundary_error {
+                        // No debit ever occurred: queue/HTTP resilience denial
+                        // can advance, while context changes remain terminal.
+                        if *error == SchedulerError::NoProvider {
+                            break;
+                        }
+                        return Err(error.clone());
                     }
+                }
+                // A factual call is never rolled back, even if a later local
+                // error is reported. Preserve legacy provider-preflight debits.
+                pending.commit(&mut attempt, &mut usage, &entry.config.id);
+                if let Some(error) = boundary_error {
                     return Err(error);
                 }
                 if matches!(result, Err(ProviderError::EventSinkClosed)) {
