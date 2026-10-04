@@ -42,7 +42,7 @@ Adapters traduzem essa política para a API específica. Eles não devem inventa
 
 Uma seleção explícita do usuário tem precedência sobre a heurística do Scheduler. O Scheduler pode advertir e aplicar apenas guardrails de segurança/integridade e limites reais da integração. Se o usuário fixar, por exemplo, um agente Codex compatível como papel `conversation`, o runtime deve respeitar essa escolha enquanto a integração sustentar esse modo.
 
-**Decisão LR-7D (28/09/2026; ampliada em 30/09/2026):** não existe uma “LLM principal da Luna”. O Luna Core é a autoridade do sistema; Gemini, Groq e futuros providers ocupam papéis cognitivos substituíveis. LR-7D0 remove hardcodes comerciais das policies de Conversation/Summary e torna primary/fallback configuráveis por provider registrado. LR-7D1 adiciona um papel cognitivo real `orchestrator`/Planner, também configurável, sem transferir ao modelo autoridade sobre permissões ou execução. LR-7D2 fechou em PASS completo em 01/10/2026 com fallback chain + Auto/score + affinity, preflight responsivo e validação batch de credenciais. **LR-7D2.5 foi encerrada em 01/10/2026** com Cloudflare validada em Conversation e Orchestrator/PlanV1, Summary automático opcional e Mistral tecnicamente integrada porém bloqueada operacionalmente pela exigência de upgrade da conta Free. A substituição operacional por OpenAI API paga ficou registrada como dívida para quando houver orçamento. Gemini permanece suportado, mas não é gate nem dependência funcional obrigatória. **LR-7D3 fechou em PASS completo em 03/10/2026 e encerrou a LR-7** com task graph real distribuído entre Groq e Cloudflare. LR-8 está em execução; LR-8A e LR-8B fecharam em PASS e a próxima subfase é LR-8C — rate accounting + token buckets + budgets. Consulte [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
+**Decisão LR-7D (28/09/2026; ampliada em 30/09/2026):** não existe uma “LLM principal da Luna”. O Luna Core é a autoridade do sistema; Gemini, Groq e futuros providers ocupam papéis cognitivos substituíveis. LR-7D0 remove hardcodes comerciais das policies de Conversation/Summary e torna primary/fallback configuráveis por provider registrado. LR-7D1 adiciona um papel cognitivo real `orchestrator`/Planner, também configurável, sem transferir ao modelo autoridade sobre permissões ou execução. LR-7D2 fechou em PASS completo em 01/10/2026 com fallback chain + Auto/score + affinity, preflight responsivo e validação batch de credenciais. **LR-7D2.5 foi encerrada em 01/10/2026** com Cloudflare validada em Conversation e Orchestrator/PlanV1, Summary automático opcional e Mistral tecnicamente integrada porém bloqueada operacionalmente pela exigência de upgrade da conta Free. A substituição operacional por OpenAI API paga ficou registrada como dívida para quando houver orçamento. Gemini permanece suportado, mas não é gate nem dependência funcional obrigatória. **LR-7D3 fechou em PASS completo em 03/10/2026 e encerrou a LR-7** com task graph real distribuído entre Groq e Cloudflare. LR-8 está em execução; LR-8A, LR-8B, LR-8C e LR-8D fecharam em PASS e a próxima subfase é LR-8E — painel operacional + integração/gate final. Após LR-8 = PASS, a LR-8.5 cria a economia de recursos cognitivos antes da LR-9. Consulte [LR-7D-COGNITIVE-ROLES-ROUTING.md](LR-7D-COGNITIVE-ROLES-ROUTING.md).
 
 ### LR-7D3 fechada — 03/10/2026 (histórico da FIX-5 abaixo)
 
@@ -147,6 +147,42 @@ O target arquitetural é o AI-Native Runtime oferecer essas capacidades como **c
 Experimentos provisórios dentro do Luna Core devem ficar atrás de um adapter semântico para permitir migração posterior ao Runtime.
 
 Modelos candidatos e política completa: [LOCAL-COGNITIVE-SUPPORT-LUNA.md](LOCAL-COGNITIVE-SUPPORT-LUNA.md).
+
+## 2.1. Visão econômica ortogonal — LR-8.5
+
+Provider/AgentBackend descreve **como** uma capacidade executa trabalho. A LR-8.5
+adiciona uma visão ortogonal para decidir **qual recurso vale consumir agora**.
+
+O runtime deve poder representar separadamente:
+
+~~~text
+ProviderFamily
+AccessPath
+BillingDomain
+Quota / Reset
+MonetaryCost
+Scarcity / ReservePolicy
+Capabilities / QualityFloor
+Affinity / SwitchingCost
+~~~
+
+Isso evita tratar como equivalentes, por exemplo, uma franquia de Codex vinculada
+ao ChatGPT, créditos de Copilot, um free tier de provider e uma API pré-paga.
+Também evita o erro inverso: assumir que recursos economicamente distintos não
+podem substituir uma tarefa quando suas capabilities e quality floor forem
+compatíveis.
+
+Regras centrais:
+
+- quota incluída/estudantil possui custo de oportunidade;
+- unknown não significa free, paid, zero ou unlimited;
+- 429 não implica allowance esgotada;
+- allowance esgotada não implica autorização para gastar;
+- antes de paid escalation, procurar alternativas compatíveis autorizadas;
+- handoff automático exige checkpoint seguro e preservação do Shared Cognitive State;
+- adapters reportam fatos; Luna Core decide policy.
+
+Plano: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md).
 
 ## 3. Candidatos de baixo custo / gratuitos
 
