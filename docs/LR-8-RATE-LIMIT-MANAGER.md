@@ -1,8 +1,8 @@
 # LR-8 — Rate Limit Manager completo
 
-Estado: **EM EXECUÇÃO — LR-8A encerrada; LR-8B IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna; LR-8C bloqueada.**
+Estado: **EM EXECUÇÃO — LR-8A e LR-8B encerradas em PASS; LR-8C liberada.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
-Próxima subfase: **LR-8B — admission control + fila + concurrency**.
+Próxima subfase: **LR-8C — rate accounting + token buckets + budgets**.
 
 ## Objetivo
 
@@ -506,14 +506,15 @@ fila para o provider.
 
 ---
 
-## LR-8B — implementação candidata
+## LR-8B — implementação e fechamento (03/10/2026)
 
-**IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna**
+**PASS técnico + auditoria independente + gate humano real em 03/10/2026.**
 
-**LR-8C bloqueada.** Base obrigatória:
+Base obrigatória:
 `main@78b966db5a4f76ff0a41c5fc346cf056d6a3ccf5`, com LR-8A integrada pela PR #14.
-Branch: `lr-8b-admission-control`. Nenhum fechamento técnico/auditado da 8B é
-presumido pelos resultados dos testes abaixo.
+Branch de implementação: `lr-8b-admission-control`. Candidata auditada em
+`69577a2dd55f8e828b7aa4b4ccd227af1bded583`. **LR-8C está liberada após a
+integração desta subfase.**
 
 ### Ownership e configuração local
 
@@ -700,6 +701,30 @@ Fixtures HTTP/SecretStore existentes acima de 60 s concluíram com sucesso.
 O gate frontend inicialmente detectou o switch TypeScript que ainda não tinha
 os dois eventos aditivos; o consumidor foi completado antes dos gates finais.
 
+### Gate humano real da LR-8B
+
+O gate operacional foi executado com **Groq real** usando Orchestrator e Workers
+em `Fixed(groq)` e TaskGraph com duas subtarefas independentes simultâneas. Os dois
+Workers ocuparam os dois slots locais do provider. Uma terceira operação
+`ForegroundInteractive` pelo **Diagnóstico Groq** foi disparada durante a execução
+e permaneceu aguardando enquanto os Workers estavam ativos; o resultado só apareceu
+após a liberação dos slots, sem fallback para outro provider.
+
+Também foi validado o cancelamento real de Conversation durante contenção:
+`cancel_task` foi aceito pelo runtime, a UI encerrou a resposta como cancelada e
+os Workers do TaskGraph continuaram até seus terminais sem serem interrompidos.
+Execuções seguintes continuaram funcionais, sem evidência de permit preso.
+
+A diferença visual entre conclusão dos dois Workers foi mínima, o que é compatível
+com execução paralela real sob `max_concurrency_per_provider = 2`; o gate não usa
+essa diferença temporal como prova de fairness.
+
+Os logs mostraram operações de SecretStore em torno de 1,5–1,8 s e waits maiores
+em algumas chamadas. Essa latência pertence ao SecretStore/preflight e não é
+interpretada como queue delay do AdmissionController.
+
+**Resultado do gate humano: PASS.**
+
 ### Autoauditoria e limitações
 
 Revisão direcionada de locks/await, callbacks sob lock, Drop/Notify/lost wake,
@@ -724,7 +749,7 @@ intacta e pertence à LR-8C antes de quota governar admission. RPM/TPM/RPD/TPD,
 buckets/reservations/janelas/budgets diários/persistência ficam para 8C;
 jitter/circuit breaker/health e unificação cooldown para 8D; painel/gate final
 para 8E. Capacity-aware routing e configuração externa permanecem adiados.
-**LR-8C bloqueada.**
+**LR-8C liberada após fechamento/integração da 8B.**
 
 ---
 
