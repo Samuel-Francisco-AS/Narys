@@ -14,6 +14,8 @@ export function taskEventToAnimationIntent(event: TaskEvent): AnimationIntent | 
       return { type: 'greeting' }
     case 'step_completed':
     case 'context_built':
+    case 'provider_queued':
+    case 'provider_admitted':
     case 'provider_selected':
     case 'provider_chunk':
     case 'provider_retry':

@@ -136,6 +136,7 @@ fn scheduler(actions: &[(&str, Vec<Action>)]) -> Scheduler {
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt-marker".into(),
         internal_system_instruction: Some("private-reasoning-marker".into()),

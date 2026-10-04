@@ -67,6 +67,7 @@ pub async fn update_general_settings(
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiSettings {
+    admission: Vec<super::admission::AdmissionSnapshot>,
     telemetry: Vec<super::telemetry::ProviderTelemetrySnapshot>,
     providers: Vec<catalog::ProviderInfo>,
     roles: Vec<CognitiveRolePolicy>,
@@ -84,6 +85,7 @@ pub async fn get_ai_settings(
     let store = store.inner().clone();
     let statuses = runtime.scheduler.status();
     let telemetry = runtime.scheduler.telemetry_snapshot();
+    let admission = runtime.scheduler.admission_snapshot();
     tauri::async_runtime::spawn_blocking(move || {
         let conn = db.open().map_err(|e| e.code())?;
         let roles = vec![
@@ -104,6 +106,7 @@ pub async fn get_ai_settings(
         }
         let infos = catalog::infos(&statuses, &store);
         Ok::<_, &'static str>(AiSettings {
+            admission,
             telemetry,
             providers: infos.providers,
             roles,

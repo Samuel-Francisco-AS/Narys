@@ -1,3 +1,6 @@
+pub mod admission;
+#[cfg(test)]
+mod admission_tests;
 mod bounded_json;
 #[cfg(test)]
 mod fix5_tests;

@@ -297,6 +297,7 @@ fn chat_budget_and_request(
         },
     );
     let request = ProviderTaskRequest {
+        traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
         mode: crate::cognition::types::InvocationMode::default(),
         input: message,
         internal_system_instruction: None,
@@ -490,6 +491,24 @@ pub fn start_conversation(
                     &cancelled,
                     &mut |event| {
                         let kind = match event {
+                            SchedulerEvent::Queued {
+                                provider_id,
+                                traffic_class,
+                                queue_depth,
+                            } => TaskEventKind::ProviderQueued {
+                                provider_id,
+                                traffic_class,
+                                queue_depth,
+                            },
+                            SchedulerEvent::Admitted {
+                                provider_id,
+                                traffic_class,
+                                queue_delay_ms,
+                            } => TaskEventKind::ProviderAdmitted {
+                                provider_id,
+                                traffic_class,
+                                queue_delay_ms,
+                            },
                             SchedulerEvent::Selected {
                                 provider_id,
                                 model,
@@ -852,6 +871,7 @@ pub fn start_cognition(
                     }
                 };
                 let request = ProviderTaskRequest {
+                    traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
                     mode: crate::cognition::types::InvocationMode::default(),
                     input: "Execute o diagnóstico cognitivo LR-5.".into(),
                     internal_system_instruction: None,
@@ -881,6 +901,24 @@ pub fn start_cognition(
                         .scheduler(scenario)
                         .run(request, budget, &cancelled, &mut |event| {
                             let kind = match event {
+                                SchedulerEvent::Queued {
+                                    provider_id,
+                                    traffic_class,
+                                    queue_depth,
+                                } => TaskEventKind::ProviderQueued {
+                                    provider_id,
+                                    traffic_class,
+                                    queue_depth,
+                                },
+                                SchedulerEvent::Admitted {
+                                    provider_id,
+                                    traffic_class,
+                                    queue_delay_ms,
+                                } => TaskEventKind::ProviderAdmitted {
+                                    provider_id,
+                                    traffic_class,
+                                    queue_delay_ms,
+                                },
                                 SchedulerEvent::Selected {
                                     provider_id,
                                     model,

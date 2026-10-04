@@ -1,3 +1,4 @@
+import type { TrafficClass } from '../settings/providerAdmission'
 export type TaskId = number
 export type TaskState = 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'
 export type TaskStep = 'prepare' | 'verify'
@@ -30,6 +31,8 @@ export type TaskEvent = TaskEventBase & (
   | { type: 'task_cancelled' }
   | { type: 'task_failed'; detail: string }
   | { type: 'context_built'; memory_count: number; recent_message_count: number }
+  | { type: 'provider_queued'; provider_id: string; traffic_class: TrafficClass; queue_depth: number }
+  | { type: 'provider_admitted'; provider_id: string; traffic_class: TrafficClass; queue_delay_ms: number }
   | { type: 'provider_selected'; provider_id: string; model: string; attempt: number; routing_reason: 'fixed' | 'preferred_order' | 'auto_score' | 'auto_affinity'; score: number | null }
   | { type: 'provider_chunk'; provider_id: string; chunk: string }
   | { type: 'provider_retry'; provider_id: string; reason_code: string }
