@@ -406,7 +406,7 @@ impl Provider for GeminiProvider {
                   if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
                   // Client rejects unsupported URL schemes before any HTTP invocation.
                   if matches!(send.url().scheme(), "http" | "https") && send.url().host_str().is_some() {
-                      observation.started();
+                      if !observation.started_unless_cancelled(cancelled) { return Err(ProviderError::Cancelled); }
                   }
                   self.client.execute(send).await.map_err(|e| network_error(&e))
               } => result?,
@@ -433,7 +433,7 @@ impl Provider for GeminiProvider {
                         }
                         StreamEvent::Completed(result, factual_usage) => {
                             if let Some(value) = factual_usage {
-                                observation.usage(value);
+                                observation.final_usage(value);
                             }
                             let value = result?;
                             usage = Some(value);

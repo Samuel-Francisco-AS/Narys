@@ -314,6 +314,12 @@ pub struct TaskResult {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SchedulerError {
+    RateCapacityExceeded,
+    DailyBudgetExceeded,
+    RateContextChanged,
+    RateStateUnavailable,
+    InvalidRatePolicy,
+    RatePolicyBusy,
     AdmissionQueueFull,
     AdmissionTimeout,
     BudgetExceeded,
@@ -326,6 +332,12 @@ pub enum SchedulerError {
 impl SchedulerError {
     pub fn code(&self) -> &'static str {
         match self {
+            Self::RateCapacityExceeded => "rate_capacity_exceeded",
+            Self::DailyBudgetExceeded => "daily_budget_exceeded",
+            Self::RateContextChanged => "rate_context_changed",
+            Self::RateStateUnavailable => "rate_state_unavailable",
+            Self::InvalidRatePolicy => "rate_policy_invalid",
+            Self::RatePolicyBusy => "rate_policy_busy",
             Self::AdmissionQueueFull => "admission_queue_full",
             Self::AdmissionTimeout => "admission_timeout",
             Self::BudgetExceeded => "budget_exceeded",

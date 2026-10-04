@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-provider-rate-policy"
+description = "Enables the update_provider_rate_policy command without any pre-configured scope."
+commands.allow = ["update_provider_rate_policy"]
+
+[[permission]]
+identifier = "deny-update-provider-rate-policy"
+description = "Denies the update_provider_rate_policy command without any pre-configured scope."
+commands.deny = ["update_provider_rate_policy"]

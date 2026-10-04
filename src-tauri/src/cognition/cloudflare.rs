@@ -297,7 +297,7 @@ impl Provider for CloudflareProvider {
                   if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
                   // Client rejects unsupported URL schemes before any HTTP invocation.
                   if matches!(send.url().scheme(), "http" | "https") && send.url().host_str().is_some() {
-                      observation.started();
+                      if !observation.started_unless_cancelled(cancelled) { return Err(ProviderError::Cancelled); }
                   }
                   self.client.execute(send).await.map_err(|error| diagnosed_network_error(&error, "cloudflare", request, timeouts, connect_ms, started))
               } => result?,
@@ -406,6 +406,7 @@ impl Provider for CloudflareProvider {
                 diagnostic(&request.target.invocation.model, "terminal", done, finish_label(finish_reason.as_ref()), usage.is_some(), usage.is_some(), text.len(), "missing_done");
                 return Err(ProviderError::Protocol);
             }
+            if let Some(value) = usage { observation.final_usage(value); }
             match finish_reason.as_ref() {
                 Some(FinishReason::Stop) if !text.trim().is_empty() => {}
                 Some(FinishReason::Length) => {

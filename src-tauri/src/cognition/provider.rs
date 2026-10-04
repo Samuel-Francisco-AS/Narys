@@ -8,6 +8,14 @@ use std::{future::Future, pin::Pin, sync::atomic::AtomicBool};
 pub type ProviderFuture<'a> =
     Pin<Box<dyn Future<Output = Result<ProviderResponse, ProviderError>> + Send + 'a>>;
 pub trait Provider: Send + Sync {
+    /// Optional proof for this exact target/payload. Includes all billed tokens,
+    /// including hidden output. Current production adapters have no such proof.
+    fn token_upper_bound(
+        &self,
+        _request: &ProviderRequest,
+    ) -> Option<super::rate::TokenUpperBound> {
+        None
+    }
     /// Adapter-owned compatibility check, executed by the Scheduler before selection.
     /// The conservative default advertises only the existing text streaming path.
     fn supports_invocation(

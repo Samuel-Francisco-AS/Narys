@@ -502,7 +502,7 @@ fn telemetry_concurrent_snapshots_are_consistent_and_monotonic() {
     );
 }
 #[test]
-fn telemetry_quotas_and_outcomes_do_not_affect_fixed_preferred_auto_or_affinity() {
+fn telemetry_quotas_do_not_change_ranking_but_lr8c_enforces_selected_capacity() {
     for mode in [
         ProviderSelection::Auto,
         ProviderSelection::Preferred,
@@ -527,7 +527,7 @@ fn telemetry_quotas_and_outcomes_do_not_affect_fixed_preferred_auto_or_affinity(
                 Some(0),
                 Some(0),
                 None,
-                Provenance::UserConfiguration,
+                Provenance::ProviderHeader,
             );
         }
         let a = s.telemetry.attempt("a");
@@ -538,7 +538,7 @@ fn telemetry_quotas_and_outcomes_do_not_affect_fixed_preferred_auto_or_affinity(
                 .unwrap(),
             before
         );
-        assert_eq!(run(&s, &["a", "b"], mode).unwrap().provider_id, "a");
+        assert_eq!(run(&s, &["a", "b"], mode).unwrap_err(), SchedulerError::RateCapacityExceeded);
     }
 }
 #[test]
@@ -1240,10 +1240,51 @@ fn lr8a_fix_factual_retry_after_is_independent_of_operational_clamp() {
     assert_eq!(super::transport::retry_after_ms(&headers), None);
 }
 
+fn groq_fixture_request(reader: &mut impl std::io::Read) -> Vec<u8> {
+    let mut request = Vec::new();
+    let mut buffer = [0; 1024];
+    loop {
+        let read = reader.read(&mut buffer).unwrap();
+        assert!(read > 0);
+        request.extend_from_slice(&buffer[..read]);
+        if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+            let header = std::str::from_utf8(&request[..end]).unwrap();
+            let length = header.lines().find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().unwrap())
+            }).unwrap_or(0);
+            if request.len() >= (end + 4).checked_add(length).unwrap() {
+                break;
+            }
+        }
+    }
+    request
+}
+
+#[test]
+fn lr8c_groq_http_fixture_consumes_body_split_after_headers_before_closing() {
+    use std::{collections::VecDeque, io::Read};
+    struct Segmented(VecDeque<Vec<u8>>);
+    impl Read for Segmented {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            let Some(bytes) = self.0.pop_front() else { return Ok(0); };
+            assert!(bytes.len() <= buffer.len());
+            buffer[..bytes.len()].copy_from_slice(&bytes);
+            Ok(bytes.len())
+        }
+    }
+    let header = b"POST / HTTP/1.1\r\nContent-Length: 5\r\n\r\n".to_vec();
+    let mut reader = Segmented(VecDeque::from([header.clone(), b"ab".to_vec(), b"cde".to_vec()]));
+    let request = groq_fixture_request(&mut reader);
+    assert_eq!(request, [header, b"abcde".to_vec()].concat());
+    assert!(reader.0.is_empty(), "fixture must not close with an unread body");
+}
+
 // Two real HTTP responses on one endpoint exercise one Scheduler/store and two targets.
 fn groq_two_models_server() -> (String, std::thread::JoinHandle<()>) {
     use std::{
-        io::{Read, Write},
+        io::Write,
         net::TcpListener,
     };
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -1254,13 +1295,7 @@ fn groq_two_models_server() -> (String, std::thread::JoinHandle<()>) {
             connection
                 .set_read_timeout(Some(std::time::Duration::from_secs(5)))
                 .unwrap();
-            let mut request = Vec::new();
-            let mut buffer = [0; 1024];
-            while !request.windows(4).any(|w| w == b"\r\n\r\n") {
-                let read = connection.read(&mut buffer).unwrap();
-                assert!(read > 0);
-                request.extend_from_slice(&buffer[..read]);
-            }
+            let _request = groq_fixture_request(&mut connection);
             let body = sse(
                 "groq",
                 r#"{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}"#,

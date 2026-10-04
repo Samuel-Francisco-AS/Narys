@@ -746,7 +746,8 @@ async fn local_saturation_and_quota_zero_preserve_ranking_selection_score_and_af
                 assert_eq!(routing_reason, "auto_affinity");
             }
         }
-        event(&mut events, |e| matches!(e, SchedulerEvent::Queued { .. })).await;
+        assert_eq!(bounded(run).await.unwrap().unwrap_err(), SchedulerError::RateCapacityExceeded);
+        assert_eq!(s.admission_snapshot().iter().map(|s| s.queue_depth).sum::<usize>(), 0);
         assert!(calls.try_recv().is_err());
         let targets = request(&["a", "b"], selection.clone());
         assert_eq!(
@@ -756,10 +757,7 @@ async fn local_saturation_and_quota_zero_preserve_ranking_selection_score_and_af
         );
         assert!(s.status().iter().all(|s| s.cooldown_ms == 0));
         drop(held);
-        let call = bounded(calls.recv()).await.unwrap();
-        assert_eq!(call.provider, expected);
-        call.finish.send(Ok(())).unwrap();
-        assert_eq!(bounded(run).await.unwrap().unwrap().provider_id, expected);
+        assert!(calls.try_recv().is_err());
         clean(&s);
     }
 }

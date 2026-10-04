@@ -17,6 +17,7 @@
     "allow-start-task-graph",
     "allow-cancel-task",
     "allow-update-provider-timeouts",
+    "allow-update-provider-rate-policy",
     "allow-get-codex-runtime-status",
     "allow-probe-codex-app-server",
     "allow-probe-codex-planner",

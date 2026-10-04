@@ -273,6 +273,10 @@ fn is_transient(error: &SchedulerError) -> bool {
         error,
         SchedulerError::AdmissionQueueFull
             | SchedulerError::AdmissionTimeout
+            | SchedulerError::RateCapacityExceeded
+            | SchedulerError::DailyBudgetExceeded
+            | SchedulerError::RateContextChanged
+            | SchedulerError::RateStateUnavailable
             | SchedulerError::NoProvider
             | SchedulerError::Provider(
                 super::types::ProviderError::RateLimited { .. }

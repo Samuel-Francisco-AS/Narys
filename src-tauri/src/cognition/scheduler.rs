@@ -11,7 +11,7 @@ use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Mutex,
+        Arc, Mutex,
     },
     time::{Duration, Instant},
 };
@@ -123,6 +123,7 @@ pub struct Scheduler {
     cooldowns: Mutex<HashMap<String, Instant>>,
     affinities: Mutex<Affinities>,
     pub(super) telemetry: super::telemetry::TelemetryStore,
+    pub rate: Arc<super::rate::RateLimitManager>,
 }
 
 impl Scheduler {
@@ -134,16 +135,49 @@ impl Scheduler {
         registry: ProviderRegistry,
         config: super::admission::AdmissionConfig,
     ) -> Result<Self, &'static str> {
+        Self::with_rate_config(
+            registry,
+            config,
+            Arc::new(super::rate::SystemRateClock::default()),
+            None,
+        )
+        .map_err(|_| "runtime_config_invalid")
+    }
+    pub fn with_rate_storage(
+        registry: ProviderRegistry,
+        database: Option<crate::persistence::database::Database>,
+    ) -> Result<Self, SchedulerError> {
+        Self::with_rate_config(
+            registry,
+            super::admission::AdmissionConfig::default(),
+            Arc::new(super::rate::SystemRateClock::default()),
+            database,
+        )
+    }
+    pub fn with_rate_config(
+        registry: ProviderRegistry,
+        config: super::admission::AdmissionConfig,
+        clock: Arc<dyn super::rate::RateClock>,
+        database: Option<crate::persistence::database::Database>,
+    ) -> Result<Self, SchedulerError> {
         let admission = super::admission::AdmissionController::new(
             registry.configs().into_iter().map(|c| c.id.clone()),
             config,
-        )?;
-        let telemetry = super::telemetry::TelemetryStore::new(
+        )
+        .map_err(|_| SchedulerError::InvalidTargetConfig)?;
+        let rate = super::rate::RateLimitManager::new(
             registry.configs().into_iter().map(|c| c.id.clone()),
+            clock,
+            database,
+        )?;
+        let telemetry = super::telemetry::TelemetryStore::with_rate(
+            registry.configs().into_iter().map(|c| c.id.clone()),
+            rate.clone(),
         );
         Ok(Self {
             admission,
             telemetry,
+            rate,
             registry,
             cooldowns: Mutex::new(HashMap::new()),
             affinities: Mutex::new(Affinities::default()),
@@ -154,6 +188,30 @@ impl Scheduler {
     }
     pub fn telemetry_snapshot(&self) -> Vec<super::telemetry::ProviderTelemetrySnapshot> {
         self.telemetry.snapshots()
+    }
+    pub fn rate_snapshot(&self) -> Vec<super::rate::RateSnapshot> {
+        self.rate.snapshots()
+    }
+    /// Invalidate existing remote rate facts as one era, including the legacy
+    /// cooldown. This does not introduce any new cooldown/backoff policy.
+    /// Lock order here and on cooldown publication: cooldown -> telemetry -> rate.
+    pub fn invalidate_rate_context(&self, id: &str) {
+        let mut cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
+        self.telemetry.invalidate_provider_quotas(id);
+        cooldowns.remove(id);
+    }
+    fn record_cooldown(&self, id: &str, generation: u64, ms: u64) -> bool {
+        let mut cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
+        if self.telemetry.context_generation(id) != Some(generation) {
+            return false;
+        }
+        cooldowns.insert(
+            id.into(),
+            Instant::now()
+                .checked_add(Duration::from_millis(ms))
+                .unwrap_or_else(|| Instant::now() + Duration::from_secs(86_400)),
+        );
+        true
     }
     fn cooling(&self, id: &str) -> bool {
         self.cooldowns
@@ -479,6 +537,15 @@ impl Scheduler {
                     target: (*target).clone(),
                     attempt,
                 };
+                let observation = self.telemetry.attempt(&entry.config.id);
+                let reservation = self.rate.reserve(
+                    &entry.config.id,
+                    &target.invocation.model,
+                    observation.context_generation(),
+                    entry.provider.token_upper_bound(&attempt_request),
+                    cancelled,
+                )?;
+                observation.attach_rate(reservation.handle());
                 let permit = self
                     .admission
                     .acquire(
@@ -544,7 +611,6 @@ impl Scheduler {
                         })
                     };
                 // Keep the same structured context across retry/fallback; adapters decide serialization.
-                let observation = self.telemetry.attempt(&entry.config.id);
                 // Final cancellation check at the provider invocation boundary.
                 if cancelled.load(Ordering::Acquire) {
                     return Err(SchedulerError::Cancelled);
@@ -556,6 +622,12 @@ impl Scheduler {
                 // Release before response processing, retry backoff, fallback or Core consolidation.
                 drop(permit);
                 observation.finished(result.as_ref().err());
+                // RAII covers queue errors, sink failure, cancellation and aborted futures.
+                // Reconcile before any response processing/backoff/fallback.
+                drop(reservation);
+                if let Some(error) = observation.rate_error() {
+                    return Err(error);
+                }
                 if matches!(result, Err(ProviderError::EventSinkClosed)) {
                     return Err(SchedulerError::EventSinkClosed);
                 }
@@ -655,23 +727,19 @@ impl Scheduler {
                             _ => None,
                         };
                         if let Some(ms) = cooldown_ms {
-                            self.cooldowns
-                                .lock()
-                                .unwrap_or_else(|p| p.into_inner())
-                                .insert(
-                                    entry.config.id.clone(),
-                                    Instant::now()
-                                        .checked_add(Duration::from_millis(ms))
-                                        .unwrap_or_else(|| {
-                                            Instant::now() + Duration::from_secs(86_400)
-                                        }),
-                                );
+                            let _recorded = self.record_cooldown(
+                                &entry.config.id,
+                                observation.context_generation(),
+                                ms,
+                            );
                             #[cfg(debug_assertions)]
-                            eprintln!(
+                            if _recorded {
+                                eprintln!(
                                 "[Scheduler][diag] cooldown provider={} reason={} cooldown_ms={ms}",
                                 entry.config.id,
                                 error.code()
                             );
+                            }
                         }
                         // Once text has reached the UI, another attempt would concatenate
                         // incompatible partial answers and could double provider cost.

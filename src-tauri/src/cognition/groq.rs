@@ -283,7 +283,7 @@ impl Provider for GroqProvider {
                   if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
                   // Client rejects unsupported URL schemes before any HTTP invocation.
                   if matches!(send.url().scheme(), "http" | "https") && send.url().host_str().is_some() {
-                      observation.started();
+                      if !observation.started_unless_cancelled(cancelled) { return Err(ProviderError::Cancelled); }
                   }
                   self.client.execute(send).await.map_err(|error| diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started))
               } => result?,
@@ -341,7 +341,7 @@ impl Provider for GroqProvider {
                         .is_some_and(|v| v.len() == 1 && v[0].get("message").is_some_and(Value::is_object))
                 {
                     if let Ok(usage) = non_streaming_usage(&value) {
-                        observation.usage(usage);
+                        observation.final_usage(usage);
                     }
                 }
                 return parse_non_streaming(&value, limit);
@@ -394,6 +394,7 @@ impl Provider for GroqProvider {
             if !done {
                 return Err(ProviderError::Protocol);
             }
+            if let Some(value) = usage { observation.final_usage(value); }
             match finish_reason {
                 Some(FinishReason::Stop) if !text.trim().is_empty() => {}
                 Some(FinishReason::Stop) => return Err(ProviderError::Protocol),

@@ -1,4 +1,7 @@
 pub mod admission;
+pub mod rate;
+#[cfg(test)]
+mod rate_tests;
 #[cfg(test)]
 mod admission_tests;
 mod bounded_json;
@@ -47,10 +50,34 @@ pub struct ProviderRuntime {
 }
 pub struct ProviderTimeoutHandles(pub HashMap<String, Arc<RwLock<types::ProviderTimeouts>>>);
 impl ProviderRuntime {
+    pub fn connect_credentials(&self, store: &crate::security::secrets::SecretStore) {
+        let observer: Arc<dyn crate::security::secrets::CredentialContextObserver> = self.scheduler.clone();
+        store.observe_context_changes(Arc::downgrade(&observer));
+    }
     pub fn new(registry: ProviderRegistry) -> Self {
         Self {
             scheduler: Arc::new(Scheduler::new(registry)),
         }
+    }
+    pub fn with_database(registry: ProviderRegistry, db: crate::persistence::database::Database) -> Result<Self, types::SchedulerError> {
+        Ok(Self { scheduler: Arc::new(Scheduler::with_rate_storage(registry, Some(db))?) })
+    }
+}
+impl crate::security::secrets::CredentialContextObserver for Scheduler {
+    fn credentials_changed(&self, keys: &[crate::security::secrets::SecretKey]) {
+        use crate::security::secrets::SecretKey;
+        // Deduplicate a combined Cloudflare token/account mutation into one era.
+        let mut providers = std::collections::BTreeSet::new();
+        for key in keys {
+            let id = match key {
+                SecretKey::GeminiApiKey => "gemini", SecretKey::GroqApiKey => "groq",
+                SecretKey::MistralApiKey => "mistral",
+                SecretKey::CloudflareApiToken | SecretKey::CloudflareAccountId => "cloudflare",
+                SecretKey::Lr3Test => continue,
+            };
+            providers.insert(id);
+        }
+        for id in providers { self.invalidate_rate_context(id); }
     }
 }
 
