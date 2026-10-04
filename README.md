@@ -39,6 +39,7 @@ Documentos principais:
 
 - [Arquitetura-alvo da Luna](docs/ARCHITECTURE-LUNA.md)
 - [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
+- [Local Cognitive Support — papel dos coprocessadores locais na Luna](docs/LOCAL-COGNITIVE-SUPPORT-LUNA.md)
 - [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
 - [Integração da Idle manual e quebra de baseline](docs/MANUAL-IDLE-INTEGRATION.md)
 - [Plano operacional paralelo](docs/PLANO-OPERACIONAL-LUNA.md)
