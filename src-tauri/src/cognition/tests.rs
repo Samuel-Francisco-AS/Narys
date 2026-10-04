@@ -112,12 +112,54 @@ fn request(db: &Database, ids: &[&str]) -> ProviderTaskRequest {
     }
 }
 
+/// Explicit test-only transport simulation. Raw MockProvider/default Provider
+/// remains an unobserved local fixture; production never fabricates HTTP facts.
+struct SimulatedTransport(Arc<dyn super::provider::Provider>);
+fn simulated_transport(
+    provider: Arc<dyn super::provider::Provider>,
+) -> Arc<dyn super::provider::Provider> {
+    Arc::new(SimulatedTransport(provider))
+}
+impl super::provider::Provider for SimulatedTransport {
+    fn supports_invocation(
+        &self,
+        invocation: &ProviderInvocationConfig,
+        mode: &super::types::InvocationMode,
+    ) -> bool {
+        self.0.supports_invocation(invocation, mode)
+    }
+    fn token_upper_bound(&self, request: &ProviderRequest) -> Option<super::rate::TokenUpperBound> {
+        self.0.token_upper_bound(request)
+    }
+    fn execute<'a>(
+        &'a self,
+        request: &'a ProviderRequest,
+        cancelled: &'a AtomicBool,
+        chunk: &'a mut (dyn FnMut(super::types::ProviderChunk) -> Result<(), ProviderError> + Send),
+    ) -> super::provider::ProviderFuture<'a> {
+        self.0.execute(request, cancelled, chunk)
+    }
+    fn execute_observed<'a>(
+        &'a self,
+        request: &'a ProviderRequest,
+        cancelled: &'a AtomicBool,
+        chunk: &'a mut (dyn FnMut(super::types::ProviderChunk) -> Result<(), ProviderError> + Send),
+        observation: &'a super::telemetry::InvocationObservation<'_>,
+    ) -> super::provider::ProviderFuture<'a> {
+        Box::pin(async move {
+            if !observation.started_unless_cancelled(cancelled) {
+                return Err(ProviderError::Cancelled);
+            }
+            self.0.execute(request, cancelled, chunk).await
+        })
+    }
+}
 fn entry(
     id: &str,
     priority: u16,
     enabled: bool,
     caps: ProviderCapabilities,
-    mock: Arc<MockProvider>,
+    mock: Arc<dyn super::provider::Provider>,
     registry: &mut ProviderRegistry,
 ) {
     registry
@@ -288,7 +330,7 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
         1,
         true,
         ProviderCapabilities::text_stream(),
-        primary.clone(),
+        simulated_transport(primary.clone()),
         &mut registry,
     );
     entry(
@@ -340,7 +382,7 @@ fn scheduler_fallback_cooldown_budget_retry_and_usage() {
         1,
         true,
         ProviderCapabilities::text_stream(),
-        limited.clone(),
+        simulated_transport(limited.clone()),
         &mut registry,
     );
     entry(
@@ -745,27 +787,53 @@ fn transient_mocks_repeat_per_task_with_same_runtime_and_cooldown_persists() {
         assert_eq!(result.usage.provider_calls, 2);
         assert_eq!(result.usage.retries, 1);
     }
-    let a = tauri::async_runtime::block_on(
-        runtime
-            .scheduler(super::DiagnosticScenario::RateLimitFallback)
-            .run(
-                request(&db, &["mock-primary", "mock-fallback"]),
-                budget(3),
-                &signal,
-                &mut |_| Ok(()),
-            ),
-    )
+    // Raw diagnostic mocks are local, so their 429 must not publish cooldown.
+    let raw = runtime.scheduler(super::DiagnosticScenario::RateLimitFallback);
+    let raw_result = tauri::async_runtime::block_on(raw.run(
+        request(&db, &["mock-primary", "mock-fallback"]),
+        budget(3),
+        &signal,
+        &mut |_| Ok(()),
+    ))
     .unwrap();
-    let b = tauri::async_runtime::block_on(
-        runtime
-            .scheduler(super::DiagnosticScenario::RateLimitFallback)
-            .run(
-                request(&db, &["mock-primary", "mock-fallback"]),
-                budget(3),
-                &signal,
-                &mut |_| Ok(()),
-            ),
-    )
+    assert_eq!(raw_result.usage.provider_calls, 2);
+    assert!(raw
+        .resilience_snapshot()
+        .iter()
+        .all(|h| h.cooldown_remaining_ms == 0));
+    // Preserve the remote cooldown regression with an explicitly observed
+    // simulated transport, without changing production diagnostic mocks.
+    let mut registry = ProviderRegistry::default();
+    entry(
+        "mock-primary",
+        1,
+        true,
+        ProviderCapabilities::text_stream(),
+        simulated_transport(Arc::new(MockProvider::new(MockScenario::RateLimited))),
+        &mut registry,
+    );
+    entry(
+        "mock-fallback",
+        2,
+        true,
+        ProviderCapabilities::text_stream(),
+        Arc::new(MockProvider::new(MockScenario::Normal)),
+        &mut registry,
+    );
+    let remote = Scheduler::new(registry);
+    let a = tauri::async_runtime::block_on(remote.run(
+        request(&db, &["mock-primary", "mock-fallback"]),
+        budget(3),
+        &signal,
+        &mut |_| Ok(()),
+    ))
+    .unwrap();
+    let b = tauri::async_runtime::block_on(remote.run(
+        request(&db, &["mock-primary", "mock-fallback"]),
+        budget(3),
+        &signal,
+        &mut |_| Ok(()),
+    ))
     .unwrap();
     assert_eq!(a.provider_id, "mock-fallback");
     assert_eq!(b.usage.provider_calls, 1);
@@ -1210,7 +1278,7 @@ fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
                     priority: 1,
                     capabilities: ProviderCapabilities::text_stream(),
                 },
-                provider.clone(),
+                simulated_transport(provider.clone()),
             )
             .unwrap();
         let scheduler = Scheduler::new(registry);
@@ -1304,7 +1372,7 @@ fn retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk() {
                 priority: 1,
                 capabilities: ProviderCapabilities::text_stream(),
             },
-            provider.clone(),
+            simulated_transport(provider.clone()),
         )
         .unwrap();
     let signal = AtomicBool::new(false);
@@ -1445,7 +1513,7 @@ fn selection_modes_cooldown_and_transient_fallback() {
         2,
         true,
         ProviderCapabilities::text_stream(),
-        preferred.clone(),
+        simulated_transport(preferred.clone()),
         &mut registry,
     );
     entry(
@@ -1598,7 +1666,7 @@ fn unavailable_retry_after_falls_back_only_with_budget_and_auth_is_generic() {
         1,
         true,
         ProviderCapabilities::text_stream(),
-        limited.clone(),
+        simulated_transport(limited.clone()),
         &mut registry,
     );
     entry(
@@ -1636,7 +1704,7 @@ fn unavailable_retry_after_falls_back_only_with_budget_and_auth_is_generic() {
         1,
         true,
         ProviderCapabilities::text_stream(),
-        fresh.clone(),
+        simulated_transport(fresh.clone()),
         &mut registry,
     );
     entry(

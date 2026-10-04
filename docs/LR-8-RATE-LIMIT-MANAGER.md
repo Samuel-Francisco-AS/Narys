@@ -1,8 +1,8 @@
 # LR-8 — Rate Limit Manager completo
 
-Estado: **EM EXECUÇÃO — LR-8A, LR-8B e LR-8C encerradas em PASS; LR-8D liberada.**
+Estado: **EM EXECUÇÃO — LR-8A, LR-8B, LR-8C e LR-8D encerradas em PASS; LR-8E liberada.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
-Subfase corrente: **LR-8D — backoff, jitter, cooldown + circuit breaker**.
+Subfase corrente: **LR-8E — painel operacional + integração/gate final**.
 
 ## Objetivo
 
@@ -1830,3 +1830,536 @@ Gates finais reportados pelo agente: `rate_tests` 69/0; `task_graph_runtime_test
 Limitações aceitas e não bloqueantes: adapters de produção ainda sem `TokenUpperBound` comprovável; ambiguity/overlap podem subutilizar quota até nova autoridade factual; estado local assume uma única instância ativa; I/O SQLite síncrono permanece dívida de performance, não de correção.
 
 Nenhum gate humano específico foi exigido para a LR-8C pelo protocolo atual. **LR-8D está liberada.**
+
+---
+
+## LR-8D — implementação candidata
+
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**
+
+**LR-8E bloqueada.** Branch `lr-8d-resilience-circuit-breaker`, base obrigatória
+`main@221d9c35bd31b0524a04de8ba687e52bae2ea076`. Sem merge, migration de health,
+painel operacional ou gate comercial/real. A Luna decidirá o gate humano depois
+da auditoria estática; esta implementação não declara fechamento da subfase.
+
+### Ownership e autoridade única
+
+`ProviderRuntime → Scheduler → ResilienceManager → estado por provider`.
+`cognition/resilience.rs` pertence ao mesmo runtime de RateLimitManager e
+AdmissionController. O mapa legado `Mutex<HashMap<String, Instant>>` foi
+removido do Scheduler; cooldown e circuit têm uma única fonte de verdade. O
+Registry continua fornecendo os IDs, e nenhum update inventa provider ou estado
+por modelo. Gemini/Groq/Cloudflare/Mistral não conhecem breaker ou probes e não
+receberam modificações.
+
+Conversation, Summary, Orchestrator e Workers continuam usando o Scheduler
+compartilhado. RateLimitManager conserva exclusivamente constraints,
+reservations, accounting e budgets da 8C; AdmissionController conserva a fila,
+concurrency e fairness da 8B. O novo manager não lê quotas, secrets, prompts,
+outputs, headers, classes de prioridade ou preços.
+
+### Configuração local, clock e jitter
+
+`ResilienceConfig` é central, validada na construção e substituível por
+`Scheduler::with_resilience_config` em testes:
+
+| Policy local | Default |
+|---|---:|
+| `failure_threshold` | 3 |
+| `open_duration_ms` | 30.000 |
+| `half_open_max_probes` | 1 |
+| `max_retry_backoff_ms` | 30.000 |
+
+Threshold/duração de Open/probes zero e valores acima de `2^53−1` são rejeitados.
+Cap de backoff zero é válido e desabilita a espera local. São políticas da Luna,
+sem pretensão comercial, UI de edição ou configuração persistida.
+
+O mesmo `Arc<dyn RateClock>` da 8C governa todos os deadlines por tempo monotônico.
+A extensão aditiva `RateClock::sleep_ms` permite esperar com clock falso; a 8C não
+passa a esperar e seus implementadores existentes preservam o default. Produção
+usa `SystemRateClock` baseado em `Instant`, sem serializar `Instant`. Wall clock
+continua restrito aos contratos de rate/persistência já existentes e não decide
+health. O backoff conserva polling cancelável de até 25 ms, sem reserva ou permit
+entre esperas. A responsividade depende também do progresso do executor.
+
+`JitterSource::choose(lower, upper)` é injetável. Produção usa um PRNG xorshift por
+runtime, semeado pela dependência `getrandom` já existente; nenhum dado de
+credencial, generation, usuário ou conteúdo participa da seed. Testes fornecem
+explicitamente extremos determinísticos, sem assertions contra random global
+ou relógio de parede. O manager clampa inclusive uma implementação injetada que
+retorne fora do intervalo.
+
+Para retry de número `r`, preserva-se o cálculo saturante existente:
+
+```text
+exponential = initial_backoff_ms × 2^(r−1)
+base = min(exponential, max_retry_backoff_ms)
+base == 0 → delay = 0, sem consultar JitterSource
+base > 0  → delay ∈ [base/2 + base%2, base]
+```
+
+O cap precede equal jitter; shift/multiplicação usam checked/saturating, inclusive
+para retry extremo. Contadores/snapshots são JSON-safe. Overflow de deadline
+monotônico é explicitamente sinalizado e mantém o gate fechado até invalidação,
+em vez de fabricar expiração antecipada.
+
+### Classificação e evidência factual
+
+Somente `ProviderError::Timeout` e `ProviderError::Unavailable { .. }` são health
+failures. Uma tentativa só pode incrementar failures ou provar sucesso se
+`InvocationObservation::was_started()` confirmar a fronteira HTTP LR-8A. Esse
+método lê o marcador deduplicado existente; Selected, admission e construção do
+future não são interpretados como HTTP.
+
+`RateLimited`, QuotaExceeded, Authentication, InvalidRequest, Fatal, Protocol,
+Incomplete, RequiresAction, OutputLimitExceeded, UnsupportedMode,
+RemoteCancelled, Cancelled e EventSinkClosed são neutros para health. Protocol
+permanece deliberadamente fora do breaker. RateCapacityExceeded,
+DailyBudgetExceeded, RateStateUnavailable, RateContextChanged, admission failures,
+TaskBudget e erros/validação posteriores do Core também não degradam health.
+Preflight sem transporte não incrementa failures nem fecha um probe.
+
+Sucesso factual em Closed zera failures; em HalfOpen fecha e zera failures. O
+resultado do provider é processado depois da reconciliação de rate e antes da
+validação cognitiva/budget do Core: rejeição posterior não vira falha remota.
+Cancellation observada e sink fechado liberam o guard sem novo health outcome.
+Uso e resultados factuais da 8A continuam preservados, inclusive de chamadas
+que terminaram tarde.
+
+### Retry-After e cooldown
+
+A publicação de cooldown exige HTTP factual e generation atual; o sinal
+operacional continua sendo o erro tipado do adapter. `telemetry.retryHint`
+permanece factual e nunca é promovido automaticamente a policy.
+
+| Resultado | Cooldown operacional | Retry no mesmo provider | Breaker |
+|---|---|---|---|
+| RateLimited + hint | Hint, sem jitter | Não | Neutro |
+| RateLimited sem hint | 3.000 ms, sem jitter | Não | Neutro |
+| Unavailable + hint | Hint, sem jitter | Não | Failure, se HTTP factual |
+| Unavailable sem hint | Nenhum novo | RetryPolicy + budget + backoff/jitter | Failure, se HTTP factual |
+| Timeout | Nenhum novo | RetryPolicy + budget + backoff/jitter | Failure, se HTTP factual |
+
+O mínimo operacional preexistente de 1 ms para hint zero permanece. Parsing e
+clamp operacional dos adapters permanecem os anteriores. Registrar cooldown faz
+`max(deadline_atual, novo_deadline)`, inclusive em resultados concorrentes; uma
+observação menor nunca encurta a espera. Cooldown não altera remaining/reset,
+consumo, budgets ou quota factual.
+
+Cooldown e Open coexistem e ambos precisam permitir a tentativa. Cooldown é
+checado antes de qualquer transição/probe: se Open expirar primeiro, nenhum probe
+é consumido. Se cooldown expirar primeiro, Open continua bloqueando. Só quando
+ambos permitirem o próximo trabalho pode adquirir um probe bounded.
+
+### State machine e lifecycle de HalfOpen
+
+- **Closed:** autorização normal; cada Timeout/Unavailable factual elegível
+  incrementa failures. Ao atingir exatamente o threshold, transição atômica para
+  Open com reason allowlisted e nova duração monotônica.
+- **Open:** novas tentativas bloqueadas antes de TaskBudget/provider_calls,
+  reservation, admission ou adapter. Expiração não agenda chamada e snapshot não
+  faz transição; pode mostrar Open com remaining zero até o próximo trabalho.
+- **HalfOpen:** a próxima autorização após a boundary tenta adquirir probe sob o
+  mesmo mutex que faz Open → HalfOpen. Default um probe; outras tasks não chegam
+  aos gates seguintes. Sucesso factual → Closed; Timeout/Unavailable factual →
+  Open por outra duração completa; resultado neutro mantém HalfOpen e libera o
+  slot para trabalho futuro.
+
+`ResiliencePermit` possui RAII exclusivo; `InvocationObservation` recebe somente
+handle não proprietário para revalidar a fronteira HTTP existente. Drop cobre
+cancellation, abort/unwind, retorno local de rate/admission, falha de sink e
+preflight. Não há concessão de chamada futura em Drop. O guard é descartado antes
+de qualquer retry/backoff/fallback.
+
+Cada transição substitui um token interno `Arc<()>` de epoch. Outcome/drop antigo
+não fecha nem libera probes de um ciclo posterior, mesmo na mesma credential
+generation. Calls já iniciadas não são canceladas quando um peer abre Open;
+seus fatos/accounting permanecem. Outcomes de probes de ciclos anteriores não recuperam um circuit atual. Uma
+call normal já running que termine depois de recovery participa normalmente
+do contador se o estado atual for Closed; não substitui probe em HalfOpen. Cooldown operacional tardio ainda pode estender espera na mesma
+geração, mas nunca em uma geração antiga.
+
+### Integração Scheduler, routing, rate e admission
+
+Fluxo: ranking autorizado → autorização atômica de resilience → reservation →
+admission → execução HTTP instrumentada → rate reconciliation → health outcome
+→ retry/fallback. Após fila, revalida-se health antes de invocar o adapter;
+revalida-se novamente no ramo instrumentado de início HTTP, antes da autorização
+write-ahead da 8C. A autorização nessa fronteira lineariza o início da tentativa;
+Open não preempta trabalho que já cruzou essa autorização. O marcador factual
+continua dependendo de sucesso dos checks/commit locais existentes.
+
+Nenhum mutex de resilience atravessa rate, admission, SQLite, HTTP, callback,
+backoff ou `.await`. Invalidação segue telemetry → rate (libera) → resilience
+(libera). A observação usa attempt → resilience (libera) → rate (libera) →
+telemetry. Resilience nunca chama telemetry/rate/admission; não há ciclo de locks.
+O caminho tipado de recusa local da observação continua devolvendo NoProvider ou
+RateContextChanged, sem fabricar erro remoto ou request factual.
+
+Fixed preserva NoProvider local e nunca usa alternativa. Preferred conserva a
+ordem explícita e pula gates operacionais bloqueados. Auto calcula/ordena pelo
+score D2 original e aplica o gate aos candidatos nessa ordem; health não soma ou
+subtrai pontos. Affinity não é removida por Open/cooldown e só é atualizada após
+sucesso real conforme o contrato existente. Ranking/preflight read-only não
+adquire probes.
+
+Cada retry processa o outcome, libera os recursos anteriores, calcula delay,
+espera cancelavelmente e readquire os três gates. Se um peer abrir Open ou criar
+cooldown durante backoff, o retry não executa naquele provider; Preferred/Auto
+podem avançar somente para os targets já autorizados. TaskBudget segue limitando
+tentativas, sem reserva futura durante backoff. Como na 8A/B/C, uma tentativa já
+selecionada que falha no preflight local não é um request HTTP factual.
+
+Sem retry/fallback após primeiro output/chunk. Source e destination têm health
+isolado: falha Groq não degrada Cloudflare e sucesso Cloudflare não fecha Groq.
+Summary conserva Background e deferral transient/NoProvider; TaskGraph conserva
+PlanV1, distribuição, consolidation e provenance existentes.
+
+### Credential generations
+
+TelemetryStore continua autoridade da geração opaca da 8C. Sua invalidação
+sincroniza RateLimitManager e ResilienceManager antes de publicar a nova geração.
+Troca efetiva de key/token/account context limpa cooldown, Open e failures e
+retorna a Closed; não apaga limits/budgets locais ou o ledger factual. Rotação
+invalida epochs/probes antigos. Late Timeout/Unavailable/sucesso/cooldown de outra
+geração não modifica health atual. Regravar a mesma credencial continua sem
+notificação/nova era, preservando cooldown/circuit e quota esgotada.
+
+O observer do SecretStore permanece Weak e recebe somente os tipos de SecretKey,
+sem valor/hash/fingerprint/account ID. Esgotamento da geração continua fail-closed
+no contrato da 8C. Mutações externas do vault sem a API continuam fora do watcher
+existente; a LR-8D não adiciona watcher ou mudança de secrets.
+
+### Snapshot e observabilidade
+
+`Scheduler::resilience_snapshot()` e `get_ai_settings.resilience` expõem circuit,
+failures/threshold, Open remaining, probes active/max, cooldown remaining,
+transition count/último reason, contadores de Open/HalfOpen/recovery e saturação.
+`providerResilience.ts` e o tipo Settings são aditivos e read-only. ProviderStatus
+continua expondo cooldown a partir da nova autoridade.
+
+Reasons são enum allowlisted: failure_threshold_timeout,
+failure_threshold_unavailable, open_duration_elapsed, probe_timeout,
+probe_unavailable, probe_succeeded e credential_context_changed. Contadores de
+transição são históricos do processo, não requests nem quota; rotação preserva
+estes contadores históricos e reinicia o estado operacional. Não foram adicionados
+SchedulerEvents: snapshot/counters/reasons fornecem observabilidade técnica sem
+callbacks sob lock, eventos de leitura ou novo consumidor operacional LR-8E.
+Snapshots são coerentes por autoridade; a leitura conjunta Settings não promete
+uma transação atômica entre health, telemetry, rate e admission.
+
+Nenhum snapshot novo contém prompt, output, reasoning, raw error/header/body,
+secret, API key ou Account ID. O diagnóstico NoProvider usa somente provider local,
+state enum e duração operacional. Não há mensagem remota nova em logs/eventos.
+
+### Persistência e restart
+
+**Restart limpa cooldown/circuit state.** Health remoto/transitório permanece
+in-memory: não há prova de contexto remoto depois do restart e deadlines são
+monotônicas. Não há migration ou persistência de health no SQLite.
+
+Isso **não limpa DailyBudget, local rate windows nem durable uncertainty da
+LR-8C**. Seus markers e recovery conservador permanecem no RateLimitManager.
+O teste de restart cria um novo Scheduler no mesmo SQLite e verifica preservação
+de accounting/uncertainty com health Closed, failures/cooldown/transitions zero.
+
+### Testes determinísticos e matriz dos requisitos
+
+A candidata original adicionou 71 testes em `resilience_tests` e um teste de preflight multi-role em
+`catalog::route_tests`, filtro executado **`resilience`** (72 testes). Clock e
+JitterSource falsos controlam boundaries e delays; Barrier/Notify/oneshot/channels
+controlam overlap, entrada, conclusão, cancellation e abort. Nenhum teste novo
+usa sleep arbitrário, random global em assertion ou credencial comercial. O
+adapter Groq de produção também é exercitado com HTTP exclusivamente em loopback
+e credencial sintética em storage temporário.
+
+| Requisitos da auditoria solicitada | Cobertura |
+|---|---|
+| 1–5 | Base exponencial; extremos de equal jitter; cap anterior ao jitter; zero/extremos sem overflow |
+| 6–11 | Cancel durante backoff; Retry-After sem RNG; deadlines max; default 3 s; 100 × 429 sem Open |
+| 12–17 | Timeout/Unavailable ±hint; sucesso Closed; threshold exato/abaixo; HTTP factual/preflight |
+| 18–22 | Open antes de reservation/admission/HTTP/budget; boundary exata; disputa atômica entre tasks |
+| 23–28 | Recovery e reabertura de probe; todos os neutros; cancel/abort/drop em running e queued |
+| 29–31 | RateCapacity/DailyBudget/RateState, queue full/timeout e sink em Selected/Queued/Admitted |
+| 32–38 | Fixed/Preferred/Auto, score/affinity, isolamento e fallback source/destination |
+| 39–46 | Output parcial, eras antigas/rotação/no-op real, cooldown/Open combinados e fallback por hints |
+| 47–53 | Erros locais e todas as classes neutras, incluindo Authentication/InvalidRequest/Protocol/quota |
+| 54–57 | Contratos Summary/TaskGraph e regressões existentes nas suítes 8B/8C/D3; retry/reconciliation novos |
+| 58–60 | Snapshot allowlisted, restart durável e suítes completas anteriores |
+
+Casos adicionais: RNG injetado fora do intervalo; wall-clock jump irrelevante;
+config inválida/override/probes=2; epochs internas posteriores; call running não
+preemptada; revalidação após fila e preflight; budget do Core depois de sucesso
+HTTP; factual retryHint sem enforcement; cancel em Admitted; deadline extremo
+fail-closed. Os testes anteriores permanecem sem relaxamento de timeouts.
+
+### Gates técnicos da candidata original (antes desta FIX)
+
+| Comando | Resultado no código final |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run build` | exit 0; aviso de chunk > 500 kB preexistente |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | exit 0 |
+| `cargo test --manifest-path src-tauri/Cargo.toml resilience` | 72 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml rate_tests` | 69 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml admission_tests` | 18 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml task_graph_runtime_tests` | 13 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 513 aprovados, 0 falhas, 2 ignorados; 225,77 s de testes |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=1` | 513 aprovados, 0 falhas, 2 ignorados |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | exit 0; 41 warnings |
+| `git diff --check` | exit 0 |
+| `git diff --check main...HEAD` | exit 0 |
+
+O filtro utilizado é exatamente `resilience`. Os dois ignorados são os gates
+Codex locais/manuais preexistentes `real_app_server_handshake` e
+`manual_final_codex_agent_bridge_gate`; nenhum gate comercial/real foi executado.
+O check debug registra 15 warnings de código não utilizado, mesma quantidade
+documentada na base. O leitor direto `TelemetryStore::context_generation` agora
+fica sem consumidor no runtime após remover o cooldown legado; a tentativa usa
+`InvocationObservation::context_generation`. Builds de testes também mantêm
+warnings de campos dos fixtures anteriores. O release registra 41 warnings,
+mesma quantidade documentada na base (incluindo código diagnóstico condicionado
+ao debug). Não há nova dependência ou alteração de limites de timeout para
+ocultar race. Main/doc-tests também concluíram sem falhas nas duas globais.
+
+A primeira global paralela teve 506 aprovados, dois timeouts TaskGraph e dois
+ignorados (código então com 67 testes novos). Os dois testes afetados foram
+executados por nome completo com `--exact --nocapture`, isoladamente; ambos
+passaram. Os logs da global registraram unlocks scrypt de ~4,7–5,6 s versus
+~1,5 s nas reproduções isoladas. Os providers sintéticos desses testes não
+marcam HTTP e, portanto, não abrem o circuit; a falha ocorreu antes dos Workers,
+na espera de eventos de preflight. Não foi dispensada como flake.
+
+A fixture TaskGraph fazia quatro gravações individuais de credenciais, abrindo
+o mesmo vault repetidamente e impondo três unlocks scrypt desnecessários por
+fixture à suíte paralela. Foi trocada pela API batch existente, com os mesmos
+quatro secrets sintéticos. Os testes de overlap/cancelamento também passaram a
+segurar/liberar os Workers por channels/oneshot e a aguardar um acknowledgement
+após Scheduler/validação do Worker antes de cancelar o sibling; foram removidas as suposições
+de 60/150 ms e o sleep arbitrário de 50 ms. Os deadlines existentes de 10 s
+para preflight/eventos e 5 s para overlap foram preservados. O acknowledgement tem hook somente `cfg(test)` no Worker e é keyed pela
+alocação de cancellation da tarefa, sem callback sob lock. Nenhuma alteração no SecretStore ou timeout aumentado.
+A primeira tentativa de usar SubtaskCompleted como acknowledgement foi
+rejeitada pelo teste dirigido: o evento só é emitido depois do `join` da wave;
+a sincronização correta é o retorno validado do Worker, antes desse join.
+
+A global paralela seguinte reproduziu o problema de preflight em sete testes
+TaskGraph (505 aprovados, sete falhas, dois ignorados; código com 71 testes
+novos). A economia da fixture não eliminava dois unlocks sequenciais na tarefa:
+`validate_policy(Planner)` e `validate_policy(Worker)` abriam o mesmo vault
+separadamente, ultrapassando o deadline existente sob contenção global.
+`catalog::validate_policies` agora valida os targets registrados das duas roles
+e consulta presença em um único snapshot, usando a mesma API batch existente.
+`validate_policy` permanece wrapper de uma role; ausência/indisponibilidade de
+credencial mantém `provider_not_configured`, e adapters continuam revalidando
+antes do HTTP. Nenhum resultado desse snapshot é cacheado como autorização.
+Um teste reproduz deterministicamente o trabalho anterior (dois loads), prova
+o novo caminho (um load) e verifica fail-closed. A única mudança de produção
+TaskGraph adicional é essa consolidação de presença no preflight.
+
+
+### Autoauditoria e limitações
+
+A revisão direcionada cobre remoção de autoridade duplicada, aritmética/jitter,
+classificação factual, max cooldown, lock ordering, probes atômicos/RAII,
+read-only snapshots, geração/epoch, ausência de preemption, score/affinity,
+Fixed/fallback/output parcial, budgets e ausência de persistência/sensíveis.
+Resultados e event callbacks ficam fora do mutex de resilience. Não foi
+introduzida dependência Rust nova ou mudança nos adapters/accounting da 8C.
+
+Limitações: estado por provider, sem model-scoped breaker; thresholds são locais
+por runtime e não configuráveis pela UI; neutral não prova recovery; expiry não
+agenda probe; uma tentativa pending pode permanecer no slot de probe durante
+admission/preflight até terminar/cancelar/ser descartada; polling de cancellation
+depende do executor. Como a 8C, pressupõe uma instância ativa e clocks monotônicos
+válidos. Falha de entropy na seed de produção tem fallback não criptográfico;
+esta fonte serve exclusivamente a dessincronização, nunca segurança.
+
+Pontos para auditoria independente: fronteira autorização HTTP/write-ahead,
+consistência generation/epoch em late outcomes, RAII após abort e falhas locais,
+semântica Open com remaining zero, contabilização anterior durante retry/fallback,
+telemetry.retryHint versus hint operacional, manutenção de score/affinity e
+isolamento do recovery do source. Isso não substitui a auditoria da Luna.
+
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
+**LR-8E bloqueada.**
+
+### FIX — call budget pendente e cooldown factual
+
+FIX sobre o HEAD auditado `ce22e3da636aa13462629ca8514cb2031501505c`, na mesma
+branch `lr-8d-resilience-circuit-breaker` e base
+`main@221d9c35bd31b0524a04de8ba687e52bae2ea076`.
+
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
+**LR-8E bloqueada.** A arquitetura geral foi aprovada pela auditoria independente;
+os dois bloqueios de correção abaixo motivaram esta FIX. Nenhum merge, painel,
+migration, gate comercial/real ou alteração de defaults/timeouts.
+
+#### Scheduler attempt, provider call e commit de TaskBudget
+
+`PendingSchedulerAttempt` representa o bookkeeping provisório de uma tentativa:
+número por provider e intenção de fallback. `Selected.attempt` e
+`ProviderRequest.attempt` usam esse número pendente; seleção não é prova de HTTP.
+O check de TaskBudget ocorre antes de rate/admission, mas não debita o ledger.
+Como a task executa uma tentativa por vez, a vaga verificada permanece disponível
+até resolver essa tentativa. Não é uma reserva compartilhada de rate/admission.
+
+Existe **um único commit**, consumindo o valor pendente depois da execução e da
+reconciliação, antes de processar resposta/retry/fallback. Ele publica
+`provider_calls`, número committed do provider, `retries`, `fallbacks` e
+`providers_used`. A divisão conservadora de output usa as chamadas committed;
+a tentativa pendente continua incluída no divisor, preservando o cálculo da 8C.
+
+Recusa por resilience depois da fila descarta o pendente e libera os guards.
+Recusa na fronteira instrumentada, com `was_started() == false` e erro local da
+observação, também não faz commit. `NoProvider` avança na ordem de targets já
+autorizados; `RateContextChanged` conserva o erro terminal fail-closed da 8C,
+sem inventar fallback por rotação. Não há rollback/decremento ou débito duplo.
+Depois de HTTP factual, o commit não é desfeito por erro posterior.
+
+`Preferred(a,b)` com budget 1: A Selected/Queued, peer abre circuit ou publica
+cooldown, A é recusada ao ser admitida, B Selected/HTTP/sucesso. O resultado tem
+uma call, providersUsed somente B, zero retries/fallbacks remotos, requests
+factuais A=0/B=1, accounting local A=0/B=1 e nenhum guard pendente. Se uma call A
+real falhou e seu retry foi recusado no início HTTP, somente a primeira A e B
+debitam budget; o retry recusado não entra em `usage.retries`.
+
+O contrato conservador anterior permanece para resultados normais do adapter,
+incluindo erro de preflight sem erro local da observação: eles podem consumir
+call budget, mesmo com requests factuais zero. Isso limita retries e preserva
+fixtures/providers legados sem instrumentação LR-8A. Portanto `provider_calls`
+é o ledger de tentativas committed do Scheduler, **não substitui o contador
+factual HTTP**. Nesta FIX, a exceção é a tentativa recusada localmente antes do
+HTTP, cujo bookkeeping nunca é committed. Eventos Selected/Retry/Fallback
+continuam semântica de seleção/intenção anterior; os counters do resultado só
+incluem tentativas committed. A recusa inicial de A não fabrica erro remoto ou
+evento Retry/Fallback.
+
+#### Cooldown exige HTTP factual
+
+`ResiliencePermit::finish` só publica qualquer outcome operacional se
+`started == true` **e** a generation ainda coincide. O mesmo check protege
+cooldown e health; epochs continuam protegendo o lifecycle dos probes. Preflight
+RateLimited(None/Some) ou Unavailable(Some) retorna o erro tipado sem cooldown,
+failure, recovery ou alteração de circuit. Drop libera o probe e a próxima task
+pode testar novamente. `TelemetryStore.retryHint` não foi alterado.
+
+Após HTTP factual, permanecem RateLimited(None) → 3.000 ms,
+RateLimited(Some) → hint, Unavailable(Some) → hint + health failure elegível;
+hints sem jitter e deadlines max. Timeout/Unavailable(None), classificação
+neutra, generations, RAII, score/affinity, accounting/admission, isolamento,
+Summary/TaskGraph e restart conservam os contratos anteriores.
+
+#### Regressões e gates da FIX
+
+As duas regressões foram executadas contra o código auditado antes da correção:
+o caso Preferred/budget 1 não iniciava B e expirava o acknowledgement existente;
+o preflight RateLimited registrava 3.000 ms em vez de zero. Não houve aumento
+de deadline para fazê-las passar.
+
+Cinco testes novos e ampliação de três testes anteriores cobrem cooldown na
+fila; Open/cooldown na fronteira HTTP com budget 1; retry negado na fronteira
+com budget 2; hints factuais em Closed/HalfOpen; hints locais em Closed/HalfOpen
+com nova tentativa permitida; era alterada terminal antes do HTTP; ordem/números,
+providersUsed, counters e reservations reconciliadas. Clock/jitter falsos e
+channels/oneshot/Notify continuam controlando boundaries, sem sleeps arbitrários.
+
+Na rodada dirigida intermediária, os dois testes novos de hints factuais
+descartavam o receiver de eventos antes da execução; o callback do harness
+falhava com SendError. O receiver passou a permanecer vivo até a conclusão.
+O filtro resilience seguinte aprovou os 77 testes, sem alteração de timeout.
+
+A primeira global da FIX teve 512 aprovados, seis falhas e dois ignorados. Todas
+as seis falhas foram reproduzidas isoladamente com seus nomes completos e
+`--exact`: fixtures antigos esperavam cooldown de MockProvider/SequenceProvider/
+Synthetic sem marcar transporte. O default Provider e os mocks de produção
+continuam sem fabricar HTTP. Os testes de cooldown remoto agora usam um wrapper
+**somente no módulo de testes**, `SimulatedTransport`, que marca explicitamente
+o início do transporte simulado; suas assertions de cooldown/routing/budget são
+preservadas. O teste do runtime diagnóstico também verifica que o mock bruto
+não publica cooldown, além de manter a regressão de cooldown persistente em um
+Scheduler com transporte simulado. Não houve mudança em adapter, default
+Provider, mock de produção, Scheduler para acomodar fixtures ou timeout.
+
+| Gate | Resultado final da FIX |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `npm run build` | exit 0 |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | exit 0 |
+| `cargo test --manifest-path src-tauri/Cargo.toml resilience` | 77 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml rate_tests` | 69 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml admission_tests` | 18 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml task_graph_runtime_tests` | 13 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 518 aprovados, 0 falhas, 2 ignorados |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=1` | 518 aprovados, 0 falhas, 2 ignorados |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | exit 0; 41 warnings |
+| `git diff --check` | exit 0 |
+| `git diff --check main...HEAD` | exit 0 |
+
+Filtro usado exatamente `resilience`. As globais levaram 259,32 s (paralela)
+e 678,72 s (serial) de testes; main/doc-tests também concluíram sem falhas.
+Os dois ignorados são `real_app_server_handshake` e
+`manual_final_codex_agent_bridge_gate`, gates Codex locais/manuais preexistentes.
+Warnings mantidos: 15 no debug, 41 no release, dois campos de fixtures na
+compilação de testes e chunk frontend de 666,22 kB (> 500 kB). Nenhum timeout
+foi aumentado. Nenhum gate comercial/real foi executado.
+
+#### Autoauditoria e limitações residuais
+
+A revisão direcionada confirmou um único commit consumindo o pendente, sem
+decrementos ou commit nos caminhos de recusa antes do HTTP. Os testes verificam
+budget disponível na fila/HTTP/retry, numeração/providersUsed, ausência de
+probe/reservation/permit leak, hints locais sem policy e hints factuais
+preservados. Divisão de output, geração e parcial output conservam os contratos
+anteriores; as globais cobrem LR-8A/B/C/D3. A FIX não muda rate/admission,
+telemetry, adapters, preflight multi-role, tipos/frontend ou ownership de
+resilience. Nenhum mutex/callback/persistência de health foi introduzido.
+
+Limitações mantidas: provider-scoped/in-memory, sem painel/config persistida,
+sem prova de recovery por resultado neutro. `RateContextChanged` segue terminal;
+preflight normal mantém budget conservador; Selected é tentativa provisória,
+e não contador HTTP. A reauditoria deve conferir especificamente a fronteira
+de commit, divisão de output e a recusa entre admission e início instrumentado.
+
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
+**LR-8E bloqueada.**
+
+
+### Fechamento auditado da LR-8D
+
+**Resultado: PASS técnico + reauditoria independente da Luna em 04/10/2026.**
+Branch de implementação: `lr-8d-resilience-circuit-breaker`. Candidata final auditada em
+`c4c49bfd6942fcf4517ad52b91634724df9812bd`.
+
+A fase consolidou uma autoridade única `ResilienceManager` por provider e geração de
+credencial, com exponential backoff + equal jitter, cooldown monotônico, circuit
+breaker `Closed/Open/HalfOpen`, probes HalfOpen bounded e RAII, revalidação após
+fila e na fronteira HTTP, isolamento entre providers e snapshot read-only.
+
+A FIX pós-auditoria introduziu `PendingSchedulerAttempt`, tornando o accounting de
+TaskBudget provisório até o ponto único de commit. Recusas locais por resilience
+antes de HTTP não consomem `provider_calls`, retries, fallbacks ou
+`providers_used`; chamadas que realmente cruzam HTTP nunca perdem o débito.
+Cooldown derivado de `ProviderError` passou a exigir `started=true` e generation
+atual, impedindo preflight local de fabricar estado operacional remoto.
+
+Gates finais reportados pelo agente:
+- `resilience`: **77 aprovados**;
+- `rate_tests`: **69 aprovados**;
+- `admission_tests`: **18 aprovados**;
+- `task_graph_runtime_tests`: **13 aprovados**;
+- suíte global paralela: **518 aprovados, 0 falhas, 2 ignorados**;
+- suíte global serial: **518 aprovados, 0 falhas, 2 ignorados**;
+- typecheck/build/check debug/release e ambos `git diff --check`: PASS.
+
+Não existe workflow/status check remoto associado ao HEAD; os gates são execuções
+locais do agente combinadas com auditoria estática independente do código remoto.
+
+Limitações aceitas e não bloqueantes:
+- health/cooldown continuam provider-scoped, in-memory e não persistidos;
+- restart limpa health transitório sem apagar budgets/rate windows/uncertainty da 8C;
+- resultados normais de preflight legado podem manter accounting conservador do
+  Scheduler distinto do contador factual HTTP;
+- nenhum gate comercial/real foi forçado nesta subfase.
+
+O gate humano integrado permanece para a LR-8E, que está **liberada**.

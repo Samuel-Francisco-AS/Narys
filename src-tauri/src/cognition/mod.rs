@@ -1,5 +1,8 @@
 pub mod admission;
 pub mod rate;
+pub mod resilience;
+#[cfg(test)]
+mod resilience_tests;
 #[cfg(test)]
 mod rate_tests;
 #[cfg(test)]

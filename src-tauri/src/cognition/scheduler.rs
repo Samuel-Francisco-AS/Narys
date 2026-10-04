@@ -8,12 +8,11 @@ use super::{
 };
 use serde::Serialize;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
-    time::{Duration, Instant},
 };
 
 #[derive(Clone, Debug)]
@@ -51,6 +50,30 @@ pub enum SchedulerEvent {
         to: String,
         reason_code: &'static str,
     },
+}
+
+/// Selected/request attempt numbers are provisional until transport denial is
+/// ruled out. Consuming this value commits bookkeeping exactly once; dropping
+/// it changes no ledger. Other provider preflight outcomes retain the existing
+/// conservative call-budget semantics, distinct from LR-8A factual requests.
+struct PendingSchedulerAttempt {
+    number: u32,
+    fallback: bool,
+}
+impl PendingSchedulerAttempt {
+    fn commit(self, attempt: &mut u32, usage: &mut SchedulerUsage, provider_id: &str) {
+        *attempt = self.number;
+        usage.provider_calls += 1;
+        if self.number > 1 {
+            usage.retries += 1;
+        }
+        if self.fallback {
+            usage.fallbacks += 1;
+        }
+        if !usage.providers_used.iter().any(|id| id == provider_id) {
+            usage.providers_used.push(provider_id.to_owned());
+        }
+    }
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -120,7 +143,7 @@ fn auto_score(
 pub struct Scheduler {
     pub(super) admission: super::admission::AdmissionController,
     registry: ProviderRegistry,
-    cooldowns: Mutex<HashMap<String, Instant>>,
+    pub(super) resilience: Arc<super::resilience::ResilienceManager>,
     affinities: Mutex<Affinities>,
     pub(super) telemetry: super::telemetry::TelemetryStore,
     pub rate: Arc<super::rate::RateLimitManager>,
@@ -160,6 +183,30 @@ impl Scheduler {
         clock: Arc<dyn super::rate::RateClock>,
         database: Option<crate::persistence::database::Database>,
     ) -> Result<Self, SchedulerError> {
+        Self::with_resilience_config(
+            registry,
+            config,
+            clock,
+            database,
+            super::resilience::ResilienceConfig::default(),
+            Arc::new(super::resilience::RuntimeJitter::default()),
+        )
+    }
+    pub fn with_resilience_config(
+        registry: ProviderRegistry,
+        config: super::admission::AdmissionConfig,
+        clock: Arc<dyn super::rate::RateClock>,
+        database: Option<crate::persistence::database::Database>,
+        resilience_config: super::resilience::ResilienceConfig,
+        jitter: Arc<dyn super::resilience::JitterSource>,
+    ) -> Result<Self, SchedulerError> {
+        let resilience = super::resilience::ResilienceManager::new(
+            registry.configs().into_iter().map(|c| c.id.clone()),
+            resilience_config,
+            clock.clone(),
+            jitter,
+        )
+        .map_err(|_| SchedulerError::InvalidTargetConfig)?;
         let admission = super::admission::AdmissionController::new(
             registry.configs().into_iter().map(|c| c.id.clone()),
             config,
@@ -170,16 +217,17 @@ impl Scheduler {
             clock,
             database,
         )?;
-        let telemetry = super::telemetry::TelemetryStore::with_rate(
+        let telemetry = super::telemetry::TelemetryStore::with_runtime(
             registry.configs().into_iter().map(|c| c.id.clone()),
             rate.clone(),
+            resilience.clone(),
         );
         Ok(Self {
             admission,
             telemetry,
             rate,
             registry,
-            cooldowns: Mutex::new(HashMap::new()),
+            resilience,
             affinities: Mutex::new(Affinities::default()),
         })
     }
@@ -192,37 +240,16 @@ impl Scheduler {
     pub fn rate_snapshot(&self) -> Vec<super::rate::RateSnapshot> {
         self.rate.snapshots()
     }
-    /// Invalidate existing remote rate facts as one era, including the legacy
-    /// cooldown. This does not introduce any new cooldown/backoff policy.
-    /// Lock order here and on cooldown publication: cooldown -> telemetry -> rate.
+    pub fn resilience_snapshot(&self) -> Vec<super::resilience::ResilienceSnapshot> {
+        self.resilience.snapshots()
+    }
+    /// Telemetry owns context generation. Invalidation synchronizes rate and
+    /// resilience under that authority, preserving every durable local budget.
     pub fn invalidate_rate_context(&self, id: &str) {
-        let mut cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
         self.telemetry.invalidate_provider_quotas(id);
-        cooldowns.remove(id);
-    }
-    fn record_cooldown(&self, id: &str, generation: u64, ms: u64) -> bool {
-        let mut cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
-        if self.telemetry.context_generation(id) != Some(generation) {
-            return false;
-        }
-        cooldowns.insert(
-            id.into(),
-            Instant::now()
-                .checked_add(Duration::from_millis(ms))
-                .unwrap_or_else(|| Instant::now() + Duration::from_secs(86_400)),
-        );
-        true
-    }
-    fn cooling(&self, id: &str) -> bool {
-        self.cooldowns
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .get(id)
-            .is_some_and(|until| *until > Instant::now())
     }
     pub fn status(&self) -> Vec<ProviderStatus> {
-        let now = Instant::now();
-        let cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
+        let health = self.resilience_snapshot();
         self.registry
             .configs()
             .into_iter()
@@ -231,10 +258,10 @@ impl Scheduler {
                 enabled: config.enabled,
                 priority: config.priority,
                 capabilities: config.capabilities,
-                cooldown_ms: cooldowns
-                    .get(&config.id)
-                    .map(|until| until.saturating_duration_since(now).as_millis() as u64)
-                    .unwrap_or(0),
+                cooldown_ms: health
+                    .iter()
+                    .find(|s| s.provider_id == config.id)
+                    .map_or(0, |s| s.cooldown_remaining_ms),
             })
             .collect()
     }
@@ -262,10 +289,7 @@ impl Scheduler {
                 .registry
                 .get(&target.provider_id)
                 .ok_or(SchedulerError::NoProvider)?;
-            if !entry.config.enabled
-                || !entry.config.capabilities.supports(required)
-                || self.cooling(&entry.config.id)
-            {
+            if !entry.config.enabled || !entry.config.capabilities.supports(required) {
                 continue;
             }
             let (score, _) = auto_score(targets.len(), ordinal, entry.config.priority, false, 0);
@@ -274,7 +298,11 @@ impl Scheduler {
         if matches!(selection, ProviderSelection::Auto) {
             ranked.sort_by(|a, b| b.2.cmp(&a.2).then(a.1.cmp(&b.1)).then(a.0.cmp(&b.0)));
         }
-        let result: Vec<_> = ranked.into_iter().map(|item| item.0).collect();
+        let result: Vec<_> = ranked
+            .into_iter()
+            .filter(|item| self.resilience.eligible(&item.0))
+            .map(|item| item.0)
+            .collect();
         if result.is_empty() {
             Err(SchedulerError::NoProvider)
         } else {
@@ -406,10 +434,8 @@ impl Scheduler {
                 continue;
             }
             eligible.push(entry);
-            if self.cooling(&entry.config.id) {
-                continue;
-            }
-            // Hard gates precede score; no registry-only provider can enter this list.
+            // Operational health is applied after deterministic ranking.
+            // No registry-only provider can enter this authorized list.
             let (score, affinity_score) = auto_score(
                 request.targets.len(),
                 ordinal,
@@ -447,16 +473,22 @@ impl Scheduler {
             if cancelled.load(Ordering::Acquire) {
                 return Err(SchedulerError::Cancelled);
             }
-            // Shared cooldown may have changed since initial candidate resolution.
-            if self.cooling(&entry.config.id) {
-                continue;
-            }
-            used_any = true;
             let mut attempt = 0;
             loop {
                 if cancelled.load(Ordering::Acquire) {
                     return Err(SchedulerError::Cancelled);
                 }
+                // Capture the existing credential era before any rate/admission.
+                // The atomic gate owns an optional probe only for this attempt.
+                let observation = self.telemetry.attempt(&entry.config.id);
+                let Some(health_permit) = self
+                    .resilience
+                    .authorize(&entry.config.id, observation.context_generation())
+                else {
+                    break;
+                };
+                used_any = true;
+                observation.attach_resilience(health_permit.handle());
                 if usage.provider_calls >= budget.max_provider_calls
                     || output_limit.is_some_and(|limit| {
                         let spent = if conservative_output {
@@ -469,7 +501,12 @@ impl Scheduler {
                 {
                     return Err(SchedulerError::BudgetExceeded);
                 }
-                if attempt == 0 {
+                let pending = PendingSchedulerAttempt {
+                    // The budget check guarantees room for one more u32 call.
+                    number: attempt + 1,
+                    fallback: attempt == 0 && last_provider.is_some() && last_error.is_some(),
+                };
+                if pending.fallback {
                     if let (Some(from), Some(error)) = (&last_provider, &last_error) {
                         on_event(SchedulerEvent::Fallback {
                             from: from.clone(),
@@ -480,21 +517,12 @@ impl Scheduler {
                             cancelled.store(true, Ordering::Release);
                             SchedulerError::EventSinkClosed
                         })?;
-                        usage.fallbacks += 1;
                     }
-                }
-                attempt += 1;
-                usage.provider_calls += 1;
-                if attempt > 1 {
-                    usage.retries += 1;
-                }
-                if !usage.providers_used.contains(&entry.config.id) {
-                    usage.providers_used.push(entry.config.id.clone());
                 }
                 on_event(SchedulerEvent::Selected {
                     provider_id: entry.config.id.clone(),
                     model: target.invocation.model.clone(),
-                    attempt,
+                    attempt: pending.number,
                     routing_reason: match request.selection {
                         ProviderSelection::Fixed(_) => "fixed",
                         ProviderSelection::Preferred => "preferred_order",
@@ -517,7 +545,7 @@ impl Scheduler {
                 // across this attempt and every call still available afterward.
                 let attempts_remaining = budget
                     .max_provider_calls
-                    .saturating_sub(usage.provider_calls.saturating_sub(1))
+                    .saturating_sub(usage.provider_calls)
                     .max(1);
                 let attempt_output_limit = if conservative_output {
                     remaining_output.map(|remaining| {
@@ -535,9 +563,8 @@ impl Scheduler {
                     context: request.context.clone(),
                     max_output_tokens: attempt_output_limit,
                     target: (*target).clone(),
-                    attempt,
+                    attempt: pending.number,
                 };
-                let observation = self.telemetry.attempt(&entry.config.id);
                 let reservation = self.rate.reserve(
                     &entry.config.id,
                     &target.invocation.model,
@@ -615,6 +642,13 @@ impl Scheduler {
                 if cancelled.load(Ordering::Acquire) {
                     return Err(SchedulerError::Cancelled);
                 }
+                match health_permit.handle().revalidate() {
+                    // A peer can close the operational gate while this attempt
+                    // queues. Release neutrally and advance in the original order.
+                    Err(SchedulerError::NoProvider) => break,
+                    Err(error) => return Err(error),
+                    Ok(()) => {}
+                }
                 let result = entry
                     .provider
                     .execute_observed(&attempt_request, cancelled, &mut on_chunk, &observation)
@@ -625,12 +659,32 @@ impl Scheduler {
                 // RAII covers queue errors, sink failure, cancellation and aborted futures.
                 // Reconcile before any response processing/backoff/fallback.
                 drop(reservation);
-                if let Some(error) = observation.rate_error() {
+                let boundary_error = observation.rate_error();
+                if !observation.was_started() {
+                    if let Some(error) = &boundary_error {
+                        // No debit ever occurred: queue/HTTP resilience denial
+                        // can advance, while context changes remain terminal.
+                        if *error == SchedulerError::NoProvider {
+                            break;
+                        }
+                        return Err(error.clone());
+                    }
+                }
+                // A factual call is never rolled back, even if a later local
+                // error is reported. Preserve legacy provider-preflight debits.
+                pending.commit(&mut attempt, &mut usage, &entry.config.id);
+                if let Some(error) = boundary_error {
                     return Err(error);
                 }
                 if matches!(result, Err(ProviderError::EventSinkClosed)) {
                     return Err(SchedulerError::EventSinkClosed);
                 }
+                // A local error/cancellation drops the guard neutrally. Provider
+                // health uses only the LR-8A HTTP fact, before Core validation.
+                if cancelled.load(Ordering::Acquire) {
+                    return Err(SchedulerError::Cancelled);
+                }
+                health_permit.finish(observation.was_started(), result.as_ref().err());
                 match result {
                     Ok(response) => {
                         if request
@@ -717,30 +771,6 @@ impl Scheduler {
                         if cancelled.load(Ordering::Acquire) {
                             return Err(SchedulerError::Cancelled);
                         }
-                        let cooldown_ms = match error {
-                            ProviderError::RateLimited { retry_after_ms } => {
-                                Some(retry_after_ms.unwrap_or(3_000).max(1))
-                            }
-                            ProviderError::Unavailable {
-                                retry_after_ms: Some(ms),
-                            } => Some(ms.max(1)),
-                            _ => None,
-                        };
-                        if let Some(ms) = cooldown_ms {
-                            let _recorded = self.record_cooldown(
-                                &entry.config.id,
-                                observation.context_generation(),
-                                ms,
-                            );
-                            #[cfg(debug_assertions)]
-                            if _recorded {
-                                eprintln!(
-                                "[Scheduler][diag] cooldown provider={} reason={} cooldown_ms={ms}",
-                                entry.config.id,
-                                error.code()
-                            );
-                            }
-                        }
                         // Once text has reached the UI, another attempt would concatenate
                         // incompatible partial answers and could double provider cost.
                         if emitted_chunk {
@@ -775,8 +805,8 @@ impl Scheduler {
                             };
                             eprintln!("[Scheduler][diag] retry_skipped reason={reason}");
                         }
-                        if can_retry {
-                            let backoff_ms = retry_policy.backoff_ms(attempt);
+                        if can_retry && self.resilience.eligible(&entry.config.id) {
+                            let backoff_ms = self.resilience.backoff_ms(retry_policy, attempt);
                             #[cfg(debug_assertions)]
                             {
                                 let provider = &entry.config.id;
@@ -790,21 +820,10 @@ impl Scheduler {
                                 cancelled.store(true, Ordering::Release);
                                 SchedulerError::EventSinkClosed
                             })?;
-                            // Cancellable asynchronous backoff.
-                            let now = tokio::time::Instant::now();
-                            let until = now
-                                .checked_add(Duration::from_millis(backoff_ms))
-                                .unwrap_or_else(|| now + Duration::from_secs(86_400));
-                            while tokio::time::Instant::now() < until {
-                                if cancelled.load(Ordering::Acquire) {
-                                    return Err(SchedulerError::Cancelled);
-                                }
-                                tokio::time::sleep(
-                                    (until - tokio::time::Instant::now())
-                                        .min(Duration::from_millis(25)),
-                                )
-                                .await;
-                            }
+                            last_provider = Some(entry.config.id.clone());
+                            last_error = Some(error);
+                            self.resilience.backoff(backoff_ms, cancelled).await?;
+                            // The next loop reacquires health, rate and admission.
                             continue;
                         }
                         let can_fallback =
@@ -839,15 +858,11 @@ impl Scheduler {
                 if eligible.is_empty() {
                     eprintln!("[Scheduler][diag] no_provider reason=no_eligible_provider");
                 } else {
-                    let now = Instant::now();
-                    let cooldowns = self.cooldowns.lock().unwrap_or_else(|p| p.into_inner());
-                    for entry in &eligible {
-                        let cooldown_ms = cooldowns
-                            .get(&entry.config.id)
-                            .map(|until| until.saturating_duration_since(now).as_millis() as u64)
-                            .unwrap_or(0);
-                        let provider = &entry.config.id;
-                        eprintln!("[Scheduler][diag] no_provider reason=cooldown provider={provider} cooldown_ms={cooldown_ms}");
+                    for snapshot in self.resilience_snapshot() {
+                        let provider = snapshot.provider_id;
+                        let cooldown_ms = snapshot.cooldown_remaining_ms;
+                        let circuit = snapshot.circuit_state;
+                        eprintln!("[Scheduler][diag] no_provider reason=operational_gate provider={provider} circuit={circuit:?} cooldown_ms={cooldown_ms}");
                     }
                 }
             }
@@ -856,12 +871,10 @@ impl Scheduler {
             } else {
                 Err(SchedulerError::NoProvider)
             }
+        } else if let Some(error) = last_error {
+            Err(SchedulerError::Provider(error))
         } else {
-            Err(SchedulerError::Provider(last_error.unwrap_or(
-                ProviderError::Unavailable {
-                    retry_after_ms: None,
-                },
-            )))
+            Err(SchedulerError::NoProvider)
         }
     }
 }
