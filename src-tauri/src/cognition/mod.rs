@@ -26,6 +26,9 @@ pub mod provider;
 pub mod registry;
 pub mod scheduler;
 pub mod settings;
+pub mod operational;
+#[cfg(test)]
+mod operational_tests;
 pub mod summary;
 pub mod task_graph;
 pub mod task_graph_runtime;

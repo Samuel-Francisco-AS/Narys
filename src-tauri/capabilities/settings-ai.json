@@ -12,6 +12,7 @@
   ],
   "permissions": [
     "allow-get-ai-settings",
+    "allow-get-provider-operational-snapshot",
     "allow-update-cognitive-role-policy",
     "allow-start-orchestrator-planning",
     "allow-start-task-graph",

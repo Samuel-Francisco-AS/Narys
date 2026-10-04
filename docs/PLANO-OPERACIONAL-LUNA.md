@@ -461,7 +461,15 @@ Luna antes da liberação da seguinte:
 2. **LR-8B — admission control + fila + concurrency — PASS técnico + auditoria + gate humano; integrada à `main` pela PR #15 em 03/10/2026**;
 3. **LR-8C — rate accounting + token buckets + budgets — PASS técnico + auditoria; integrada à `main` pela PR #16 em 04/10/2026**;
 4. **LR-8D — backoff, jitter, cooldown + circuit breaker — PASS técnico + auditoria; integrada à `main` pela PR #18 em 04/10/2026**;
-5. **LR-8E — painel operacional + integração/gate final**.
+5. **LR-8E — IMPLEMENTAÇÃO CANDIDATA**.
+
+**IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna e gate humano final**. Sem merge ou gate real executado.
+A LR-8 continua aberta. Snapshot in-memory leve, painel factual por provider e
+editor exclusivo de RatePolicy local implementados na branch
+`lr-8e-operational-panel-final-gate`, base `b8a89c1943c232a3ac793a897f06d68593970d95`.
+Poll de 1 s somente visible não acessa SecretStore/SQLite nem inicia provider.
+Detalhes, autoauditoria e gates em [LR-8](LR-8-RATE-LIMIT-MANAGER.md);
+[checklist humana preparada, não executada](LR-8E-FINAL-GATE.md).
 
 A trilha mantém como requisitos finais RPM, TPM, RPD/TPD quando factuais,
 concurrency, fila, token bucket, parsing de headers, Retry-After, backoff +
@@ -469,7 +477,7 @@ jitter, cooldown, circuit breaker, budgets e telemetria. Quota/custo/saúde
 desconhecidos permanecem explicitamente desconhecidos; nenhuma regra comercial
 mutável é hardcoded no Luna Core.
 
-**Próxima ação: LR-8E — painel operacional + integração/gate final.** A LR-8D fechou em PASS técnico + auditoria independente em 04/10/2026. A LR-8C fechou em PASS técnico + auditoria independente em 04/10/2026. A LR-8B fechou
+**Próxima ação: auditoria independente da candidata LR-8E pela Luna; eventuais FIXes e depois gate humano final conduzido pelo usuário + Luna.** A LR-8D fechou em PASS técnico + auditoria independente em 04/10/2026. A LR-8C fechou em PASS técnico + auditoria independente em 04/10/2026. A LR-8B fechou
 em PASS técnico + auditoria independente + gate humano real em 03/10/2026. O contrato detalhado, limites de escopo, gates e protocolo de auditoria
 estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md). A dívida de invalidação/versionamento de fatos de quota por mudança de contexto de credencial foi resolvida na LR-8C por geração/invalidação local, sem persistir segredos. O gate humano da 8B também confirmou
 contenção real com dois Workers Groq + uma terceira operação ForegroundInteractive;

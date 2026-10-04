@@ -125,6 +125,19 @@ pub async fn get_ai_settings(
     .map_err(str::to_owned)
 }
 
+/// Memory-only read. No Database, SecretStore, credential, filesystem or provider call.
+#[tauri::command]
+pub async fn get_provider_operational_snapshot(
+    runtime: State<'_, Arc<ProviderRuntime>>,
+) -> Result<super::operational::ProviderOperationalSnapshot, String> {
+    let scheduler = runtime.scheduler.clone();
+    // Authority locks may briefly wait for concurrent mutations. Keep that wait
+    // off the WebView/main thread; the worker performs only the memory read.
+    tauri::async_runtime::spawn_blocking(move || scheduler.operational_snapshot())
+        .await
+        .map_err(|_| "worker_failed".to_owned())
+}
+
 #[tauri::command]
 pub async fn update_provider_rate_policy(
     runtime: State<'_, Arc<ProviderRuntime>>,
