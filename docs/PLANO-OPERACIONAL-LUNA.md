@@ -459,7 +459,7 @@ Luna antes da liberação da seguinte:
 
 1. **LR-8A — modelo de quota + telemetria factual — PASS e integrada à `main` pela PR #14 em 03/10/2026**;
 2. **LR-8B — admission control + fila + concurrency — PASS técnico + auditoria + gate humano; integrada à `main` pela PR #15 em 03/10/2026**;
-3. **LR-8C — rate accounting + token buckets + budgets**;
+3. **LR-8C — rate accounting + token buckets + budgets — PASS técnico + auditoria em 04/10/2026**;
 4. **LR-8D — backoff, jitter, cooldown + circuit breaker**;
 5. **LR-8E — painel operacional + integração/gate final**.
 
@@ -469,11 +469,9 @@ jitter, cooldown, circuit breaker, budgets e telemetria. Quota/custo/saúde
 desconhecidos permanecem explicitamente desconhecidos; nenhuma regra comercial
 mutável é hardcoded no Luna Core.
 
-**Próxima ação: LR-8C — rate accounting + token buckets + budgets.** A LR-8B fechou
+**Próxima ação: LR-8D — backoff, jitter, cooldown + circuit breaker.** A LR-8C fechou em PASS técnico + auditoria independente em 04/10/2026. A LR-8B fechou
 em PASS técnico + auditoria independente + gate humano real em 03/10/2026. O contrato detalhado, limites de escopo, gates e protocolo de auditoria
-estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md). A dívida de
-invalidação/versionamento de fatos de quota quando o contexto de credencial mudar
-é obrigatória antes de enforcement na LR-8C. O gate humano da 8B também confirmou
+estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md). A dívida de invalidação/versionamento de fatos de quota por mudança de contexto de credencial foi resolvida na LR-8C por geração/invalidação local, sem persistir segredos. O gate humano da 8B também confirmou
 contenção real com dois Workers Groq + uma terceira operação ForegroundInteractive;
 latência de ~1,5–1,8 s observada no SecretStore/preflight permanece uma dívida de
 performance separada do admission control.
