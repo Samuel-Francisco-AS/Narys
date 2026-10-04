@@ -1,8 +1,8 @@
 # LR-8 — Rate Limit Manager completo
 
-Estado: **EM EXECUÇÃO — LR-8A e LR-8B encerradas em PASS; LR-8C liberada.**
+Estado: **EM EXECUÇÃO — LR-8A, LR-8B e LR-8C encerradas em PASS; LR-8D liberada.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
-Subfase corrente: **LR-8C — implementação candidata; LR-8D bloqueada**.
+Subfase corrente: **LR-8D — backoff, jitter, cooldown + circuit breaker**.
 
 ## Objetivo
 
@@ -1813,3 +1813,20 @@ tráfego comercial real ou alteração de credenciais reais.
 
 **IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
 **LR-8D bloqueada.** Sem merge ou liberação de gate humano.
+
+
+### Fechamento auditado da LR-8C
+
+**Resultado: PASS técnico + reauditoria independente da Luna em 04/10/2026.**
+Branch de implementação: `lr-8c-rate-accounting`. Candidata final auditada em
+`9668ada86a0716a65917d264cd41b95195c87f24`.
+
+O fechamento consolidou rate accounting central antes do admission, reservations atômicas e reconciliation conservadora, budgets locais persistidos sem hardcode comercial, geração/invalidação de contexto de credencial, durable uncertainty antes da fronteira HTTP, terminal usage apenas com evidência protocolar suficiente, `HttpStartSequence`, ordering conservador de facts concorrentes, grupos transitivos de overlap e revogação conservadora de auto-refill diante de resets ambíguos.
+
+As FIXes finais eliminaram recuperação fictícia de crédito após crash, refunds baseados em usage não terminal, stale headroom com accounting unresolved, ordering por reservation ID, refill por resposta historicamente sobreposta e auto-refill antecipado por reset ambíguo.
+
+Gates finais reportados pelo agente: `rate_tests` 69/0; `task_graph_runtime_tests` 13/0; suíte global paralela 441 aprovados, 0 falhas, 2 ignorados; suíte global serial 441 aprovados, 0 falhas, 2 ignorados; typecheck/build/check debug/release e ambos `git diff --check` em PASS. Não há workflow/status check remoto associado ao HEAD; os gates são execuções locais do agente auditadas contra o código remoto.
+
+Limitações aceitas e não bloqueantes: adapters de produção ainda sem `TokenUpperBound` comprovável; ambiguity/overlap podem subutilizar quota até nova autoridade factual; estado local assume uma única instância ativa; I/O SQLite síncrono permanece dívida de performance, não de correção.
+
+Nenhum gate humano específico foi exigido para a LR-8C pelo protocolo atual. **LR-8D está liberada.**
