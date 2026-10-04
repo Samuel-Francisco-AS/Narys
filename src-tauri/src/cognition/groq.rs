@@ -341,7 +341,13 @@ impl Provider for GroqProvider {
                         .is_some_and(|v| v.len() == 1 && v[0].get("message").is_some_and(Value::is_object))
                 {
                     if let Ok(usage) = non_streaming_usage(&value) {
-                        observation.final_usage(usage);
+                        // Complete non-streaming response: request usage per the
+                        // official chat-completions API reference (see LR-8C docs).
+                        if matches!(value.pointer("/choices/0/finish_reason").and_then(Value::as_str), Some("stop" | "length" | "tool_calls" | "function_call")) {
+                            observation.final_usage(usage);
+                        } else {
+                            observation.usage(usage);
+                        }
                     }
                 }
                 return parse_non_streaming(&value, limit);
@@ -394,7 +400,9 @@ impl Provider for GroqProvider {
             if !done {
                 return Err(ProviderError::Protocol);
             }
-            if let Some(value) = usage { observation.final_usage(value); }
+            // Groq documents [DONE] as stream termination, but neither its API
+            // reference nor official chunk type proves this usage sample is a
+            // definitive total. Keep it observational; [DONE] grants no refund.
             match finish_reason {
                 Some(FinishReason::Stop) if !text.trim().is_empty() => {}
                 Some(FinishReason::Stop) => return Err(ProviderError::Protocol),
@@ -931,6 +939,105 @@ mod tests {
             execute_sse(empty_stop),
             Err(ProviderError::Protocol)
         ));
+    }
+
+    #[test]
+    fn rate_fix_complete_nonstreaming_usage_is_definitive_for_accounting() {
+        let (store, dir) = fixture();
+        for reason in [Some("stop"), None] {
+            let body = json!({"choices":[{"message":{"content":"{\"ok\":true}"},"finish_reason":reason}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}).to_string();
+            for bound in [None, Some(80)] {
+                let (url, handle) = server("200 OK", &body, "", false);
+                let provider = GroqProvider::new(
+                    GroqConfig {
+                        endpoint: url,
+                        ..Default::default()
+                    },
+                    store.clone(),
+                )
+                .unwrap();
+                let mut req = request(Some(ThinkingLevel::Low));
+                req.mode = super::super::types::InvocationMode {
+                    transport: super::super::types::TransportMode::NonStreaming,
+                    output: super::super::types::OutputContract::JsonSchema {
+                        name: "fixture".into(),
+                        schema: json!({"type":"object"}),
+                        max_bytes: 1_024,
+                    },
+                };
+                let (rate, telemetry) = super::super::rate_tests::adapter_token_accounting("groq");
+                let obs = telemetry.attempt("groq");
+                let guard =
+                    super::super::rate_tests::adapter_token_reservation(&rate, &obs, "groq", bound);
+                let response = tauri::async_runtime::block_on(provider.execute_observed(
+                    &req,
+                    &AtomicBool::new(false),
+                    &mut |_| Ok(()),
+                    &obs,
+                ));
+                handle.join().unwrap();
+                if reason.is_some() {
+                    assert_eq!(response.unwrap().usage.total_tokens, Some(30));
+                } else {
+                    assert_eq!(response.unwrap_err(), ProviderError::Protocol);
+                }
+                drop(guard);
+                let b = &rate.snapshots()[0].constraints[0];
+                let uncertain = reason.is_none() && bound.is_none();
+                assert_eq!(
+                    b.consumed,
+                    if reason.is_none() {
+                        bound.unwrap_or(30)
+                    } else {
+                        30
+                    }
+                );
+                assert_eq!(b.unaccounted_token_calls, u64::from(uncertain));
+                assert_eq!(
+                    b.effective_remaining,
+                    if uncertain {
+                        None
+                    } else {
+                        Some(100 - b.consumed)
+                    }
+                );
+            }
+        }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rate_fix_streaming_done_does_not_make_usage_definitive_for_accounting() {
+        let (store, dir) = fixture();
+        for bound in [None, Some(80)] {
+            let (url, handle) = server("200 OK", SSE, "", true);
+            let provider = GroqProvider::new(
+                GroqConfig {
+                    endpoint: url,
+                    ..Default::default()
+                },
+                store.clone(),
+            )
+            .unwrap();
+            let (rate, telemetry) = super::super::rate_tests::adapter_token_accounting("groq");
+            let obs = telemetry.attempt("groq");
+            let guard = super::super::rate_tests::adapter_token_reservation(&rate, &obs, "groq", bound);
+            let response = tauri::async_runtime::block_on(provider.execute_observed(
+                &request(Some(ThinkingLevel::Low)),
+                &AtomicBool::new(false),
+                &mut |_| Ok(()),
+                &obs,
+            ))
+            .unwrap();
+            handle.join().unwrap();
+            assert_eq!(response.usage.total_tokens, Some(15));
+            drop(guard);
+            let b = &rate.snapshots()[0].constraints[0];
+            assert_eq!(b.consumed, bound.unwrap_or(15));
+            assert_eq!(b.unaccounted_token_calls, u64::from(bound.is_none()));
+            assert_eq!(b.effective_remaining, bound.map(|n| 100 - n));
+        }
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

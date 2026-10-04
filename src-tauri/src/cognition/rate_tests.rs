@@ -468,7 +468,7 @@ fn token_overflow_saturates_and_never_refunds_uncertain_saturated_debits() {
     assert_eq!(b.unaccounted_token_calls, 1);
     assert_eq!(
         err(h.reserve("a", "m", Some(1))),
-        SchedulerError::RateCapacityExceeded
+        SchedulerError::RateStateUnavailable
     );
     assert!(TokenUpperBound::explicit_total(u64::MAX).is_err());
 }
@@ -2066,4 +2066,475 @@ async fn credential_era_invalidates_legacy_cooldown_and_rejects_late_old_429() {
         assert!(bounded(run).await.unwrap().is_ok());
         clean(&s);
     }
+}
+
+fn total_usage(total: u32) -> ProviderUsage {
+    ProviderUsage {
+        total_tokens: Some(total),
+        output_tokens_measured: true,
+        ..ProviderUsage::default()
+    }
+}
+fn reject_storage(db: &crate::persistence::database::Database) {
+    db.open().unwrap().execute_batch("CREATE TRIGGER reject_rate BEFORE UPDATE ON cognitive_rate_state BEGIN SELECT RAISE(ABORT,'synthetic'); END;").unwrap();
+}
+fn restore_storage(db: &crate::persistence::database::Database) {
+    db.open()
+        .unwrap()
+        .execute_batch("DROP TRIGGER reject_rate")
+        .unwrap();
+}
+fn assert_uncertain(h: &Harness, consumed: u64) {
+    let b = h.bucket("a", QuotaDimension::TokensPerDay);
+    assert_eq!(b.consumed, consumed);
+    assert_eq!(b.unaccounted_token_calls, 1);
+    assert_eq!(b.effective_remaining, None);
+    assert_eq!(
+        err(h.reserve("a", "m", Some(1))),
+        SchedulerError::RateStateUnavailable
+    );
+}
+
+#[test]
+fn crash_with_live_unbounded_http_guard_preserves_durable_uncertainty() {
+    let dir = TempDirectory::new();
+    let db = dir.db();
+    let h = durable(db.clone(), FakeClock::new());
+    h.rate.set_policy("a", daily(None, Some(100))).unwrap();
+    let (guard, obs) = h.reserve("a", "m", None).unwrap();
+    assert!(obs.started());
+    assert_uncertain(&h, 0);
+    // Reopen while guard is alive: neither finish nor Drop can rescue this crash.
+    let restarted = durable(db.clone(), FakeClock::new());
+    assert_uncertain(&restarted, 0);
+    drop(restarted);
+    drop(guard);
+    assert_uncertain(&durable(db, FakeClock::new()), 0);
+}
+
+#[test]
+fn unbounded_definitive_usage_is_durable_even_before_guard_drop_and_idempotent() {
+    for total in [0, 30, 120] {
+        let dir = TempDirectory::new();
+        let db = dir.db();
+        let h = durable(db.clone(), FakeClock::new());
+        h.rate.set_policy("a", daily(None, Some(100))).unwrap();
+        let (guard, obs) = h.reserve("a", "m", None).unwrap();
+        assert!(obs.started());
+        obs.usage(total_usage(total));
+        assert_uncertain(&h, total as u64);
+        obs.final_usage(total_usage(total));
+        obs.final_usage(total_usage(total));
+        for state in [&h, &durable(db.clone(), FakeClock::new())] {
+            let b = state.bucket("a", QuotaDimension::TokensPerDay);
+            assert_eq!(b.consumed, total as u64);
+            assert_eq!(b.unaccounted_token_calls, 0);
+            assert_eq!(
+                b.effective_remaining,
+                Some(100_u64.saturating_sub(total as u64))
+            );
+        }
+        drop(guard);
+        let restarted = durable(db, FakeClock::new());
+        assert_eq!(
+            restarted.bucket("a", QuotaDimension::TokensPerDay).consumed,
+            total as u64
+        );
+        assert_eq!(
+            restarted
+                .bucket("a", QuotaDimension::TokensPerDay)
+                .unaccounted_token_calls,
+            0
+        );
+    }
+}
+
+#[test]
+fn cumulative_usage_and_no_usage_preserve_uncertainty_after_finish_and_restart() {
+    for total in [None, Some(12)] {
+        let dir = TempDirectory::new();
+        let db = dir.db();
+        let h = durable(db.clone(), FakeClock::new());
+        h.rate.set_policy("a", daily(None, Some(100))).unwrap();
+        let (guard, obs) = h.reserve("a", "m", None).unwrap();
+        assert!(obs.started());
+        if let Some(total) = total {
+            obs.usage(total_usage(total));
+        }
+        obs.finished(Some(&ProviderError::Timeout));
+        drop(guard);
+        assert_uncertain(&h, total.unwrap_or(0) as u64);
+        assert_uncertain(&durable(db, FakeClock::new()), total.unwrap_or(0) as u64);
+    }
+}
+
+#[test]
+fn unbounded_preflight_and_cancelled_reservations_leave_no_durable_uncertainty() {
+    for cancel in [false, true] {
+        let dir = TempDirectory::new();
+        let db = dir.db();
+        let h = durable(db.clone(), FakeClock::new());
+        h.rate.set_policy("a", daily(None, Some(100))).unwrap();
+        let (guard, obs) = h.reserve("a", "m", None).unwrap();
+        if cancel {
+            assert!(!obs.started_unless_cancelled(&AtomicBool::new(true)));
+            assert_eq!(obs.rate_error(), Some(SchedulerError::Cancelled));
+        }
+        drop(guard);
+        let b = durable(db, FakeClock::new()).bucket("a", QuotaDimension::TokensPerDay);
+        assert_eq!(b.unaccounted_token_calls, 0);
+        assert_eq!(b.effective_remaining, Some(100));
+    }
+}
+
+#[test]
+fn unresolved_local_tokens_deny_stale_headroom_at_reserve_and_queued_http_revalidation() {
+    for policy in [
+        daily(None, Some(100)),
+        local(QuotaDimension::TokensPerDay, 100, 60_000),
+    ] {
+        let h = Harness::new();
+        h.rate.set_policy("a", policy).unwrap();
+        let (queued, queued_obs) = h.reserve("a", "m", Some(80)).unwrap();
+        let (unbounded, obs) = h.reserve("a", "m", None).unwrap();
+        assert!(obs.started());
+        obs.usage(total_usage(12));
+        assert_eq!(
+            err(h.reserve("a", "m", Some(1))),
+            SchedulerError::RateStateUnavailable
+        );
+        assert!(!queued_obs.started());
+        assert_eq!(
+            queued_obs.rate_error(),
+            Some(SchedulerError::RateStateUnavailable)
+        );
+        drop(queued);
+        drop(unbounded);
+        assert_uncertain(&h, 12);
+        // No bound means no fabricated token enforcement, even while unknown.
+        assert!(h.reserve("a", "m", None).is_ok());
+    }
+}
+
+#[test]
+fn external_uncertainty_requires_fresh_remaining_or_legitimate_reset() {
+    for reset in [false, true] {
+        let h = Harness::new();
+        h.quota(
+            "a",
+            model("m"),
+            QuotaDimension::TokensPerDay,
+            Some(100),
+            Some(100),
+            reset.then_some(Timing::DelayMs(10)),
+        );
+        let (guard, obs) = h.reserve("a", "m", None).unwrap();
+        assert!(obs.started());
+        obs.usage(total_usage(12));
+        drop(guard);
+        assert_uncertain(&h, 12);
+        if reset {
+            h.clock.advance(9);
+            assert_uncertain(&h, 12);
+            h.clock.advance(1);
+        } else {
+            h.quota(
+                "a",
+                model("m"),
+                QuotaDimension::TokensPerDay,
+                Some(100),
+                None,
+                None,
+            );
+            assert_eq!(
+                h.bucket("a", QuotaDimension::TokensPerDay)
+                    .effective_remaining,
+                None
+            );
+            assert_eq!(
+                err(h.reserve("a", "m", Some(1))),
+                SchedulerError::RateStateUnavailable
+            );
+            h.clock.advance(100_000); // Unknown reset cannot refill anything.
+            assert_eq!(
+                h.bucket("a", QuotaDimension::TokensPerDay)
+                    .effective_remaining,
+                None
+            );
+            h.quota(
+                "a",
+                model("m"),
+                QuotaDimension::TokensPerDay,
+                Some(100),
+                Some(88),
+                None,
+            );
+        }
+        let b = h.bucket("a", QuotaDimension::TokensPerDay);
+        assert_eq!(b.unaccounted_token_calls, 0);
+        assert!(h.reserve("a", "m", Some(1)).is_ok());
+    }
+}
+
+#[test]
+fn active_unbounded_external_call_remains_uncertain_after_fresh_headers() {
+    let h = Harness::new();
+    h.quota(
+        "a",
+        model("m"),
+        QuotaDimension::TokensPerDay,
+        Some(100),
+        Some(100),
+        None,
+    );
+    let (guard, obs) = h.reserve("a", "m", None).unwrap();
+    assert!(obs.started());
+    for remaining in [90, 88] {
+        h.quota(
+            "a",
+            model("m"),
+            QuotaDimension::TokensPerDay,
+            Some(100),
+            Some(remaining),
+            None,
+        );
+        assert_uncertain(&h, 0);
+    }
+    obs.final_usage(total_usage(12));
+    assert_eq!(
+        h.bucket("a", QuotaDimension::TokensPerDay)
+            .unaccounted_token_calls,
+        0
+    );
+    drop(guard);
+    assert_eq!(h.bucket("a", QuotaDimension::TokensPerDay).consumed, 12);
+}
+
+#[test]
+fn credential_rotation_preserves_local_uncertainty_and_only_exact_reset_clears_it() {
+    let dir = TempDirectory::new();
+    let db = dir.db();
+    let h = durable(db.clone(), FakeClock::new());
+    h.rate
+        .set_policy("a", local(QuotaDimension::TokensPerDay, 100, 10))
+        .unwrap();
+    let (old, old_obs) = h.reserve("a", "m", None).unwrap();
+    assert!(old_obs.started());
+    h.telemetry.invalidate_provider_quotas("a");
+    assert_uncertain(&h, 0);
+    assert_uncertain(&durable(db.clone(), FakeClock::new()), 0);
+    h.clock.advance(9);
+    assert_uncertain(&h, 0);
+    h.clock.advance(1);
+    assert_eq!(
+        h.bucket("a", QuotaDimension::TokensPerDay)
+            .effective_remaining,
+        Some(100)
+    );
+    let (new, new_obs) = h.reserve("a", "m", None).unwrap();
+    assert!(new_obs.started());
+    old_obs.final_usage(total_usage(30));
+    drop(old); // Old epoch cannot debit/refund/clear the new call's marker.
+    assert_uncertain(&h, 0);
+    new_obs.final_usage(total_usage(20));
+    drop(new);
+    assert_eq!(h.bucket("a", QuotaDimension::TokensPerDay).consumed, 20);
+    let clock = FakeClock::new();
+    clock.advance(10);
+    let b = durable(db, clock).bucket("a", QuotaDimension::TokensPerDay);
+    assert_eq!(b.unaccounted_token_calls, 0);
+    assert_eq!(b.effective_remaining, Some(80));
+}
+
+#[test]
+fn unbounded_storage_failure_at_write_ahead_or_started_never_allows_http() {
+    for fail_started in [false, true] {
+        let dir = TempDirectory::new();
+        let db = dir.db();
+        let h = durable(db.clone(), FakeClock::new());
+        h.rate.set_policy("a", daily(None, Some(100))).unwrap();
+        if fail_started {
+            let (guard, obs) = h.reserve("a", "m", None).unwrap();
+            reject_storage(&db);
+            assert!(!obs.started());
+            assert_eq!(obs.rate_error(), Some(SchedulerError::RateStateUnavailable));
+            drop(guard);
+        } else {
+            reject_storage(&db);
+            assert_eq!(
+                err(h.reserve("a", "m", None)),
+                SchedulerError::RateStateUnavailable
+            );
+        }
+        assert!(h.rate.snapshots()[0].persistence_failed);
+        assert_eq!(
+            err(h.reserve("a", "m", None)),
+            SchedulerError::RateStateUnavailable
+        );
+        restore_storage(&db);
+        let b = durable(db, FakeClock::new()).bucket("a", QuotaDimension::TokensPerDay);
+        // HTTP was prohibited: the previous durable zero is safe.
+        assert_eq!(b.effective_remaining, Some(100));
+        assert_eq!(b.unaccounted_token_calls, 0);
+    }
+}
+
+#[test]
+fn unbounded_storage_failure_at_prefix_final_or_drop_never_recovers_known_credit() {
+    for phase in ["prefix", "final", "final_zero", "drop"] {
+        let dir = TempDirectory::new();
+        let db = dir.db();
+        let h = durable(db.clone(), FakeClock::new());
+        h.rate.set_policy("a", daily(None, Some(100))).unwrap();
+        let (guard, obs) = h.reserve("a", "m", None).unwrap();
+        assert!(obs.started());
+        reject_storage(&db);
+        match phase {
+            "prefix" => obs.usage(total_usage(120)),
+            "final" => obs.final_usage(total_usage(120)),
+            "final_zero" => obs.final_usage(total_usage(0)),
+            _ => (),
+        }
+        if phase != "drop" {
+            assert!(h.rate.snapshots()[0].persistence_failed);
+            assert_eq!(
+                err(h.reserve("a", "m", None)),
+                SchedulerError::RateStateUnavailable
+            );
+            assert_eq!(
+                h.bucket("a", QuotaDimension::TokensPerDay).consumed,
+                if phase == "final_zero" { 0 } else { 120 }
+            );
+        }
+        // Disk contains the pre-HTTP marker even while the owner is still alive.
+        assert_uncertain(&durable(db.clone(), FakeClock::new()), 0);
+        drop(guard);
+        assert!(h.rate.snapshots()[0].persistence_failed);
+        restore_storage(&db);
+        assert_uncertain(&durable(db, FakeClock::new()), 0);
+    }
+}
+
+#[test]
+fn failed_violated_bound_persistence_has_durable_recovery_marker() {
+    let dir = TempDirectory::new();
+    let db = dir.db();
+    let h = durable(db.clone(), FakeClock::new());
+    h.rate.set_policy("a", daily(None, Some(100))).unwrap();
+    let (guard, obs) = h.reserve("a", "m", Some(30)).unwrap();
+    assert!(obs.started());
+    reject_storage(&db);
+    obs.final_usage(total_usage(120));
+    assert!(h.rate.snapshots()[0].persistence_failed);
+    assert_eq!(h.bucket("a", QuotaDimension::TokensPerDay).consumed, 120);
+    assert_uncertain(&durable(db.clone(), FakeClock::new()), 30);
+    drop(guard);
+    restore_storage(&db);
+    assert_uncertain(&durable(db, FakeClock::new()), 30);
+}
+
+// Shared fixture attachment for production-adapter lifecycle tests. It supplies
+// an explicit bound only when the test asks for one; production adapters stay None.
+pub(super) fn adapter_token_accounting(id: &str) -> (Arc<RateLimitManager>, TelemetryStore) {
+    let rate =
+        RateLimitManager::new([id.into()], Arc::new(SystemRateClock::default()), None).unwrap();
+    rate.set_policy(id, daily(None, Some(100))).unwrap();
+    let telemetry = TelemetryStore::with_rate([id.into()], rate.clone());
+    (rate, telemetry)
+}
+pub(super) fn adapter_token_reservation(
+    rate: &Arc<RateLimitManager>,
+    obs: &InvocationObservation<'_>,
+    id: &str,
+    bound: Option<u64>,
+) -> RateReservation {
+    let guard = rate
+        .reserve(
+            id,
+            "fixture",
+            0,
+            bound.map(|n| TokenUpperBound::explicit_total(n).unwrap()),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+    obs.attach_rate(guard.handle());
+    guard
+}
+
+#[test]
+fn cancellation_during_unbounded_durable_commit_rolls_back_marker_on_graceful_drop() {
+    struct CancelOnClock {
+        clock: Arc<FakeClock>,
+        armed: AtomicBool,
+        cancelled: Arc<AtomicBool>,
+    }
+    impl RateClock for CancelOnClock {
+        fn now(&self) -> ClockReading {
+            if self.armed.swap(false, Ordering::AcqRel) {
+                self.cancelled.store(true, Ordering::Release);
+            }
+            self.clock.now()
+        }
+    }
+    let dir = TempDirectory::new();
+    let db = dir.db();
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let clock = Arc::new(CancelOnClock {
+        clock: FakeClock::new(),
+        armed: AtomicBool::new(false),
+        cancelled: cancelled.clone(),
+    });
+    let rate = RateLimitManager::new(["a".into()], clock.clone(), Some(db.clone())).unwrap();
+    rate.set_policy("a", daily(None, Some(100))).unwrap();
+    let telemetry = TelemetryStore::with_rate(["a".into()], rate.clone());
+    let obs = telemetry.attempt("a");
+    let guard = rate.reserve("a", "m", 0, None, &cancelled).unwrap();
+    obs.attach_rate(guard.handle());
+    clock.armed.store(true, Ordering::Release);
+    assert!(!obs.started_unless_cancelled(&cancelled));
+    assert_eq!(obs.rate_error(), Some(SchedulerError::Cancelled));
+    assert!(matches!(
+        telemetry.snapshots()[0].usage[&UsageDimension::Requests].observed,
+        Fact::Known { value: 0, .. }
+    ));
+    // Crash at this point may retain a false-positive marker. No fictitious credit.
+    assert_uncertain(&durable(db.clone(), FakeClock::new()), 0);
+    drop(guard);
+    let b = durable(db, FakeClock::new()).bucket("a", QuotaDimension::TokensPerDay);
+    assert_eq!(b.unaccounted_token_calls, 0);
+    assert_eq!(b.effective_remaining, Some(100));
+}
+
+#[test]
+fn definitive_usage_clears_only_its_own_marker_and_reset_overflow_clears_nothing() {
+    let h = Harness::new();
+    h.rate
+        .set_policy("a", local(QuotaDimension::TokensPerDay, 100, 10))
+        .unwrap();
+    let (one, first) = h.reserve("a", "m", None).unwrap();
+    let (two, second) = h.reserve("a", "m", None).unwrap();
+    assert!(first.started());
+    assert!(second.started());
+    assert_eq!(
+        h.bucket("a", QuotaDimension::TokensPerDay)
+            .unaccounted_token_calls,
+        2
+    );
+    first.final_usage(total_usage(30));
+    first.final_usage(total_usage(30));
+    drop(one);
+    second.usage(total_usage(40));
+    assert_uncertain(&h, 70);
+    // Epoch/deadline validation precedes clearing uncertainty.
+    h.clock.0.lock().unwrap().monotonic_ms = u64::MAX;
+    assert_eq!(
+        err(h.reserve("a", "m", Some(1))),
+        SchedulerError::RateStateUnavailable
+    );
+    assert_eq!(
+        h.bucket("a", QuotaDimension::TokensPerDay)
+            .unaccounted_token_calls,
+        1
+    );
+    drop(two);
 }

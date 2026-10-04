@@ -170,7 +170,7 @@ pub struct RateConstraintSnapshot {
     pub reset_unix_ms: Option<u64>,
     pub reset_in_ms: Option<u64>,
     pub saturated: bool,
-    /// HTTP calls without a bound AND without definitive total usage; not known zero.
+    /// Unresolved token calls, including conservative recovery markers after crash.
     pub unaccounted_token_calls: u64,
 }
 #[derive(Clone, Debug, Serialize)]
@@ -208,6 +208,8 @@ struct Charge {
     bucket: usize,
     epoch: u64,
     amount: u64,
+    /// Owns one unresolved-call marker in this bucket/epoch, set before HTTP.
+    uncertain: bool,
 }
 #[derive(Clone)]
 struct Attempt {
@@ -485,7 +487,27 @@ impl RateLimitManager {
                 end_unix: b.end_unix.unwrap_or(0),
                 debited: b.consumed.saturating_add(s.reserved(i)).min(MAX_FACT_VALUE),
                 saturated: b.saturated,
-                unaccounted: b.unaccounted,
+                // Recovery markers for bounded in-flight calls protect even a
+                // violated bound followed by storage failure. They need not hide
+                // headroom in this process: its live bound remains enforceable.
+                // On restart no live owner can reconcile them, so they become
+                // uncertainty until a legitimate window reset.
+                unaccounted: b
+                    .unaccounted
+                    .saturating_add(
+                        s.attempts
+                            .values()
+                            .filter(|a| {
+                                a.started
+                                    && a.bound.is_some()
+                                    && !a.usage_final
+                                    && a.charges
+                                        .iter()
+                                        .any(|c| c.bucket == i && c.epoch == b.epoch)
+                            })
+                            .count() as u64,
+                    )
+                    .min(MAX_FACT_VALUE),
             })
             .collect();
         let json = serde_json::to_string(&Persisted {
@@ -652,13 +674,21 @@ impl RateLimitManager {
             s.persistence_failed = true;
             return;
         };
+        let live_uncertainty = s
+            .attempts
+            .values()
+            .flat_map(|a| &a.charges)
+            .filter(|c| c.bucket == i && c.epoch == s.buckets[i].epoch && c.uncertain)
+            .count() as u64;
         let b = &mut s.buckets[i];
         b.capacity = capacity;
         if fresh_remaining.is_some() {
-            // A new normalized balance replaces uncertainty from completed
-            // attempts. In-flight uncertainty is still derived separately.
+            // Fresh remaining replaces completed uncertainty, never tokens
+            // still being generated after the headers of an active call.
             b.unaccounted = 0;
             b.saturated = false;
+        } else if !b.saturated {
+            b.unaccounted = b.unaccounted.saturating_sub(live_uncertainty);
         }
         // Preserve the provenance of the last usable field when a later partial
         // observation cannot replace that field. Timing is never reparsed/refilled
@@ -714,9 +744,13 @@ impl RateLimitManager {
                 bucket: i,
                 epoch: b.epoch,
                 amount,
+                uncertain: a.started && tokens(dimension) && a.bound.is_none() && !a.usage_final,
             });
             if a.started {
                 add(&mut b.consumed, amount, &mut b.saturated);
+                if tokens(dimension) && a.bound.is_none() && !a.usage_final {
+                    add(&mut b.unaccounted, 1, &mut b.saturated);
+                }
             }
         }
     }
@@ -753,6 +787,10 @@ impl RateLimitManager {
                 1
             };
             if let Some(capacity) = b.capacity {
+                if tokens(b.dimension) && bound.is_some() && b.unaccounted > 0 {
+                    add(&mut s.blocks, 1, &mut s.saturated);
+                    return Err(SchedulerError::RateStateUnavailable);
+                }
                 if (!tokens(b.dimension) || bound.is_some())
                     && amount
                         > capacity
@@ -772,6 +810,7 @@ impl RateLimitManager {
                 bucket: i,
                 epoch: b.epoch,
                 amount,
+                uncertain: false,
             });
         }
         s.next_attempt = s
@@ -795,6 +834,7 @@ impl RateLimitManager {
         // reservation. A graceful pre-HTTP rollback removes it durably.
         if let Err(e) = self.persist(id, s) {
             s.attempts.remove(&n);
+            s.persistence_failed = true;
             return Err(e);
         }
         Ok(RateReservation {
@@ -820,6 +860,7 @@ impl RateLimitManager {
             return Err(SchedulerError::RateStateUnavailable);
         }
         s.refresh(self.clock.now())?;
+        let before_commit = s.clone();
         let a = s
             .attempts
             .get_mut(&n)
@@ -833,6 +874,15 @@ impl RateLimitManager {
         // Revalidate pending reservation after quota observations/reset during queue.
         for c in &a.charges {
             let b = &s.buckets[c.bucket];
+            if c.epoch == b.epoch
+                && tokens(b.dimension)
+                && a.bound.is_some()
+                && b.capacity.is_some()
+                && b.unaccounted > 0
+            {
+                add(&mut s.blocks, 1, &mut s.saturated);
+                return Err(SchedulerError::RateStateUnavailable);
+            }
             if c.epoch == b.epoch
                 && b.capacity.is_some_and(|cap| {
                     (!tokens(b.dimension) || a.bound.is_some())
@@ -848,10 +898,14 @@ impl RateLimitManager {
             }
         }
         a.started = true;
-        for c in &a.charges {
+        for c in &mut a.charges {
             let b = &mut s.buckets[c.bucket];
             if c.epoch == b.epoch {
                 add(&mut b.consumed, c.amount, &mut b.saturated);
+                if tokens(b.dimension) && a.bound.is_none() {
+                    add(&mut b.unaccounted, 1, &mut b.saturated);
+                    c.uncertain = true;
+                }
             }
         }
         // A queued reservation may have crossed a boundary. Persist its debit in
@@ -866,13 +920,12 @@ impl RateLimitManager {
             }
         });
         if let Err(e) = committed {
-            let a = s.attempts.get_mut(&n).unwrap();
-            a.started = false;
-            for c in &a.charges {
-                let b = &mut s.buckets[c.bucket];
-                if c.epoch == b.epoch {
-                    b.consumed = b.consumed.saturating_sub(c.amount);
-                }
+            // Restore the exact pre-commit state (including saturation/markers).
+            // Disk may retain a conservative marker when cancellation won after
+            // the write; graceful guard Drop durably removes that false positive.
+            *s = before_commit;
+            if e == SchedulerError::RateStateUnavailable {
+                s.persistence_failed = true;
             }
             return Err(e);
         }
@@ -884,23 +937,48 @@ impl RateLimitManager {
             let Some(a) = s.attempts.get_mut(&n).filter(|a| a.started) else {
                 return;
             };
-            if a.total_usage.is_none_or(|old| total >= old) {
-                a.usage_final = final_sample;
-                a.total_usage = Some(total);
+            if a.total_usage.is_some_and(|old| total < old) {
+                return;
             }
-            let mut increased = false;
+            let newly_final = final_sample && !a.usage_final;
+            a.usage_final |= final_sample;
+            a.total_usage = Some(total);
+            let mut changed = newly_final;
+            let mut cleared = Vec::new();
             // A violated bound or previously unbounded measured usage must debit
             // immediately, before another task can reserve known spent capacity.
             // Refund remains deferred until the owning guard finishes.
             for c in &mut a.charges {
                 let b = &mut s.buckets[c.bucket];
-                if c.epoch == b.epoch && tokens(b.dimension) && total > c.amount {
-                    add(&mut b.consumed, total - c.amount, &mut b.saturated);
-                    c.amount = total;
-                    increased = true;
+                if c.epoch == b.epoch && tokens(b.dimension) {
+                    if total > c.amount {
+                        add(&mut b.consumed, total - c.amount, &mut b.saturated);
+                        c.amount = total;
+                        changed = true;
+                    }
+                    if final_sample && c.uncertain && !b.saturated {
+                        b.unaccounted = b.unaccounted.saturating_sub(1);
+                        c.uncertain = false;
+                        cleared.push(c.bucket);
+                        changed = true;
+                    }
                 }
             }
-            if increased && self.persist(id, s).is_err() {
+            if changed && self.persist(id, s).is_err() {
+                // Keep the larger factual debit in RAM. Restoring markers also
+                // keeps RAM conservative if definitive reconciliation failed.
+                for i in cleared {
+                    let b = &mut s.buckets[i];
+                    add(&mut b.unaccounted, 1, &mut b.saturated);
+                    s.attempts
+                        .get_mut(&n)
+                        .unwrap()
+                        .charges
+                        .iter_mut()
+                        .find(|c| c.bucket == i)
+                        .unwrap()
+                        .uncertain = true;
+                }
                 s.persistence_failed = true;
             }
         }
@@ -939,9 +1017,8 @@ impl RateLimitManager {
                             b.consumed = b.consumed.saturating_sub(c.amount - actual);
                         }
                     }
-                    if a.bound.is_none() && !a.usage_final {
-                        add(&mut b.unaccounted, 1, &mut b.saturated);
-                    }
+                    // Unresolved markers were committed before transport and
+                    // survive removal of their live owner. Never debit twice.
                 }
             }
         }
@@ -969,16 +1046,7 @@ impl RateLimitManager {
                         .enumerate()
                         .map(|(i, b)| {
                             let reserved = s.reserved(i);
-                            let incomplete_tokens = tokens(b.dimension)
-                                && (b.unaccounted > 0
-                                    || s.attempts.values().any(|a| {
-                                        a.started
-                                            && a.bound.is_none()
-                                            && !a.usage_final
-                                            && a.charges
-                                                .iter()
-                                                .any(|c| c.bucket == i && c.epoch == b.epoch)
-                                    }));
+                            let incomplete_tokens = tokens(b.dimension) && b.unaccounted > 0;
                             RateConstraintSnapshot {
                                 scope: b.scope.clone(),
                                 dimension: b.dimension,

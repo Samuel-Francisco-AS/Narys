@@ -433,6 +433,9 @@ impl Provider for GeminiProvider {
                         }
                         StreamEvent::Completed(result, factual_usage) => {
                             if let Some(value) = factual_usage {
+                                // Official Interactions streaming contract:
+                                // interaction.completed carries final usage.
+                                // https://ai.google.dev/gemini-api/docs/streaming
                                 observation.final_usage(value);
                             }
                             let value = result?;
@@ -840,6 +843,41 @@ mod tests {
         assert_eq!(explicit["generation_config"]["max_output_tokens"], 8192);
         assert_eq!(explicit["generation_config"]["thinking_level"], "high");
     }
+    #[test]
+    fn rate_fix_completed_usage_is_definitive_and_refunds_only_excess_accounting() {
+        let (store, dir) = fixture();
+        for bound in [None, Some(80)] {
+            let (url, handle) = server("200 OK", SSE, "", true);
+            let provider = GeminiProvider::new(
+                GeminiConfig {
+                    endpoint: url,
+                    ..Default::default()
+                },
+                store.clone(),
+            )
+            .unwrap();
+            let (rate, telemetry) = super::super::rate_tests::adapter_token_accounting("gemini");
+            let obs = telemetry.attempt("gemini");
+            let guard =
+                super::super::rate_tests::adapter_token_reservation(&rate, &obs, "gemini", bound);
+            let response = tauri::async_runtime::block_on(provider.execute_observed(
+                &request(),
+                &AtomicBool::new(false),
+                &mut |_| Ok(()),
+                &obs,
+            ))
+            .unwrap();
+            handle.join().unwrap();
+            assert_eq!(response.usage.total_tokens, Some(30));
+            drop(guard);
+            let b = &rate.snapshots()[0].constraints[0];
+            assert_eq!(b.consumed, 30);
+            assert_eq!(b.unaccounted_token_calls, 0);
+            assert_eq!(b.effective_remaining, Some(70));
+        }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn request_privacy_stream_usage_and_secret_lifecycle() {
         let (store, dir) = fixture();

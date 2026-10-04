@@ -286,9 +286,8 @@ impl Provider for MistralProvider {
             if cancelled.load(Ordering::Acquire) {
                 return Err(ProviderError::Cancelled);
             }
-            if done {
-                if let Some(value) = usage { observation.final_usage(value); }
-            }
+            // include_usage and [DONE] do not prove a particular sample is the
+            // definitive invocation total. Keep cumulative usage observational.
             if !done || text.trim().is_empty() {
                 return Err(ProviderError::Protocol);
             }
@@ -680,6 +679,46 @@ mod tests {
             MistralProvider::classify(StatusCode::FORBIDDEN, &HeaderMap::new()),
             ProviderError::Authentication
         );
+    }
+
+    #[test]
+    fn rate_fix_streaming_done_preserves_only_observational_usage_and_uncertainty() {
+        let (store, directory) = http_fixture();
+        let body = "data: {\"choices\":[{\"delta\":{\"content\":\"visible\"}}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":20,\"total_tokens\":30}}\n\ndata: [DONE]\n\n";
+        for bound in [None, Some(80)] {
+            let (endpoint, handle) =
+                super::super::transport::test_support::server("200 OK", body, false, Duration::ZERO);
+            let provider = MistralProvider::new(
+                MistralConfig {
+                    endpoint,
+                    ..Default::default()
+                },
+                store.clone(),
+            )
+            .unwrap();
+            let (rate, telemetry) = super::super::rate_tests::adapter_token_accounting("mistral");
+            let obs = telemetry.attempt("mistral");
+            let guard =
+                super::super::rate_tests::adapter_token_reservation(&rate, &obs, "mistral", bound);
+            let response = tauri::async_runtime::block_on(provider.execute_observed(
+                &http_request(ProviderTimeouts {
+                    request_timeout_ms: 500,
+                    stream_idle_timeout_ms: 500,
+                }),
+                &AtomicBool::new(false),
+                &mut |_| Ok(()),
+                &obs,
+            ))
+            .unwrap();
+            handle.join().unwrap();
+            assert_eq!(response.usage.total_tokens, Some(30));
+            drop(guard);
+            let b = &rate.snapshots()[0].constraints[0];
+            assert_eq!(b.consumed, bound.unwrap_or(30));
+            assert_eq!(b.unaccounted_token_calls, u64::from(bound.is_none()));
+            assert_eq!(b.effective_remaining, bound.map(|n| 100 - n));
+        }
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
