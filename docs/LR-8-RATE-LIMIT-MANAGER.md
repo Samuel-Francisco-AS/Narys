@@ -828,9 +828,12 @@ Sem nenhum dos dois, a dimensão permanece não enforceable. `unknown != zero`
 e `unknown != unlimited`: unknown é falta de fato suficiente, não um número.
 Nada é inventado para Gemini, Cloudflare, Mistral ou futuros providers.
 
-Um remaining de uma autorização HTTP posterior pode substituir a evidência
-anterior. Respostas concorrentes são tratadas conservadoramente: o manager
-conserva débitos vivos e limita crédito quando existem outras chamadas iniciadas.
+Um remaining de uma autorização HTTP posterior realmente isolada pode substituir
+a evidência anterior. Respostas de calls que participaram de overlap conservam
+essa restrição mesmo depois do término das peers: o manager mantém a origem do
+grupo no Attempt, limita o primeiro fato ao crédito anterior e trata os seguintes
+como tightening-only. Uma nova call iniciada sem peers HTTP ativas não herda o
+grupo. Ordem local de HTTP start não prova ordem de processamento no provider.
 A ordem é uma sequência monotônica atribuída em `started`, depois da admission;
 o ID da reservation serve somente para ownership/correlação. Headers de uma
 autorização anterior, ou repetidos da mesma autorização, podem apenas reduzir o
@@ -1447,9 +1450,11 @@ e não persistidas. Restart continua carregando somente estado local; quota
 remota volta a unknown. Rotation invalida os fatos/barreiras externos e preserva
 budget/uncertainty local. Nenhum wall-clock participa do desempate.
 
-Sequência maior que a barreira segue a reconciliação factual existente: remaining
-pode substituir a evidência anterior, conserva todos os charges vivos e limita
-crédito em overlap. Requests já refletidas no próprio remaining não são debitadas
+Sequência maior que a barreira, sem histórico de overlap restringindo aquele
+scope, segue a reconciliação factual existente: remaining pode substituir a
+evidência anterior e conserva todos os charges vivos. A FIX de overlap histórico
+abaixo estende a restrição mesmo após remoção das peers. Requests já refletidas
+no próprio remaining não são debitadas
 duas vezes; tokens conservam seu bound/consumo factual, pois podem ser gerados
 depois dos headers. Partial headers não provam refill nem limpam uncertainty.
 Só reset factual normalizado válido/configuração explícita inicia nova janela.
@@ -1544,3 +1549,131 @@ desconto do potencial de refund no teto atrasado; overlap pode subutilizar quota
 pois início local não prova ordem de processamento remota. Continuam as
 limitações anteriores de token bounds ausentes em produção e coordenação de
 uma única instância. Nenhum gate humano ou LR-8D foi liberado.
+
+### FIX residual — overlap histórico
+
+FIX sobre o HEAD auditado `bc8d5e03a89ec15bb076f165816caaf69bfd2837`,
+exclusivamente na branch `lr-8c-rate-accounting`.
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
+**LR-8D bloqueada.** Sem merge nem novas políticas da LR-8D.
+
+#### Grupo de overlap e lifecycle
+
+HTTP start order não equivale a provider processing order. A sequência maior
+de B não prova que seu remaining foi calculado depois do de A. Verificar apenas
+peers ainda vivas em `observe_external` perdia a evidência de overlap depois do
+Drop de A. Agora cada Attempt possui `overlap_start`, origem de seu grupo,
+expressa pelo menor HttpStartSequence daquele grupo. É identidade temporal local
+do grupo, sem afirmar ordem remota e sem usar reservation ID ou wall-clock.
+
+Após accounting durável e último check de cancellation em `started`, o manager
+procura outras attempts HTTP-started da mesma geração/provider. Se houver,
+atribui à nova e às peers ativas a menor origem histórica delas, ou o HTTP start
+da peer ainda isolada. Essa operação ocorre sob o mesmo mutex da autorização de
+HTTP. Reservations pendentes sem `started` não criam overlap. Falha/cancellation
+antes de autorizar transporte não modifica os grupos das peers.
+
+A origem acompanha cada membro até seu próprio Drop. Assim, B continua membro
+quando A termina; C que começa enquanto B ainda está viva herda o grupo A/B,
+mesmo que A já tenha terminado. Não há flag global permanente: depois que todas
+as attempts HTTP-started terminam, uma nova call começa com overlap_start ausente.
+Uma call da era antiga ainda viva não agrupa calls da nova credencial. Os checks
+de generation anteriores à publicação de quota continuam rejeitando fatos antigos.
+
+#### Autoridade factual e accounting
+
+Cada constraint Provider/Model conserva sua observation_floor. A primeira
+observação útil de um grupo naquele scope pode estabelecer sua baseline, mas
+mantém o clamp conservador existente: seu teto nunca ultrapassa crédito conhecido
+anterior e todos os charges vivos são conservados. Mesmo essa observação não
+limpa uncertainty concluída nem saturation apenas por fornecer remaining.
+Um reset factual novo válido nessa baseline continua sendo registrado normalmente.
+
+Quando a floor já pertence ao grupo (`overlap_start <= observation_floor`),
+todo fato correlacionado desse grupo segue a regra tightening-only da FIX anterior,
+mesmo com HTTP start maior e nenhuma peer restante. Também permanece essa regra
+para HTTP start anterior/repetido à floor. O fato pode reduzir capacity, incluindo
+a proteção contra refunds terminais futuros; não aumenta teto, não limpa
+uncertainty/saturation, não rebasa charges/epoch nem altera/reaplica deadlines.
+Consumed e ownership permanecem intactos; Drop reconcilia somente o excesso
+terminal comprovado, uma vez e na epoch correta.
+
+Um fato normalizado independente ainda estabelece barrier e conserva as regras
+anteriores de fresh remaining. Reset factual já aceito/configuração explícita
+continua avançando pela deadline monotônica válida. O grupo histórico não impede
+esse reset legítimo, mas seus headers posteriores não reaplicam um DelayMs antigo.
+Partial headers não provam refill. Os valores permanecem isolados por scope;
+nenhuma quota de um modelo é aplicada a outro nem promovida a Provider.
+
+Uma nova call realmente isolada, iniciada após as anteriores terminarem, não
+herda a origem histórica. Com HTTP start posterior à floor, seu remaining volta
+a possuir autoridade fresh normal. Portanto o conservadorismo não é permanente.
+O marker não é serializado, persistido nem exposto em snapshots: é proteção de
+quota externa efêmera. Restart já descarta essas quotas sem contexto comprovável.
+Durable uncertainty, recovery markers, schema 12 e policies/budgets locais não
+mudam; o formato persistido e a matriz terminal usage permanecem iguais.
+
+#### Regressão, testes e autoauditoria
+
+No HEAD auditado, o novo teste com OrderedHeaderProvider + Scheduler/Admission
+reais, cap = 2, falhou deterministicamente: após A publicar RPD=4/TPM=40 e
+terminar completamente, B ainda viva publicou RPD=9/TPM=90; capacity de requests
+subiu de 4 para 9. O teste exige manter teto/debitos, depois inicia C isolada e
+comprova fresh RPD=9/TPM=90 novamente.
+
+Cinco testes adicionais, preservando os 63 anteriores da LR-8C:
+
+- regressão A/B histórica + recuperação de C isolada, com duas traffic classes;
+- caso inverso: B mais restritiva após A terminar, sem double debit/refund/reset;
+- cadeia A/B → B/C preserva a origem mesmo após A/B terminarem; D isolada recupera;
+- uncertainty da peer concluída permanece unknown; reset antigo de B é ignorado,
+  enquanto a deadline factual já aceita continua válida exatamente na boundary;
+- era antiga ainda viva não cria overlap na nova; headers antigos não alteram
+  novo saldo ou reset.
+
+Clock falso e channels com acknowledgements determinam os passos. Nenhum timeout
+foi aumentado. Os 56 corpos anteriores de rate_tests ficaram byte a byte iguais;
+adapters, TelemetryStore, Scheduler, admission, TaskGraph/D3, credenciais,
+migrations e frontend não foram alterados. Uma expectativa nova do caso inverso
+foi corrigida: o clamp anterior produz capacity 80 e saldo 60, não 70, antes do
+header mais restritivo. Isso preserva o algoritmo existente, sem dispensar falha.
+
+Autoauditoria: marker nasce somente na autorização HTTP; acompanha o membro
+após Drop das peers; herança transitiva não usa ID de reservation; desaparece
+com os membros, permitindo fresh isolado; contexto/provider separados; mesmos
+scopes de constraints; nenhum refill, limpeza de uncertainty ou reset via header
+tardio do grupo; nenhuma duplicação de charges/refunds; nenhum estado remoto,
+secret, Account ID, header raw ou conteúdo de usuário novo em persistência/snapshot.
+
+Limitações: o grupo é conservador por provider/era enquanto houver membro ativo,
+inclusive em chains longas e no intervalo até reconciliation/Drop. Isso pode
+subutilizar quota. O runtime não tenta reconstruir processing order remoto.
+Continuam os limites anteriores de bounds ausentes em produção e uma instância
+ativa. A reauditoria deve conferir baseline inicial versus tightening-only dos
+demais membros, herança transitiva, cancellation e recuperação após quiescência.
+
+#### Gates da FIX de overlap
+
+Resultados sobre o código final (04/10/2026):
+
+| Gate | Resultado |
+|---|---|
+| `npm run typecheck` | Exit 0 |
+| `npm run build` | Exit 0; aviso preexistente de chunk 666,22 kB |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | Exit 0; 15 warnings preexistentes |
+| `cargo test --manifest-path src-tauri/Cargo.toml rate_tests` | Exit 0; 61 aprovados em paralelo, zero falhas; 32,71 s |
+| `cargo test --manifest-path src-tauri/Cargo.toml task_graph_runtime_tests` | Exit 0; 13 aprovados em paralelo, zero falhas; 48,69 s |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | Exit 0; 433 aprovados, zero falhas, dois ignorados; 200,82 s; main/doc-tests sem falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=1` | Exit 0; 433 aprovados, zero falhas, dois ignorados; 699,27 s; main/doc-tests sem falhas |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | Exit 0; 41 warnings preexistentes |
+| `git diff --check` | Sem erros |
+| `git diff --check main...HEAD` | Sem erros, inclusive no commit final |
+
+A paralela global não repetiu timeouts TaskGraph. Nenhum timeout foi aumentado.
+Os dois ignorados continuam `real_app_server_handshake` e
+`manual_final_codex_agent_bridge_gate`, gates Codex manuais preexistentes.
+Compilação de testes mantém dois warnings preexistentes; nenhum warning novo foi
+introduzido. Não houve tráfego com providers/credenciais comerciais reais.
+
+Status mantido como candidata, aguardando reauditoria independente da Luna.
+Sem merge, sem gate humano e sem implementação da LR-8D.

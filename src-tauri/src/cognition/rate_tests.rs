@@ -2962,3 +2962,299 @@ fn rate_ordering_older_token_ceiling_survives_proven_refund() {
         SchedulerError::RateCapacityExceeded
     );
 }
+
+#[tokio::test]
+async fn rate_overlap_history_survives_peer_finish_and_isolated_call_recovers_fresh_authority() {
+    let (s, mut calls) = ordering_scheduler(2);
+    let (a, _) = start(
+        s.clone(),
+        ordering_request(TrafficClass::Background, "A"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    let first = bounded(calls.recv()).await.unwrap(); // A crossed started.
+    let (b, _) = start(
+        s.clone(),
+        ordering_request(TrafficClass::ForegroundInteractive, "B"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    let second = bounded(calls.recv()).await.unwrap(); // B crossed started while A was live.
+    assert_eq!(s.admission_snapshot()[0].active_calls, 2);
+    headers(&first, 4, 40, None).await;
+    first.commands.send(OrderedHeaderCommand::Finish).unwrap();
+    assert!(bounded(a).await.unwrap().is_ok());
+    assert_eq!(s.rate_snapshot()[0].pending_reservations, 1);
+    assert_eq!(s.admission_snapshot()[0].active_calls, 1);
+    let requests = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+    let tokens = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+    assert_eq!(requests.capacity, Some(4));
+    assert_eq!(requests.consumed, 1);
+    assert_eq!(requests.effective_remaining, Some(3));
+    assert_eq!(tokens.capacity, Some(40));
+    assert_eq!(tokens.consumed, 20);
+    assert_eq!(tokens.effective_remaining, Some(20));
+
+    headers(&second, 9, 90, None).await;
+    let after_requests = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+    let after_tokens = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+    assert_eq!(after_requests.capacity, requests.capacity);
+    assert_eq!(after_requests.consumed, requests.consumed);
+    assert_eq!(
+        after_requests.effective_remaining,
+        requests.effective_remaining
+    );
+    assert_eq!(after_tokens.capacity, tokens.capacity);
+    assert_eq!(after_tokens.consumed, tokens.consumed);
+    assert_eq!(after_tokens.effective_remaining, tokens.effective_remaining);
+    assert_eq!(after_requests.reset_in_ms, None);
+    assert_eq!(after_tokens.reset_in_ms, None);
+    second.commands.send(OrderedHeaderCommand::Finish).unwrap();
+    assert!(bounded(b).await.unwrap().is_ok());
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::TokensPerMinute).consumed,
+        20
+    );
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::RequestsPerDay).consumed,
+        1
+    );
+    clean(&s);
+
+    let (c, _) = start(
+        s.clone(),
+        ordering_request(TrafficClass::ForegroundInteractive, "C"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    let isolated = bounded(calls.recv()).await.unwrap();
+    assert_eq!(isolated.label, "C");
+    assert_eq!(s.admission_snapshot()[0].active_calls, 1);
+    headers(&isolated, 9, 90, None).await;
+    isolated
+        .commands
+        .send(OrderedHeaderCommand::Finish)
+        .unwrap();
+    assert!(bounded(c).await.unwrap().is_ok());
+    let requests = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+    let tokens = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+    assert_eq!(requests.capacity, Some(9));
+    assert_eq!(requests.consumed, 0);
+    assert_eq!(requests.effective_remaining, Some(9));
+    assert_eq!(tokens.capacity, Some(90));
+    assert_eq!(tokens.consumed, 10);
+    assert_eq!(tokens.effective_remaining, Some(80));
+    assert_eq!(requests.reset_in_ms, None);
+    assert_eq!(tokens.reset_in_ms, None);
+    clean(&s);
+}
+
+#[tokio::test]
+async fn rate_overlap_later_started_header_still_tightens_after_peer_finishes() {
+    let (s, mut calls) = ordering_scheduler(2);
+    let (a, _) = start(
+        s.clone(),
+        ordering_request(TrafficClass::Background, "A"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    let first = bounded(calls.recv()).await.unwrap();
+    let (b, _) = start(
+        s.clone(),
+        ordering_request(TrafficClass::ForegroundInteractive, "B"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    let second = bounded(calls.recv()).await.unwrap();
+    headers(&first, 9, 90, None).await;
+    first.commands.send(OrderedHeaderCommand::Finish).unwrap();
+    assert!(bounded(a).await.unwrap().is_ok());
+    let before_r = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+    let before_t = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+    assert_eq!(before_r.effective_remaining, Some(8));
+    assert_eq!(before_t.capacity, Some(80)); // Existing overlap clamp retains prior known credit.
+    assert_eq!(before_t.effective_remaining, Some(60));
+    headers(&second, 4, 40, Some(Timing::DelayMs(0))).await;
+    let after_r = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+    let after_t = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+    assert_eq!(after_r.effective_remaining, Some(4));
+    assert_eq!(after_t.effective_remaining, Some(30));
+    assert_eq!(after_r.consumed, before_r.consumed);
+    assert_eq!(after_t.consumed, before_t.consumed);
+    assert_eq!(after_r.reset_in_ms, None);
+    assert_eq!(after_t.reset_in_ms, None);
+    second.commands.send(OrderedHeaderCommand::Finish).unwrap();
+    assert!(bounded(b).await.unwrap().is_ok());
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::RequestsPerDay).effective_remaining,
+        Some(4)
+    );
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::TokensPerMinute).effective_remaining,
+        Some(30)
+    );
+    clean(&s);
+}
+
+#[test]
+fn rate_overlap_transitive_group_survives_original_peers_but_not_quiescence() {
+    let h = Harness::new();
+    h.quota(
+        "a",
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(100),
+        None,
+    );
+    let (one, first) = h.reserve("a", "m", None).unwrap();
+    let (two, second) = h.reserve("a", "m", None).unwrap();
+    assert!(first.started());
+    assert!(second.started());
+    first.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(4),
+        None,
+    );
+    drop(one);
+    let (three, third) = h.reserve("a", "m", None).unwrap();
+    assert!(third.started()); // B still live: C inherits A/B's overlap origin.
+    drop(two);
+    let before = h.bucket("a", QuotaDimension::RequestsPerDay);
+    third.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(9),
+        None,
+    );
+    let after = h.bucket("a", QuotaDimension::RequestsPerDay);
+    assert_eq!(after.capacity, before.capacity);
+    assert_eq!(after.consumed, before.consumed);
+    assert_eq!(after.effective_remaining, Some(2));
+    drop(three);
+    // No active peer: D does not inherit the historical group.
+    let (four, fourth) = h.reserve("a", "m", None).unwrap();
+    assert!(fourth.started());
+    fourth.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(9),
+        None,
+    );
+    drop(four);
+    assert_eq!(
+        h.bucket("a", QuotaDimension::RequestsPerDay)
+            .effective_remaining,
+        Some(9)
+    );
+}
+
+#[test]
+fn rate_overlap_preserves_completed_uncertainty_and_does_not_replay_reset() {
+    let h = Harness::new();
+    h.quota(
+        "a",
+        model("m"),
+        QuotaDimension::TokensPerMinute,
+        Some(100),
+        Some(100),
+        None,
+    );
+    let (one, first) = h.reserve("a", "m", None).unwrap();
+    let (two, second) = h.reserve("a", "m", None).unwrap();
+    assert!(first.started());
+    assert!(second.started());
+    first.quota(
+        model("m"),
+        QuotaDimension::TokensPerMinute,
+        Some(100),
+        Some(40),
+        Some(Timing::DelayMs(10)),
+    );
+    drop(one); // Incomplete terminal accounting; marker must survive its owner.
+    let before = h.bucket("a", QuotaDimension::TokensPerMinute);
+    assert_eq!(before.unaccounted_token_calls, 2);
+    assert_eq!(before.effective_remaining, None);
+    second.quota(
+        model("m"),
+        QuotaDimension::TokensPerMinute,
+        Some(100),
+        Some(90),
+        Some(Timing::DelayMs(0)),
+    );
+    let after = h.bucket("a", QuotaDimension::TokensPerMinute);
+    assert_eq!(after.capacity, before.capacity);
+    assert_eq!(after.unaccounted_token_calls, 2);
+    assert_eq!(after.effective_remaining, None);
+    assert_eq!(after.reset_in_ms, Some(10));
+    second.final_usage(total_usage(10));
+    drop(two);
+    assert_eq!(
+        h.bucket("a", QuotaDimension::TokensPerMinute)
+            .unaccounted_token_calls,
+        1
+    );
+    assert_eq!(
+        err(h.reserve("a", "m", Some(1))),
+        SchedulerError::RateStateUnavailable
+    );
+    h.clock.advance(9);
+    assert_eq!(
+        h.bucket("a", QuotaDimension::TokensPerMinute)
+            .unaccounted_token_calls,
+        1
+    );
+    h.clock.advance(1); // Previously accepted factual reset remains valid.
+    let reset = h.bucket("a", QuotaDimension::TokensPerMinute);
+    assert_eq!(reset.unaccounted_token_calls, 0);
+    assert_eq!(reset.effective_remaining, Some(100));
+    assert!(h.reserve("a", "m", Some(10)).is_ok());
+}
+
+#[test]
+fn rate_overlap_old_credential_era_does_not_join_current_isolated_calls() {
+    let h = Harness::new();
+    let (old_guard, old) = h.reserve("a", "m", None).unwrap();
+    assert!(old.started());
+    old.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(1),
+        None,
+    );
+    h.telemetry.invalidate_provider_quotas("a");
+    for remaining in [4, 9] {
+        let (guard, current) = h.reserve("a", "m", None).unwrap();
+        assert!(current.context_generation() > old.context_generation());
+        assert!(current.started()); // Only an old-era peer remains live.
+        current.quota(
+            model("m"),
+            QuotaDimension::RequestsPerDay,
+            Some(100),
+            Some(remaining),
+            None,
+        );
+        drop(guard);
+        assert_eq!(
+            h.bucket("a", QuotaDimension::RequestsPerDay)
+                .effective_remaining,
+            Some(remaining)
+        );
+    }
+    old.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(0),
+        Some(Timing::DelayMs(0)),
+    );
+    drop(old_guard);
+    let current = h.bucket("a", QuotaDimension::RequestsPerDay);
+    assert_eq!(current.effective_remaining, Some(9));
+    assert_eq!(current.reset_in_ms, None);
+}

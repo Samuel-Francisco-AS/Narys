@@ -223,6 +223,9 @@ struct Attempt {
     bound: Option<TokenUpperBound>,
     started: bool,
     http_start: Option<HttpStartSequence>,
+    /// Earliest authorized start in this transitive overlap group. Retained
+    /// until this attempt finishes, even after all its original peers finish.
+    overlap_start: Option<HttpStartSequence>,
     total_usage: Option<u64>,
     usage_final: bool,
     charges: Vec<Charge>,
@@ -615,12 +618,12 @@ impl RateLimitManager {
         };
         // Attempt ID is only a lookup key / charge owner. Its numeric order has
         // no relationship to HTTP start, since admission may reorder priorities.
-        let http_start = match attempt_id {
-            Some(n) => match s.attempts.get(&n).and_then(|a| a.http_start) {
-                Some(sequence) => Some(sequence),
+        let (http_start, overlap_start) = match attempt_id {
+            Some(n) => match s.attempts.get(&n).filter(|a| a.http_start.is_some()) {
+                Some(a) => (a.http_start, a.overlap_start),
                 None => return, // No live, authorized transport to correlate.
             },
-            None => None, // Trusted normalized fact independent of an invocation.
+            None => (None, None), // Trusted normalized fact independent of an invocation.
         };
         if s.refresh(self.clock.now()).is_err() {
             s.persistence_failed = true;
@@ -654,11 +657,17 @@ impl RateLimitManager {
         if http_start
             .zip(s.buckets[i].observation_floor)
             .is_some_and(|(incoming, floor)| incoming <= floor)
+            || overlap_start
+                .zip(s.buckets[i].observation_floor)
+                .is_some_and(|(group_start, floor)| group_start <= floor)
         {
             // Start order is not remote processing order. An earlier-started
             // response may expose a genuinely tighter shared external balance.
             // It can only tighten existing credit, in place, never refill, clear
             // uncertainty, replay reset, or rebase/double-debit live charges.
+            // Once this scope has an observation within an overlap group (or
+            // an independent barrier during it), every member is tightening-only.
+            // Peer removal cannot make a later-started member fresh again.
             // A later proven refund must not lift credit above this ceiling:
             // only the non-refundable portion of consumption offsets it.
             let epoch = s.buckets[i].epoch;
@@ -730,13 +739,10 @@ impl RateLimitManager {
                 return;
             }
         }
-        // Overlapping responses cannot resurrect locally exhausted credit. A fresh
-        // non-overlapping observation may replace it. All live charges are retained.
-        if attempt_id.is_some()
-            && s.attempts
-                .iter()
-                .any(|(n, a)| Some(*n) != attempt_id && a.started && a.generation == generation)
-        {
+        // The first observation in an overlap group may establish its baseline,
+        // but cannot increase prior known credit, even if its peers have ended.
+        // A new isolated invocation may replace it. All live charges are retained.
+        if overlap_start.is_some() {
             if let Some(old) = s.buckets[i].capacity {
                 capacity = capacity.map(|new| new.min(old.saturating_sub(s.buckets[i].consumed)));
             }
@@ -753,7 +759,7 @@ impl RateLimitManager {
             .count() as u64;
         let b = &mut s.buckets[i];
         b.capacity = capacity;
-        if fresh_remaining.is_some() {
+        if fresh_remaining.is_some() && overlap_start.is_none() {
             // Fresh remaining replaces completed uncertainty, never tokens
             // still being generated after the headers of an active call.
             b.unaccounted = 0;
@@ -899,6 +905,7 @@ impl RateLimitManager {
                 bound,
                 started: false,
                 http_start: None,
+                overlap_start: None,
                 total_usage: None,
                 usage_final: false,
                 charges,
@@ -1011,6 +1018,24 @@ impl RateLimitManager {
         // cancellation check authorized HTTP. No lock has been released here.
         s.next_http_start = sequence;
         s.attempts.get_mut(&n).unwrap().http_start = Some(HttpStartSequence(sequence));
+        // Actual authorized starts, never pending reservations, create overlap.
+        // Reuse historical group origin to carry transitive overlap across peer
+        // Drop. Publish only after successful accounting/cancellation checks.
+        let overlap_start = s
+            .attempts
+            .iter()
+            .filter(|(peer, a)| **peer != n && a.started && a.generation == s.generation)
+            .filter_map(|(_, a)| a.overlap_start.or(a.http_start))
+            .min();
+        if let Some(group_start) = overlap_start {
+            for a in s
+                .attempts
+                .values_mut()
+                .filter(|a| a.started && a.generation == s.generation)
+            {
+                a.overlap_start = Some(group_start);
+            }
+        }
         Ok(())
     }
     fn usage(&self, id: &str, n: u64, total: u64, final_sample: bool) {
