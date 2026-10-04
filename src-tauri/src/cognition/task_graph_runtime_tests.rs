@@ -43,8 +43,44 @@ impl UnlockKeyStore for TestKeys {
     }
 }
 
+type CompletionAcks = std::collections::HashMap<usize, mpsc::Sender<String>>;
+static COMPLETION_ACKS: std::sync::OnceLock<Mutex<CompletionAcks>> = std::sync::OnceLock::new();
+struct WorkerAcknowledgement {
+    key: usize,
+    receiver: mpsc::Receiver<String>,
+}
+impl WorkerAcknowledgement {
+    fn new(key: usize) -> Self {
+        let (sender, receiver) = mpsc::channel();
+        assert!(COMPLETION_ACKS
+            .get_or_init(Default::default)
+            .lock().unwrap()
+            .insert(key, sender).is_none());
+        Self { key, receiver }
+    }
+    fn wait(self) -> String {
+        self.receiver.recv_timeout(Duration::from_secs(5)).expect("validated worker completion")
+    }
+}
+impl Drop for WorkerAcknowledgement {
+    fn drop(&mut self) {
+        COMPLETION_ACKS.get().unwrap().lock().unwrap().remove(&self.key);
+    }
+}
+// Keyed by the task's shared cancellation allocation, never prompt/content or
+// a globally reused TaskId. Clone the sender and release the lock before send.
+pub(super) fn worker_completed_ack(cancelled: &AtomicBool, subtask_id: &str) {
+    let key = cancelled as *const AtomicBool as usize;
+    let sender = COMPLETION_ACKS.get()
+        .and_then(|acks| acks.lock().unwrap().get(&key).cloned());
+    if let Some(sender) = sender { let _ = sender.send(subtask_id.to_owned()); }
+}
+
+type WorkerEntry = (String, tokio::sync::oneshot::Sender<()>, usize);
+
 struct GraphProvider {
     label: &'static str,
+    control: Option<mpsc::Sender<WorkerEntry>>,
     planner_steps: Option<usize>,
     delay_ms: u64,
     active: Arc<AtomicUsize>,
@@ -129,13 +165,29 @@ impl Provider for GraphProvider {
                 self.active.fetch_sub(1, Ordering::AcqRel);
                 return Err(ProviderError::Fatal);
             }
-            let deadline = tokio::time::Instant::now() + Duration::from_millis(self.delay_ms);
-            while tokio::time::Instant::now() < deadline {
-                if cancelled.load(Ordering::Acquire) {
+            if let Some(control) = &self.control {
+                let (tx, rx) = tokio::sync::oneshot::channel();
+                if control.send((self.label.into(), tx, cancelled as *const AtomicBool as usize)).is_err() {
                     self.active.fetch_sub(1, Ordering::AcqRel);
                     return Err(ProviderError::Cancelled);
                 }
-                tokio::time::sleep(Duration::from_millis(10)).await;
+                let released = tokio::select! {
+                    result = rx => result.is_ok(),
+                    _ = super::transport::cancellation(cancelled) => false,
+                };
+                if !released {
+                    self.active.fetch_sub(1, Ordering::AcqRel);
+                    return Err(ProviderError::Cancelled);
+                }
+            } else {
+                let deadline = tokio::time::Instant::now() + Duration::from_millis(self.delay_ms);
+                while tokio::time::Instant::now() < deadline {
+                    if cancelled.load(Ordering::Acquire) {
+                        self.active.fetch_sub(1, Ordering::AcqRel);
+                        return Err(ProviderError::Cancelled);
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
             }
             if cancelled.load(Ordering::Acquire) {
                 self.active.fetch_sub(1, Ordering::AcqRel);
@@ -238,14 +290,14 @@ fn fixture(
     Arc<AtomicUsize>,
     PathBuf,
 ) {
-    fixture_with_staggered_workers(label, planner_steps, worker_delay_ms, false)
+    fixture_with_worker_control(label, planner_steps, worker_delay_ms, None)
 }
 
-fn fixture_with_staggered_workers(
+fn fixture_with_worker_control(
     label: &str,
     planner_steps: usize,
     worker_delay_ms: u64,
-    staggered: bool,
+    control: Option<mpsc::Sender<WorkerEntry>>,
 ) -> (
     Database,
     Arc<ProviderRuntime>,
@@ -261,14 +313,16 @@ fn fixture_with_staggered_workers(
         dir.clone(),
         Arc::new(TestKeys::default()),
     ));
-    for (key, value) in [
-        (SecretKey::GeminiApiKey, b"gemini".as_slice()),
-        (SecretKey::GroqApiKey, b"groq".as_slice()),
-        (SecretKey::CloudflareApiToken, b"cloudflare-token".as_slice()),
-        (SecretKey::CloudflareAccountId, b"cloudflare-account".as_slice()),
-    ] {
-        store.set_secret(key, value).unwrap();
-    }
+    // One durable synthetic credential batch avoids three unnecessary scrypt
+    // unlocks per fixture competing with TaskGraph preflight in the global suite.
+    store
+        .set_secrets(&[
+        (SecretKey::GeminiApiKey, b"gemini".to_vec()),
+        (SecretKey::GroqApiKey, b"groq".to_vec()),
+        (SecretKey::CloudflareApiToken, b"cloudflare-token".to_vec()),
+        (SecretKey::CloudflareAccountId, b"cloudflare-account".to_vec()),
+        ])
+        .unwrap();
     let active = Arc::new(AtomicUsize::new(0));
     let max_active = Arc::new(AtomicUsize::new(0));
     let mut registry = ProviderRegistry::default();
@@ -288,13 +342,8 @@ fn fixture_with_staggered_workers(
                 Arc::new(GraphProvider {
                     label: id,
                     planner_steps: planner,
-                    delay_ms: if planner.is_some() {
-                        0
-                    } else if staggered && id == "groq" {
-                        60
-                    } else {
-                        worker_delay_ms
-                    },
+                    delay_ms: if planner.is_some() { 0 } else { worker_delay_ms },
+                    control: if planner.is_some() { None } else { control.clone() },
                     active: active.clone(),
                     max_active: max_active.clone(),
                 }),
@@ -495,7 +544,9 @@ fn invalid_planner_id_fails_before_any_worker_subtask_starts() {
 
 #[test]
 fn independent_workers_overlap_use_distinct_providers_and_persist_provenance() {
-    let (db, runtime, store, active, max_active, dir) = fixture("parallel", 2, 150);
+    let (entered, workers) = mpsc::channel();
+    let (db, runtime, store, active, max_active, dir) =
+        fixture_with_worker_control("parallel", 2, 0, Some(entered));
     let session_id = {
         let conn = db.open().unwrap();
         conversation::create_session(&conn).unwrap()
@@ -520,6 +571,12 @@ fn independent_workers_overlap_use_distinct_providers_and_persist_provenance() {
         channel,
     )
     .unwrap();
+    let first = workers.recv_timeout(Duration::from_secs(10)).expect("first worker entered");
+    let second = workers.recv_timeout(Duration::from_secs(5)).expect("second worker entered");
+    assert_ne!(first.0, second.0);
+    assert_eq!(active.load(Ordering::Acquire), 2);
+    first.1.send(()).unwrap();
+    second.1.send(()).unwrap();
     let events = collect(&receiver);
     assert_eq!(terminal_count(&events), 1);
     assert!(events.iter().any(|event| event.contains("\"task_completed\"")));
@@ -800,24 +857,27 @@ fn root_cancel_propagates_to_parallel_workers_and_never_completes() {
 
 #[test]
 fn completed_worker_is_preserved_when_sibling_is_cancelled() {
+    let (entered, workers) = mpsc::channel();
     let (db, runtime, store, active, max_active, dir) =
-        fixture_with_staggered_workers("partial-cancel", 2, 3_000, true);
+        fixture_with_worker_control("partial-cancel", 2, 0, Some(entered));
     let registry = Arc::new(TaskRegistry::default());
     let (channel, receiver) = channel();
     let id = start_task(registry.clone(), db.clone(), runtime, store, "cancelar irmã lenta".into(), channel).unwrap();
-    let _ = wait_for(&receiver, "\"subtask_started\"");
-    let deadline = std::time::Instant::now() + Duration::from_secs(5);
-    while max_active.load(Ordering::Acquire) < 2 && std::time::Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    assert_eq!(max_active.load(Ordering::Acquire), 2, "parallel sibling did not start");
-    while active.load(Ordering::Acquire) != 1 && std::time::Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    assert_eq!(active.load(Ordering::Acquire), 1, "fast worker did not finish before its sibling");
-    std::thread::sleep(Duration::from_millis(50));
+    let first = workers.recv_timeout(Duration::from_secs(10)).expect("first worker entered");
+    let second = workers.recv_timeout(Duration::from_secs(5)).expect("parallel sibling entered");
+    assert_eq!(max_active.load(Ordering::Acquire), 2);
+    let (fast, slow) = if first.0 == "groq" { (first, second) } else { (second, first) };
+    assert_eq!(slow.0, "cloudflare");
+    let completed = WorkerAcknowledgement::new(fast.2);
+    fast.1.send(()).unwrap();
+    assert_eq!(completed.wait(), "worker-1");
+    // The acknowledgement is after Scheduler/worker validation; the wave-level
+    // SubtaskCompleted event is deliberately emitted only after both futures.
+    let mut events = Vec::new();
+    assert_eq!(active.load(Ordering::Acquire), 1);
     assert!(registry.cancel(id));
-    let events = collect(&receiver);
+    events.extend(collect(&receiver));
+    drop(slow);
     assert_eq!(terminal_count(&events), 1);
     assert!(events.iter().any(|event| event.contains("\"task_cancelled\"")));
     assert!(events.iter().any(|event| event.contains("\"subtask_completed\"")));
@@ -1049,6 +1109,7 @@ fn same_provider_workers_admission(cap: usize) {
             },
             Arc::new(GraphProvider {
                 label: "gemini",
+                control: None,
                 planner_steps: Some(2),
                 delay_ms: 0,
                 active,

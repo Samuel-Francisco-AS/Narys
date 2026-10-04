@@ -223,12 +223,14 @@ impl State {
 pub struct TelemetryStore {
     states: Mutex<BTreeMap<String, State>>,
     rate: Option<Arc<super::rate::RateLimitManager>>,
+    resilience: Option<Arc<super::resilience::ResilienceManager>>,
 }
 impl TelemetryStore {
     /// IDs are trusted from the Registry, the authority that exposes them in status.
     pub fn new(ids: impl IntoIterator<Item = String>) -> Self {
         Self {
             rate: None,
+            resilience: None,
             states: Mutex::new(
                 ids.into_iter()
                     .map(|id| (id.clone(), State::new(id)))
@@ -244,6 +246,15 @@ impl TelemetryStore {
         store.rate = Some(rate);
         store
     }
+    pub(super) fn with_runtime(
+        ids: impl IntoIterator<Item = String>,
+        rate: Arc<super::rate::RateLimitManager>,
+        resilience: Arc<super::resilience::ResilienceManager>,
+    ) -> Self {
+        let mut store = Self::with_rate(ids, rate);
+        store.resilience = Some(resilience);
+        store
+    }
     /// Quota/context only: preserve factual usage, requests, outcomes and peers.
     /// Linearized with incoming quota under the same lock; never known(0).
     pub fn invalidate_provider_quotas(&self, id: &str) {
@@ -255,6 +266,9 @@ impl TelemetryStore {
                 .min(MAX_FACT_VALUE);
             if let Some(rate) = &self.rate {
                 rate.invalidate(id, generation);
+            }
+            if let Some(resilience) = &self.resilience {
+                resilience.invalidate(id, generation);
             }
             s.snapshot.context_generation = generation;
             s.snapshot.quotas = vec![ScopedQuotas::new(QuotaScope::Provider)];
@@ -384,6 +398,7 @@ struct Attempt {
     usage: BTreeMap<UsageDimension, u64>,
     rate: Option<super::rate::RateAttemptHandle>,
     rate_error: Option<super::types::SchedulerError>,
+    resilience: Option<super::resilience::ResilienceAttemptHandle>,
 }
 /// Ephemeral per-attempt deduplication, never a second provider authority.
 /// Adapters must mark started inside the future that actually begins the send,
@@ -409,6 +424,13 @@ impl InvocationObservation<'_> {
     pub(super) fn attach_rate(&self, rate: super::rate::RateAttemptHandle) {
         self.attempt.lock().unwrap_or_else(|p| p.into_inner()).rate = Some(rate);
     }
+    pub(super) fn attach_resilience(&self, handle: super::resilience::ResilienceAttemptHandle) {
+        self.attempt.lock().unwrap_or_else(|p| p.into_inner()).resilience = Some(handle);
+    }
+    /// Controlled read of the same factual marker; never inferred from admission.
+    pub fn was_started(&self) -> bool {
+        self.attempt.lock().unwrap_or_else(|p| p.into_inner()).started
+    }
     pub(super) fn rate_error(&self) -> Option<super::types::SchedulerError> {
         self.attempt
             .lock()
@@ -430,6 +452,16 @@ impl InvocationObservation<'_> {
         let mut attempt = self.attempt.lock().unwrap_or_else(|p| p.into_inner());
         if attempt.started {
             return true;
+        }
+        if cancelled.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Acquire)) {
+            attempt.rate_error = Some(super::types::SchedulerError::Cancelled);
+            return false;
+        }
+        if let Some(handle) = &attempt.resilience {
+            if let Err(error) = handle.revalidate() {
+                attempt.rate_error = Some(error);
+                return false;
+            }
         }
         if let Some(rate) = &attempt.rate {
             if let Err(error) = rate.started(cancelled) {

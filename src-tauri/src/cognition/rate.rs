@@ -26,6 +26,11 @@ pub struct ClockReading {
 }
 pub trait RateClock: Send + Sync {
     fn now(&self) -> ClockReading;
+    /// Monotonic wait, overridable by deterministic clocks. Rate accounting
+    /// itself never waits; resilience uses this without holding any resources.
+    fn sleep_ms(&self, ms: u64) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>> {
+        Box::pin(tokio::time::sleep(std::time::Duration::from_millis(ms)))
+    }
 }
 pub struct SystemRateClock(Instant);
 impl Default for SystemRateClock {

@@ -210,8 +210,9 @@ async fn execute(
             policy::load(&conn, CognitiveRole::Worker).map_err(|error| error.code())?;
         orchestrator_policy.validate()?;
         worker_policy.validate()?;
-        catalog::validate_policy(&orchestrator_policy, &statuses, &preflight_store)?;
-        catalog::validate_policy(&worker_policy, &statuses, &preflight_store)?;
+        catalog::validate_policies(
+            &[&orchestrator_policy, &worker_policy], &statuses, &preflight_store,
+        )?;
         let orchestrator_timeouts = orchestrator_policy
             .load_timeouts(&conn)
             .map_err(|error| error.code())?;

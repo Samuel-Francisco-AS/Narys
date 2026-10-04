@@ -276,6 +276,10 @@ pub(crate) async fn run_worker(
             }), Err(code)),
         }
     }
+    // Test-only acknowledgement after Scheduler and worker validation, before
+    // returning the completed future to the wave join. No production event.
+    #[cfg(test)]
+    super::task_graph_runtime_tests::worker_completed_ack(cancelled, &subtask_id);
     (Some(WorkerTiming {
         started_at: started,
         finished_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),

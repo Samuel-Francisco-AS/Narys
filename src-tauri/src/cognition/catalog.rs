@@ -163,11 +163,20 @@ pub fn validate_policy(
     statuses: &[ProviderStatus],
     store: &SecretStore,
 ) -> Result<(), &'static str> {
-    validate_policy_registered(policy, statuses)?;
-    let ids: Vec<_> = policy
-        .targets
-        .iter()
-        .map(|target| target.provider_id.as_str())
+    validate_policies(&[policy], statuses, store)
+}
+/// A single task preflight checks all its roles against one presence snapshot.
+/// This avoids reopening the vault per role; adapters still revalidate secrets.
+pub fn validate_policies(
+    policies: &[&CognitiveRolePolicy],
+    statuses: &[ProviderStatus],
+    store: &SecretStore,
+) -> Result<(), &'static str> {
+    for policy in policies {
+        validate_policy_registered(policy, statuses)?;
+    }
+    let ids: Vec<_> = policies.iter()
+        .flat_map(|policy| policy.targets.iter().map(|target| target.provider_id.as_str()))
         .collect();
     let configured = configured_many(store, &ids).map_err(|_| "provider_not_configured")?;
     if ids.iter().any(|id| configured.get(*id) != Some(&true)) {
@@ -275,6 +284,42 @@ mod route_tests {
             *self.value.lock().unwrap() = None;
             Ok(())
         }
+    }
+    #[test]
+    fn resilience_task_graph_multirole_preflight_opens_vault_once_and_remains_fail_closed() {
+        let dir = std::env::temp_dir().join(format!("lr8d-catalog-{}-{}",
+            std::process::id(), chrono::Utc::now().timestamp_nanos_opt().unwrap()));
+        let db = Database::for_test(dir.join("test.sqlite3"));
+        let conn = db.open().unwrap();
+        let planner = crate::cognition::policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
+        let mut worker = crate::cognition::policy::load(&conn, CognitiveRole::Worker).unwrap();
+        worker.routing_mode = RoutingMode::Fixed;
+        worker.targets = vec![CognitiveTargetPolicy {
+            provider_id: "groq".into(), model: "synthetic-model".into(), thinking_level: None,
+        }];
+        let statuses: Vec<_> = ["gemini", "groq"].into_iter().map(|id| ProviderStatus {
+            id: id.into(), enabled: true, priority: 1,
+            capabilities: ProviderCapabilities::with_structured_output(), cooldown_ms: 0,
+        }).collect();
+        let keys = std::sync::Arc::new(Keys::default());
+        let store = SecretStore::with_key_store(dir.join("secrets"), keys.clone());
+        store.set_secrets(&[(SecretKey::GeminiApiKey, b"synthetic".to_vec()),
+            (SecretKey::GroqApiKey, b"synthetic".to_vec())]).unwrap();
+        // Deterministically reproduce the redundant work of the old preflight.
+        keys.loads.store(0, Ordering::SeqCst);
+        validate_policy(&planner, &statuses, &store).unwrap();
+        validate_policy(&worker, &statuses, &store).unwrap();
+        assert_eq!(keys.loads.load(Ordering::SeqCst), 2);
+        keys.loads.store(0, Ordering::SeqCst);
+        validate_policies(&[&planner, &worker], &statuses, &store).unwrap();
+        assert_eq!(keys.loads.load(Ordering::SeqCst), 1);
+        store.delete_secret(SecretKey::GroqApiKey).unwrap();
+        keys.loads.store(0, Ordering::SeqCst);
+        assert_eq!(validate_policies(&[&planner, &worker], &statuses, &store), Err("provider_not_configured"));
+        assert_eq!(keys.loads.load(Ordering::SeqCst), 1);
+        keys.unavailable.store(true, Ordering::SeqCst);
+        assert_eq!(validate_policies(&[&planner, &worker], &statuses, &store), Err("provider_not_configured"));
+        std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
     fn validates_every_target_credentials_and_ignores_cooldown_for_saving() {
