@@ -514,3 +514,29 @@ A trilha UIP não renumera o roadmap cognitivo LR. Ela é uma intervenção de p
 ## 19. Próxima ação
 
 Com **UIP-0 → UIP-6 = PASS funcional/fechadas**, **UIP-7 é CANDIDATA ao gate humano final**. LR-7 permanece não iniciada e será a próxima etapa funcional após aprovação humana. O registro do segundo gate está em [UIP-7-FINAL-PERFORMANCE.md](UIP-7-FINAL-PERFORMANCE.md).
+
+## 20. PERF-1 — Adaptive Presence & Economy Mode
+
+**Estado: PLANEJADA.** Esta é uma segunda trilha de performance, posterior à UIP e deliberadamente posicionada **após LR-8 + LR-8.5 e antes da LR-9**.
+
+A UIP ensinou a manter a Presence 3D dentro de um orçamento visual. A PERF-1 trata do passo seguinte: quando a personagem não for necessária, a apresentação deve poder ser desmontada completamente sem desligar o Luna Core.
+
+Modos planejados:
+
+- **Presence:** experiência 3D atual;
+- **Economy:** UI DOM/CSS mínima, sem Three.js/WebGL/avatar montado;
+- **Headless:** Core ativo sem janela WebView persistente;
+- **Adaptive/Auto:** alternância configurável conforme interação e necessidade de atenção humana.
+
+A otimização é estritamente de apresentação e lifecycle. Ela **não autoriza reduzir velocidade, qualidade, contexto ou capacidade cognitiva**. CPU/RAM liberadas devem permanecer disponíveis para Scheduler, Orchestrator, agents, ferramentas e demais workloads.
+
+Subfases:
+
+1. **PERF-1A — baseline + contratos de lifecycle**;
+2. **PERF-1B — Economy Mode**;
+3. **PERF-1C — Headless Runtime**;
+4. **PERF-1D — Adaptive Presence**.
+
+A fase terá gates de RSS/CPU, renderer/WebGL realmente inativos fora de Presence, ausência de vazamento grosseiro em ciclos repetidos e comparação de latência do Core para impedir que “modo econômico” vire throttling do sistema.
+
+Plano completo: [PERF-1 — Adaptive Presence & Economy Mode](PERF-1-ADAPTIVE-PRESENCE.md).
