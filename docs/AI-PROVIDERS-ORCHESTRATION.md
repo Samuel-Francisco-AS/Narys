@@ -111,6 +111,43 @@ usage()
 
 Codex e GitHub Copilot entram inicialmente nesta categoria.
 
+### Local Cognitive Support
+
+Classe separada de Cognitive Provider e Specialist Agent.
+
+Não representa uma LLM principal nem um agente autônomo. São capacidades locais auxiliares usadas para reduzir Cognitive I/O mecânico e preparar material para os modelos mais fortes.
+
+Contrato conceitual:
+
+~~~text
+capabilities()
+estimate_local_cost()
+admit(constraints)
+execute(capability, input)
+provenance()
+usage()
+~~~
+
+Capacidades candidatas:
+
+~~~text
+embed
+rerank
+classify
+extract
+distill
+structure
+build_handoff
+transcribe
+synthesize_speech
+~~~
+
+O target arquitetural é o AI-Native Runtime oferecer essas capacidades como **cognition.*** e cuidar de model registry, load/unload, warm TTL, RAM/CPU admission e telemetria. A Luna define criticidade, quality floor e quando aceitar ou escalar o resultado.
+
+Experimentos provisórios dentro do Luna Core devem ficar atrás de um adapter semântico para permitir migração posterior ao Runtime.
+
+Modelos candidatos e política completa: [LOCAL-COGNITIVE-SUPPORT-LUNA.md](LOCAL-COGNITIVE-SUPPORT-LUNA.md).
+
 ## 3. Candidatos de baixo custo / gratuitos
 
 ### Google Gemini API
