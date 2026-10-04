@@ -2327,7 +2327,7 @@ de commit, divisão de output e a recusa entre admission e início instrumentado
 
 ### Fechamento auditado da LR-8D
 
-**Resultado: PASS técnico + reauditoria independente da Luna em 04/10/2026.**
+**Resultado: PASS técnico + reauditoria independente da Luna em 04/10/2026. Integrada à `main` pela PR #18, squash `8f69d02a612233133a550a3a468915d00066505c`.**
 Branch de implementação: `lr-8d-resilience-circuit-breaker`. Candidata final auditada em
 `c4c49bfd6942fcf4517ad52b91634724df9812bd`.
 
