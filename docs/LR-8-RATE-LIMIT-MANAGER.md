@@ -828,11 +828,16 @@ Sem nenhum dos dois, a dimensão permanece não enforceable. `unknown != zero`
 e `unknown != unlimited`: unknown é falta de fato suficiente, não um número.
 Nada é inventado para Gemini, Cloudflare, Mistral ou futuros providers.
 
-Cada novo remaining pode substituir a evidência anterior. Respostas concorrentes
-são tratadas conservadoramente: o manager conserva débitos vivos, limita crédito
-quando existem outras chamadas iniciadas e descarta observações de tentativas
-anteriores a uma observação já aceita de tentativa posterior. Header ausente ou
-limit isolado não prova refill de um teto já esgotado. O snapshot de rate pode
+Um remaining de uma autorização HTTP posterior pode substituir a evidência
+anterior. Respostas concorrentes são tratadas conservadoramente: o manager
+conserva débitos vivos e limita crédito quando existem outras chamadas iniciadas.
+A ordem é uma sequência monotônica atribuída em `started`, depois da admission;
+o ID da reservation serve somente para ownership/correlação. Headers de uma
+autorização anterior, ou repetidos da mesma autorização, podem apenas reduzir o
+teto vigente, nunca restaurar crédito, limpar uncertainty ou alterar reset/epoch.
+Header ausente ou limit isolado não prova refill de um teto já esgotado. A regra
+detalhada e sua proteção contra refunds futuros estão na FIX de ordering abaixo.
+O snapshot de rate pode
 portanto conservar um fato utilizável anterior enquanto o snapshot observacional
 de telemetry mostra a última resposta parcial/unknown. Provenance do campo
 retido acompanha a constraint. `capacity` é um teto interno conservador derivado
@@ -1413,3 +1418,129 @@ enforcement token; condição Cloudflare deliberadamente estrita e sensível a
 mudanças protocolares; windows/epoch e remoção de um único marcador; latch de
 persistenceFailed e recuperação explícita; nenhuma coordination multi-processo.
 Status continua candidato; nenhum gate humano ou LR-8D foi liberado.
+
+### FIX residual — ordering de observations concorrentes
+
+FIX sobre o HEAD auditado `d0b813e6e1424267a0d02d786c6614738edec417`,
+exclusivamente na branch `lr-8c-rate-accounting`.
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
+**LR-8D bloqueada.** Sem merge nem alteração da FIX anterior.
+
+#### Autoridade de ordering
+
+`HttpStartSequence` é uma sequência monotônica local por provider, atribuída sob
+o mutex do RateLimitManager somente após `started` completar accounting durável
+e a última verificação de cancellation. A sequência identifica a autorização
+efetiva de transporte na fronteira factual instrumentada pela 8A, após admission.
+Tentativas canceladas/falhas antes dessa autorização não recebem sequência;
+repetir `started` não cria outra. Overflow falha com RateStateUnavailable antes
+de permitir HTTP. Reservation ID permanece apenas chave de lookup e proprietário
+dos charges, sem comparação numérica para ordenar fatos.
+
+Cada constraint ExternalFact Provider/Model mantém sua `observation_floor`.
+A geração de credencial é verificada antes da correlação/ordering. Somente uma
+invocação ainda viva e autorizada pode publicar headers correlacionados. Um fato
+normalizado independente de uma invocação estabelece uma barreira na sequência
+de início corrente: respostas das chamadas já iniciadas não podem apagá-lo.
+Sequências/barreiras são efêmeras, não expostas como identificadores em snapshots
+e não persistidas. Restart continua carregando somente estado local; quota
+remota volta a unknown. Rotation invalida os fatos/barreiras externos e preserva
+budget/uncertainty local. Nenhum wall-clock participa do desempate.
+
+Sequência maior que a barreira segue a reconciliação factual existente: remaining
+pode substituir a evidência anterior, conserva todos os charges vivos e limita
+crédito em overlap. Requests já refletidas no próprio remaining não são debitadas
+duas vezes; tokens conservam seu bound/consumo factual, pois podem ser gerados
+depois dos headers. Partial headers não provam refill nem limpam uncertainty.
+Só reset factual normalizado válido/configuração explícita inicia nova janela.
+
+Sequência menor ou igual **não é prova de que o valor remoto seja antigo**:
+o runtime não conhece a ordem de processamento no provider nem consumo externo.
+Portanto esse fato ainda pode apertar um teto conhecido, mas não aumentá-lo.
+Mantêm-se consumed, charges, reservation ownership, epoch, reset, barreira e
+uncertainty. O fato só pode reduzir capacity, com provenance do campo utilizado.
+Não se converte capacidade unknown em zero ou em crédito utilizável.
+
+Para um teto recebido `C = remaining`, ou `limit` quando remaining é ausente,
+a atualização conservadora é:
+
+`capacity = min(capacity anterior, consumed não reembolsável + C)`.
+
+Em requests, consumo iniciado não é reembolsável. Em tokens, desconta-se de
+consumed todo excesso ainda potencialmente reembolsável dos charges iniciados
+da epoch corrente: `max(charge - usage factual já observado, 0)`. Essa parcela
+usa a regra anterior de usage validado/não regressivo. Assim, até depois de todos
+os refunds terminais comprovados e rollbacks de reservations pendentes, o crédito
+não ultrapassa o teto atrasado mais restritivo. A atualização não repete nenhum
+débito nem executa refund. Um total terminal continua devolvendo somente o excesso
+provado, pelo guard proprietário e na epoch correta. Fato atrasado com reset
+imediato não pode acelerar a janela nem aplicar novamente DelayMs.
+
+Isso não depende de ordem de completion do Tokio: a sequência ordena autorizações
+HTTP, e fatos que não podem substituir a evidência corrente só podem restringi-la.
+Overlaps podem subutilizar capacidade de propósito; não se alega reconstruir o
+saldo comercial a partir dos débitos da Luna. Uma nova observação elegível ou
+reset legítimo recupera conhecimento conforme os contratos já existentes.
+
+#### Regressões e autoauditoria
+
+Cinco novos testes determinísticos preservam os 58 adicionados à LR-8C anterior:
+
+- Scheduler + AdmissionController real, cap por provider = 1: reservation #1
+  Background entra primeiro na fila, reservation #2 ForegroundInteractive
+  ultrapassa, inicia HTTP primeiro e publica RPD=9/TPM=90; depois #1 inicia e
+  publica RPD=4/TPM=40. O resultado respeita 4/40 e o débito token conservador.
+- Scheduler real com cap = 2 para overlap: chamada Background iniciada antes
+  responde depois da ForegroundInteractive. Header atrasado maior não restaura
+  saldo; header menor restringe. Consumo permanece igual, reset imediato antigo
+  não troca o deadline aceito e Drop não debita duas vezes.
+- Unitário de reservations invertidas, barreira de fato independente e rejeição
+  de observação sem proprietário vivo.
+- Unitário de partial header repetido: não refilla, não aplica reset e não limpa
+  uncertainty; bound futuro retorna RateStateUnavailable e scopes ficam isolados.
+- Unitário TPM/TPD de teto atrasado mais restritivo seguido por final_usage menor:
+  o refund comprovado ocorre uma vez e não ressuscita crédito além desse teto.
+
+Os cenários usam clock falso e channels com acknowledgements, sem sleeps ou
+inferência da ordem de completion. Com os novos testes e o manager do HEAD
+auditado, quatro das cinco regressões falharam deterministicamente, incluindo
+o cap = 1 que manteve capacity 9 em vez de 4; o teste de partial header passou.
+O manager corrigido foi restaurado antes dos gates finais.
+Não se aumentou timeout. Autoauditoria:
+reservation ID não é relógio factual; overtaking não descarta saldo menor;
+resposta anterior nunca aumenta crédito/reset/epoch; saldo restritivo permanece
+seguro após refunds; geração antiga é rejeitada antes da comparação; scopes não
+se misturam; schema 12, persistence/recovery markers, terminal usage, routing,
+Auto/affinity, admission/fairness, TaskBudget/D3 e retry/fallback estão preservados.
+Diff restrito ao manager, seus testes e esta documentação. Nenhum secret, Account
+ID, header raw, prompt ou conteúdo de resposta novo é persistido/exposto.
+
+#### Gates da FIX residual
+
+Resultados sobre o código final (04/10/2026):
+
+| Gate | Resultado |
+|---|---|
+| `npm run typecheck` | Exit 0 |
+| `npm run build` | Exit 0; aviso preexistente de chunk 666,22 kB |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | Exit 0; 15 warnings preexistentes |
+| `cargo test --manifest-path src-tauri/Cargo.toml rate_tests` | Exit 0; 56 aprovados em paralelo, zero falhas; 32,73 s |
+| `cargo test --manifest-path src-tauri/Cargo.toml task_graph_runtime_tests` | Exit 0; 13 aprovados em paralelo, zero falhas; 49,31 s |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | Exit 0; 428 aprovados, zero falhas, dois ignorados; 237,10 s; main/doc-tests sem falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=1` | Exit 0; 428 aprovados, zero falhas, dois ignorados; 701,37 s; main/doc-tests sem falhas |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | Exit 0; 41 warnings preexistentes |
+| `git diff --check` | Sem erros |
+| `git diff --check main...HEAD` | Sem erros, inclusive no commit final |
+
+A global paralela não repetiu os timeouts TaskGraph anteriores. Nenhum timeout
+foi aumentado nem falha nova dispensada. Os dois ignorados continuam sendo
+`real_app_server_handshake` e `manual_final_codex_agent_bridge_gate`, gates
+Codex locais/manuais preexistentes. Compilação de testes mantém dois warnings
+preexistentes. Não houve tráfego com providers/credenciais comerciais reais.
+
+Pontos para a reauditoria independente: sequência atribuída na autorização de
+transporte, depois da admission; regra restritiva para fatos anteriores/repetidos;
+desconto do potencial de refund no teto atrasado; overlap pode subutilizar quota,
+pois início local não prova ordem de processamento remota. Continuam as
+limitações anteriores de token bounds ausentes em produção e coordenação de
+uma única instância. Nenhum gate humano ou LR-8D foi liberado.

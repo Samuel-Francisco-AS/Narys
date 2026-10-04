@@ -187,6 +187,11 @@ pub struct RateSnapshot {
     pub persistence_failed: bool,
 }
 
+/// Local transport authorization order, never reservation/admission arrival order
+/// and never a claim about provider-side processing or response completion order.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct HttpStartSequence(u64);
+
 #[derive(Clone)]
 struct Bucket {
     scope: QuotaScope,
@@ -201,7 +206,7 @@ struct Bucket {
     window: Option<FixedWindow>,
     saturated: bool,
     unaccounted: u64,
-    last_observation: Option<u64>,
+    observation_floor: Option<HttpStartSequence>,
 }
 #[derive(Clone)]
 struct Charge {
@@ -217,6 +222,7 @@ struct Attempt {
     model: String,
     bound: Option<TokenUpperBound>,
     started: bool,
+    http_start: Option<HttpStartSequence>,
     total_usage: Option<u64>,
     usage_final: bool,
     charges: Vec<Charge>,
@@ -228,6 +234,7 @@ struct State {
     buckets: Vec<Bucket>,
     attempts: BTreeMap<u64, Attempt>,
     next_attempt: u64,
+    next_http_start: u64,
     blocks: u64,
     saturated: bool,
     persistence_failed: bool,
@@ -444,7 +451,7 @@ impl RateLimitManager {
                 window: Some(limit.window),
                 saturated: false,
                 unaccounted: 0,
-                last_observation: None,
+                observation_floor: None,
             };
             if let Some(old) = s.buckets.iter().find(|b| {
                 b.source == source
@@ -573,7 +580,7 @@ impl RateLimitManager {
                 }
                 b.saturated = false;
                 b.unaccounted = 0;
-                b.last_observation = None;
+                b.observation_floor = None;
             }
         }
     }
@@ -606,6 +613,15 @@ impl RateLimitManager {
         let Some(s) = states.get_mut(id).filter(|s| s.generation == generation) else {
             return;
         };
+        // Attempt ID is only a lookup key / charge owner. Its numeric order has
+        // no relationship to HTTP start, since admission may reorder priorities.
+        let http_start = match attempt_id {
+            Some(n) => match s.attempts.get(&n).and_then(|a| a.http_start) {
+                Some(sequence) => Some(sequence),
+                None => return, // No live, authorized transport to correlate.
+            },
+            None => None, // Trusted normalized fact independent of an invocation.
+        };
         if s.refresh(self.clock.now()).is_err() {
             s.persistence_failed = true;
             return;
@@ -630,15 +646,70 @@ impl RateLimitManager {
                     window: None,
                     saturated: false,
                     unaccounted: 0,
-                    last_observation: None,
+                    observation_floor: None,
                 });
                 s.buckets.len() - 1
             }
         };
-        if attempt_id
-            .zip(s.buckets[i].last_observation)
-            .is_some_and(|(new, old)| new < old)
+        if http_start
+            .zip(s.buckets[i].observation_floor)
+            .is_some_and(|(incoming, floor)| incoming <= floor)
         {
+            // Start order is not remote processing order. An earlier-started
+            // response may expose a genuinely tighter shared external balance.
+            // It can only tighten existing credit, in place, never refill, clear
+            // uncertainty, replay reset, or rebase/double-debit live charges.
+            // A later proven refund must not lift credit above this ceiling:
+            // only the non-refundable portion of consumption offsets it.
+            let epoch = s.buckets[i].epoch;
+            let refundable = if tokens(dimension) {
+                s.attempts
+                    .values()
+                    .filter(|a| a.started)
+                    .flat_map(|a| {
+                        a.charges.iter().filter_map(move |c| {
+                            (c.bucket == i && c.epoch == epoch)
+                                .then_some(c.amount.saturating_sub(a.total_usage.unwrap_or(0)))
+                        })
+                    })
+                    .fold(0u64, u64::saturating_add)
+            } else {
+                0
+            };
+            let b = &mut s.buckets[i];
+            if let (Some(old), Some(ceiling)) =
+                (b.capacity, number(&fact.remaining).or(number(&fact.limit)))
+            {
+                let tightened = old.min(
+                    b.consumed
+                        .saturating_sub(refundable)
+                        .saturating_add(ceiling),
+                );
+                if tightened < old {
+                    b.capacity = Some(tightened);
+                    // Retain the provenance of the field actually tightening the
+                    // ceiling. Timing and the observation floor remain intact.
+                    if let Some(retained) = &mut b.external {
+                        if number(&fact.remaining).is_some() {
+                            retained.remaining = fact.remaining;
+                            if number(&retained.limit)
+                                .zip(number(&retained.remaining))
+                                .is_some_and(|(l, r)| r > l)
+                            {
+                                retained.limit = Fact::Unknown;
+                            }
+                        } else {
+                            retained.limit = fact.limit;
+                            if number(&retained.limit)
+                                .zip(number(&retained.remaining))
+                                .is_some_and(|(l, r)| r > l)
+                            {
+                                retained.remaining = Fact::Unknown;
+                            }
+                        }
+                    }
+                }
+            }
             return;
         }
         let fresh_remaining = number(&fact.remaining);
@@ -716,7 +787,9 @@ impl RateLimitManager {
         b.external = Some(retained);
         b.consumed = 0;
         b.epoch = epoch;
-        b.last_observation = attempt_id;
+        // Independent facts establish a barrier for already-started invocations;
+        // their late headers cannot erase this observation's authority either.
+        b.observation_floor = Some(http_start.unwrap_or(HttpStartSequence(s.next_http_start)));
         let reset = match fact.reset {
             Fact::Known { value, .. } => deadline(value, self.clock.now()),
             Fact::Unknown => None,
@@ -825,6 +898,7 @@ impl RateLimitManager {
                 model: model.into(),
                 bound,
                 started: false,
+                http_start: None,
                 total_usage: None,
                 usage_final: false,
                 charges,
@@ -871,6 +945,10 @@ impl RateLimitManager {
         if a.started {
             return Ok(());
         }
+        let sequence = s
+            .next_http_start
+            .checked_add(1)
+            .ok_or(SchedulerError::RateStateUnavailable)?;
         // Revalidate pending reservation after quota observations/reset during queue.
         for c in &a.charges {
             let b = &s.buckets[c.bucket];
@@ -929,6 +1007,10 @@ impl RateLimitManager {
             }
             return Err(e);
         }
+        // Publish order only after durable accounting and the final local
+        // cancellation check authorized HTTP. No lock has been released here.
+        s.next_http_start = sequence;
+        s.attempts.get_mut(&n).unwrap().http_start = Some(HttpStartSequence(sequence));
         Ok(())
     }
     fn usage(&self, id: &str, n: u64, total: u64, final_sample: bool) {

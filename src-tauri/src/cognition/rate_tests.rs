@@ -2538,3 +2538,427 @@ fn definitive_usage_clears_only_its_own_marker_and_reset_overflow_clears_nothing
     );
     drop(two);
 }
+
+// Header scripts acknowledge each normalized observation, keeping scheduling and
+// response order explicit. No network, sleeps or Tokio completion-order inference.
+struct OrderedHeaderCall {
+    label: String,
+    commands: mpsc::UnboundedSender<OrderedHeaderCommand>,
+}
+enum OrderedHeaderCommand {
+    Quotas {
+        requests: u64,
+        tokens: u64,
+        reset: Option<Timing>,
+        ack: oneshot::Sender<()>,
+    },
+    Finish,
+}
+struct OrderedHeaderProvider(mpsc::UnboundedSender<OrderedHeaderCall>);
+impl Provider for OrderedHeaderProvider {
+    fn token_upper_bound(&self, _: &ProviderRequest) -> Option<TokenUpperBound> {
+        Some(TokenUpperBound::explicit_total(10).unwrap())
+    }
+    fn execute<'a>(
+        &'a self,
+        _: &'a ProviderRequest,
+        _: &'a AtomicBool,
+        _: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+    ) -> ProviderFuture<'a> {
+        panic!("observed invocation required")
+    }
+    fn execute_observed<'a>(
+        &'a self,
+        request: &'a ProviderRequest,
+        cancelled: &'a AtomicBool,
+        _: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+        observation: &'a InvocationObservation<'_>,
+    ) -> ProviderFuture<'a> {
+        Box::pin(async move {
+            if !observation.started_unless_cancelled(cancelled) {
+                return Err(ProviderError::Cancelled);
+            }
+            let (tx, mut rx) = mpsc::unbounded_channel();
+            self.0
+                .send(OrderedHeaderCall {
+                    label: request.input.clone(),
+                    commands: tx,
+                })
+                .unwrap();
+            while let Some(command) = rx.recv().await {
+                match command {
+                    OrderedHeaderCommand::Quotas {
+                        requests,
+                        tokens,
+                        reset,
+                        ack,
+                    } => {
+                        observation.quota(
+                            model("m"),
+                            QuotaDimension::RequestsPerDay,
+                            Some(100),
+                            Some(requests),
+                            reset,
+                        );
+                        observation.quota(
+                            model("m"),
+                            QuotaDimension::TokensPerMinute,
+                            Some(100),
+                            Some(tokens),
+                            reset,
+                        );
+                        ack.send(()).unwrap();
+                    }
+                    OrderedHeaderCommand::Finish => {
+                        let usage = total_usage(10);
+                        observation.final_usage(usage);
+                        return Ok(ProviderResponse {
+                            text: "fixture".into(),
+                            usage,
+                        });
+                    }
+                }
+            }
+            panic!("header script abandoned")
+        })
+    }
+}
+fn ordering_scheduler(cap: usize) -> (Arc<Scheduler>, mpsc::UnboundedReceiver<OrderedHeaderCall>) {
+    let (tx, rx) = mpsc::unbounded_channel();
+    let mut registry = ProviderRegistry::default();
+    registry
+        .register(
+            ProviderConfig {
+                id: "a".into(),
+                enabled: true,
+                priority: 1,
+                capabilities: ProviderCapabilities::text_stream(),
+            },
+            Arc::new(OrderedHeaderProvider(tx)),
+        )
+        .unwrap();
+    let scheduler = Arc::new(
+        Scheduler::with_rate_config(
+            registry,
+            AdmissionConfig {
+                max_concurrency_per_provider: cap,
+                ..AdmissionConfig::default()
+            },
+            FakeClock::new(),
+            None,
+        )
+        .unwrap(),
+    );
+    quota(&scheduler, "a", QuotaDimension::RequestsPerDay, 100);
+    quota(&scheduler, "a", QuotaDimension::TokensPerMinute, 100);
+    (scheduler, rx)
+}
+fn ordering_request(class: TrafficClass, label: &str) -> ProviderTaskRequest {
+    let mut r = request(&["a"], ProviderSelection::Fixed("a".into()));
+    r.traffic_class = class;
+    r.input = label.into();
+    r
+}
+async fn headers(call: &OrderedHeaderCall, requests: u64, tokens: u64, reset: Option<Timing>) {
+    let (ack, rx) = oneshot::channel();
+    call.commands
+        .send(OrderedHeaderCommand::Quotas {
+            requests,
+            tokens,
+            reset,
+            ack,
+        })
+        .unwrap();
+    bounded(rx).await.unwrap();
+}
+
+#[tokio::test]
+async fn rate_ordering_priority_overtaking_uses_http_start_not_reservation_order() {
+    let (s, mut calls) = ordering_scheduler(1);
+    // Hold admission without creating a rate reservation: the two tasks below
+    // receive reservation #1 Background and #2 ForegroundInteractive exactly.
+    let permit = held(&s).await;
+    let (background, mut bg_events) = start(
+        s.clone(),
+        ordering_request(TrafficClass::Background, "background"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    event(&mut bg_events, |e| {
+        matches!(e, SchedulerEvent::Queued { .. })
+    })
+    .await;
+    assert_eq!(s.rate_snapshot()[0].pending_reservations, 1);
+    let (foreground, mut fg_events) = start(
+        s.clone(),
+        ordering_request(TrafficClass::ForegroundInteractive, "foreground"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    event(&mut fg_events, |e| {
+        matches!(e, SchedulerEvent::Queued { .. })
+    })
+    .await;
+    assert_eq!(s.rate_snapshot()[0].pending_reservations, 2);
+    let admission = &s.admission_snapshot()[0];
+    assert_eq!(admission.max_concurrency, 1);
+    assert_eq!(admission.queued_by_class[&TrafficClass::Background], 1);
+    assert_eq!(
+        admission.queued_by_class[&TrafficClass::ForegroundInteractive],
+        1
+    );
+    assert!(calls.try_recv().is_err());
+    drop(permit);
+    let first = bounded(calls.recv()).await.unwrap();
+    assert_eq!(first.label, "foreground");
+    headers(&first, 9, 90, None).await;
+    first.commands.send(OrderedHeaderCommand::Finish).unwrap();
+    assert!(bounded(foreground).await.unwrap().is_ok());
+    let second = bounded(calls.recv()).await.unwrap();
+    assert_eq!(second.label, "background");
+    headers(&second, 4, 40, None).await;
+    second.commands.send(OrderedHeaderCommand::Finish).unwrap();
+    assert!(bounded(background).await.unwrap().is_ok());
+    let requests = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+    assert_eq!(requests.capacity, Some(4));
+    assert_eq!(requests.consumed, 0); // Its request is already reflected in remaining.
+    assert_eq!(requests.effective_remaining, Some(4));
+    let tokens = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+    assert_eq!(tokens.capacity, Some(40));
+    assert_eq!(tokens.consumed, 10);
+    assert_eq!(tokens.effective_remaining, Some(30));
+    assert_eq!(tokens.reset_in_ms, None);
+    clean(&s);
+}
+
+#[tokio::test]
+async fn rate_ordering_older_http_response_only_tightens_without_reset_or_double_debit() {
+    for older_is_stricter in [false, true] {
+        let (s, mut calls) = ordering_scheduler(2);
+        let (background, _) = start(
+            s.clone(),
+            ordering_request(TrafficClass::Background, "older"),
+            Arc::new(AtomicBool::new(false)),
+            no_retry(),
+        );
+        let older = bounded(calls.recv()).await.unwrap();
+        let (foreground, _) = start(
+            s.clone(),
+            ordering_request(TrafficClass::ForegroundInteractive, "newer"),
+            Arc::new(AtomicBool::new(false)),
+            no_retry(),
+        );
+        let newer = bounded(calls.recv()).await.unwrap();
+        headers(&newer, 4, 40, Some(Timing::DelayMs(10))).await;
+        newer.commands.send(OrderedHeaderCommand::Finish).unwrap();
+        assert!(bounded(foreground).await.unwrap().is_ok());
+        let before_r = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+        let before_t = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+        assert_eq!(before_r.effective_remaining, Some(3));
+        assert_eq!(before_t.effective_remaining, Some(20));
+        // The old response arrives last. Its immediate reset must not revive
+        // credit; a smaller balance must still constrain external shared quota.
+        headers(
+            &older,
+            if older_is_stricter { 1 } else { 9 },
+            if older_is_stricter { 10 } else { 90 },
+            Some(Timing::DelayMs(0)),
+        )
+        .await;
+        let after_r = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+        let after_t = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+        assert_eq!(after_r.consumed, before_r.consumed);
+        assert_eq!(after_t.consumed, before_t.consumed);
+        assert_eq!(after_r.reset_in_ms, Some(10));
+        assert_eq!(after_t.reset_in_ms, Some(10));
+        assert_eq!(
+            after_r.effective_remaining,
+            Some(if older_is_stricter { 1 } else { 3 })
+        );
+        assert_eq!(
+            after_t.effective_remaining,
+            Some(if older_is_stricter { 0 } else { 20 })
+        );
+        older.commands.send(OrderedHeaderCommand::Finish).unwrap();
+        assert!(bounded(background).await.unwrap().is_ok());
+        assert_eq!(
+            constraint(&s, "a", QuotaDimension::RequestsPerDay).effective_remaining,
+            after_r.effective_remaining
+        );
+        assert_eq!(
+            constraint(&s, "a", QuotaDimension::TokensPerMinute).effective_remaining,
+            after_t.effective_remaining
+        );
+        clean(&s);
+    }
+}
+
+#[test]
+fn rate_ordering_reversed_reservations_and_independent_fact_barrier() {
+    let h = Harness::new();
+    let (one, first) = h.reserve("a", "m", None).unwrap();
+    let (two, second) = h.reserve("a", "m", None).unwrap();
+    assert!(first.context_generation() == second.context_generation());
+    assert!(second.started());
+    second.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(9),
+        None,
+    );
+    drop(two);
+    assert!(first.started());
+    first.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(4),
+        None,
+    );
+    drop(one);
+    assert_eq!(
+        h.bucket("a", QuotaDimension::RequestsPerDay)
+            .effective_remaining,
+        Some(4)
+    );
+
+    let (guard, old) = h.reserve("a", "m", None).unwrap();
+    assert!(old.started());
+    h.quota(
+        "a",
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(2),
+        None,
+    );
+    old.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(9),
+        Some(Timing::DelayMs(0)),
+    );
+    drop(guard);
+    let b = h.bucket("a", QuotaDimension::RequestsPerDay);
+    assert_eq!(b.effective_remaining, Some(1));
+    assert_eq!(b.reset_in_ms, None);
+    // A detached observation has no live authorized invocation to correlate.
+    old.quota(
+        model("m"),
+        QuotaDimension::RequestsPerDay,
+        Some(100),
+        Some(100),
+        None,
+    );
+    assert_eq!(
+        h.bucket("a", QuotaDimension::RequestsPerDay)
+            .effective_remaining,
+        Some(1)
+    );
+}
+
+#[test]
+fn rate_ordering_stale_partial_headers_cannot_refill_or_clear_token_uncertainty() {
+    let h = Harness::new();
+    h.quota(
+        "a",
+        model("m"),
+        QuotaDimension::TokensPerMinute,
+        Some(100),
+        Some(100),
+        None,
+    );
+    let (one, first) = h.reserve("a", "m", None).unwrap();
+    let (two, second) = h.reserve("a", "m", Some(10)).unwrap();
+    assert!(second.started());
+    second.quota(
+        model("m"),
+        QuotaDimension::TokensPerMinute,
+        Some(100),
+        Some(40),
+        None,
+    );
+    second.final_usage(total_usage(10));
+    drop(two);
+    assert!(first.started());
+    first.quota(
+        model("m"),
+        QuotaDimension::TokensPerMinute,
+        Some(100),
+        Some(20),
+        None,
+    );
+    assert_eq!(
+        h.bucket("a", QuotaDimension::TokensPerMinute)
+            .unaccounted_token_calls,
+        1
+    );
+    // Same start sequence cannot clear uncertainty or invent refill/reset via a
+    // second partial observation. No newer HTTP authorization has occurred.
+    first.quota(
+        model("m"),
+        QuotaDimension::TokensPerMinute,
+        Some(100),
+        None,
+        Some(Timing::DelayMs(0)),
+    );
+    drop(one);
+    let b = h.bucket("a", QuotaDimension::TokensPerMinute);
+    assert_eq!(b.effective_remaining, None);
+    assert_eq!(b.unaccounted_token_calls, 1);
+    assert_eq!(b.reset_in_ms, None);
+    assert_eq!(
+        err(h.reserve("a", "m", Some(1))),
+        SchedulerError::RateStateUnavailable
+    );
+    assert!(h.reserve("a", "other-model", Some(10)).is_ok());
+    assert!(h.reserve("b", "m", Some(10)).is_ok());
+}
+
+#[test]
+fn rate_ordering_older_token_ceiling_survives_proven_refund() {
+    let h = Harness::new();
+    h.quota(
+        "a",
+        model("m"),
+        QuotaDimension::TokensPerDay,
+        Some(100),
+        Some(100),
+        None,
+    );
+    let (one, first) = h.reserve("a", "m", Some(10)).unwrap();
+    let (two, second) = h.reserve("a", "m", Some(10)).unwrap();
+    assert!(first.started());
+    assert!(second.started());
+    second.quota(
+        model("m"),
+        QuotaDimension::TokensPerDay,
+        Some(100),
+        Some(40),
+        None,
+    );
+    second.final_usage(total_usage(10));
+    drop(two);
+    first.quota(
+        model("m"),
+        QuotaDimension::TokensPerDay,
+        Some(100),
+        Some(10),
+        None,
+    );
+    let before = h.bucket("a", QuotaDimension::TokensPerDay);
+    assert_eq!(before.consumed, 20); // Tightening never repeats a debit.
+    assert_eq!(before.effective_remaining, Some(0));
+    first.final_usage(total_usage(0));
+    drop(one);
+    let after = h.bucket("a", QuotaDimension::TokensPerDay);
+    assert_eq!(after.consumed, 10); // Only the proven unused bound was refunded.
+    assert_eq!(after.effective_remaining, Some(10));
+    assert!(h.reserve("a", "m", Some(10)).is_ok());
+    assert_eq!(
+        err(h.reserve("a", "m", Some(11))),
+        SchedulerError::RateCapacityExceeded
+    );
+}
