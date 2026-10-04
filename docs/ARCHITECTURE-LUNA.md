@@ -352,7 +352,53 @@ A arquitetura está cumprindo o objetivo quando:
 7. animações e avatar podem mudar sem alterar o Luna Core;
 8. a Luna permanece parcialmente funcional offline, ainda que com cognição limitada.
 
-## 13. Fontes técnicas de referência
+## 13. Local Cognitive Support e fronteira com AI-Native Runtime
+
+A arquitetura passa a reconhecer uma terceira classe de recurso cognitivo além de Cognitive Providers e Specialist Agents: **Local Cognitive Support**.
+
+Ela cobre capacidades auxiliares como:
+
+~~~text
+VAD / ASR / TTS
+embeddings / reranking
+classify / extract / structure
+distill / evidence building
+handoff preparation
+~~~
+
+Esses modelos não são "a LLM local da Luna". São coprocessadores de baixa autoridade usados para reduzir trabalho mecânico, tokens e cota dos recursos cognitivos principais.
+
+A propriedade arquitetural pretendida é:
+
+~~~text
+Luna
+  │
+  │ política / criticidade / quality floor
+  ▼
+LocalSupportClient
+  │
+  ▼
+AI-Native Runtime
+  │
+  └─ cognition.*
+      model registry
+      admission
+      load/unload
+      resource awareness
+      telemetry
+~~~
+
+Enquanto o AI-Native Runtime ainda não existir, um backend experimental pode viver temporariamente no Luna Core, desde que permaneça atrás de interface semântica e não espalhe detalhes de GGUF/ONNX/modelos pela orquestração.
+
+A fronteira é:
+
+> **O Runtime sabe o que pode ser feito localmente; a Luna sabe o que deve ser feito localmente.**
+
+A Luna continua sendo autoridade sobre tarefa, identidade, memória, permissões e escolha de escalada. Um modelo local não ganha autoridade para revisar código crítico, aprovar side effects ou substituir julgamento de um provider/agente especialista apenas por ser gratuito.
+
+Detalhes, candidatos, benchmark e projeção de integração estão em [LOCAL-COGNITIVE-SUPPORT-LUNA.md](LOCAL-COGNITIVE-SUPPORT-LUNA.md).
+
+## 14. Fontes técnicas de referência
 
 Verificadas em 25/09/2026:
 
