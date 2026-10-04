@@ -1817,7 +1817,7 @@ tráfego comercial real ou alteração de credenciais reais.
 
 ### Fechamento auditado da LR-8C
 
-**Resultado: PASS técnico + reauditoria independente da Luna em 04/10/2026.**
+**Resultado: PASS técnico + reauditoria independente da Luna em 04/10/2026. Integrada à `main` pela PR #16, squash `5ac28b93480c746ab1e7c519edf31c8ae06f4375`.**
 Branch de implementação: `lr-8c-rate-accounting`. Candidata final auditada em
 `9668ada86a0716a65917d264cd41b95195c87f24`.
 
