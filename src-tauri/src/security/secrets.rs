@@ -3,7 +3,7 @@ use std::{
     fs::{self, File},
     io::Read,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, Weak},
 };
 use tauri_plugin_stronghold::stronghold::Stronghold;
 
@@ -120,6 +120,11 @@ impl UnlockKeyStore for SystemCredentialStore {
 }
 
 type OpenedClient = (Stronghold, iota_stronghold::Client);
+/// Receives only fixed local key kinds after a durable mutation. No value,
+/// fingerprint or remote account identifier crosses this boundary.
+pub trait CredentialContextObserver: Send + Sync {
+    fn credentials_changed(&self, keys: &[SecretKey]);
+}
 #[cfg(test)]
 #[derive(Default)]
 struct OperationCounts {
@@ -133,6 +138,7 @@ pub struct SecretStore {
     directory: PathBuf,
     keys: Arc<dyn UnlockKeyStore>,
     operation: Mutex<()>,
+    context_observer: Mutex<Option<Weak<dyn CredentialContextObserver>>>,
     #[cfg(test)]
     counts: OperationCounts,
 }
@@ -145,9 +151,16 @@ impl SecretStore {
             directory,
             keys,
             operation: Mutex::new(()),
+            context_observer: Mutex::new(None),
             #[cfg(test)]
             counts: OperationCounts::default(),
         }
+    }
+    pub fn observe_context_changes(&self, observer: Weak<dyn CredentialContextObserver>) {
+        *self
+            .context_observer
+            .lock()
+            .unwrap_or_else(|p| p.into_inner()) = Some(observer);
     }
 
     fn unlock_client(&self) -> Result<OpenedClient, SecretError> {
@@ -270,6 +283,7 @@ impl SecretStore {
     fn with_client<T>(
         &self,
         write: bool,
+        changed_keys: &[SecretKey],
         operation: impl FnOnce(&Stronghold, &iota_stronghold::Client) -> Result<T, SecretError>,
     ) -> Result<T, SecretError> {
         let _guard =
@@ -280,18 +294,52 @@ impl SecretStore {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let snapshot = self.directory.join(SNAPSHOT);
         let (stronghold, client) = measured("secret_unlock", || self.unlock_client())?;
+        // Compare values only inside this serialized vault operation. A no-op
+        // re-save is not a new remote context and must not clear exhausted quota.
+        // No value or credential-derived identifier is sent to the observer.
+        let previous = changed_keys
+            .iter()
+            .map(|key| {
+                client
+                    .store()
+                    .get(key.bytes())
+                    .map(|value| (*key, value))
+                    .map_err(|_| SecretError::Store)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let output = measured("secret_lookup", || operation(&stronghold, &client))?;
         if write {
             stronghold
                 .write_client(CLIENT)
                 .map_err(|_| SecretError::Persist)?;
             stronghold.save().map_err(|_| SecretError::Persist)?;
+            // While the vault operation is still exclusive: a reader cannot
+            // obtain the new context before rate/telemetry invalidation finishes.
+            let observer = self
+                .context_observer
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .as_ref()
+                .and_then(Weak::upgrade);
+            let changed: Vec<_> = previous
+                .into_iter()
+                .filter_map(|(key, old)| {
+                    // If comparison cannot be proved after a durable write, invalidate
+                    // conservatively rather than allowing an old context to govern.
+                    (!client.store().get(key.bytes()).is_ok_and(|new| new == old)).then_some(key)
+                })
+                .collect();
+            if let Some(observer) = observer {
+                if !changed.is_empty() {
+                    observer.credentials_changed(&changed);
+                }
+            }
             private_permissions(&snapshot).map_err(|_| SecretError::Persist)?;
         }
         Ok(output)
     }
     pub fn set_secret(&self, key: SecretKey, value: &[u8]) -> Result<(), SecretError> {
-        self.with_client(true, |_, client| {
+        self.with_client(true, &[key], |_, client| {
             client
                 .store()
                 .insert(key.bytes().to_vec(), value.to_vec(), None)
@@ -308,7 +356,7 @@ impl SecretStore {
         &self,
         keys: &[SecretKey],
     ) -> Result<HashMap<SecretKey, Option<Vec<u8>>>, SecretError> {
-        self.with_client(false, |_, client| {
+        self.with_client(false, &[], |_, client| {
             keys.iter()
                 .copied()
                 .map(|key| {
@@ -330,7 +378,7 @@ impl SecretStore {
         if keys.is_empty() {
             return Ok(HashMap::new());
         }
-        self.with_client(false, |_, client| {
+        self.with_client(false, &[], |_, client| {
             let mut presence = HashMap::new();
             for key in keys {
                 if presence.contains_key(key) {
@@ -356,7 +404,8 @@ impl SecretStore {
     }
     /// Mutates a set of secrets in one Stronghold transaction.
     pub fn set_secrets(&self, values: &[(SecretKey, Vec<u8>)]) -> Result<(), SecretError> {
-        self.with_client(true, |_, client| {
+        let changed: Vec<_> = values.iter().map(|(key, _)| *key).collect();
+        self.with_client(true, &changed, |_, client| {
             for (key, value) in values {
                 client
                     .store()
@@ -368,7 +417,7 @@ impl SecretStore {
     }
     /// Deletes a set of secrets in one Stronghold transaction.
     pub fn delete_secrets(&self, keys: &[SecretKey]) -> Result<(), SecretError> {
-        self.with_client(true, |_, client| {
+        self.with_client(true, keys, |_, client| {
             for key in keys {
                 client
                     .store()

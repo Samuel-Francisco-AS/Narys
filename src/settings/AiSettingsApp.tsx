@@ -1,3 +1,4 @@
+import type { ProviderRate } from './providerRate'
 import type { ProviderAdmission, TrafficClass } from './providerAdmission'
 import { useEffect, useRef, useState } from 'react'
 import { Channel, invoke } from '@tauri-apps/api/core'
@@ -11,7 +12,7 @@ type Target = { providerId: string; model: string; thinkingLevel: Thinking }
 type Policy = { role: Role; routingMode: Routing; targets: Target[]; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number; contextMaxBytes: number }
 type Timeouts = { requestTimeoutMs: number; streamIdleTimeoutMs: number }
 type ProviderInfo = { id: string; displayName: string; configured: boolean; enabled: boolean; capabilities: { textGeneration: boolean; streaming: boolean }; supportedThinkingLevels: Thinking[]; defaultModel: string | null }
-type Settings = { admission: ProviderAdmission[]; telemetry: ProviderTelemetry[]; providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
+type Settings = { rate: ProviderRate[]; admission: ProviderAdmission[]; telemetry: ProviderTelemetry[]; providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
 type ProbeEvent = { type: 'queued'; providerId: string; trafficClass: TrafficClass; queueDepth: number } | { type: 'admitted'; providerId: string; trafficClass: TrafficClass; queueDelayMs: number } | { type: 'selected'; providerId: string; attempt: number } | { type: 'chunk'; text: string }
 type ProbeResult = { text: string; providerId: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; retries: number; fallbacks: number } }
 type CodexRuntimeStatus = { installed: boolean; version: string | null; authenticated: boolean; authKind: 'chatgpt' | 'api_key' | 'other' | 'unknown' | 'none'; available: boolean; diagnosticCode: 'codex_not_installed' | 'codex_not_authenticated' | 'codex_status_timeout' | 'codex_status_failed' | 'codex_status_unrecognized' | null }

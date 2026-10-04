@@ -8,6 +8,7 @@ export type QuotaDimension = 'requests_per_minute' | 'tokens_per_minute' | 'requ
 export type QuotaScope = { kind: 'provider' } | { kind: 'model'; model: string }
 export type ProviderTelemetry = {
   providerId: string
+  contextGeneration: number
   capturedAtUnixMs: number | null
   updatedAgeMs: number | null
   usage: Record<UsageDimension, { observed: Fact<number>; reportingRequests: number; saturated: boolean }>

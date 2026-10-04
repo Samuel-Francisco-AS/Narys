@@ -1,9 +1,10 @@
-//! Observational runtime authority. Never consulted by routing/admission.
+//! Factual telemetry. Quota updates feed the central rate authority; routing and
+//! admission do not read telemetry. Usage history survives context invalidation.
 use super::types::{ProviderError, ProviderUsage};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -56,7 +57,7 @@ pub enum UsageDimension {
     TotalTokens,
     ThoughtTokens,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum QuotaDimension {
     RequestsPerMinute,
@@ -89,8 +90,8 @@ impl Timing {
 }
 /// Scope is explicit: a model observation is never a provider-wide limit.
 /// Model IDs come from validated local targets, never remote account/project IDs.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum QuotaScope {
     Provider,
     Model { model: String },
@@ -155,6 +156,7 @@ pub enum Outcome {
 #[serde(rename_all = "camelCase")]
 pub struct ProviderTelemetrySnapshot {
     pub provider_id: String,
+    pub context_generation: u64,
     pub captured_at_unix_ms: Option<u64>,
     pub updated_age_ms: Option<u64>,
     pub usage: BTreeMap<UsageDimension, UsageCounter>,
@@ -184,6 +186,7 @@ impl State {
         Self {
             snapshot: ProviderTelemetrySnapshot {
                 provider_id: id,
+                context_generation: 0,
                 captured_at_unix_ms: None,
                 updated_age_ms: None,
                 usage,
@@ -219,17 +222,45 @@ impl State {
 /// One store owned by the shared Scheduler in ProviderRuntime. No HTTP data is accepted.
 pub struct TelemetryStore {
     states: Mutex<BTreeMap<String, State>>,
+    rate: Option<Arc<super::rate::RateLimitManager>>,
 }
 impl TelemetryStore {
     /// IDs are trusted from the Registry, the authority that exposes them in status.
     pub fn new(ids: impl IntoIterator<Item = String>) -> Self {
         Self {
+            rate: None,
             states: Mutex::new(
                 ids.into_iter()
                     .map(|id| (id.clone(), State::new(id)))
                     .collect(),
             ),
         }
+    }
+    pub fn with_rate(
+        ids: impl IntoIterator<Item = String>,
+        rate: Arc<super::rate::RateLimitManager>,
+    ) -> Self {
+        let mut store = Self::new(ids);
+        store.rate = Some(rate);
+        store
+    }
+    /// Quota/context only: preserve factual usage, requests, outcomes and peers.
+    /// Linearized with incoming quota under the same lock; never known(0).
+    pub fn invalidate_provider_quotas(&self, id: &str) {
+        self.update(id, |s| {
+            let generation = s
+                .snapshot
+                .context_generation
+                .saturating_add(1)
+                .min(MAX_FACT_VALUE);
+            if let Some(rate) = &self.rate {
+                rate.invalidate(id, generation);
+            }
+            s.snapshot.context_generation = generation;
+            s.snapshot.quotas = vec![ScopedQuotas::new(QuotaScope::Provider)];
+            s.snapshot.retry_hint = Fact::Unknown;
+            s.touch();
+        });
     }
     fn update(&self, id: &str, f: impl FnOnce(&mut State)) {
         let mut states = self.states.lock().unwrap_or_else(|p| p.into_inner());
@@ -267,6 +298,19 @@ impl TelemetryStore {
         reset: Option<Timing>,
         source: Provenance,
     ) {
+        self.observe_quota_in_context(id, scope, dim, limit, remaining, reset, source, None);
+    }
+    fn observe_quota_in_context(
+        &self,
+        id: &str,
+        scope: QuotaScope,
+        dim: QuotaDimension,
+        limit: Option<u64>,
+        remaining: Option<u64>,
+        reset: Option<Timing>,
+        source: Provenance,
+        context: Option<(u64, Option<u64>)>,
+    ) {
         if limit
             .into_iter()
             .chain(remaining)
@@ -277,11 +321,17 @@ impl TelemetryStore {
             return;
         }
         self.update(id, |state| {
+            if state.snapshot.context_generation == MAX_FACT_VALUE
+                || context
+                    .is_some_and(|(generation, _)| generation != state.snapshot.context_generation)
+            {
+                return;
+            }
             let quotas = &mut state.snapshot.quotas;
             let index = match quotas.iter().position(|q| q.scope == scope) {
                 Some(index) => index,
                 None => {
-                    quotas.push(ScopedQuotas::new(scope));
+                    quotas.push(ScopedQuotas::new(scope.clone()));
                     quotas.len() - 1
                 }
             };
@@ -293,21 +343,47 @@ impl TelemetryStore {
                     reset: reset.map_or(Fact::Unknown, |n| Fact::known(n, source)),
                 },
             );
+            if let Some(rate) = &self.rate {
+                rate.observe_external(
+                    id,
+                    state.snapshot.context_generation,
+                    scope,
+                    dim,
+                    quotas[index].dimensions[&dim].clone(),
+                    context.and_then(|(_, attempt)| attempt),
+                );
+            }
             state.touch();
         });
     }
     pub fn attempt<'a>(&'a self, id: &'a str) -> InvocationObservation<'a> {
+        let generation = self
+            .states
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(id)
+            .map_or(0, |s| s.snapshot.context_generation);
         InvocationObservation {
             store: Some(self),
             id,
+            generation,
             attempt: Mutex::new(Attempt::default()),
         }
+    }
+    pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+        self.states
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(id)
+            .map(|s| s.snapshot.context_generation)
     }
 }
 #[derive(Default)]
 struct Attempt {
     started: bool,
     usage: BTreeMap<UsageDimension, u64>,
+    rate: Option<super::rate::RateAttemptHandle>,
+    rate_error: Option<super::types::SchedulerError>,
 }
 /// Ephemeral per-attempt deduplication, never a second provider authority.
 /// Adapters must mark started inside the future that actually begins the send,
@@ -315,6 +391,7 @@ struct Attempt {
 pub struct InvocationObservation<'a> {
     store: Option<&'a TelemetryStore>,
     id: &'a str,
+    generation: u64,
     attempt: Mutex<Attempt>,
 }
 impl InvocationObservation<'_> {
@@ -322,13 +399,46 @@ impl InvocationObservation<'_> {
         Self {
             store: None,
             id: "",
+            generation: 0,
             attempt: Mutex::new(Attempt::default()),
         }
     }
-    pub fn started(&self) {
+    pub fn context_generation(&self) -> u64 {
+        self.generation
+    }
+    pub(super) fn attach_rate(&self, rate: super::rate::RateAttemptHandle) {
+        self.attempt.lock().unwrap_or_else(|p| p.into_inner()).rate = Some(rate);
+    }
+    pub(super) fn rate_error(&self) -> Option<super::types::SchedulerError> {
+        self.attempt
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .rate_error
+            .clone()
+    }
+    /// False denies transport locally. Adapters must honor this at their existing
+    /// HTTP boundary; Scheduler returns the local typed error, never remote 429.
+    pub fn started(&self) -> bool {
+        self.started_inner(None)
+    }
+    /// Production transport boundary, including cancellation that arrives while
+    /// the local rate authority commits its durable accounting.
+    pub fn started_unless_cancelled(&self, cancelled: &std::sync::atomic::AtomicBool) -> bool {
+        self.started_inner(Some(cancelled))
+    }
+    fn started_inner(&self, cancelled: Option<&std::sync::atomic::AtomicBool>) -> bool {
         let mut attempt = self.attempt.lock().unwrap_or_else(|p| p.into_inner());
         if attempt.started {
-            return;
+            return true;
+        }
+        if let Some(rate) = &attempt.rate {
+            if let Err(error) = rate.started(cancelled) {
+                attempt.rate_error = Some(error);
+                return false;
+            }
+        } else if cancelled.is_some_and(|flag| flag.load(std::sync::atomic::Ordering::Acquire)) {
+            attempt.rate_error = Some(super::types::SchedulerError::Cancelled);
+            return false;
         }
         attempt.started = true;
         if let Some(store) = self.store {
@@ -336,6 +446,7 @@ impl InvocationObservation<'_> {
                 s.add(UsageDimension::Requests, 1, true, Provenance::LocalRuntime)
             });
         }
+        true
     }
     /// Current adapters require all input/output/total counters when usage exists.
     /// calls is deliberately ignored: requests come exclusively from started().
@@ -366,6 +477,25 @@ impl InvocationObservation<'_> {
             ),
         ]);
     }
+    /// Adapter assertion: a validated terminal usage envelope reports a definitive
+    /// total for this invocation, even if content is subsequently rejected. A
+    /// cumulative prefix alone is never sufficient to refund a rate reservation.
+    pub fn final_usage(&self, usage: ProviderUsage) {
+        self.usage(usage);
+        if !usage.output_tokens_measured
+            || usage.total_tokens.is_some_and(|total| {
+                u64::from(total) < u64::from(usage.input_tokens) + u64::from(usage.output_tokens)
+            })
+        {
+            return;
+        }
+        let attempt = self.attempt.lock().unwrap_or_else(|p| p.into_inner());
+        if attempt.started {
+            if let (Some(rate), Some(total)) = (&attempt.rate, usage.total_tokens) {
+                rate.final_usage(u64::from(total));
+            }
+        }
+    }
     pub fn observed_usage(&self, values: impl IntoIterator<Item = (UsageDimension, Option<u64>)>) {
         let mut attempt = self.attempt.lock().unwrap_or_else(|p| p.into_inner());
         if !attempt.started {
@@ -386,6 +516,11 @@ impl InvocationObservation<'_> {
                         continue;
                     }
                     attempt.usage.insert(dim, value);
+                    if dim == UsageDimension::TotalTokens {
+                        if let Some(rate) = &attempt.rate {
+                            rate.usage(value);
+                        }
+                    }
                     state.add(
                         dim,
                         value.saturating_sub(previous.unwrap_or(0)),
@@ -410,7 +545,7 @@ impl InvocationObservation<'_> {
             return;
         }
         if let Some(store) = self.store {
-            store.observe_quota(
+            store.observe_quota_in_context(
                 self.id,
                 scope,
                 dim,
@@ -418,6 +553,7 @@ impl InvocationObservation<'_> {
                 remaining,
                 reset,
                 Provenance::ProviderHeader,
+                Some((self.generation, attempt.rate.as_ref().map(|r| r.id()))),
             );
         }
     }
@@ -428,6 +564,9 @@ impl InvocationObservation<'_> {
         }
         if let Some(store) = self.store {
             store.update(self.id, |state| {
+                if state.snapshot.context_generation != self.generation {
+                    return;
+                }
                 state.snapshot.retry_hint =
                     timing.filter(|n| n.valid()).map_or(Fact::Unknown, |n| {
                         Fact::known(n, Provenance::ProviderHeader)

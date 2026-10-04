@@ -67,6 +67,7 @@ pub async fn update_general_settings(
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiSettings {
+    rate: Vec<super::rate::RateSnapshot>,
     admission: Vec<super::admission::AdmissionSnapshot>,
     telemetry: Vec<super::telemetry::ProviderTelemetrySnapshot>,
     providers: Vec<catalog::ProviderInfo>,
@@ -86,6 +87,7 @@ pub async fn get_ai_settings(
     let statuses = runtime.scheduler.status();
     let telemetry = runtime.scheduler.telemetry_snapshot();
     let admission = runtime.scheduler.admission_snapshot();
+    let rate = runtime.scheduler.rate_snapshot();
     tauri::async_runtime::spawn_blocking(move || {
         let conn = db.open().map_err(|e| e.code())?;
         let roles = vec![
@@ -106,6 +108,7 @@ pub async fn get_ai_settings(
         }
         let infos = catalog::infos(&statuses, &store);
         Ok::<_, &'static str>(AiSettings {
+            rate,
             admission,
             telemetry,
             providers: infos.providers,
@@ -117,6 +120,19 @@ pub async fn get_ai_settings(
     .await
     .map_err(|_| "worker_failed".to_string())?
     .map_err(str::to_owned)
+}
+
+#[tauri::command]
+pub async fn update_provider_rate_policy(
+    runtime: State<'_, Arc<ProviderRuntime>>,
+    provider_id: String,
+    policy: super::rate::RatePolicy,
+) -> Result<(), String> {
+    let rate = runtime.scheduler.rate.clone();
+    tauri::async_runtime::spawn_blocking(move || rate.set_policy(&provider_id, policy))
+        .await
+        .map_err(|_| "worker_failed".to_owned())?
+        .map_err(|e| e.code().to_owned())
 }
 
 #[tauri::command]

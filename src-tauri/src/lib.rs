@@ -119,7 +119,9 @@ pub fn run() {
                     cloudflare_adapter,
                 )
                 .expect("unique Cloudflare ID");
-            let runtime = cognition::ProviderRuntime::new(providers);
+            let runtime = cognition::ProviderRuntime::with_database(providers, db.clone())
+                .map_err(|_| "rate_state_unavailable")?;
+            runtime.connect_credentials(&secrets);
             let scheduler = runtime.scheduler.clone();
             let available_secrets = secrets.clone();
             let available_scheduler = scheduler.clone();
@@ -177,6 +179,7 @@ pub fn run() {
         cognition::settings::get_ai_settings,
         cognition::settings::update_cognitive_role_policy,
         cognition::settings::update_provider_timeouts,
+        cognition::settings::update_provider_rate_policy,
         cognition::settings::get_general_settings,
         cognition::settings::update_general_settings,
         cognition::gemini_commands::gemini_status,
@@ -218,6 +221,7 @@ pub fn run() {
         cognition::settings::get_ai_settings,
         cognition::settings::update_cognitive_role_policy,
         cognition::settings::update_provider_timeouts,
+        cognition::settings::update_provider_rate_policy,
         cognition::settings::get_general_settings,
         cognition::settings::update_general_settings,
         cognition::gemini_commands::gemini_status,

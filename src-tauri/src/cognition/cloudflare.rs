@@ -297,7 +297,7 @@ impl Provider for CloudflareProvider {
                   if cancelled.load(Ordering::Acquire) { return Err(ProviderError::Cancelled); }
                   // Client rejects unsupported URL schemes before any HTTP invocation.
                   if matches!(send.url().scheme(), "http" | "https") && send.url().host_str().is_some() {
-                      observation.started();
+                      if !observation.started_unless_cancelled(cancelled) { return Err(ProviderError::Cancelled); }
                   }
                   self.client.execute(send).await.map_err(|error| diagnosed_network_error(&error, "cloudflare", request, timeouts, connect_ms, started))
               } => result?,
@@ -368,6 +368,7 @@ impl Provider for CloudflareProvider {
                             observation.usage(value);
                             usage = Some(value);
                         }
+                        StreamEvent::FinalUsage(value) => observation.final_usage(value),
                         StreamEvent::Finish(reason) => {
                             match record_finish_reason(&mut finish_reason, reason) {
                                 Ok(false) => {}
@@ -437,6 +438,7 @@ impl Provider for CloudflareProvider {
 enum StreamEvent {
     Text(String),
     Usage(ProviderUsage),
+    FinalUsage(ProviderUsage),
     Finish(FinishReason),
     Done,
     Ignore,
@@ -491,6 +493,7 @@ fn diagnostic(_model: &str, _phase: &str, _done: bool, _finish: Option<&str>, _u
 struct SseParser {
     pending: Vec<u8>,
     data: String,
+    terminal_usage: Option<ProviderUsage>,
 }
 impl SseParser {
     fn push(&mut self, bytes: &[u8]) -> Result<Vec<StreamEvent>, ProviderError> {
@@ -527,8 +530,16 @@ impl SseParser {
             return Ok(vec![]);
         }
         if data.trim() == "[DONE]" {
-            return Ok(vec![StreamEvent::Done]);
+            let mut events = Vec::new();
+            if let Some(usage) = self.terminal_usage.take() {
+                events.push(StreamEvent::FinalUsage(usage));
+            }
+            events.push(StreamEvent::Done);
+            return Ok(events);
         }
+        // A subsequent JSON event invalidates the candidate. [DONE] alone
+        // never promotes an arbitrary earlier usage sample to terminal.
+        self.terminal_usage = None;
         let value: Value = serde_json::from_str(&data).map_err(|_| ProviderError::Protocol)?;
         if value.get("error").is_some() {
             return Err(ProviderError::Protocol);
@@ -561,14 +572,27 @@ impl SseParser {
             let input_tokens = token_field(raw_usage, "prompt_tokens")?;
             let output_tokens = token_field(raw_usage, "completion_tokens")?;
             let total_tokens = token_field(raw_usage, "total_tokens")?;
-            events.push(StreamEvent::Usage(ProviderUsage {
+            let usage = ProviderUsage {
                 calls: 1,
                 input_tokens,
                 output_tokens,
                 total_tokens: Some(total_tokens),
                 thought_tokens: None,
                 output_tokens_measured: true,
-            }));
+            };
+            // Cloudflare changelog 2026-02-17 binds finish_reason to the final
+            // usage chunk on /v1/chat/completions. Require that same envelope,
+            // one completed choice, no content/tool delta, and then [DONE].
+            // https://developers.cloudflare.com/workers-ai/changelog/#2026-02-17
+            let terminal = value.get("choices").and_then(Value::as_array)
+                .is_some_and(|choices| choices.len() == 1
+                    && choices[0].get("index").and_then(Value::as_u64) == Some(0)
+                    && choices[0].get("delta").and_then(Value::as_object).is_some_and(|d| d.is_empty())
+                    && matches!(choices[0].get("finish_reason").and_then(Value::as_str), Some("stop" | "length" | "tool_calls")));
+            if terminal && u64::from(total_tokens) >= u64::from(input_tokens) + u64::from(output_tokens) {
+                self.terminal_usage = Some(usage);
+            }
+            events.push(StreamEvent::Usage(usage));
         }
         if events.is_empty() {
             events.push(StreamEvent::Ignore);
@@ -757,6 +781,120 @@ mod tests {
                 output_tokens_measured: true,
             })
         );
+    }
+
+    #[test]
+    fn rate_fix_terminal_usage_requires_official_final_chunk_not_done_or_prior_sample() {
+        let usage = r#""usage":{"prompt_tokens":2,"completion_tokens":3,"total_tokens":5}"#;
+        for reason in ["stop", "length", "tool_calls"] {
+            let mut parser = SseParser::default();
+            let chunk = format!("data: {{\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"{reason}\"}}],{usage}}}\n\n");
+            assert!(!parser
+                .push(chunk.as_bytes())
+                .unwrap()
+                .iter()
+                .any(|e| matches!(e, StreamEvent::FinalUsage(_))));
+            assert!(matches!(
+                parser.push(b"data: [DONE]\n\n").unwrap().as_slice(),
+                [StreamEvent::FinalUsage(_), StreamEvent::Done]
+            ));
+        }
+        for choices in [
+            "[]",
+            r#"[{"index":0,"delta":{},"finish_reason":null}]"#,
+            r#"[{"index":0,"delta":{"content":"prefix"},"finish_reason":"stop"}]"#,
+            r#"[{"index":0,"delta":{},"finish_reason":"mystery"}]"#,
+            r#"[{"index":1,"delta":{},"finish_reason":"stop"}]"#,
+        ] {
+            let mut parser = SseParser::default();
+            let body = format!("data: {{\"choices\":{choices},{usage}}}\n\ndata: [DONE]\n\n");
+            assert!(!parser
+                .push(body.as_bytes())
+                .unwrap()
+                .iter()
+                .any(|e| matches!(e, StreamEvent::FinalUsage(_))));
+        }
+        let mut parser = SseParser::default();
+        let body = format!("data: {{\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"stop\"}}],{usage}}}\n\ndata: {{\"choices\":[{{\"delta\":{{\"content\":\"later\"}}}}]}}\n\ndata: [DONE]\n\n");
+        assert!(!parser
+            .push(body.as_bytes())
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, StreamEvent::FinalUsage(_))));
+    }
+
+    #[test]
+    fn rate_fix_observed_adapter_refunds_only_proven_terminal_usage() {
+        let (store, directory) = http_fixture();
+        let prefix = "data: {\"choices\":[{\"delta\":{\"content\":\"visible\"},\"finish_reason\":\"stop\"}]}\n\n";
+        for (tail, terminal) in [
+            (
+                r#"{"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}"#,
+                true,
+            ),
+            (
+                r#"{"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}"#,
+                false,
+            ),
+        ] {
+            for bound in [None, Some(80)] {
+                let body = format!("{prefix}data: {tail}\n\ndata: [DONE]\n\n");
+                let (endpoint, handle) = super::super::transport::test_support::server(
+                    "200 OK",
+                    &body,
+                    false,
+                    Duration::ZERO,
+                );
+                let provider = CloudflareProvider::new(
+                    CloudflareConfig {
+                        endpoint,
+                        ..Default::default()
+                    },
+                    store.clone(),
+                )
+                .unwrap();
+                let (rate, telemetry) =
+                    super::super::rate_tests::adapter_token_accounting("cloudflare");
+                let obs = telemetry.attempt("cloudflare");
+                let guard = super::super::rate_tests::adapter_token_reservation(
+                    &rate,
+                    &obs,
+                    "cloudflare",
+                    bound,
+                );
+                let response = tauri::async_runtime::block_on(provider.execute_observed(
+                    &http_request(ProviderTimeouts {
+                        request_timeout_ms: 500,
+                        stream_idle_timeout_ms: 500,
+                    }),
+                    &AtomicBool::new(false),
+                    &mut |_| Ok(()),
+                    &obs,
+                ))
+                .unwrap();
+                handle.join().unwrap();
+                assert_eq!(response.usage.total_tokens, Some(30));
+                drop(guard);
+                let b = &rate.snapshots()[0].constraints[0];
+                assert_eq!(
+                    b.consumed,
+                    if !terminal && bound.is_some() { 80 } else { 30 }
+                );
+                assert_eq!(
+                    b.unaccounted_token_calls,
+                    u64::from(!terminal && bound.is_none())
+                );
+                assert_eq!(
+                    b.effective_remaining,
+                    if !terminal && bound.is_none() {
+                        None
+                    } else {
+                        Some(100 - b.consumed)
+                    }
+                );
+            }
+        }
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
