@@ -1594,14 +1594,18 @@ todo fato correlacionado desse grupo segue a regra tightening-only da FIX anteri
 mesmo com HTTP start maior e nenhuma peer restante. Também permanece essa regra
 para HTTP start anterior/repetido à floor. O fato pode reduzir capacity, incluindo
 a proteção contra refunds terminais futuros; não aumenta teto, não limpa
-uncertainty/saturation, não rebasa charges/epoch nem altera/reaplica deadlines.
+uncertainty/saturation e não rebasa charges/epoch. A regra temporal definitiva
+da FIX abaixo pode retirar a autoridade de uma deadline conflitante, sem
+antecipá-la nem reaplicar um reset.
 Consumed e ownership permanecem intactos; Drop reconcilia somente o excesso
 terminal comprovado, uma vez e na epoch correta.
 
 Um fato normalizado independente ainda estabelece barrier e conserva as regras
 anteriores de fresh remaining. Reset factual já aceito/configuração explícita
 continua avançando pela deadline monotônica válida. O grupo histórico não impede
-esse reset legítimo, mas seus headers posteriores não reaplicam um DelayMs antigo.
+esse reset legítimo quando não há evidência temporal conflitante, mas seus
+headers posteriores não reaplicam um DelayMs antigo. A FIX temporal abaixo
+retira auto-refill quando um reset ambíguo contradiz a deadline aceita.
 Partial headers não provam refill. Os valores permanecem isolados por scope;
 nenhuma quota de um modelo é aplicada a outro nem promovida a Provider.
 
@@ -1677,3 +1681,135 @@ introduzido. Não houve tráfego com providers/credenciais comerciais reais.
 
 Status mantido como candidata, aguardando reauditoria independente da Luna.
 Sem merge, sem gate humano e sem implementação da LR-8D.
+
+### FIX residual — resets factuais em observations ambíguas
+
+FIX sobre o HEAD auditado `3dc0a82c06f9f53c92e0e29ead9fbf0a70e0c343`,
+exclusivamente na branch `lr-8c-rate-accounting`.
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
+**LR-8D bloqueada.** Sem merge.
+
+#### Regra temporal definitiva
+
+Estratégia adotada: opção B conservadora, aplicada quando há conflito temporal.
+HTTP start order continua não sendo prova de processing order remoto. Para
+uma observation tightening-only, o manager normaliza o reset recebido com uma
+única leitura do clock injetável e compara sua deadline monotônica com a aceita:
+
+- deadline válida anterior ou igual: conserva a deadline aceita, sem antecipar;
+- deadline válida posterior: retira a autoridade de auto-refill da constraint,
+  definindo `deadline = None` e `end_unix = None`;
+- reset conhecido sem conversão temporal segura, por ausência de wall-clock para
+  UnixMs ou overflow monotônico: também retira essa autoridade;
+- header parcial sem reset: não inventa nem reaplica deadline;
+- constraint sem deadline: observation ambígua não pode criar/restaurar uma.
+
+A retirada também transforma o reset do snapshot aceito pelo rate manager em
+`unknown`; o TelemetryStore continua registrando o fato observacional normalizado
+recebido, sem lhe conferir autoridade de enforcement. Não significa reset zero,
+quota ilimitada ou fim presumido da janela. Nenhum estado remoto novo é persistido.
+
+O tratamento ocorre **antes de `refresh()`**, sob o mutex já existente. Assim,
+um header que chega na boundary ou depois da antiga deadline, antes de outro
+refresh, impede que essa deadline libere crédito no processamento do próprio fato.
+A alteração temporal não modifica capacity, consumed, epoch, charges, ownership,
+uncertainty ou observation_floor. A redução de capacity continua seguindo a regra
+tightening-only anterior, inclusive a proteção contra refunds futuros. Outros
+scopes/dimensões/providers conservam suas próprias deadlines; janelas locais
+configuradas e budgets duráveis permanecem inalterados.
+
+Não há extensão incremental de DelayMs nem cache crescente de headers. Um fato
+relativo duplicado, convertido mais tarde, pode deixar de ser compatível com a
+deadline aceita e causar sua retirada conservadora. Repetições posteriores não
+rearmam a deadline, não prolongam uma janela repetidamente, não alteram epoch e
+não limpam uncertainty. Reset menor, inclusive DelayMs(0), não acelera a deadline.
+
+Um trusted independent fact pode restabelecer autoridade temporal normal,
+mantendo a barrier para calls já iniciadas. Uma nova call isolada, depois da
+quiescência do grupo, também pode fornecer fresh remaining/reset normalmente.
+Os checks de generation precedem o tratamento temporal: headers de credencial
+antiga não antecipam nem retiram deadlines da era atual. HttpStartSequence e
+overlap_start continuam com o mesmo lifecycle; reservation ID, wall-clock e
+ordem de completion não são relógios de ordering remoto.
+
+#### Regressão e testes
+
+Antes da correção, o teste novo com OrderedHeaderProvider, Scheduler e
+AdmissionController reais (cap=2, Background e ForegroundInteractive) falhou
+deterministicamente no HEAD auditado. A/B ficam in-flight; A publica remaining=40
+e DelayMs(10) para RPD/TPM e termina; B publica remaining=30 e DelayMs(100) e
+termina. Ao avançar +10 ms, requests capacity subia incorretamente de 31 para 100,
+ignorando a evidência temporal de B. O débito de uma request explica capacity 31
+e saldo 30; TPM conserva os dois débitos de 10 e saldo 20, sem double debit/refund.
+
+O teste corrigido exige que +10 ms e +100 ms não refillam automaticamente.
+Depois inicia C isolada, aceita fresh remaining=90/reset=50 ms, e comprova o
+reset único exatamente na nova boundary. Foram adicionados oito testes:
+
+- regressão Scheduler/Admission real e recuperação temporal de C isolada;
+- DelayMs/UnixMs posteriores, antes, exatamente na e após a deadline antiga;
+  preservação de uncertainty e reconciliation na epoch original;
+- resets menores/iguais conservam a deadline, inclusive DelayMs(0);
+- partial headers não criam nem reparam uma deadline;
+- repetição do mesmo DelayMs da mesma attempt não estende/rearma reset;
+- fato independente recupera autoridade enquanto uma call do grupo ainda vive;
+- reset da geração antiga não acelera nem retira deadline atual;
+- ausência de wall-clock/overflow de conversão revoga auto-refill conservadoramente.
+
+Os 61 corpos anteriores de rate_tests foram preservados integralmente. O fixture
+existente ganhou apenas uma variante que recebe o fake clock. Os 68 testes
+anteriores da fase (rate, adapters e telemetry) permanecem presentes, totalizando
+76 com esta FIX. Channels/acknowledgements e clock fake determinam as etapas;
+nenhum timeout foi aumentado.
+
+#### Autoauditoria e limites
+
+Auditados: reset maior tratado antes de refresh; reset menor não antecipado;
+duplicação sem extensão/rearme; nenhum reset ambíguo cria epoch, limpa uncertainty
+ou aumenta capacity; autoridade fresh recuperável por fato independente ou
+quiescência; contexto e scopes separados; nenhum double debit/refund ou mudança
+na persistência/schema 12, terminal usage, routing/admission/fairness, TaskBudget/D3,
+retry/fallback/cooldown. Somente o manager de rate, seus testes e este documento
+foram modificados. Nenhum secret, Account ID, header raw, prompt ou output novo
+entra em snapshot, log ou persistência.
+
+Limitação explícita: conflito temporal ambíguo, inclusive um DelayMs repetido
+mais tarde, pode eliminar um reset que seria legítimo e subutilizar quota até
+nova autoridade fresh. Mesmo ao passar o reset posterior informado pelo header
+ambíguo, não há auto-refill. Isso evita presumir processing order e deduplicação
+remotos. Se o teto já estiver esgotado, uma nova call não recebe bypass para
+descobrir o reset: precisa de fato independente ou invalidação legítima do
+contexto remoto conforme o contrato existente, sem apagar budgets locais.
+Um fato recebido depois de um refresh já realizado não pode desfazer
+retroativamente chamadas previamente autorizadas; a proteção passa a valer na
+observação, conforme a evidência disponível ao runtime. Permanecem os limites
+anteriores de bounds ausentes em produção e coordenação de uma instância ativa.
+
+Pontos para reauditoria: comparação temporal antes de refresh, revogação sem
+rebase da epoch, repeated DelayMs conservador, e recuperação temporal fresh.
+
+#### Gates da FIX temporal
+
+Resultados sobre o código final (04/10/2026):
+
+| Gate | Resultado |
+|---|---|
+| `npm run typecheck` | Exit 0 |
+| `npm run build` | Exit 0; aviso preexistente de chunk 666,22 kB |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | Exit 0; 15 warnings preexistentes |
+| `cargo test --manifest-path src-tauri/Cargo.toml rate_tests` | Exit 0; 69 aprovados em paralelo, zero falhas; 32,69 s |
+| `cargo test --manifest-path src-tauri/Cargo.toml task_graph_runtime_tests` | Exit 0; 13 aprovados em paralelo, zero falhas; 49,84 s |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | Exit 0; 441 aprovados, zero falhas, dois ignorados; 206,99 s; main/doc-tests sem falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=1` | Exit 0; 441 aprovados, zero falhas, dois ignorados; 697,81 s; main/doc-tests sem falhas |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | Exit 0; 41 warnings preexistentes |
+| `git diff --check` | Sem erros |
+| `git diff --check main...HEAD` | Sem erros, inclusive no commit final |
+
+A global paralela não repetiu os timeouts TaskGraph; nenhuma falha foi dispensada
+nem timeout aumentado. Os ignorados continuam `real_app_server_handshake` e
+`manual_final_codex_agent_bridge_gate`, gates Codex locais/manuais preexistentes.
+Compilação de testes mantém dois warnings preexistentes. Não houve warning novo,
+tráfego comercial real ou alteração de credenciais reais.
+
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna**.
+**LR-8D bloqueada.** Sem merge ou liberação de gate humano.

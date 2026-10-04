@@ -2624,6 +2624,12 @@ impl Provider for OrderedHeaderProvider {
     }
 }
 fn ordering_scheduler(cap: usize) -> (Arc<Scheduler>, mpsc::UnboundedReceiver<OrderedHeaderCall>) {
+    ordering_scheduler_with_clock(cap, FakeClock::new())
+}
+fn ordering_scheduler_with_clock(
+    cap: usize,
+    clock: Arc<FakeClock>,
+) -> (Arc<Scheduler>, mpsc::UnboundedReceiver<OrderedHeaderCall>) {
     let (tx, rx) = mpsc::unbounded_channel();
     let mut registry = ProviderRegistry::default();
     registry
@@ -2644,7 +2650,7 @@ fn ordering_scheduler(cap: usize) -> (Arc<Scheduler>, mpsc::UnboundedReceiver<Or
                 max_concurrency_per_provider: cap,
                 ..AdmissionConfig::default()
             },
-            FakeClock::new(),
+            clock,
             None,
         )
         .unwrap(),
@@ -3257,4 +3263,381 @@ fn rate_overlap_old_credential_era_does_not_join_current_isolated_calls() {
     let current = h.bucket("a", QuotaDimension::RequestsPerDay);
     assert_eq!(current.effective_remaining, Some(9));
     assert_eq!(current.reset_in_ms, None);
+}
+
+#[tokio::test]
+async fn rate_overlap_later_reset_revokes_early_refill_and_isolated_call_recovers() {
+    let clock = FakeClock::new();
+    let (s, mut calls) = ordering_scheduler_with_clock(2, clock.clone());
+    let (a, _) = start(
+        s.clone(),
+        ordering_request(TrafficClass::Background, "A"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    let first = bounded(calls.recv()).await.unwrap();
+    let (b, _) = start(
+        s.clone(),
+        ordering_request(TrafficClass::ForegroundInteractive, "B"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    let second = bounded(calls.recv()).await.unwrap();
+    assert_eq!(s.admission_snapshot()[0].active_calls, 2);
+    headers(&first, 40, 40, Some(Timing::DelayMs(10))).await;
+    first.commands.send(OrderedHeaderCommand::Finish).unwrap();
+    assert!(bounded(a).await.unwrap().is_ok());
+    assert_eq!(s.rate_snapshot()[0].pending_reservations, 1);
+    headers(&second, 30, 30, Some(Timing::DelayMs(100))).await;
+    second.commands.send(OrderedHeaderCommand::Finish).unwrap();
+    assert!(bounded(b).await.unwrap().is_ok());
+    let requests = constraint(&s, "a", QuotaDimension::RequestsPerDay);
+    let tokens = constraint(&s, "a", QuotaDimension::TokensPerMinute);
+    assert_eq!(requests.effective_remaining, Some(30));
+    assert_eq!(tokens.effective_remaining, Some(20));
+    assert_eq!(requests.consumed, 1);
+    assert_eq!(tokens.consumed, 20);
+    clock.advance(10);
+    // Audited HEAD incorrectly restores capacity 100 here.
+    for before in [&requests, &tokens] {
+        let after = constraint(&s, "a", before.dimension);
+        assert_eq!(after.capacity, before.capacity);
+        assert_eq!(after.consumed, before.consumed);
+        assert_eq!(after.effective_remaining, before.effective_remaining);
+        assert_eq!(after.reset_in_ms, None);
+        assert!(matches!(after.external.unwrap().reset, Fact::Unknown));
+    }
+    clock.advance(90); // Option B does not authorize refill at B's deadline either.
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::TokensPerMinute).effective_remaining,
+        Some(20)
+    );
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::RequestsPerDay).effective_remaining,
+        Some(30)
+    );
+    clean(&s);
+
+    let (c, _) = start(
+        s.clone(),
+        ordering_request(TrafficClass::ForegroundInteractive, "C"),
+        Arc::new(AtomicBool::new(false)),
+        no_retry(),
+    );
+    let isolated = bounded(calls.recv()).await.unwrap();
+    headers(&isolated, 90, 90, Some(Timing::DelayMs(50))).await;
+    isolated
+        .commands
+        .send(OrderedHeaderCommand::Finish)
+        .unwrap();
+    assert!(bounded(c).await.unwrap().is_ok());
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::TokensPerMinute).reset_in_ms,
+        Some(50)
+    );
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::TokensPerMinute).effective_remaining,
+        Some(80)
+    );
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::RequestsPerDay).effective_remaining,
+        Some(90)
+    );
+    clock.advance(49);
+    assert_eq!(
+        constraint(&s, "a", QuotaDimension::TokensPerMinute).effective_remaining,
+        Some(80)
+    );
+    clock.advance(1);
+    for dim in [
+        QuotaDimension::RequestsPerDay,
+        QuotaDimension::TokensPerMinute,
+    ] {
+        let reset = constraint(&s, "a", dim);
+        assert_eq!(reset.effective_remaining, Some(100));
+        assert_eq!(reset.consumed, 0);
+        assert_eq!(reset.reset_in_ms, None);
+    }
+    clean(&s);
+}
+
+#[test]
+fn rate_ambiguous_later_delay_or_unix_reset_preserves_uncertainty_before_refresh() {
+    for reset in [Timing::DelayMs(100), Timing::UnixMs(1_100)] {
+        for arrival in [0, 10, 11] {
+            let h = Harness::new();
+            let dim = QuotaDimension::TokensPerMinute;
+            h.quota("a", model("m"), dim, Some(100), Some(100), None);
+            let (one, first) = h.reserve("a", "m", None).unwrap();
+            let (two, second) = h.reserve("a", "m", None).unwrap();
+            assert!(first.started());
+            assert!(second.started());
+            first.quota(
+                model("m"),
+                dim,
+                Some(100),
+                Some(40),
+                Some(Timing::DelayMs(10)),
+            );
+            drop(one);
+            h.clock.advance(arrival); // No refresh between clock advance and incoming fact.
+            second.quota(model("m"), dim, Some(100), Some(30), Some(reset));
+            let restricted = h.bucket("a", dim);
+            assert_eq!(restricted.capacity, Some(30));
+            assert_eq!(restricted.consumed, 0);
+            assert_eq!(restricted.unaccounted_token_calls, 2);
+            assert_eq!(restricted.effective_remaining, None);
+            assert_eq!(restricted.reset_in_ms, None);
+            assert!(matches!(restricted.external.unwrap().reset, Fact::Unknown));
+            h.clock.advance(100);
+            assert_eq!(h.bucket("a", dim).unaccounted_token_calls, 2);
+            assert_eq!(
+                err(h.reserve("a", "m", Some(1))),
+                SchedulerError::RateStateUnavailable
+            );
+            second.final_usage(total_usage(10));
+            drop(two);
+            let finished = h.bucket("a", dim);
+            assert_eq!(finished.unaccounted_token_calls, 1); // Only the owned marker clears.
+            assert_eq!(finished.consumed, 10); // No epoch change or double debit.
+            assert_eq!(finished.effective_remaining, None);
+        }
+    }
+}
+
+#[test]
+fn rate_ambiguous_smaller_or_equal_reset_never_accelerates_accepted_deadline() {
+    for reset in [
+        Timing::DelayMs(0),
+        Timing::DelayMs(5),
+        Timing::DelayMs(10),
+        Timing::UnixMs(1_005),
+        Timing::UnixMs(1_010),
+    ] {
+        let h = Harness::new();
+        let dim = QuotaDimension::RequestsPerDay;
+        h.quota("a", model("m"), dim, Some(100), Some(100), None);
+        let (one, first) = h.reserve("a", "m", None).unwrap();
+        let (two, second) = h.reserve("a", "m", None).unwrap();
+        assert!(first.started());
+        assert!(second.started());
+        first.quota(
+            model("m"),
+            dim,
+            Some(100),
+            Some(40),
+            Some(Timing::DelayMs(10)),
+        );
+        drop(one);
+        second.quota(model("m"), dim, Some(100), Some(30), Some(reset));
+        drop(two);
+        assert_eq!(h.bucket("a", dim).reset_in_ms, Some(10));
+        assert_eq!(h.bucket("a", dim).effective_remaining, Some(30));
+        h.clock.advance(9);
+        assert_eq!(h.bucket("a", dim).effective_remaining, Some(30));
+        h.clock.advance(1);
+        assert_eq!(h.bucket("a", dim).effective_remaining, Some(100));
+    }
+}
+
+#[test]
+fn rate_ambiguous_partial_headers_never_invent_or_reparse_a_reset() {
+    for accepted in [None, Some(Timing::DelayMs(10))] {
+        let h = Harness::new();
+        let dim = QuotaDimension::RequestsPerDay;
+        h.quota("a", model("m"), dim, Some(100), Some(100), None);
+        let (one, first) = h.reserve("a", "m", None).unwrap();
+        let (two, second) = h.reserve("a", "m", None).unwrap();
+        assert!(first.started());
+        assert!(second.started());
+        first.quota(model("m"), dim, Some(100), Some(40), accepted);
+        drop(one);
+        h.clock.advance(2);
+        second.quota(model("m"), dim, None, Some(30), None);
+        assert_eq!(h.bucket("a", dim).reset_in_ms, accepted.map(|_| 8));
+        second.quota(model("m"), dim, None, None, None);
+        assert_eq!(h.bucket("a", dim).reset_in_ms, accepted.map(|_| 8));
+        if accepted.is_none() {
+            second.quota(model("m"), dim, None, None, Some(Timing::DelayMs(100)));
+            assert_eq!(h.bucket("a", dim).reset_in_ms, None);
+        }
+        drop(two);
+        h.clock.advance(100);
+        assert_eq!(
+            h.bucket("a", dim).effective_remaining,
+            Some(if accepted.is_some() { 100 } else { 30 })
+        );
+    }
+}
+
+#[test]
+fn rate_ambiguous_duplicate_relative_reset_cannot_extend_or_restore_deadline() {
+    let h = Harness::new();
+    let dim = QuotaDimension::RequestsPerDay;
+    h.quota("a", model("m"), dim, Some(100), Some(100), None);
+    let (one, first) = h.reserve("a", "m", None).unwrap();
+    let (two, second) = h.reserve("a", "m", None).unwrap();
+    assert!(first.started());
+    assert!(second.started());
+    first.quota(
+        model("m"),
+        dim,
+        Some(100),
+        Some(40),
+        Some(Timing::DelayMs(10)),
+    );
+    drop(one);
+    second.quota(
+        model("m"),
+        dim,
+        Some(100),
+        Some(30),
+        Some(Timing::DelayMs(10)),
+    );
+    assert_eq!(h.bucket("a", dim).reset_in_ms, Some(10));
+    for _ in 0..12 {
+        h.clock.advance(1);
+        // Same attempt, exact same fact: interpreted later, it is no longer
+        // evidence for the earlier deadline. Revoke once, never re-arm/extend.
+        second.quota(
+            model("m"),
+            dim,
+            Some(100),
+            Some(30),
+            Some(Timing::DelayMs(10)),
+        );
+        let snapshot = h.bucket("a", dim);
+        assert_eq!(snapshot.reset_in_ms, None);
+        assert_eq!(snapshot.reset_unix_ms, None);
+        assert_eq!(snapshot.effective_remaining, Some(30));
+        assert_eq!(snapshot.consumed, 1);
+    }
+    second.quota(
+        model("m"),
+        dim,
+        Some(100),
+        Some(30),
+        Some(Timing::DelayMs(0)),
+    );
+    assert_eq!(h.bucket("a", dim).reset_in_ms, None);
+    drop(two);
+    h.clock.advance(100);
+    assert_eq!(h.bucket("a", dim).effective_remaining, Some(30));
+}
+
+#[test]
+fn rate_independent_fact_restores_revoked_temporal_authority_during_overlap() {
+    let h = Harness::new();
+    let dim = QuotaDimension::RequestsPerDay;
+    h.quota("a", model("m"), dim, Some(100), Some(100), None);
+    let (one, first) = h.reserve("a", "m", None).unwrap();
+    let (two, second) = h.reserve("a", "m", None).unwrap();
+    assert!(first.started());
+    assert!(second.started());
+    first.quota(
+        model("m"),
+        dim,
+        Some(100),
+        Some(40),
+        Some(Timing::DelayMs(10)),
+    );
+    drop(one);
+    second.quota(
+        model("m"),
+        dim,
+        Some(100),
+        Some(30),
+        Some(Timing::DelayMs(100)),
+    );
+    assert_eq!(h.bucket("a", dim).reset_in_ms, None);
+    h.quota(
+        "a",
+        model("m"),
+        dim,
+        Some(100),
+        Some(60),
+        Some(Timing::DelayMs(30)),
+    );
+    assert_eq!(h.bucket("a", dim).reset_in_ms, Some(30));
+    assert_eq!(h.bucket("a", dim).effective_remaining, Some(59)); // Live B's request retained.
+    drop(two);
+    h.clock.advance(29);
+    assert_eq!(h.bucket("a", dim).effective_remaining, Some(59));
+    h.clock.advance(1);
+    assert_eq!(h.bucket("a", dim).effective_remaining, Some(100));
+}
+
+#[test]
+fn rate_old_credential_reset_cannot_revoke_or_accelerate_current_deadline() {
+    let h = Harness::new();
+    let dim = QuotaDimension::RequestsPerDay;
+    let (old_guard, old) = h.reserve("a", "m", None).unwrap();
+    assert!(old.started());
+    old.quota(
+        model("m"),
+        dim,
+        Some(100),
+        Some(40),
+        Some(Timing::DelayMs(10)),
+    );
+    h.telemetry.invalidate_provider_quotas("a");
+    let (guard, current) = h.reserve("a", "m", None).unwrap();
+    assert!(current.started());
+    current.quota(
+        model("m"),
+        dim,
+        Some(100),
+        Some(9),
+        Some(Timing::DelayMs(20)),
+    );
+    drop(guard);
+    for reset in [
+        Timing::DelayMs(0),
+        Timing::DelayMs(100),
+        Timing::UnixMs(1_100),
+    ] {
+        old.quota(model("m"), dim, Some(100), Some(0), Some(reset));
+        assert_eq!(h.bucket("a", dim).reset_in_ms, Some(20));
+        assert_eq!(h.bucket("a", dim).effective_remaining, Some(9));
+    }
+    drop(old_guard);
+    h.clock.advance(10);
+    assert_eq!(h.bucket("a", dim).effective_remaining, Some(9));
+    h.clock.advance(10);
+    assert_eq!(h.bucket("a", dim).effective_remaining, Some(100));
+}
+
+#[test]
+fn rate_ambiguous_reset_without_safe_conversion_revokes_auto_refill() {
+    for overflow in [false, true] {
+        let h = Harness::new();
+        if overflow {
+            h.clock.0.lock().unwrap().monotonic_ms = u64::MAX - 20;
+        }
+        let dim = QuotaDimension::RequestsPerDay;
+        h.quota("a", model("m"), dim, Some(100), Some(100), None);
+        let (one, first) = h.reserve("a", "m", None).unwrap();
+        let (two, second) = h.reserve("a", "m", None).unwrap();
+        assert!(first.started());
+        assert!(second.started());
+        first.quota(
+            model("m"),
+            dim,
+            Some(100),
+            Some(40),
+            Some(Timing::DelayMs(10)),
+        );
+        drop(one);
+        let reset = if overflow {
+            Timing::DelayMs(100)
+        } else {
+            h.clock.wall(None);
+            Timing::UnixMs(1_100)
+        };
+        second.quota(model("m"), dim, Some(100), Some(30), Some(reset));
+        assert_eq!(h.bucket("a", dim).reset_in_ms, None);
+        drop(two);
+        h.clock.advance(10);
+        assert_eq!(h.bucket("a", dim).effective_remaining, Some(30));
+    }
 }

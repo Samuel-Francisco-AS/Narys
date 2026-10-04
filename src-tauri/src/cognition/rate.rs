@@ -625,15 +625,44 @@ impl RateLimitManager {
             },
             None => (None, None), // Trusted normalized fact independent of an invocation.
         };
-        if s.refresh(self.clock.now()).is_err() {
-            s.persistence_failed = true;
-            return;
-        }
-        let i = match s.buckets.iter().position(|b| {
+        let now = self.clock.now();
+        let existing = s.buckets.iter().position(|b| {
             b.source == ConstraintSource::ExternalFact
                 && b.scope == scope
                 && b.dimension == dimension
-        }) {
+        });
+        let tightening_only = existing.is_some_and(|i| {
+            http_start
+                .zip(s.buckets[i].observation_floor)
+                .is_some_and(|(incoming, floor)| incoming <= floor)
+                || overlap_start
+                    .zip(s.buckets[i].observation_floor)
+                    .is_some_and(|(group_start, floor)| group_start <= floor)
+        });
+        if tightening_only {
+            let b = &mut s.buckets[existing.unwrap()];
+            if let (Some(accepted), Fact::Known { value, .. }) = (b.deadline, &fact.reset) {
+                if deadline(*value, now).is_none_or(|(incoming, _)| incoming > accepted) {
+                    // Ambiguous ordering cannot prove when this window ends.
+                    // Revoke automatic refill rather than extending/replaying a
+                    // relative delay. Smaller/equal resets cannot accelerate it;
+                    // absent resets do not invent it. Only fresh authority can
+                    // restore a revoked deadline, including after quiescence.
+                    b.deadline = None;
+                    b.end_unix = None;
+                    if let Some(retained) = &mut b.external {
+                        retained.reset = Fact::Unknown;
+                    }
+                }
+            }
+        }
+        // Restrict temporal authority BEFORE refresh: even if the old deadline
+        // has elapsed, this incoming fact must not trigger an unsafe refill.
+        if s.refresh(now).is_err() {
+            s.persistence_failed = true;
+            return;
+        }
+        let i = match existing {
             Some(i) => i,
             None => {
                 s.buckets.push(Bucket {
@@ -654,13 +683,7 @@ impl RateLimitManager {
                 s.buckets.len() - 1
             }
         };
-        if http_start
-            .zip(s.buckets[i].observation_floor)
-            .is_some_and(|(incoming, floor)| incoming <= floor)
-            || overlap_start
-                .zip(s.buckets[i].observation_floor)
-                .is_some_and(|(group_start, floor)| group_start <= floor)
-        {
+        if tightening_only {
             // Start order is not remote processing order. An earlier-started
             // response may expose a genuinely tighter shared external balance.
             // It can only tighten existing credit, in place, never refill, clear
@@ -697,7 +720,8 @@ impl RateLimitManager {
                 if tightened < old {
                     b.capacity = Some(tightened);
                     // Retain the provenance of the field actually tightening the
-                    // ceiling. Timing and the observation floor remain intact.
+                    // ceiling. Temporal authority was restricted above without
+                    // changing the observation floor or accounting epoch.
                     if let Some(retained) = &mut b.external {
                         if number(&fact.remaining).is_some() {
                             retained.remaining = fact.remaining;
@@ -797,7 +821,7 @@ impl RateLimitManager {
         // their late headers cannot erase this observation's authority either.
         b.observation_floor = Some(http_start.unwrap_or(HttpStartSequence(s.next_http_start)));
         let reset = match fact.reset {
-            Fact::Known { value, .. } => deadline(value, self.clock.now()),
+            Fact::Known { value, .. } => deadline(value, now),
             Fact::Unknown => None,
         };
         b.deadline = reset.map(|r| r.0);
