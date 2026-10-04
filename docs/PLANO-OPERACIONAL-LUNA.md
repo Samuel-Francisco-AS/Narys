@@ -460,7 +460,7 @@ Luna antes da liberação da seguinte:
 1. **LR-8A — modelo de quota + telemetria factual — PASS e integrada à `main` pela PR #14 em 03/10/2026**;
 2. **LR-8B — admission control + fila + concurrency — PASS técnico + auditoria + gate humano; integrada à `main` pela PR #15 em 03/10/2026**;
 3. **LR-8C — rate accounting + token buckets + budgets — PASS técnico + auditoria; integrada à `main` pela PR #16 em 04/10/2026**;
-4. **LR-8D — backoff, jitter, cooldown + circuit breaker — PASS técnico + auditoria em 04/10/2026**;
+4. **LR-8D — backoff, jitter, cooldown + circuit breaker — PASS técnico + auditoria; integrada à `main` pela PR #18 em 04/10/2026**;
 5. **LR-8E — painel operacional + integração/gate final**.
 
 A trilha mantém como requisitos finais RPM, TPM, RPD/TPD quando factuais,
