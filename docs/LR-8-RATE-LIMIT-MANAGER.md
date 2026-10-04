@@ -508,7 +508,7 @@ fila para o provider.
 
 ## LR-8B — implementação e fechamento (03/10/2026)
 
-**PASS técnico + auditoria independente + gate humano real em 03/10/2026.**
+**PASS técnico + auditoria independente + gate humano real em 03/10/2026. Integrada à `main` pela PR #15, squash `cb1f0fd30f8cbddcb91e09f87674f2488120ab8e`.**
 
 Base obrigatória:
 `main@78b966db5a4f76ff0a41c5fc346cf056d6a3ccf5`, com LR-8A integrada pela PR #14.
