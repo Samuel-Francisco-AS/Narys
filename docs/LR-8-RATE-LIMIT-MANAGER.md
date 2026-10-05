@@ -3,7 +3,7 @@
 Estado: **PASS COMPLETO — LR-8A, LR-8B, LR-8C, LR-8D e LR-8E encerradas.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
 Subfase corrente: **LR-8E — PASS técnico + auditoria independente + gate final aprovado em 05/10/2026.**
-**LR-8 encerrada em PASS completo; autorizada para integração à `main`.**
+**LR-8 encerrada em PASS completo e integrada à `main` pela PR #21.**
 
 ## Objetivo
 
@@ -2724,7 +2724,7 @@ pendentes para a Luna e o usuário; LR-8 permanece aberta.
 
 ## Fechamento final da LR-8
 
-**Resultado final: PASS completo em 05/10/2026.**
+**Resultado final: PASS completo em 05/10/2026. Integrada à `main` pela PR #21, squash `fac313e7676d1611ba2aec1b20a8f7d38f47b8dc`.**
 
 A trilha encerra com:
 
