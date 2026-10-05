@@ -1,11 +1,8 @@
 # LR-8E — checklist do gate humano final
 
-**IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna e gate humano final**
+**FECHAMENTO: PASS técnico + auditoria independente + gate final aprovado em 05/10/2026**
 
-Este documento prepara o gate; não registra execução nem aprovação antecipada.
-LR-8 continua aberta. Executar somente após auditoria independente da Luna,
-eventuais FIXes e PASS técnico. Condução: usuário + Luna. Não fazer merge ou
-fechar LR-8 apenas com evidência da implementação candidata.
+Este documento nasceu como checklist do gate e agora preserva também o resultado final. A–D foram validados com evidência humana real; E–L foram substituídos por bateria automatizada local determinística auditada independentemente pela Luna, sem falsificar execução humana; M recebeu aprovação humana final do usuário. O fechamento da LR-8 foi autorizado em 05/10/2026.
 
 Preencher cada resultado com PASS ou FAIL e observação/evidência. Quando um
 estado transitório não puder ser observado em 1 s, registrar a limitação e
@@ -203,3 +200,21 @@ seguem LR-8C; não contornar uncertainty ou fail-closed pelo painel.
 
 Nenhum campo acima está pré-aprovado. PASS técnico da candidata, auditoria e gate
 humano são evidências distintas. LR-8 permanece aberta até a decisão final.
+
+
+## Resultado final consolidado
+
+Data de fechamento: **05/10/2026**.
+
+- **A — Baseline:** PASS humano.
+- **B — Observabilidade idle:** PASS humano.
+- **C — Foreground real:** PASS humano.
+- **D — Concorrência real:** PASS humano, incluindo observação no hardware alvo de `activeCalls=2/2`, `queueDepth=1/64` e drenagem ordenada até `0/2`.
+- **E–L:** PASS por bateria automatizada local determinística registrada em [LR-8E-AUTOMATED-GATE-E-L.md](LR-8E-AUTOMATED-GATE-E-L.md) e reauditoria independente da Luna. Os campos humanos desses blocos permanecem historicamente vazios porque não foram executados manualmente.
+- **M — Regressões e decisão humana:** PASS humano. O usuário considerou o comportamento geral aceitável e autorizou o fechamento padrão da LR-8.
+
+A auditoria independente da bateria E–L confirmou que os testes cruzam as fronteiras que afirmam provar: queue cancellation pré-HTTP, cancellation após HTTP loopback, fairness foreground/background, rate block local terminal, fallback/cooldown, circuit breaker integrado, TaskGraph real com PlanV1/workers/SQLite e restart sobre o mesmo SQLite. A instrumentação adicional em Scheduler existe somente sob `#[cfg(test)]`.
+
+O gate final não revelou blocker de produção. Permanecem dívidas não bloqueantes já registradas, incluindo a ergonomia da superfície longa de **IA e modelos**, cuja reorganização futura foi documentada separadamente sem congelar solução de UI.
+
+**Decisão final: LR-8 autorizada para integração e fechamento.**
