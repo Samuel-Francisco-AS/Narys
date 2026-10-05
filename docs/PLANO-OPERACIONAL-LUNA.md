@@ -451,7 +451,7 @@ Plano: [LR-7D2.5-PROVIDER-REDUNDANCY.md](LR-7D2.5-PROVIDER-REDUNDANCY.md).
 
 ## 12. LR-8 — Rate Limit Manager completo
 
-**Estado: LIBERADA após LR-7 = PASS completo em 03/10/2026.**
+**Estado: PASS completo em 05/10/2026.**
 
 Para reduzir correções tardias, a LR-8 foi formalmente decomposta em subfases
 sequenciais, cada uma implementada pelo agente e auditada independentemente pela
@@ -461,7 +461,7 @@ Luna antes da liberação da seguinte:
 2. **LR-8B — admission control + fila + concurrency — PASS técnico + auditoria + gate humano; integrada à `main` pela PR #15 em 03/10/2026**;
 3. **LR-8C — rate accounting + token buckets + budgets — PASS técnico + auditoria; integrada à `main` pela PR #16 em 04/10/2026**;
 4. **LR-8D — backoff, jitter, cooldown + circuit breaker — PASS técnico + auditoria; integrada à `main` pela PR #18 em 04/10/2026**;
-5. **LR-8E — painel operacional + integração/gate final**.
+5. **LR-8E — painel operacional + integração/gate final — PASS técnico + auditoria independente + gate final; integrada à `main` pela PR #21 em 05/10/2026**.
 
 A trilha mantém como requisitos finais RPM, TPM, RPD/TPD quando factuais,
 concurrency, fila, token bucket, parsing de headers, Retry-After, backoff +
@@ -469,12 +469,7 @@ jitter, cooldown, circuit breaker, budgets e telemetria. Quota/custo/saúde
 desconhecidos permanecem explicitamente desconhecidos; nenhuma regra comercial
 mutável é hardcoded no Luna Core.
 
-**Próxima ação: LR-8E — painel operacional + integração/gate final.** A LR-8D fechou em PASS técnico + auditoria independente em 04/10/2026. A LR-8C fechou em PASS técnico + auditoria independente em 04/10/2026. A LR-8B fechou
-em PASS técnico + auditoria independente + gate humano real em 03/10/2026. O contrato detalhado, limites de escopo, gates e protocolo de auditoria
-estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md). A dívida de invalidação/versionamento de fatos de quota por mudança de contexto de credencial foi resolvida na LR-8C por geração/invalidação local, sem persistir segredos. O gate humano da 8B também confirmou
-contenção real com dois Workers Groq + uma terceira operação ForegroundInteractive;
-latência de ~1,5–1,8 s observada no SecretStore/preflight permanece uma dívida de
-performance separada do admission control.
+**LR-8 encerrada em PASS completo em 05/10/2026. Próxima ação: LR-8.5 — Cognitive Resource Economy & Allocation.** A LR-8E fechou com painel operacional, auditoria independente, gate humano A–D/M e bateria automatizada determinística E–L. O contrato detalhado, limitações residuais e evidências estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md), [LR-8E-FINAL-GATE.md](LR-8E-FINAL-GATE.md) e [LR-8E-AUTOMATED-GATE-E-L.md](LR-8E-AUTOMATED-GATE-E-L.md).
 
 ## 12.5. LR-8.5 — Cognitive Resource Economy & Allocation
 
@@ -773,7 +768,7 @@ Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáve
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional** e **LR-7 encerrada em PASS completo em 03/10/2026**, a trilha já possui múltiplos Cognitive Providers reais, roteamento configurável, fallback/Auto/affinity, Codex como `AgentBackend` read-only e TaskGraph mínimo distribuído. O gate final da LR-7D3 executou duas subtarefas independentes em Groq + Cloudflare, consolidou um único resultado e persistiu provenance por unidade. **A próxima ação estrutural é LR-8 — Rate Limit Manager completo**, incluindo quota, filas, accounting e telemetria avançada. A dívida de estabilidade espacial da UIP-4 no Wayland permanece para investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual continua documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7 encerrada em PASS completo em 03/10/2026** e **LR-8 encerrada em PASS completo em 05/10/2026**, a trilha já possui múltiplos Cognitive Providers reais, roteamento configurável, TaskGraph distribuído e Rate Limit Manager completo com admission, accounting, budgets, resilience e painel operacional. **A próxima ação estrutural é LR-8.5 — Cognitive Resource Economy & Allocation**, já planejada antes da LR-9. A dívida de estabilidade espacial da UIP-4 no Wayland permanece para investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual continua documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
