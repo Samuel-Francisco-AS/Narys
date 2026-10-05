@@ -18,6 +18,16 @@ async function main() {
   assert.equal(h.scopeText({ kind: 'model', model: 'm' }), 'Model (m)')
   assert.equal(h.outcomeText({ kind: 'failed', code: 'Bearer private-error' }), 'Código não reconhecido')
   assert.equal(h.outcomeText({ kind: 'failed', code: 'toString' }), 'Código não reconhecido')
+  const captureEpoch = 1_791_000_000_000
+  const capture = h.capturePresentation(captureEpoch)
+  assert.equal(capture.label, 'Última captura recebida')
+  assert(!capture.label.includes('Unix') && !capture.label.includes(String(captureEpoch)))
+  assert(capture.title.includes(new Date(captureEpoch).toISOString()))
+  assert(capture.title.includes('Unix ms UTC')) // optional diagnostic only
+  assert.equal(h.capturePresentation(0).label, 'Última captura recebida')
+  for (const invalid of [null, undefined, NaN, Infinity, -1, 1.5, Number.MAX_SAFE_INTEGER]) {
+    assert.deepEqual(h.capturePresentation(invalid), { label: 'Última captura: Desconhecido' })
+  }
   const provider = { id: 'p', enabled: true, configured: true }
   const admission = { activeCalls: 0, maxConcurrency: 2, queueDepth: 0, queueCapacity: 64 }
   const rate = { constraints: [], persistenceFailed: false, contextGeneration: 0 }
@@ -57,24 +67,30 @@ async function main() {
   global.setTimeout = (fn, ms) => { assert.equal(ms, 1000); timers.set(++nextTimer, fn); return nextTimer }
   global.clearTimeout = id => { timers.delete(id) }
   try {
-    const reads = [], received = [], failures = [], busy = []
-    const poller = new OperationalPoller(() => new Promise((resolve, reject) => reads.push({ resolve, reject })), v => received.push(v), () => failures.push(true), v => busy.push(v))
+    const reads = [], received = [], failures = [], manualBusy = []
+    const poller = new OperationalPoller(() => new Promise((resolve, reject) => reads.push({ resolve, reject })), v => received.push(v), () => failures.push(true), v => manualBusy.push(v))
     const flush = async () => { for (let n = 0; n < 12; n++) await Promise.resolve() }
     poller.start(true)
     assert.equal(reads.length, 1)
     assert.equal(timers.size, 0)
-    const refreshed = poller.refresh() // manual update during initial pending read
+    assert.deepEqual(manualBusy, []) // automatic startup never activates the button
+    const refreshed = poller.refreshManual() // manual update during initial automatic IPC
+    assert.deepEqual(manualBusy, [true])
     assert.equal(reads.length, 1)
     reads[0].resolve('old')
     await flush()
     assert.equal(reads.length, 2)
+    assert.deepEqual(manualBusy, [true]) // feedback stays until fresh coalesced read completes
     reads[1].resolve('new')
     assert.equal(await refreshed, true)
     assert.equal(received.at(-1), 'new')
+    assert.deepEqual(manualBusy, [true, false])
     assert.equal(timers.size, 1)
     poller.setVisible(false)
     assert.equal(timers.size, 0)
     assert.equal(await poller.refresh(), false)
+    assert.equal(await poller.refreshManual(), false)
+    assert.deepEqual(manualBusy, [true, false])
     assert.equal(reads.length, 2)
     poller.setVisible(true)
     assert.equal(reads.length, 3)
@@ -103,8 +119,61 @@ async function main() {
     await flush()
     assert(!received.includes('unmounted response'))
     assert.equal(timers.size, 0)
-    assert.equal(busy.at(-1), true) // no state writes into unmounted component
+    assert.deepEqual(manualBusy, [true, false]) // silent auto/error/StrictMode/unmount
+
+    // A standalone manual click also owns feedback; hidden completion cannot write state.
+    poller.start(true)
+    reads[6].resolve('visible again'); await flush()
+    const hiddenManual = poller.refreshManual()
+    assert.equal(reads.length, 8)
+    assert.deepEqual(manualBusy, [true, false, true])
+    poller.setVisible(false)
+    const stateBeforeHiddenCompletion = [received.length, failures.length, manualBusy.length]
+    reads[7].reject(new Error('hidden private body'))
+    assert.equal(await hiddenManual, false)
+    assert.deepEqual([received.length, failures.length, manualBusy.length], stateBeforeHiddenCompletion)
+    assert.equal(timers.size, 0)
+
+    // Resume clears interrupted manual feedback once, then remains silent.
+    poller.setVisible(true)
+    assert.deepEqual(manualBusy, [true, false, true, false])
+    reads[8].resolve('resumed'); await flush()
+    const unmountedManual = poller.refreshManual()
+    assert.equal(reads.length, 10)
+    poller.stop()
+    const stateBeforeUnmountedCompletion = [received.length, failures.length, manualBusy.length]
+    reads[9].resolve('unmounted manual')
+    assert.equal(await unmountedManual, false)
+    assert.deepEqual([received.length, failures.length, manualBusy.length], stateBeforeUnmountedCompletion)
+    assert.equal(timers.size, 0)
+
+    // StrictMode restart while a manual action is pending cannot complete its
+    // old feedback inside the next lifecycle or overlap the pending IPC.
+    poller.start(true)
+    const oldManual = poller.refreshManual()
+    const oldIndex = reads.length - 1
+    poller.stop(); poller.start(true)
+    const writesAfterRestart = manualBusy.length
+    reads[oldIndex].resolve('old manual epoch'); await flush()
+    assert(!received.includes('old manual epoch'))
+    assert.equal(reads.length, oldIndex + 2)
+    reads[oldIndex + 1].resolve('fresh lifecycle')
+    await oldManual
+    assert.equal(manualBusy.length, writesAfterRestart)
+    assert.equal(received.at(-1), 'fresh lifecycle')
+    assert.equal(timers.size, 1)
+
+    // Policy refresh uses the silent path even if it queues a second read.
+    const silent = poller.refresh()
+    const silentIndex = reads.length - 1
+    poller.refresh()
+    reads[silentIndex].resolve('policy refresh'); await flush()
+    reads[silentIndex + 1].resolve('policy fresh')
+    assert.equal(await silent, true)
+    assert.equal(manualBusy.length, writesAfterRestart)
+    poller.stop()
+    assert.equal(timers.size, 0)
   } finally { global.setTimeout = originalSet; global.clearTimeout = originalClear }
-  console.log('LR-8E helpers: PASS (unknown, scopes, outcomes, policy merge/validation, polling lifecycle/single-flight/stale/error).')
+  console.log('LR-8E helpers: PASS (unknown, scopes, outcomes, policy merge/validation, silent automatic/manual coalescing, lifecycle/single-flight/stale/error, discrete timestamp).')
 }
 main().catch(error => { console.error(error); process.exitCode = 1 }).finally(() => rmSync(output, { recursive: true, force: true }))

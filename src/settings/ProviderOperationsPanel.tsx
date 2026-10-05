@@ -8,7 +8,7 @@ import type { ProviderTelemetry } from './providerTelemetry'
 import { OperationalPoller } from './operationalPolling'
 import { LocalRatePolicyEditor } from './LocalRatePolicyEditor'
 import {
-  durationText, factOrigin, factText, numberText, operationalConditions, outcomeText, provenanceLabels,
+  capturePresentation, durationText, factOrigin, factText, numberText, operationalConditions, outcomeText, provenanceLabels,
   quotaLabels, scopeText, timingText, transitionLabels, unixText, usageLabels, unknown,
 } from './providerOperational'
 import type { OperationalProviderInfo, ProviderOperationalSnapshot } from './providerOperational'
@@ -111,17 +111,26 @@ function ProviderCard({ provider, telemetry: t, admission: a, rate: r, resilienc
     {r && <LocalRatePolicyEditor rate={r} refresh={refresh} />}
   </article>
 }
+function OperationsRefreshControls({ snapshot, visible, manualRefreshing, refreshManual }: {
+  snapshot: ProviderOperationalSnapshot | null; visible: boolean; manualRefreshing: boolean; refreshManual: () => void
+}) {
+  const capture = snapshot ? capturePresentation(snapshot.capturedAtUnixMs) : { label: 'Aguardando snapshot' }
+  return <div className="settings-actions">
+    <button type="button" disabled={!visible || manualRefreshing} onClick={refreshManual}>{manualRefreshing ? 'Atualizando…' : 'Atualizar agora'}</button>
+    <span title={capture.title}>{capture.label}</span>
+  </div>
+}
 export function ProviderOperationsPanel({ providers }: { providers: OperationalProviderInfo[] }) {
   const [snapshot, setSnapshot] = useState<ProviderOperationalSnapshot | null>(null)
   const [failed, setFailed] = useState(false)
   const [stale, setStale] = useState(false)
   const [visible, setVisible] = useState(document.visibilityState === 'visible')
-  const [busy, setBusy] = useState(false)
+  const [manualRefreshing, setManualRefreshing] = useState(false)
   const poller = useRef<OperationalPoller<ProviderOperationalSnapshot> | null>(null)
   useEffect(() => {
     // Reuse the controller through StrictMode cleanup/setup: pending IPC retains
     // its single-flight latch and cannot publish into a later lifecycle epoch.
-    poller.current ??= new OperationalPoller(() => invoke<ProviderOperationalSnapshot>('get_provider_operational_snapshot'), value => { setSnapshot(value); setFailed(false); setStale(false) }, () => setFailed(true), setBusy)
+    poller.current ??= new OperationalPoller(() => invoke<ProviderOperationalSnapshot>('get_provider_operational_snapshot'), value => { setSnapshot(value); setFailed(false); setStale(false) }, () => setFailed(true), setManualRefreshing)
     const controller = poller.current
     const visibility = () => { const shown = document.visibilityState === 'visible'; setVisible(shown); setStale(true); controller.setVisible(shown) }
     controller.start(document.visibilityState === 'visible')
@@ -132,7 +141,7 @@ export function ProviderOperationsPanel({ providers }: { providers: OperationalP
   return <section aria-labelledby="provider-operations-title" className="operations-panel">
     <h2 id="provider-operations-title">Operação dos providers</h2>
     <p>Atualização em memória a cada 1 s após a captura anterior, somente com esta janela visível. Cada autoridade é coerente internamente; a captura agregada não é uma transação global.</p>
-    <div className="settings-actions"><button type="button" disabled={!visible || busy} onClick={() => void refresh()}>{busy ? 'Atualizando…' : 'Atualizar agora'}</button><span>Captura: {snapshot ? unixText(snapshot.capturedAtUnixMs) : 'Aguardando snapshot'}</span></div>
+    <OperationsRefreshControls snapshot={snapshot} visible={visible} manualRefreshing={manualRefreshing} refreshManual={() => { void poller.current?.refreshManual() }} />
     {!visible && <p>Atualização pausada · dados desatualizados enquanto a janela estiver oculta.</p>}
     {visible && stale && !failed && <p>Dados desatualizados · aguardando captura após retomar a janela.</p>}
     {failed && <p className="settings-warning" role="status">Dados desatualizados: não foi possível atualizar a operação. O último snapshot válido foi preservado.</p>}

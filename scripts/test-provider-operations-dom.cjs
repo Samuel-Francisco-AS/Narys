@@ -12,8 +12,8 @@ try {
   writeFileSync(join(temporary, 'settings.css'), '')
   require.extensions['.css'] = () => {}
   // Expose the private component only in temporary emitted JS for this harness.
-  appendFileSync(join(temporary, 'ProviderOperationsPanel.js'), '\nmodule.exports.__qaCard = ProviderCard;\n')
-  const { __qaCard: Card } = require(join(temporary, 'ProviderOperationsPanel.js'))
+  appendFileSync(join(temporary, 'ProviderOperationsPanel.js'), '\nmodule.exports.__qaCard = ProviderCard; module.exports.__qaControls = OperationsRefreshControls;\n')
+  const { __qaCard: Card, __qaControls: Controls } = require(join(temporary, 'ProviderOperationsPanel.js'))
   const React = require('react'), { renderToStaticMarkup } = require('react-dom/server')
   const unknown = { state: 'unknown' }
   const known = value => ({ state: 'known', value, provenance: 'provider_header', observedAtUnixMs: 1000 })
@@ -28,7 +28,27 @@ try {
   for (const marker of ['sk-qa-secret', 'Bearer secret', 'private-account-marker', 'private prompt', 'private response', 'private reasoning', 'private-remote-output', '<canvas', '<script', 'aria-live=']) assert(!html.includes(marker), marker)
   for (const required of ['Desconhecido', 'Medição parcial', 'Model (model-a)', 'reportaram', 'Estado local de rate não pôde ser persistido', 'Accounting unresolved', 'Último Retry-After observado', 'Cooldown operacional restante', 'Sem amostras', 'Configuração local', 'sem contrato de preço configurado', 'Half-open / sondagem', 'Código não reconhecido', '<caption>', 'scope="col"', 'disabled=""']) assert(html.includes(required), required)
   assert(!html.includes('Saudável'))
+  const capturedAtUnixMs = 1_791_000_000_000
+  const controls = (manualRefreshing, captured = capturedAtUnixMs) => renderToStaticMarkup(React.createElement(Controls, {
+    snapshot: { capturedAtUnixMs: captured }, visible: true, manualRefreshing, refreshManual: () => {},
+  }))
+  const automatic = controls(false), nextAutomatic = controls(false, capturedAtUnixMs + 1000)
+  // Only the optional diagnostic title changes on the automatic capture.
+  const surface = markup => markup.replace(/ title="[^"]*"/g, '')
+  assert.equal(surface(automatic), surface(nextAutomatic))
+  assert(automatic.includes('Atualizar agora') && !automatic.includes('Atualizando') && !automatic.includes('disabled='))
+  assert(!surface(automatic).includes(String(capturedAtUnixMs)))
+  assert(!surface(automatic).includes('Unix ms UTC'))
+  assert(surface(automatic).includes('Última captura recebida'))
+  const manual = controls(true)
+  assert(manual.includes('Atualizando…') && manual.includes('disabled=""'))
+  for (const markup of [automatic, nextAutomatic, manual, controls(false, null), controls(false, -1)]) {
+    assert(!markup.includes('aria-live=') && !markup.includes('role="status"'))
+  }
+  assert(controls(false, null).includes('Desconhecido') && !controls(false, -1).includes('title='))
+  const hidden = renderToStaticMarkup(React.createElement(Controls, { snapshot: null, visible: false, manualRefreshing: false, refreshManual: () => {} }))
+  assert(hidden.includes('disabled=""') && hidden.includes('Aguardando snapshot'))
   const preview = '<!doctype html><html lang="pt-BR"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>*{box-sizing:border-box}body{margin:0}' + readFileSync('src/settings/settings.css', 'utf8') + '</style><main class="settings-page"><h1>QA sintética · LR-8E</h1><h2>Operação dos providers</h2>' + html.replaceAll('<details ', '<details open ') + '</main></html>'
   writeFileSync('/tmp/lr8e-panel-qa.html', preview)
-  console.log('LR-8E DOM: PASS (markers privados ausentes, unknown/parcial/scopes, warnings, tabelas semânticas, sem canvas/script/aria-live periódico).')
+  console.log('LR-8E DOM: PASS (markers privados ausentes, unknown/parcial/scopes, warnings, tabelas semânticas, toolbar automática estável, feedback somente manual, timestamp discreto, sem canvas/script/aria-live periódico).')
 } finally { rmSync(temporary, { recursive: true, force: true }) }

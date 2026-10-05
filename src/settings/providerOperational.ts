@@ -16,6 +16,12 @@ export const unknown = 'Desconhecido'
 export const numberText = (value: number | null | undefined) => value == null ? unknown : value.toLocaleString('pt-BR')
 export const durationText = (value: number | null | undefined) => value == null ? unknown : `${numberText(value)} ms`
 export const unixText = (value: number | null | undefined) => value == null ? unknown : `${numberText(value)} (Unix ms UTC)`
+export function capturePresentation(value: number | null | undefined): { label: string; title?: string } {
+  if (value == null || !Number.isSafeInteger(value) || value < 0 || value > 8_640_000_000_000_000) {
+    return { label: `Última captura: ${unknown}` }
+  }
+  return { label: 'Última captura recebida', title: `${new Date(value).toISOString()} · ${unixText(value)}` }
+}
 export const timingText = (value: Timing) => value.kind === 'delay_ms' ? `${durationText(value.value)} após observação` : unixText(value.value)
 export function factText<T>(fact: Fact<T>, format: (value: T) => string): string {
   return fact.state === 'known' ? format(fact.value) : unknown

@@ -3,7 +3,7 @@
 Estado: **EM EXECUÇÃO — LR-8A, LR-8B, LR-8C e LR-8D encerradas em PASS; LR-8E liberada.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
 Subfase corrente: **LR-8E — IMPLEMENTAÇÃO CANDIDATA**.
-**IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna e gate humano final**. LR-8 continua aberta.
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna e gate humano final**. LR-8 continua aberta.
 
 ## Objetivo
 
@@ -2369,7 +2369,7 @@ O gate humano integrado permanece para a LR-8E, que está **liberada**.
 
 ## LR-8E — IMPLEMENTAÇÃO CANDIDATA
 
-**IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna e gate humano final**
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna e gate humano final**
 
 Branch `lr-8e-operational-panel-final-gate`, base obrigatória
 `main@b8a89c1943c232a3ac793a897f06d68593970d95`. Sem merge e sem gate
@@ -2422,7 +2422,11 @@ listener/timer e invalida respostas pendentes. O controller reutilizado no
 cleanup/setup de React StrictMode preserva o latch de single-flight. Epochs
 impedem publicar uma resposta da janela oculta/desmontada em outro lifecycle.
 Atualizar agora e salvar policy durante um IPC aguardam uma captura posterior,
-sem sobreposição. Falhas mantêm o último snapshot válido, com aviso discreto,
+sem sobreposição. Somente `refreshManual()` (clique em Atualizar agora) controla
+“Atualizando…”/disabled. `refresh()` automático ou após salvar policy não muda
+o botão; feedback manual permanece até terminar a leitura fresh coalescida e
+não publica depois de hidden/cleanup ou num lifecycle antigo. Falhas mantêm o
+último snapshot válido, com aviso discreto,
 sem console/log e sem aria-live em cada tick.
 
 `get_ai_settings` permanece carga inicial e refresh explícito após adicionar ou
@@ -2562,7 +2566,7 @@ expõe a função privada somente no JS temporário emitido, sem alterar o produ
 Nenhum framework ou dependência de frontend nova. Browser não disponível nesta
 sessão; inspeção visual física permanece para a checklist humana.
 
-Resultados finais no código candidato (04/10/2026):
+Resultados da candidata inicial auditada `0be42bafe4b042cc9b4b96687e781ab468990751` (04/10/2026):
 
 | Gate | Resultado |
 |---|---|
@@ -2611,3 +2615,108 @@ unknown token accounting, budgets locais conservadores, possível subutilizaçã
 por overlap/reset ambíguo, uma instância ativa, I/O SQLite em mutações reais,
 health transient não persistido. A UI não cria preço, saúde composta ou outra
 autoridade. Auditoria independente e gate humano real continuam pendentes.
+
+
+### FIX LR-8E — polling visualmente silencioso
+
+**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna e gate humano final**.
+LR-8 permanece aberta. Continuação exclusiva na branch
+`lr-8e-operational-panel-final-gate`, sobre o HEAD auditado
+`0be42bafe4b042cc9b4b96687e781ab468990751`.
+
+O gate humano inicial conduzido externamente encontrou duas regressões de UX na
+WebView real: feedback visual indevido do polling automático (o botão compartilhava
+`busy` com cada captura) e timestamp epoch excessivamente ruidoso na superfície
+principal. Esta FIX corrige ambas sem alterar o runtime/arquitetura aprovado.
+O agente não executou gate comercial/real e não antecipa resultado do gate final.
+
+`OperationalPoller.refresh()` continua silencioso e single-flight. Startup,
+retomada, timeout automático e refresh após salvar RatePolicy usam esse caminho.
+Somente o clique manual chama `refreshManual()` e ativa `manualRefreshing`.
+Durante um IPC automático pendente, esse clique marca uma captura fresh adicional
+no mesmo drain, sem iniciar IPC concorrente, e mantém feedback até o drain acabar.
+Conclusões hidden/unmounted ou de epoch antigo não escrevem snapshot, erro nem
+feedback manual. Retomada limpa feedback de uma ação manual interrompida antes
+de iniciar a leitura visível. Intervalo continua **1.000 ms após a captura anterior**,
+sem novo timer, listener, histórico, dependência ou mudança no comando memory-only.
+
+A toolbar mantém o texto principal estável: **“Última captura recebida”**.
+O `title` opcional apresenta data/hora ISO UTC legível e o Unix ms diagnóstico.
+Timestamp ausente, não inteiro seguro, negativo ou fora do intervalo de `Date`
+aparece como **“Última captura: Desconhecido”**, sem fabricar uma data.
+Antes do primeiro snapshot: “Aguardando snapshot”. Nenhum aria-live/status é
+adicionado à toolbar, e ticks automáticos não mudam texto/disabled do botão nem
+largura do label. O aviso de erro já existente continua preservando o último
+snapshot válido; não é uma mensagem anunciada a cada tick bem-sucedido.
+
+Os checks existentes agora exercitam separadamente auto/manual, clique durante
+IPC automático, captura fresh coalescida, conclusão do feedback manual, erro
+silencioso, hidden/unmount e restart StrictMode durante ação manual. O harness
+DOM renderiza também os controles reais e compara a superfície entre dois ticks:
+somente o tooltip diagnóstico varia; timestamp principal não contém epoch/Unix ms,
+o botão permanece habilitado e sem “Atualizando…”, e não há aria-live/status
+periódico. Validação de timestamps inclui null, NaN, infinito, negativo, fração,
+valor fora de `Date` e epoch zero válido. Todos os checks anteriores de privacidade,
+unknown, scopes, usage parcial, warnings e tabelas continuam ativos.
+
+Autoauditoria da FIX: nenhuma alteração Rust de produção, permissions/capabilities,
+DTO, SecretStore/DB, requests de provider, RatePolicy editor, runtime A–D ou checklist.
+O painel continua com uma única captura mais recente; não renderiza erro bruto,
+conteúdo privado, preço ou estado “saudável”. A verificação em WebView real após
+a correção permanece para a Luna e o usuário; checks sintéticos não a substituem.
+
+A primeira global paralela desta FIX encontrou uma race preexistente na fixture
+`fix5_http_timeout_phases_are_real_and_diagnostics_sanitized`: o servidor TLS
+sintético encerrava o socket após um sleep de 200 ms. Sob carga, esse EOF podia
+preceder a execução do timeout de conexão no cliente, produzindo `Unavailable`
+em vez de `Timeout`. Resultado inicial: 526 aprovados, 1 falha, 2 ignorados.
+O teste exato na fixture original passou isoladamente (28,54 s), caracterizando
+a intermitência. Um novo teste de regressão mantém um cliente atrasado por
+250 ms e verifica que a fixture permanece aberta: com a implementação antiga,
+reproduziu deterministicamente a falha por EOF (0,25 s).
+
+Corrigiu-se exclusivamente o helper de teste em `cognition/fix5_tests.rs`:
+TLS stall agora aguarda EOF/reset pelo cliente, sob o deadline de fixture de
+10 s já existente, em vez de provocar desconexão remota pelo timer de 200 ms.
+O provider continua obrigado a produzir e diagnosticar seu próprio timeout.
+Não se ampliou nenhum timeout, não se relaxou assertion de fase/outcome nem
+se mudou transporte, scheduler ou outro código Rust de produção. As globais
+paralela e serial são verificadas novamente após a correção; serial não
+substitui o gate paralelo.
+
+
+Resultados técnicos finais desta FIX (04/10/2026), após corrigir a fixture:
+
+| Gate | Resultado |
+|---|---|
+| `npm run typecheck` | Exit 0 |
+| `npm run build` | Exit 0; IA 60,44 kB / 16,72 kB gzip; main permanece 666,22 kB |
+| `node scripts/test-provider-operations.cjs` | PASS; auto silencioso, manual/coalescing, lifecycle, timestamp e regressões anteriores |
+| `node scripts/test-provider-operations-dom.cjs` | PASS; toolbar estável entre ticks, sem epoch principal/live region e checks DOM anteriores |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | Exit 0 |
+| `cargo test --manifest-path src-tauri/Cargo.toml operational` | 13 aprovados, 0 falhas |
+| Teste exato de regressão TLS | 1 aprovado, 0 falhas; com fixture antiga reproduziu EOF indevido |
+| Teste exato de fases HTTP, após correção | 1 aprovado, 0 falhas; 27,77 s de testes |
+| `cargo test --manifest-path src-tauri/Cargo.toml` | 528 aprovados, 0 falhas, 2 ignorados; 262,17 s de testes |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=1` | 528 aprovados, 0 falhas, 2 ignorados; verificação serial adicional |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | Exit 0 |
+| `git diff --check` | Exit 0 |
+| `git diff --check main...HEAD` | Exit 0; verificado novamente no commit da FIX |
+
+Os dois ignorados continuam sendo os gates manuais Codex preexistentes. Main e
+doc-tests também terminam sem falhas nas duas globais. Permanecem 15 warnings
+unused/dead-code em debug, dois de fixtures na compilação de testes e 41 em
+release; nenhum novo warning introduzido. Vite mantém o aviso de chunk main
+maior que 500 kB; esse chunk não cresceu. O acréscimo nesta FIX no bundle IA é
+aproximadamente 0,84 kB minificado / 0,23 kB gzip, sem dependência nova.
+
+Autoauditoria final: poll automático não ativa feedback manual; clique manual
+coalescido não sobrepõe IPC e termina seu feedback; callbacks tardios não escrevem
+em hidden/unmount/epoch novo; falha automática preserva a última captura; toolbar
+não muda de texto/largura a cada tick e não anuncia status periódico; timestamp
+inválido permanece desconhecido; markers privados seguem ausentes do DOM.
+A única alteração Rust está em módulo `#[cfg(test)]`. Comando/DTO/boundary,
+permissions, policies, accounting, circuit, credentials, A–D e checklist humana
+permanecem idênticos ao HEAD auditado. Não houve merge nem gate comercial/real
+executado pelo agente. A comprovação visual na WebView e o gate final continuam
+pendentes para a Luna e o usuário; LR-8 permanece aberta.
