@@ -1,9 +1,9 @@
 # LR-8 — Rate Limit Manager completo
 
-Estado: **EM EXECUÇÃO — LR-8A, LR-8B, LR-8C e LR-8D encerradas em PASS; LR-8E liberada.**
+Estado: **PASS COMPLETO — LR-8A, LR-8B, LR-8C, LR-8D e LR-8E encerradas.**
 Pré-requisito: `main@71c9a650ffc92459811309d7749593d2244b9d46` ou posterior, contendo o fechamento da LR-7D3.
-Subfase corrente: **LR-8E — IMPLEMENTAÇÃO CANDIDATA**.
-**IMPLEMENTAÇÃO CANDIDATA — aguardando reauditoria independente da Luna e gate humano final**. LR-8 continua aberta.
+Subfase corrente: **LR-8E — PASS técnico + auditoria independente + gate final aprovado em 05/10/2026.**
+**LR-8 encerrada em PASS completo; autorizada para integração à `main`.**
 
 ## Objetivo
 
@@ -2720,3 +2720,40 @@ permissions, policies, accounting, circuit, credentials, A–D e checklist human
 permanecem idênticos ao HEAD auditado. Não houve merge nem gate comercial/real
 executado pelo agente. A comprovação visual na WebView e o gate final continuam
 pendentes para a Luna e o usuário; LR-8 permanece aberta.
+
+
+## Fechamento final da LR-8
+
+**Resultado final: PASS completo em 05/10/2026.**
+
+A trilha encerra com:
+
+- LR-8A — quota model + telemetria factual: PASS;
+- LR-8B — admission, concurrency e fila: PASS;
+- LR-8C — rate accounting, budgets e recovery conservador: PASS;
+- LR-8D — backoff, jitter, cooldown e circuit breaker: PASS;
+- LR-8E — painel operacional, integração e gate final: PASS.
+
+Candidata final da LR-8E auditada em `8cb9d6f5a980d361df5e736f4b9fb84ea476510b`, seguida do registro de aprovação humana do gate final na mesma branch.
+
+### Evidência do gate final
+
+A–D tiveram evidência humana real no hardware alvo. Em D, o painel mostrou `activeCalls=2/2`, `queueDepth=1/64` e drenagem ordenada da fila até o estado idle.
+
+E–L foram validados por bateria automatizada local determinística, sem providers comerciais, usando Scheduler/Admission/Rate/Resilience/TaskGraph reais, providers controlados, loopback HTTP e SQLite temporário quando necessário. A reauditoria independente confirmou que os testes cruzam as fronteiras corretas e que a instrumentação auxiliar em produção está protegida por `#[cfg(test)]`.
+
+M recebeu aprovação humana final: comportamento geral considerado aceitável e fechamento da LR-8 autorizado.
+
+### Limitações não bloqueantes preservadas
+
+- snapshots operacionais agregados não são globalmente atômicos;
+- adapters de produção ainda podem não possuir `TokenUpperBound`;
+- token accounting conservador pode permanecer unknown;
+- health/cooldown são transitórios e in-memory;
+- SQLite síncrono em mutações continua dívida de performance;
+- a janela **IA e modelos** ficou longa e será reorganizada em rodada futura de UI/performance, sem solução de navegação congelada antecipadamente;
+- preço/custo permanece unknown sem contrato configurado.
+
+Nenhuma dessas limitações invalida as garantias de safety/capacity/routing alcançadas pela LR-8.
+
+**Próxima trilha planejada após o fechamento: LR-8.5 Cognitive Resource Economy & Allocation, preservando o planejamento já existente na `main`.**
