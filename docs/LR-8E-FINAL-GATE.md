@@ -1,6 +1,6 @@
 # LR-8E — checklist do gate humano final
 
-**FECHAMENTO: PASS técnico + auditoria independente + gate final aprovado em 05/10/2026**
+**FECHAMENTO: PASS técnico + auditoria independente + gate final aprovado em 05/10/2026; integrada à `main` pela PR #21 (`fac313e7676d1611ba2aec1b20a8f7d38f47b8dc`)**
 
 Este documento nasceu como checklist do gate e agora preserva também o resultado final. A–D foram validados com evidência humana real; E–L foram substituídos por bateria automatizada local determinística auditada independentemente pela Luna, sem falsificar execução humana; M recebeu aprovação humana final do usuário. O fechamento da LR-8 foi autorizado em 05/10/2026.
 
