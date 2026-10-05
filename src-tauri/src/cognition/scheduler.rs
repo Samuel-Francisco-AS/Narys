@@ -673,6 +673,8 @@ impl Scheduler {
                 // A factual call is never rolled back, even if a later local
                 // error is reported. Preserve legacy provider-preflight debits.
                 pending.commit(&mut attempt, &mut usage, &entry.config.id);
+                #[cfg(test)]
+                super::lr8e_gate_tests::committed_ack(cancelled, &entry.config.id);
                 if let Some(error) = boundary_error {
                     return Err(error);
                 }
