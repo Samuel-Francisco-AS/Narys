@@ -77,6 +77,11 @@ operação nele. Não modificar concurrency ou fairness para facilitar o gate.
 | Classe da terceira chamada visível; admission posterior e queue delay coerentes | | |
 | Peers executando não sofrem preemption; fila/active voltam ao estado esperado | | |
 
+> E–L possuem evidência automatizada complementar em
+> [LR-8E-AUTOMATED-GATE-E-L.md](LR-8E-AUTOMATED-GATE-E-L.md).
+> Essa evidência não preenche os campos humanos abaixo nem representa execução
+> humana E–L pelo usuário.
+
 ## E. Cancelamento durante queue
 
 Colocar uma tarefa em fila e cancelar antes de HTTP. Registrar contador factual
