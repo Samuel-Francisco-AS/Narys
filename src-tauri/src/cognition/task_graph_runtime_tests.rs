@@ -28,7 +28,7 @@ use std::{
 use tauri::ipc::Channel;
 
 #[derive(Default)]
-struct TestKeys(Mutex<Option<Vec<u8>>>);
+pub(super) struct TestKeys(Mutex<Option<Vec<u8>>>);
 impl UnlockKeyStore for TestKeys {
     fn load(&self) -> Result<Option<Vec<u8>>, SecretError> {
         Ok(self.0.lock().unwrap().clone())
@@ -234,7 +234,7 @@ fn dir(label: &str) -> PathBuf {
     dir
 }
 
-fn seed_identity(db: &Database) {
+pub(super) fn seed_identity(db: &Database) {
     let identity: IdentityInput = serde_json::from_value(serde_json::json!({
         "version": "d3-test-v1",
         "canonicalName": "Luna",
@@ -360,7 +360,7 @@ fn fixture_with_worker_control(
     )
 }
 
-fn channel() -> (Channel<TaskEvent>, mpsc::Receiver<String>) {
+pub(super) fn channel() -> (Channel<TaskEvent>, mpsc::Receiver<String>) {
     let (sender, receiver) = mpsc::channel();
     let channel = Channel::new(move |body| {
         if let tauri::ipc::InvokeResponseBody::Json(json) = body {
@@ -413,7 +413,7 @@ fn cancel_on_task_started(registry: Arc<TaskRegistry>) -> (Channel<TaskEvent>, m
     (channel, receiver)
 }
 
-fn collect(receiver: &mpsc::Receiver<String>) -> Vec<String> {
+pub(super) fn collect(receiver: &mpsc::Receiver<String>) -> Vec<String> {
     let mut events = Vec::new();
     loop {
         match receiver.recv_timeout(Duration::from_secs(10)) {

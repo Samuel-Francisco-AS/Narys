@@ -28,7 +28,10 @@ pub trait RateClock: Send + Sync {
     fn now(&self) -> ClockReading;
     /// Monotonic wait, overridable by deterministic clocks. Rate accounting
     /// itself never waits; resilience uses this without holding any resources.
-    fn sleep_ms(&self, ms: u64) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>> {
+    fn sleep_ms(
+        &self,
+        ms: u64,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>> {
         Box::pin(tokio::time::sleep(std::time::Duration::from_millis(ms)))
     }
 }
@@ -1167,60 +1170,75 @@ impl RateLimitManager {
         let now = self.clock.now();
         states
             .iter_mut()
-            .map(|(id, s)| {
-                if s.refresh(now).is_err() {
-                    s.persistence_failed = true;
-                }
-                RateSnapshot {
-                    provider_id: id.clone(),
-                    captured_at_unix_ms: now.unix_ms,
-                    context_generation: s.generation,
-                    policy: s.policy.clone(),
-                    constraints: s
-                        .buckets
-                        .iter()
-                        .enumerate()
-                        .map(|(i, b)| {
-                            let reserved = s.reserved(i);
-                            let incomplete_tokens = tokens(b.dimension) && b.unaccounted > 0;
-                            RateConstraintSnapshot {
-                                scope: b.scope.clone(),
-                                dimension: b.dimension,
-                                source: b.source,
-                                provenance: if b.source == ConstraintSource::ExternalFact {
-                                    b.external.as_ref().and_then(|q| match q.remaining {
-                                        Fact::Known { provenance, .. } => Some(provenance),
-                                        _ => match q.limit {
-                                            Fact::Known { provenance, .. } => Some(provenance),
-                                            _ => None,
-                                        },
-                                    })
-                                } else {
-                                    Some(Provenance::UserConfiguration)
-                                },
-                                external: b.external.clone(),
-                                capacity: b.capacity,
-                                consumed: b.consumed,
-                                reserved,
-                                effective_remaining: b.capacity.filter(|_| !incomplete_tokens).map(
-                                    |cap| cap.saturating_sub(b.consumed).saturating_sub(reserved),
-                                ),
-                                reset_unix_ms: b.end_unix,
-                                reset_in_ms: b
-                                    .deadline
-                                    .map(|at| at.saturating_sub(now.monotonic_ms)),
-                                saturated: b.saturated,
-                                unaccounted_token_calls: b.unaccounted,
-                            }
+            .map(|(id, s)| rate_snapshot(id, s, now))
+            .collect()
+    }
+    /// Operational read: project elapsed windows on copies only. No persistence,
+    /// counter update, reservation, or change to the live accounting authority.
+    pub fn read_only_snapshots(&self) -> Vec<RateSnapshot> {
+        let states = self
+            .states
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .clone();
+        let now = self.clock.now();
+        states
+            .into_iter()
+            .map(|(id, mut s)| rate_snapshot(&id, &mut s, now))
+            .collect()
+    }
+}
+
+fn rate_snapshot(id: &str, s: &mut State, now: ClockReading) -> RateSnapshot {
+    if s.refresh(now).is_err() {
+        s.persistence_failed = true;
+    }
+    RateSnapshot {
+        provider_id: id.to_owned(),
+        captured_at_unix_ms: now.unix_ms,
+        context_generation: s.generation,
+        policy: s.policy.clone(),
+        constraints: s
+            .buckets
+            .iter()
+            .enumerate()
+            .map(|(i, b)| {
+                let reserved = s.reserved(i);
+                let incomplete_tokens = tokens(b.dimension) && b.unaccounted > 0;
+                RateConstraintSnapshot {
+                    scope: b.scope.clone(),
+                    dimension: b.dimension,
+                    source: b.source,
+                    provenance: if b.source == ConstraintSource::ExternalFact {
+                        b.external.as_ref().and_then(|q| match q.remaining {
+                            Fact::Known { provenance, .. } => Some(provenance),
+                            _ => match q.limit {
+                                Fact::Known { provenance, .. } => Some(provenance),
+                                _ => None,
+                            },
                         })
-                        .collect(),
-                    pending_reservations: s.attempts.len(),
-                    local_blocks: s.blocks,
-                    saturated: s.saturated,
-                    persistence_failed: s.persistence_failed,
+                    } else {
+                        Some(Provenance::UserConfiguration)
+                    },
+                    external: b.external.clone(),
+                    capacity: b.capacity,
+                    consumed: b.consumed,
+                    reserved,
+                    effective_remaining: b
+                        .capacity
+                        .filter(|_| !incomplete_tokens)
+                        .map(|cap| cap.saturating_sub(b.consumed).saturating_sub(reserved)),
+                    reset_unix_ms: b.end_unix,
+                    reset_in_ms: b.deadline.map(|at| at.saturating_sub(now.monotonic_ms)),
+                    saturated: b.saturated,
+                    unaccounted_token_calls: b.unaccounted,
                 }
             })
-            .collect()
+            .collect(),
+        pending_reservations: s.attempts.len(),
+        local_blocks: s.blocks,
+        saturated: s.saturated,
+        persistence_failed: s.persistence_failed,
     }
 }
 
@@ -1258,5 +1276,72 @@ impl Drop for RateReservation {
         self.handle
             .manager
             .finish(&self.handle.provider, self.handle.id);
+    }
+}
+
+#[cfg(test)]
+mod operational_read_tests {
+    use super::*;
+    struct Clock(std::sync::atomic::AtomicU64);
+    impl RateClock for Clock {
+        fn now(&self) -> ClockReading {
+            let n = self.0.load(Ordering::SeqCst);
+            ClockReading {
+                monotonic_ms: n,
+                unix_ms: Some(1_000 + n),
+            }
+        }
+    }
+    #[test]
+    fn operational_rate_projects_reset_without_mutating_live_accounting() {
+        let clock = Arc::new(Clock(std::sync::atomic::AtomicU64::new(0)));
+        let manager = RateLimitManager::new(["a".into()], clock.clone(), None).unwrap();
+        manager
+            .set_policy(
+                "a",
+                RatePolicy {
+                    limits: vec![LocalRateLimit {
+                        scope: QuotaScope::Provider,
+                        dimension: QuotaDimension::RequestsPerMinute,
+                        capacity: 1,
+                        window: FixedWindow {
+                            period_ms: 100,
+                            anchor_unix_ms: 1_000,
+                        },
+                    }],
+                    daily_budget: None,
+                },
+            )
+            .unwrap();
+        let guard = manager
+            .reserve("a", "m", 0, None, &AtomicBool::new(false))
+            .unwrap();
+        guard.handle().started(None).unwrap();
+        drop(guard);
+        clock.0.store(100, Ordering::SeqCst);
+        let before = {
+            let states = manager.states.lock().unwrap();
+            (
+                states["a"].buckets[0].consumed,
+                states["a"].buckets[0].epoch,
+                states["a"].buckets[0].deadline,
+                states["a"].blocks,
+            )
+        };
+        for _ in 0..100 {
+            let snapshot = manager.read_only_snapshots();
+            assert_eq!(snapshot[0].constraints[0].consumed, 0);
+            assert_eq!(snapshot[0].constraints[0].effective_remaining, Some(1));
+            assert_eq!(snapshot[0].constraints[0].reset_in_ms, Some(100));
+        }
+        let states = manager.states.lock().unwrap();
+        let after = (
+            states["a"].buckets[0].consumed,
+            states["a"].buckets[0].epoch,
+            states["a"].buckets[0].deadline,
+            states["a"].blocks,
+        );
+        assert_eq!(before, after);
+        assert_eq!(after.0, 1);
     }
 }

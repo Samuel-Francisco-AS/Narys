@@ -1,10 +1,8 @@
-import type { ProviderResilience } from './providerResilience'
-import type { ProviderRate } from './providerRate'
-import type { ProviderAdmission, TrafficClass } from './providerAdmission'
+import { ProviderOperationsPanel } from './ProviderOperationsPanel'
+import type { TrafficClass } from './providerAdmission'
 import { useEffect, useRef, useState } from 'react'
 import { Channel, invoke } from '@tauri-apps/api/core'
 import './settings.css'
-import type { ProviderTelemetry } from './providerTelemetry'
 
 type Thinking = 'low' | 'medium' | 'high' | null
 type Role = 'conversation' | 'summary' | 'orchestrator' | 'worker'
@@ -13,7 +11,7 @@ type Target = { providerId: string; model: string; thinkingLevel: Thinking }
 type Policy = { role: Role; routingMode: Routing; targets: Target[]; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number; contextMaxBytes: number }
 type Timeouts = { requestTimeoutMs: number; streamIdleTimeoutMs: number }
 type ProviderInfo = { id: string; displayName: string; configured: boolean; enabled: boolean; capabilities: { textGeneration: boolean; streaming: boolean }; supportedThinkingLevels: Thinking[]; defaultModel: string | null }
-type Settings = { resilience: ProviderResilience[]; rate: ProviderRate[]; admission: ProviderAdmission[]; telemetry: ProviderTelemetry[]; providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
+type Settings = { providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
 type ProbeEvent = { type: 'queued'; providerId: string; trafficClass: TrafficClass; queueDepth: number } | { type: 'admitted'; providerId: string; trafficClass: TrafficClass; queueDelayMs: number } | { type: 'selected'; providerId: string; attempt: number } | { type: 'chunk'; text: string }
 type ProbeResult = { text: string; providerId: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; retries: number; fallbacks: number } }
 type CodexRuntimeStatus = { installed: boolean; version: string | null; authenticated: boolean; authKind: 'chatgpt' | 'api_key' | 'other' | 'unknown' | 'none'; available: boolean; diagnosticCode: 'codex_not_installed' | 'codex_not_authenticated' | 'codex_status_timeout' | 'codex_status_failed' | 'codex_status_unrecognized' | null }
@@ -245,7 +243,11 @@ export default function AiSettingsApp() {
   const [taskGraphProgress, setTaskGraphProgress] = useState<string[]>([])
   const taskGraphTaskRef = useRef<number | null>(null)
   const taskGraphTerminalRef = useRef(false)
-  async function refresh() { setSettings(await invoke<Settings>('get_ai_settings')) }
+  async function refresh() {
+    const data = await invoke<Settings>('get_ai_settings')
+    // Discard legacy operational fields: only the panel owns the latest live snapshot.
+    setSettings({ providerTimeouts: data.providerTimeouts, providers: data.providers, roles: data.roles, credentialStoreAvailable: data.credentialStoreAvailable })
+  }
   async function refreshCodex() {
     setCodexBusy(true)
     try { setCodex(await invoke<CodexRuntimeStatus>('get_codex_runtime_status')) }
@@ -385,6 +387,7 @@ export default function AiSettingsApp() {
   return <main className="settings-page">
     <header><p className="settings-kicker">LUNA · COGNIÇÃO</p><h1>IA e modelos</h1><p>Estas escolhas são aplicadas na próxima tarefa. Uma resposta em andamento mantém a configuração com que começou.</p></header>
     {settings ? <>
+      <ProviderOperationsPanel providers={settings.providers} />
       <section className="settings-card"><h2>Providers disponíveis</h2>
         <p>{settings.providers.map(provider => `${provider.displayName} · ${provider.configured ? 'Configurado' : 'Não configurado'}`).join(' · ')} · Cofre {settings.credentialStoreAvailable ? 'disponível' : 'indisponível'}</p>
         <p>Cada papel permite Fixed, Preferred e Auto sobre targets autorizados.</p>
