@@ -144,7 +144,27 @@ fn server(
                 }
             };
             if matches!(exchange, Exchange::TlsStall) {
-                thread::sleep(Duration::from_millis(200));
+                // A stalled TLS peer must stay open until the client's own
+                // timeout closes it. A fixed sleep followed by drop races the
+                // client's scheduling under parallel-suite load and fabricates
+                // Unavailable instead of exercising the connect deadline.
+                socket.set_nonblocking(true).unwrap();
+                let mut hello = [0; 4096];
+                loop {
+                    match socket.read(&mut hello) {
+                        Ok(0) => break,
+                        Ok(_) => {}
+                        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(
+                                std::time::Instant::now() < deadline,
+                                "TLS fixture client did not close within the existing fixture deadline"
+                            );
+                            thread::sleep(Duration::from_millis(2));
+                        }
+                        Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset => break,
+                        Err(e) => panic!("TLS fixture read failed: {e}"),
+                    }
+                }
                 continue;
             }
             requests.push(read_payload(&mut socket));
@@ -537,6 +557,24 @@ fn fix5_output_byte_limit_real_http_below_exact_and_early_overflow() {
         "must reject while content is still arriving, before terminal/envelope ends"
     );
     server.join().unwrap();
+}
+
+#[test]
+fn fix5_tls_stall_fixture_waits_for_client_close() {
+    let (url, server, _) = server(vec![Exchange::TlsStall]);
+    let mut client = std::net::TcpStream::connect(url.strip_prefix("http://").unwrap()).unwrap();
+    // Reproduce a client delayed beyond the old fixture's 200 ms disconnect,
+    // without changing any provider/transport deadline.
+    thread::sleep(Duration::from_millis(250));
+    client.set_nonblocking(true).unwrap();
+    let mut byte = [0];
+    assert_eq!(
+        client.read(&mut byte).unwrap_err().kind(),
+        std::io::ErrorKind::WouldBlock,
+        "the fixture must not inject EOF before the client's timeout"
+    );
+    drop(client);
+    assert!(server.join().unwrap().is_empty());
 }
 
 #[test]
