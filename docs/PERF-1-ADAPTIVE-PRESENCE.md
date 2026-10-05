@@ -273,6 +273,26 @@ A comparação deve usar cargas equivalentes.
 
 **Regra:** PERF-1 pode melhorar essas métricas por liberar recursos, mas não pode piorá-las deliberadamente para economizar UI.
 
+### Reorganização futura de IA e modelos
+
+A janela **IA e modelos** acumulou, ao longo de LR-7/LR-8, providers, credenciais,
+políticas por papel, diagnósticos, agentes, TaskGraph, telemetria, admission, rate
+accounting e resilience. O gate humano da LR-8E mostrou que uma superfície única
+muito longa já prejudica navegação e observação de estados transitórios.
+
+Uma rodada futura de UI/performance deve portanto **reorganizar essa superfície
+para reduzir comprimento, custo visual e distância entre informação e ação**.
+
+A forma exata fica deliberadamente em aberto. Sub-abas, navegação lateral,
+seções montadas sob demanda, superfícies auxiliares ou outra arquitetura podem
+ser avaliadas quando essa rodada começar. A decisão deve considerar ergonomia,
+performance, frequência de uso, capabilities e o estado real das funcionalidades
+naquele momento; este registro não congela previamente uma solução.
+
+A reorganização deve preservar os contratos já conquistados: UI como cliente do
+Core, segredos fora do React, permissões por superfície, estado operacional
+read-only quando aplicável e ausência de trabalho visual desnecessário.
+
 ## Relação com UIP
 
 PERF-1 **não reabre nem invalida UIP-0 → UIP-7**.
