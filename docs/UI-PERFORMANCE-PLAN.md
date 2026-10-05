@@ -399,6 +399,18 @@ Abrir o painel não aumenta a dimensão de render do CharacterStage. A janela po
 
 **Regra de produto:** nenhuma configuração ajustável pelo provider que afete capacidade, qualidade, latência, custo ou comportamento cognitivo pode ficar escondida como hardcode permanente. Defaults são permitidos, mas precisam ser visíveis, documentados e substituíveis pelo usuário. Configuração explícita não pode ser silenciosamente trocada pelo Scheduler; incompatibilidades devem ser mostradas.
 
+### Reorganização futura da superfície IA/modelos
+
+Após a expansão de LR-7/LR-8, a janela acumulou informação operacional,
+configurações, diagnósticos e ferramentas suficientes para tornar a página única
+excessivamente longa. Fica registrada uma **reorganização futura dessa
+superfície** em rodada de UI/performance.
+
+O desenho será decidido quando essa rodada começar. Não fica definido agora se a
+solução será por sub-abas, navegação lateral, seções sob demanda ou outra forma.
+A escolha deverá equilibrar ergonomia, performance, frequência de uso e
+separação das responsabilidades então existentes.
+
 ### Segurança
 
 - capabilities Tauri por janela/feature;
