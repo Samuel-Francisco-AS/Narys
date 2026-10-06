@@ -862,3 +862,315 @@ fn b1_report_serialization_is_bounded_and_contains_only_safe_evidence() {
         .unwrap()
     );
 }
+
+// B1 FIX-1: the authorized universe must retain LR-8.5A identity integrity.
+fn coherent_request(
+    candidates: Vec<AllocationCandidate<'_>>,
+) -> Result<AllocationRequest<'_>, AllocationError> {
+    AllocationRequest::new(requirements(None), AllocationPolicy::default(), candidates)
+}
+fn bound_resource(id: &str, class: ResourceClass, runtime: &str) -> CognitiveResource {
+    let mut resource = fixture();
+    resource.identity.id = ResourceId::new(id).unwrap();
+    resource.identity.class = class;
+    resource.origin = match class {
+        ResourceClass::CognitiveProvider => {
+            ResourceOrigin::Provider(RuntimeId::new(runtime).unwrap())
+        }
+        ResourceClass::SpecialistAgent => ResourceOrigin::Agent(RuntimeId::new(runtime).unwrap()),
+        ResourceClass::LocalSupport => ResourceOrigin::Local,
+    };
+    resource
+}
+
+#[test]
+fn b1_fix1_multiple_model_effort_variants_share_one_coherent_resource() {
+    let mut resource = fixture();
+    let first_model = model_mut(&mut resource);
+    first_model.supported_efforts = known(vec![
+        EffortProfile {
+            id: EffortId::new("medium").unwrap(),
+            availability: known(Availability::Available),
+            facts: ExecutionFacts::default(),
+        },
+        EffortProfile {
+            id: EffortId::new("high").unwrap(),
+            availability: known(Availability::Available),
+            facts: ExecutionFacts::default(),
+        },
+    ]);
+    let mut second_model = first_model.clone();
+    second_model.id = ModelId::new("model-B").unwrap();
+    let CatalogFact::Known { value, .. } = &mut resource.models else {
+        unreachable!()
+    };
+    value.push(second_model);
+    let candidates = [
+        ("model-A", "medium"),
+        ("model-A", "high"),
+        ("model-B", "medium"),
+    ]
+    .into_iter()
+    .map(|(model, effort)| {
+        AllocationCandidate::new(
+            &resource,
+            ModelId::new(model).unwrap(),
+            Some(EffortId::new(effort).unwrap()),
+        )
+        .unwrap()
+    })
+    .collect();
+    let report = coherent_request(candidates).unwrap().evaluate();
+    assert_eq!(report.candidates().len(), 3);
+    assert!(report
+        .candidates()
+        .iter()
+        .all(|entry| entry.status() == EligibilityStatus::Eligible));
+    assert_eq!(
+        report.candidates()[2].variant().model_id,
+        ModelId::new("model-B").unwrap()
+    );
+}
+#[test]
+fn b1_fix1_equal_cloned_snapshots_are_accepted_without_pointer_identity() {
+    // Repeated runtime binding is valid after reducing equal snapshots by ID.
+    let resource = bound_resource("resource-A", ResourceClass::CognitiveProvider, "runtime-A");
+    let cloned = resource.clone();
+    assert!(!std::ptr::eq(&resource, &cloned));
+    let report = coherent_request(vec![
+        candidate(&resource, None),
+        candidate(&cloned, Some("effort-A")),
+    ])
+    .unwrap()
+    .evaluate();
+    let same_descriptor = coherent_request(vec![
+        candidate(&resource, None),
+        candidate(&resource, Some("effort-A")),
+    ])
+    .unwrap()
+    .evaluate();
+    assert_eq!(report, same_descriptor);
+}
+#[test]
+fn b1_fix1_same_resource_id_requires_equal_complete_identity_and_origin() {
+    let resource = bound_resource("resource-A", ResourceClass::CognitiveProvider, "runtime-A");
+    let mutations: [fn(&mut CognitiveResource); 5] = [
+        |r| r.identity.access_path = AccessPath::new("different-path").unwrap(),
+        |r| r.identity.billing_domain.id = BillingDomainId::new("different-domain").unwrap(),
+        |r| r.identity.family = ProviderFamily::new("different-family").unwrap(),
+        |r| {
+            r.identity.class = ResourceClass::SpecialistAgent;
+            r.origin = ResourceOrigin::Agent(RuntimeId::new("runtime-A").unwrap());
+        },
+        |r| r.origin = ResourceOrigin::Provider(RuntimeId::new("different-runtime").unwrap()),
+    ];
+    for mutate in mutations {
+        let mut conflicting = resource.clone();
+        mutate(&mut conflicting);
+        // Both individual descriptors remain valid; request coherence must reject.
+        for (first, second) in [(&resource, &conflicting), (&conflicting, &resource)] {
+            assert_eq!(
+                coherent_request(vec![
+                    candidate(first, None),
+                    candidate(second, Some("effort-A"))
+                ])
+                .unwrap_err(),
+                AllocationError::ConflictingResourceSnapshot
+            );
+        }
+    }
+}
+#[test]
+fn b1_fix1_same_identity_requires_equal_facts_provenance_and_timestamps() {
+    let resource = fixture();
+    let mutations: [fn(&mut CognitiveResource); 10] = [
+        |r| r.enabled = known(false),
+        |r| r.availability = known(Availability::Unavailable),
+        |r| {
+            r.capabilities
+                .0
+                .insert(CognitiveCapability::Vision, known(true));
+        },
+        |r| {
+            model_mut(r)
+                .capabilities
+                .0
+                .insert(CognitiveCapability::Vision, known(false));
+        },
+        |r| model_mut(r).facts.execution.cognitive_tier = known(tier(3)),
+        |r| effort_mut(r).availability = known(Availability::Unavailable),
+        |r| r.economics.billing_kind = known(BillingKind::MeteredBilling),
+        |r| {
+            r.enabled =
+                CatalogFact::known(true, CatalogProvenance::RuntimeContract, Some(42)).unwrap()
+        },
+        |r| {
+            r.enabled =
+                CatalogFact::known(true, CatalogProvenance::IntegrationCatalog, Some(43)).unwrap()
+        },
+        |r| r.models = CatalogFact::Unknown,
+    ];
+    for mutate in mutations {
+        let mut conflicting = resource.clone();
+        mutate(&mut conflicting);
+        assert_eq!(resource.identity, conflicting.identity);
+        assert_ne!(resource, conflicting);
+        for (first, second) in [(&resource, &conflicting), (&conflicting, &resource)] {
+            assert_eq!(
+                coherent_request(vec![
+                    candidate(first, None),
+                    candidate(second, Some("effort-A"))
+                ])
+                .unwrap_err(),
+                AllocationError::ConflictingResourceSnapshot
+            );
+        }
+    }
+}
+#[test]
+fn b1_fix1_same_provider_runtime_cannot_bind_different_resource_ids() {
+    let a = bound_resource("resource-A", ResourceClass::CognitiveProvider, "runtime-X");
+    let b = bound_resource("resource-B", ResourceClass::CognitiveProvider, "runtime-X");
+    for (first, second) in [(&a, &b), (&b, &a)] {
+        assert_eq!(
+            coherent_request(vec![candidate(first, None), candidate(second, None)]).unwrap_err(),
+            AllocationError::ConflictingRuntimeBinding
+        );
+    }
+}
+#[test]
+fn b1_fix1_same_agent_runtime_cannot_bind_different_resource_ids() {
+    let a = bound_resource("resource-A", ResourceClass::SpecialistAgent, "runtime-X");
+    let b = bound_resource("resource-B", ResourceClass::SpecialistAgent, "runtime-X");
+    for (first, second) in [(&a, &b), (&b, &a)] {
+        assert_eq!(
+            coherent_request(vec![candidate(first, None), candidate(second, None)]).unwrap_err(),
+            AllocationError::ConflictingRuntimeBinding
+        );
+    }
+}
+#[test]
+fn b1_fix1_distinct_local_resources_are_exempt_from_runtime_uniqueness() {
+    let a = fixture();
+    let mut b = a.clone();
+    b.identity.id = ResourceId::new("resource-B").unwrap();
+    let report = coherent_request(vec![candidate(&b, None), candidate(&a, None)])
+        .unwrap()
+        .evaluate();
+    assert_eq!(report.candidates().len(), 2);
+    assert_eq!(report.candidates()[0].variant().resource_id, b.identity.id);
+    assert!(report
+        .candidates()
+        .iter()
+        .all(|entry| entry.status() == EligibilityStatus::Eligible));
+}
+#[test]
+fn b1_fix1_different_runtime_ids_are_valid_in_both_namespaces() {
+    for class in [
+        ResourceClass::CognitiveProvider,
+        ResourceClass::SpecialistAgent,
+    ] {
+        let a = bound_resource("resource-A", class, "runtime-A");
+        let b = bound_resource("resource-B", class, "runtime-B");
+        assert_eq!(
+            coherent_request(vec![candidate(&a, None), candidate(&b, None)])
+                .unwrap()
+                .evaluate()
+                .candidates()
+                .len(),
+            2
+        );
+    }
+}
+#[test]
+fn b1_fix1_provider_and_agent_runtime_namespaces_remain_independent() {
+    let provider = bound_resource("resource-A", ResourceClass::CognitiveProvider, "same-label");
+    let agent = bound_resource("resource-B", ResourceClass::SpecialistAgent, "same-label");
+    assert_eq!(
+        coherent_request(vec![candidate(&provider, None), candidate(&agent, None)])
+            .unwrap()
+            .evaluate()
+            .candidates()
+            .len(),
+        2
+    );
+}
+#[test]
+fn b1_fix1_snapshot_conflict_precedes_binding_and_duplicate_conflicts_globally() {
+    let a = bound_resource("resource-A", ResourceClass::CognitiveProvider, "runtime-X");
+    let b = bound_resource("resource-B", ResourceClass::CognitiveProvider, "runtime-X");
+    let mut conflicting = a.clone();
+    conflicting.enabled = known(false);
+    // Same variant identity, different descriptor: not merely DuplicateCandidate.
+    let error =
+        coherent_request(vec![candidate(&a, None), candidate(&conflicting, None)]).unwrap_err();
+    assert_eq!(error, AllocationError::ConflictingResourceSnapshot);
+    // A prior duplicate/binding conflict cannot mask a later snapshot conflict.
+    for resources in [
+        vec![&a, &a, &b, &conflicting],
+        vec![&conflicting, &b, &a, &a],
+    ] {
+        assert_eq!(
+            coherent_request(resources.into_iter().map(|r| candidate(r, None)).collect())
+                .unwrap_err(),
+            AllocationError::ConflictingResourceSnapshot
+        );
+    }
+    assert_eq!(error.to_string(), "ConflictingResourceSnapshot");
+    assert_eq!(
+        serde_json::to_string(&error).unwrap(),
+        "\"conflicting_resource_snapshot\""
+    );
+}
+#[test]
+fn b1_fix1_bounds_precede_all_universe_conflicts() {
+    let a = fixture();
+    let mut conflicting = a.clone();
+    conflicting.enabled = known(false);
+    let mut candidates = vec![candidate(&a, None); MAX_ALLOCATION_CANDIDATES];
+    candidates.push(candidate(&conflicting, None));
+    assert_eq!(
+        coherent_request(candidates).unwrap_err(),
+        AllocationError::TooManyCandidates
+    );
+}
+#[test]
+fn b1_fix1_binding_conflict_precedes_duplicate_variant() {
+    let a = bound_resource("resource-A", ResourceClass::SpecialistAgent, "runtime-X");
+    let b = bound_resource("resource-B", ResourceClass::SpecialistAgent, "runtime-X");
+    let error = coherent_request(vec![
+        candidate(&a, None),
+        candidate(&a, None),
+        candidate(&b, None),
+    ])
+    .unwrap_err();
+    assert_eq!(error, AllocationError::ConflictingRuntimeBinding);
+    assert_eq!(error.to_string(), "ConflictingRuntimeBinding");
+    assert_eq!(
+        serde_json::to_string(&error).unwrap(),
+        "\"conflicting_runtime_binding\""
+    );
+    assert_eq!(
+        coherent_request(vec![candidate(&a, None), candidate(&a, None)]).unwrap_err(),
+        AllocationError::DuplicateCandidate
+    );
+}
+#[test]
+fn b1_fix1_different_resources_may_share_domain_with_divergent_economics() {
+    let a = bound_resource("resource-A", ResourceClass::CognitiveProvider, "runtime-A");
+    let mut b = bound_resource("resource-B", ResourceClass::CognitiveProvider, "runtime-B");
+    b.economics.billing_kind = known(BillingKind::MeteredBilling);
+    b.economics.monetary_balance = known(MonetaryAmount::new("USD", 7).unwrap());
+    assert_eq!(a.identity.billing_domain, b.identity.billing_domain);
+    let before_a = a.clone();
+    let before_b = b.clone();
+    let report = coherent_request(vec![candidate(&a, None), candidate(&b, None)])
+        .unwrap()
+        .evaluate();
+    assert!(report
+        .candidates()
+        .iter()
+        .all(|entry| entry.status() == EligibilityStatus::Eligible));
+    assert_eq!(a, before_a);
+    assert_eq!(b, before_b);
+}

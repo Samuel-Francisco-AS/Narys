@@ -3,7 +3,7 @@
 //! authorize resources, call adapters, or replace operational runtime gates.
 use super::*;
 use serde::Serialize;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Local structural bounds, without commercial meaning.
 pub const MAX_ALLOCATION_CANDIDATES: usize = 256;
@@ -20,6 +20,8 @@ pub enum AllocationError {
     DuplicateRequirement,
     InvalidReserveThresholds,
     TooManyCandidates,
+    ConflictingResourceSnapshot,
+    ConflictingRuntimeBinding,
     DuplicateCandidate,
     InvalidCandidate,
 }
@@ -225,6 +227,36 @@ impl<'a> AllocationRequest<'a> {
     ) -> Result<Self, AllocationError> {
         if candidates.len() > MAX_ALLOCATION_CANDIDATES {
             return Err(AllocationError::TooManyCandidates);
+        }
+        // Validate the whole authorized universe in fixed phases: bounds,
+        // complete snapshot coherence, runtime bindings, duplicate variants.
+        // Equality includes identity, all facts, provenance and timestamps;
+        // cloned equal descriptors are accepted without pointer identity.
+        let mut resources: BTreeMap<&ResourceId, &CognitiveResource> = BTreeMap::new();
+        for candidate in &candidates {
+            let resource = candidate.resource;
+            if let Some(existing) = resources.get(&resource.identity.id) {
+                if *existing != resource {
+                    return Err(AllocationError::ConflictingResourceSnapshot);
+                }
+            } else {
+                resources.insert(&resource.identity.id, resource);
+            }
+        }
+        // One non-local runtime is one credential/quota context, exactly as in
+        // ResourceCatalog. Provider and Agent IDs are separate namespaces.
+        // Local origins and shared BillingDomains impose no uniqueness here.
+        let mut providers = BTreeSet::new();
+        let mut agents = BTreeSet::new();
+        for resource in resources.values() {
+            let (bindings, id) = match &resource.origin {
+                ResourceOrigin::Provider(id) => (&mut providers, id),
+                ResourceOrigin::Agent(id) => (&mut agents, id),
+                ResourceOrigin::Local => continue,
+            };
+            if !bindings.insert(id) {
+                return Err(AllocationError::ConflictingRuntimeBinding);
+            }
         }
         let mut seen = BTreeSet::new();
         for candidate in &candidates {

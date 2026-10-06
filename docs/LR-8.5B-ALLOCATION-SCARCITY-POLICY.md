@@ -834,3 +834,114 @@ pura, sem alteração de DTO/comando/runtime exposto.
 **B1 filtra e explica. B2 pontua. B3 altera o Auto real.** Não existe scoring,
 rank, winner, alteração em Scheduler/auto_score/Fixed/Preferred/Auto/affinity,
 fallback/retry/admission/resilience/RateLimitManager/TaskGraph ou nos registries.
+
+## B1 FIX-1 — Authorized Universe Coherence
+
+**B1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+Correção incremental sobre o HEAD auditado
+`e5244c92bef19e13cadc13f8e3e90b1ffcf10882`, exclusivamente na branch
+`lr-8.5b-allocation-scarcity-policy`. Branch/HEAD local e remoto foram confirmados,
+fetch + fast-forward não encontraram divergência, e o workspace estava limpo
+antes das alterações. Sem declaração de PASS, merge ou início de B2/B3/B4.
+
+### Problema e invariâncias
+
+A auditoria independente aprovou os contratos/hard gates, mas identificou que
+validar cada candidato isoladamente, seguido apenas por cardinalidade e tuplas
+duplicadas, permitia snapshots contraditórios do mesmo ResourceId na request.
+Também permitia que um runtime não local fosse vinculado a resources distintos,
+enfraquecendo a invariância LR-8.5A de único credential/quota context por runtime.
+
+`AllocationRequest::new()` agora reduz os candidatos por ResourceId usando
+BTreeMap local e compara **todo CognitiveResource** por igualdade estrutural.
+Todos os candidatos do mesmo ResourceId devem conservar identity completa,
+access path, billing domain, family, class, origin, enabled, availability,
+capabilities, models/efforts, economics e provenance/timestamps idênticos.
+Descriptors clonados iguais são aceitos; pointer identity não é exigida.
+Qualquer divergência retorna `AllocationError::ConflictingResourceSnapshot`.
+Não há merge de facts, reconciliação, latest-wins ou escolha de fonte.
+
+Depois de validar todos os snapshots, o conjunto reduzido de resources preserva
+a mesma regra de ResourceCatalog: um `ResourceOrigin::Provider(runtime_id)`
+não pode pertencer a ResourceIds distintos, assim como um
+`ResourceOrigin::Agent(runtime_id)`. Violação retorna
+`AllocationError::ConflictingRuntimeBinding`. Provider e Agent continuam
+namespaces separados, inclusive com o mesmo label nominal de runtime.
+`ResourceOrigin::Local` permanece isento da unicidade. ResourceCatalog não foi
+alterado; nenhum registry é consultado ou enumerado.
+
+BillingDomains compartilhados entre resources distintos não impõem igualdade
+econômica nesta FIX. Evidências econômicas divergentes continuam válidas nesses
+resources; `domain_economics()` mantém seu contrato LR-8.5A fail-closed, intocado.
+A futura B2 decidirá como consumir essas evidências.
+
+### Ordem de validação e boundary
+
+Ordem fixa, com fases completas antes de avançar:
+
+1. cardinalidade da request;
+2. coerência integral dos descriptors por ResourceId;
+3. unicidade de bindings não locais no conjunto reduzido;
+4. duplicate AllocationVariant.
+
+Um conflito de snapshot tem precedência mesmo quando uma variante duplicada ou
+um binding conflitante aparece antes na ordem de candidatos. Binding conflitante
+precede DuplicateCandidate; excesso de cardinalidade precede todos os conflitos.
+BTreeMap/BTreeSet internos são bounded pela cardinalidade já validada; a ordem
+de candidatos no relatório continua sendo a ordem recebida. Erros são enums
+sem payload e não ecoam IDs, fatos, prompts ou texto de tarefa.
+
+Eligibility, enabled, availability, model/effort support, capability scopes,
+quality floor e seus relatórios permanecem exatamente como no HEAD auditado.
+Sem scoring, ranking, winner, spend decision ou integração operacional.
+Scheduler/auto_score/Fixed/Preferred/Auto/affinity/fallback/retry/admission,
+resilience, RateLimitManager, TaskGraph, registries, UI e migrations intocados.
+
+### Testes e arquivos
+
+13 testes sintéticos adicionais em `allocation_tests.rs`, sem IO/clock/backend:
+
+- vários modelos/efforts derivados de um único resource;
+- descriptors clonados iguais, inclusive com binding Provider repetido;
+- mesmo ResourceId com path/domain/family/class/origin diferentes;
+- mesma identity com enabled/availability/capabilities/model/effort/economics,
+  provenance ou timestamp divergentes;
+- mesmo runtime Provider ou Agent em ResourceIds distintos;
+- resources Local distintos e runtimes diferentes válidos;
+- namespaces Provider/Agent independentes;
+- precedência global de snapshot sobre binding/duplicate, bounds sobre conflitos
+  e binding sobre duplicate; erros Display/JSON sem payload;
+- BillingDomain compartilhado com evidências econômicas divergentes aceitas,
+  sem mutação de descriptors ou inferência econômica.
+
+Os 33 testes B1 e os 38 testes LR-8.5A anteriores foram preservados. Diff de
+produção restrito ao import, dois erros novos e validação de universo no
+construtor de request; nenhum código de avaliação dos gates foi modificado.
+Arquivos alterados: `src-tauri/src/cognitive_resources/allocation.rs`,
+`src-tauri/src/cognitive_resources/allocation_tests.rs` e este documento.
+
+### Resultados
+
+| Gate | Resultado |
+|---|---|
+| `/home/sam/.cargo/bin/rustfmt --edition 2021 --check src-tauri/src/cognitive_resources/*.rs` | Exit 0; módulo inteiro |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources` | Exit 0; 84 aprovados, 0 falhas: 38 LR-8.5A + 33 B1 + 13 FIX-1 |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | Exit 0; 626 aprovados, 0 falhas, 2 ignorados; 257,86 s; main/doc-tests sem falhas |
+| cognition / agents na suíte completa | 370 / 110 aprovados; agents com 2 manuais ignorados |
+| LR-8 na suíte completa | rate 69, telemetry 33, admission 18, resilience 76, operational 8 e LR-8E 14; todos aprovados |
+| smart routing / TaskGraph runtime na suíte completa | 10 / 13 aprovados; demais testes de TaskGraph e Scheduler também passaram |
+| `git diff --check` e `git diff --cached --check` | Exit 0 no diff incremental final |
+
+Os dois ignorados continuam sendo os gates manuais Codex preexistentes
+`real_app_server_handshake` e `manual_final_codex_agent_bridge_gate`.
+Mantidos 15 warnings da biblioteca e dois de fixtures, todos preexistentes,
+sem warning novo ou supressão. Nenhuma falha de compilação/teste nesta FIX.
+A suíte completa mantém quatro threads, como o gate B1 auditado, sem alteração
+de timeout ou fixture legado. Rustfmt foi aplicado apenas aos dois arquivos
+Rust da FIX e verificado no módulo; nenhum arquivo legado fora do escopo foi
+reformatado. A comparação com o HEAD auditado confirmou os 33 corpos de testes
+B1 e o código de avaliação de eligibility intactos, além de ResourceCatalog e
+todos os boundaries operacionais preservados.
+
+Estado mantido: **B1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+Esta FIX não declara PASS nem libera B2.
