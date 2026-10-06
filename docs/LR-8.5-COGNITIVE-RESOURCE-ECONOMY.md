@@ -1,6 +1,6 @@
 # LR-8.5 — Cognitive Resource Economy & Allocation
 
-Estado: **PLANEJADA — executar somente após LR-8 = PASS completo e antes da LR-9.**
+Estado: **EM EXECUÇÃO — LR-8.5A iniciada após LR-8 = PASS completo.**\n\nSubfase corrente: **[LR-8.5A — Resource Domains, Access Paths & Cognitive Variants](LR-8.5A-RESOURCE-DOMAINS-VARIANTS.md)**.
 
 ## Motivação
 
