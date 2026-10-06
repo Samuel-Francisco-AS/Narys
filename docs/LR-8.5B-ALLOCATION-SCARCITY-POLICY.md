@@ -1,6 +1,6 @@
 # LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy
 
-Estado: **IMPLEMENTAÇÃO EM ANDAMENTO — B1 candidata; demais checkpoints não implementados.**
+Estado: **IMPLEMENTAÇÃO EM ANDAMENTO — B1 = PASS técnico; B2 é o checkpoint corrente.**
 
 Branch de trabalho: `lr-8.5b-allocation-scarcity-policy`  
 Base: `main@a6eec1b63655d860279f606bc55766255903f1fe`
@@ -651,7 +651,7 @@ idempotência, cancelamento e proteção contra efeitos duplicados.
 
 ## B1 — Implementação candidata
 
-**B1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+**B1 = PASS TÉCNICO — auditoria independente concluída.**
 A LR-8.5B permanece em andamento; este registro não declara PASS da B1 nem
 PASS da trilha, e não inicia B2/B3/B4.
 
@@ -945,3 +945,37 @@ todos os boundaries operacionais preservados.
 
 Estado mantido: **B1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
 Esta FIX não declara PASS nem libera B2.
+
+
+## B1 — Fechamento técnico
+
+Data: **06/10/2026**  
+HEAD auditado: `8c977df9eb3217b826e81b1b030341cce4e3958e`
+
+A auditoria independente encerra o checkpoint **B1 — Allocation Contracts & Hard Gates**
+em **PASS técnico**.
+
+Foram confirmados:
+
+- contracts provider-agnostic e sem autoridade operacional;
+- hard gates de enabled, availability, support, capabilities e quality floor;
+- semântica explícita Eligible / Ineligible / Unresolved;
+- Unknown preservado sem interpretação otimista;
+- capability Runtime e Model separadas;
+- tier efetivo effort → model sem soma ou inferência por label;
+- universo autorizado coerente por ResourceId;
+- runtime Provider/Agent ligado a no máximo um ResourceId;
+- clones estruturalmente idênticos permitidos;
+- ausência total de scoring, ranking, winner e spend decision;
+- Scheduler, Auto, Fixed, Preferred, affinity, fallback, retry, LR-8 e TaskGraph
+  behavior-neutral.
+
+Gate reportado: `cognitive_resources` 84 aprovados; suíte Rust completa
+626 aprovados, 0 falhas, 2 ignorados. A execução foi realizada no ambiente local;
+a auditoria independente revisou o código e diff remoto.
+
+**Próximo checkpoint: B2 — Scarcity, Spend Guard & Deterministic Scoring.**
+
+B2 pode consumir apenas candidatos B1 Eligible para seleção automática. Unresolved
+continua sem equivaler a autorização; sua resolução operacional permanece responsabilidade
+do builder/bridge da B3 quando houver evidência técnica externa apropriada.
