@@ -97,7 +97,10 @@ impl TaskRegistry {
         }
     }
     pub fn seed_next_id(&self, last: u64) {
-        self.next_id.store(last, Ordering::Relaxed);
+        self.next_id.fetch_max(
+            last.min(crate::cognitive_resources::MAX_HANDOFF_SEQUENCE),
+            Ordering::Relaxed,
+        );
     }
     /// Reserve a monotonic ID for background work without making it cancelable in the conversation UI.
     pub fn reserve_background_id(&self) -> Result<TaskId, String> {

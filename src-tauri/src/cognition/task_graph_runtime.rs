@@ -16,10 +16,11 @@ use super::{
     policy::CognitiveRole,
     scheduler::SchedulerEvent,
     task_graph::{SubtaskState, TaskGraph, TaskGraphResult, TaskGraphSubtaskResult},
+    task_graph_handoff::TaskGraphHandoff,
     task_graph_worker::{
         add_usage, run_worker, worker_input, worker_system_instruction, WorkerTiming,
     },
-    types::{ProviderCapabilities, SchedulerError, SchedulerUsage, TaskResult},
+    types::{SchedulerError, SchedulerUsage, TaskResult},
     ProviderRuntime,
 };
 use crate::{
@@ -28,6 +29,7 @@ use crate::{
         task::{TaskEvent, TaskEventKind, TaskId, TaskState},
     },
     persistence::{
+        checkpoints::TaskPolicySnapshot,
         database::Database,
         task_history::{self, SubtaskRecord, TaskRecord},
     },
@@ -216,6 +218,9 @@ async fn execute(
         let orchestrator = snapshots.next().expect("two requested roles");
         let worker = snapshots.next().expect("two requested roles");
         let orchestrator_policy = orchestrator.routing;
+        let worker_snapshot =
+            TaskPolicySnapshot::new(worker.routing.clone(), worker.allocation_snapshot)
+                .map_err(|_| "handoff_policy_invalid")?;
         let worker_policy = worker.routing;
         orchestrator_policy.validate()?;
         worker_policy.validate()?;
@@ -244,22 +249,20 @@ async fn execute(
         Ok::<_, &'static str>((
             orchestrator_policy,
             orchestrator_timeouts,
-            worker_policy,
             worker_timeouts,
             worker_context,
             orchestrator.allocation,
-            worker.allocation,
+            worker_snapshot,
         ))
     })
     .await;
     let (
         orchestrator_policy,
         orchestrator_timeouts,
-        worker_policy,
         worker_timeouts,
         worker_context,
         orchestrator_allocation,
-        worker_allocation,
+        worker_snapshot,
     ) = match preflight {
         Ok(Ok(value)) => value,
         Ok(Err(code)) => return fail(code),
@@ -293,6 +296,65 @@ async fn execute(
         return fail("cancelled");
     }
 
+    execute_workers(
+        db,
+        runtime,
+        root,
+        cancelled,
+        channel,
+        sequence,
+        worker_snapshot,
+        worker_timeouts,
+        worker_context,
+        OrchestratorResult {
+            provider_id: planner_provider_id,
+            plan,
+            usage: planner_usage,
+        },
+    )
+    .await
+}
+
+/// The real Worker graph phase; preflight supplies the captured B4/C2 policy.
+/// Its separate boundary also permits deterministic tests without a provider
+/// planner, credential vault or network.
+#[allow(clippy::too_many_arguments)]
+async fn execute_workers(
+    db: Database,
+    runtime: Arc<ProviderRuntime>,
+    root: TaskId,
+    cancelled: Arc<AtomicBool>,
+    channel: &Channel<TaskEvent>,
+    sequence: &AtomicU32,
+    worker_snapshot: TaskPolicySnapshot,
+    worker_timeouts: HashMap<String, super::types::ProviderTimeouts>,
+    worker_context: super::types::ContextBundle,
+    planner: OrchestratorResult,
+) -> ExecutionOutcome {
+    let fail = |code| ExecutionOutcome {
+        state: if code == "cancelled" {
+            TaskState::Cancelled
+        } else {
+            TaskState::Failed
+        },
+        error_code: Some(code),
+        graph: None,
+        meta: HashMap::new(),
+        result: None,
+    };
+    if cancelled.load(Ordering::Acquire) {
+        return fail("cancelled");
+    }
+    let worker_policy = worker_snapshot.routing().clone();
+    let mut handoff = match TaskGraphHandoff::new(root.0, worker_snapshot) {
+        Ok(value) => value,
+        Err(code) => return fail(code),
+    };
+    let OrchestratorResult {
+        provider_id: planner_provider_id,
+        plan,
+        usage: planner_usage,
+    } = planner;
     let mut graph = match TaskGraph::compile(&plan) {
         Ok(value) => value,
         Err(code) => return fail(code),
@@ -378,35 +440,7 @@ async fn execute(
             };
         }
     };
-    let chain = match rank_worker_targets(
-        &runtime.scheduler,
-        &worker_policy,
-        &worker_targets,
-        worker_allocation.as_ref(),
-    ) {
-        Ok(value) => value,
-        Err(error) => {
-            graph.block_unfinished();
-            return ExecutionOutcome {
-                state: TaskState::Failed,
-                error_code: Some(error.code()),
-                graph: Some(graph),
-                meta,
-                result: None,
-            };
-        }
-    };
-    // The Auto decision includes the winning variant, not only its provider ID.
-    // Pinning workers below preserves this already-made allocation decision.
-    let ranked: Vec<_> = chain
-        .iter()
-        .map(|target| target.provider_id.clone())
-        .collect();
     let worker_context = Arc::new(worker_context);
-    let targets: HashMap<_, _> = chain
-        .into_iter()
-        .map(|target| (target.provider_id.clone(), target))
-        .collect();
     let retry = worker_policy.retry_policy();
     let reserved_calls = if retry.enabled {
         retry.max_retries.saturating_add(1)
@@ -489,20 +523,44 @@ async fn execute(
 
         let mut specs = Vec::with_capacity(count);
         for (offset, subtask_id) in ready.into_iter().take(count).enumerate() {
-            let provider_id = ranked[(provider_cursor + offset) % ranked.len()].clone();
-            let target = match targets.get(&provider_id) {
-                Some(value) => value.clone(),
-                None => {
-                    graph.block_unfinished();
+            let ordinal = if handoff.auto() {
+                offset
+            } else {
+                provider_cursor + offset
+            };
+            let unit = match handoff
+                .prepare(
+                    &db,
+                    &graph,
+                    &subtask_id,
+                    &runtime.scheduler,
+                    &worker_targets,
+                    ordinal,
+                    &cancelled,
+                )
+                .await
+            {
+                Ok(value) => value,
+                Err(code) => {
+                    if code == "cancelled" {
+                        graph.cancel_unfinished();
+                    } else {
+                        graph.block_unfinished();
+                    }
                     return ExecutionOutcome {
-                        state: TaskState::Failed,
-                        error_code: Some("provider_config_invalid"),
+                        state: if code == "cancelled" {
+                            TaskState::Cancelled
+                        } else {
+                            TaskState::Failed
+                        },
+                        error_code: Some(code),
                         graph: Some(graph),
                         meta,
                         result: None,
                     };
                 }
             };
+            let provider_id = unit.pin().target().provider_id.clone();
             let step = graph
                 .step(&subtask_id)
                 .expect("validated graph step")
@@ -525,9 +583,9 @@ async fn execute(
                 value.provider_id = Some(provider_id.clone());
             }
             let internal_instruction = worker_system_instruction(&step);
-            specs.push((subtask_id, provider_id, target, input, internal_instruction));
+            specs.push((subtask_id, provider_id, unit, input, internal_instruction));
         }
-        provider_cursor = (provider_cursor + specs.len()) % ranked.len();
+        provider_cursor += specs.len();
 
         let mut outcomes: Vec<(
             String,
@@ -595,6 +653,7 @@ async fn execute(
         // also used to stop sibling workers when the Channel closes.
         let mut wave_failed = false;
         let mut wave_channel_failed = false;
+        let mut checkpoint_error = None;
         for (subtask_id, provider_id, (started, outcome)) in outcomes {
             if let Some(timing) = started {
                 if graph.mark_running(&subtask_id).is_err() {
@@ -626,6 +685,34 @@ async fn execute(
                             result: None,
                         };
                     }
+                    add_usage(&mut worker_usage, &result.usage);
+                    let receipt = match handoff.commit_completed(&db, &subtask_id, &result).await {
+                        Ok(receipt) => receipt,
+                        Err(code) => {
+                            checkpoint_error = Some(code);
+                            let _ = graph.mark_failed(&subtask_id);
+                            if let Some(value) = meta.get_mut(&subtask_id) {
+                                value.error_code = Some(code.into());
+                            }
+                            if emit(
+                                channel,
+                                root,
+                                sequence,
+                                TaskState::Running,
+                                TaskEventKind::SubtaskFailed {
+                                    subtask_id,
+                                    provider_id: Some(provider_id),
+                                    error_code: code.into(),
+                                },
+                            )
+                            .is_err()
+                            {
+                                wave_channel_failed = true;
+                                cancelled.store(true, Ordering::Release);
+                            }
+                            continue;
+                        }
+                    };
                     if graph.mark_completed(&subtask_id).is_err() {
                         graph.block_unfinished();
                         return ExecutionOutcome {
@@ -636,7 +723,6 @@ async fn execute(
                             result: None,
                         };
                     }
-                    add_usage(&mut worker_usage, &result.usage);
                     let subtask_result = TaskGraphSubtaskResult {
                         subtask_id: subtask_id.clone(),
                         provider_id: provider_id.clone(),
@@ -652,6 +738,7 @@ async fn execute(
                         TaskEventKind::SubtaskCompleted {
                             subtask_id,
                             provider_id,
+                            checkpoint_id: receipt.checkpoint().id(),
                         },
                     )
                     .is_err()
@@ -730,11 +817,11 @@ async fn execute(
                 result: None,
             };
         }
-        if wave_failed {
+        if wave_failed || checkpoint_error.is_some() {
             graph.block_unfinished();
             return ExecutionOutcome {
                 state: TaskState::Failed,
-                error_code: Some("task_graph_subtask_failed"),
+                error_code: Some(checkpoint_error.unwrap_or("task_graph_subtask_failed")),
                 graph: Some(graph),
                 meta,
                 result: None,
@@ -937,8 +1024,9 @@ pub fn start_task(
     Ok(id)
 }
 
-/// Initial Worker allocation uses the same engine as Scheduler::run. Execution
-/// later pins this chosen target as Fixed and never re-scores the unit.
+/// Read-only target projection retained for B regression fixtures. C3 uses the
+/// same engine through ranked_provider_allocations to retain complete identity.
+#[cfg(test)]
 pub(crate) fn rank_worker_targets(
     scheduler: &super::scheduler::Scheduler,
     policy: &super::policy::CognitiveRolePolicy,
@@ -948,8 +1036,12 @@ pub(crate) fn rank_worker_targets(
     scheduler.ranked_provider_targets(
         &policy.selection(),
         targets,
-        &ProviderCapabilities::text_stream(),
+        &super::types::ProviderCapabilities::text_stream(),
         &super::types::InvocationMode::default(),
         allocation,
     )
 }
+
+#[cfg(test)]
+#[path = "task_graph_runtime/c3_tests.rs"]
+mod c3_tests;

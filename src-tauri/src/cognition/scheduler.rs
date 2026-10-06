@@ -113,6 +113,23 @@ impl Affinities {
 pub(crate) struct ProviderRouteEntry {
     pub target: ProviderTarget,
     pub score: Option<i64>,
+    variant: Option<crate::cognitive_resources::AllocationVariant>,
+}
+
+/// Only Scheduler route resolution constructs this pair. Checkpoints and Worker
+/// invocation consume the same immutable selection, never a caller variant.
+#[derive(Clone, Debug)]
+pub(crate) struct PinnedProviderAllocation {
+    target: ProviderTarget,
+    variant: crate::cognitive_resources::AllocationVariant,
+}
+impl PinnedProviderAllocation {
+    pub fn target(&self) -> &ProviderTarget {
+        &self.target
+    }
+    pub fn variant(&self) -> &crate::cognitive_resources::AllocationVariant {
+        &self.variant
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -302,6 +319,67 @@ impl Scheduler {
             Ok(targets)
         }
     }
+    /// Fresh read-only decision for a new TaskGraph unit. Auto retains B's exact
+    /// variant; explicit routing binds only local runtime identity and invocation,
+    /// without consulting economic policy/catalog or changing its order.
+    pub(crate) fn ranked_provider_allocations(
+        &self,
+        selection: &ProviderSelection,
+        targets: &[ProviderTarget],
+        allocation_policy: Option<&crate::cognitive_resources::AllocationRuntimePolicy>,
+    ) -> Result<Vec<PinnedProviderAllocation>, SchedulerError> {
+        use crate::cognitive_resources::*;
+        let chain = self.resolve_provider_chain(
+            selection,
+            targets,
+            &ProviderCapabilities::text_stream(),
+            &InvocationMode::default(),
+            allocation_policy,
+            None,
+            0,
+            ProviderChainPurpose::Ranking,
+        )?;
+        let mut pins = Vec::new();
+        for route in chain
+            .into_iter()
+            .filter(|r| self.resilience.eligible(&r.target.provider_id))
+        {
+            let target = route.target;
+            let variant = match route.variant {
+                Some(variant) => variant,
+                None => AllocationVariant {
+                    resource_id: ResourceId::new(&target.provider_id)
+                        .map_err(|_| SchedulerError::InvalidTargetConfig)?,
+                    access_path: AccessPath::new("provider_runtime").expect("local identity"),
+                    billing_domain_id: BillingDomainId::new(&target.provider_id)
+                        .map_err(|_| SchedulerError::InvalidTargetConfig)?,
+                    model_id: ModelId::new(&target.invocation.model)
+                        .map_err(|_| SchedulerError::InvalidTargetConfig)?,
+                    effort: target
+                        .invocation
+                        .thinking_level
+                        .map(EffortId::from_thinking_level),
+                },
+            };
+            if variant.resource_id.as_str() != target.provider_id
+                || variant.model_id.as_str() != target.invocation.model
+                || variant.effort.as_ref().map(EffortId::as_str)
+                    != target
+                        .invocation
+                        .thinking_level
+                        .map(super::policy::ThinkingLevel::as_str)
+            {
+                return Err(SchedulerError::InvalidTargetConfig);
+            }
+            pins.push(PinnedProviderAllocation { target, variant });
+        }
+        if pins.is_empty() {
+            Err(SchedulerError::NoProvider)
+        } else {
+            Ok(pins)
+        }
+    }
+
     /// Single ordering engine for run, read-only ranking and TaskGraph selection.
     /// Capture LR-8 once per Auto plan. Never refresh live rate state for ranking.
     fn resolve_provider_chain(
@@ -360,6 +438,7 @@ impl Scheduler {
                 .map(|entry| ProviderRouteEntry {
                     target: entry.target.clone(),
                     score: Some(entry.score),
+                    variant: Some(entry.variant.clone()),
                 })
                 .collect());
         }
@@ -400,6 +479,7 @@ impl Scheduler {
             chain.push(ProviderRouteEntry {
                 target: target.clone(),
                 score: None,
+                variant: None,
             });
         }
         Ok(chain)

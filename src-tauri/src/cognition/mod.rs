@@ -1,48 +1,49 @@
-pub mod allocation_policy;
 pub mod admission;
-pub mod rate;
-pub mod resilience;
-#[cfg(test)]
-mod resilience_tests;
-#[cfg(test)]
-mod rate_tests;
 #[cfg(test)]
 mod admission_tests;
+pub mod allocation_policy;
 mod bounded_json;
-#[cfg(test)]
-mod fix5_tests;
 pub mod catalog;
 pub mod cloudflare;
 pub mod context;
 pub mod credentials_commands;
+#[cfg(test)]
+mod fix5_tests;
 pub mod gemini;
 pub mod gemini_commands;
 pub mod groq;
 pub mod groq_commands;
+#[cfg(test)]
+mod lr8e_gate_tests;
 pub mod mistral;
 pub mod mock;
-pub mod orchestrator;
-pub mod policy;
-pub mod provider;
-pub mod registry;
-pub mod scheduler;
-pub mod settings;
 pub mod operational;
 #[cfg(test)]
 mod operational_tests;
+pub mod orchestrator;
+pub mod policy;
+pub mod provider;
+pub mod rate;
 #[cfg(test)]
-mod lr8e_gate_tests;
+mod rate_tests;
+pub mod registry;
+pub mod resilience;
+#[cfg(test)]
+mod resilience_tests;
+pub mod scheduler;
+pub mod settings;
 pub mod summary;
 pub mod task_graph;
+pub(crate) mod task_graph_handoff;
 pub mod task_graph_runtime;
-mod task_graph_worker;
 #[cfg(test)]
 mod task_graph_runtime_tests;
-mod transport;
-pub mod types;
+mod task_graph_worker;
 pub mod telemetry;
 #[cfg(test)]
 mod telemetry_tests;
+mod transport;
+pub mod types;
 
 use mock::{MockProvider, MockScenario};
 use registry::ProviderRegistry;
@@ -60,7 +61,8 @@ pub struct ProviderRuntime {
 pub struct ProviderTimeoutHandles(pub HashMap<String, Arc<RwLock<types::ProviderTimeouts>>>);
 impl ProviderRuntime {
     pub fn connect_credentials(&self, store: &crate::security::secrets::SecretStore) {
-        let observer: Arc<dyn crate::security::secrets::CredentialContextObserver> = self.scheduler.clone();
+        let observer: Arc<dyn crate::security::secrets::CredentialContextObserver> =
+            self.scheduler.clone();
         store.observe_context_changes(Arc::downgrade(&observer));
     }
     pub fn new(registry: ProviderRegistry) -> Self {
@@ -68,8 +70,13 @@ impl ProviderRuntime {
             scheduler: Arc::new(Scheduler::new(registry)),
         }
     }
-    pub fn with_database(registry: ProviderRegistry, db: crate::persistence::database::Database) -> Result<Self, types::SchedulerError> {
-        Ok(Self { scheduler: Arc::new(Scheduler::with_rate_storage(registry, Some(db))?) })
+    pub fn with_database(
+        registry: ProviderRegistry,
+        db: crate::persistence::database::Database,
+    ) -> Result<Self, types::SchedulerError> {
+        Ok(Self {
+            scheduler: Arc::new(Scheduler::with_rate_storage(registry, Some(db))?),
+        })
     }
 }
 impl crate::security::secrets::CredentialContextObserver for Scheduler {
@@ -79,14 +86,17 @@ impl crate::security::secrets::CredentialContextObserver for Scheduler {
         let mut providers = std::collections::BTreeSet::new();
         for key in keys {
             let id = match key {
-                SecretKey::GeminiApiKey => "gemini", SecretKey::GroqApiKey => "groq",
+                SecretKey::GeminiApiKey => "gemini",
+                SecretKey::GroqApiKey => "groq",
                 SecretKey::MistralApiKey => "mistral",
                 SecretKey::CloudflareApiToken | SecretKey::CloudflareAccountId => "cloudflare",
                 SecretKey::Lr3Test => continue,
             };
             providers.insert(id);
         }
-        for id in providers { self.invalidate_rate_context(id); }
+        for id in providers {
+            self.invalidate_rate_context(id);
+        }
     }
 }
 

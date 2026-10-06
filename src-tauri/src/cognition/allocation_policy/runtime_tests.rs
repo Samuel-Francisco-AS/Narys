@@ -321,6 +321,7 @@ async fn b4_auto_none_before_any_event_reservation_admission_or_provider() {
     let req = request(RoleRuntimePolicy {
         routing: p.clone(),
         allocation: None,
+        allocation_snapshot: None,
     });
     let (result, events) = run(&s, req).await;
     assert_eq!(result.unwrap_err(), SchedulerError::InvalidTargetConfig);

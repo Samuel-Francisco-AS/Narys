@@ -254,6 +254,7 @@ pub struct ProviderVariantExclusion {
 #[serde(rename_all = "camelCase")]
 pub struct AutoRouteEntry {
     pub target: ProviderTarget,
+    pub variant: AllocationVariant,
     pub score: i64,
 }
 /// Sanitized frozen route. No prompt/context, credential, remote account,
@@ -520,6 +521,7 @@ impl ProviderAutoAllocator {
                 seen.insert(target.provider_id.clone())
                     .then(|| AutoRouteEntry {
                         target: target.clone(),
+                        variant: ranked.variant.clone(),
                         score: ranked.score_breakdown.total,
                     })
             })

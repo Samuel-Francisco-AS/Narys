@@ -1,5 +1,5 @@
-use rusqlite::{params, Connection};
 use super::database::PersistenceError;
+use rusqlite::{params, Connection};
 
 #[derive(Debug)]
 pub struct TaskRecord {
@@ -72,19 +72,36 @@ pub fn insert_with_subtasks(
     Ok(())
 }
 
+/// Canonical root high-water mark, including units committed before terminal
+/// history. Invalid persisted identities prevent startup rather than reuse.
 pub fn max_id(conn: &Connection) -> Result<u64, PersistenceError> {
-    conn.query_row("SELECT COALESCE(MAX(task_id),0) FROM task_records", [], |r| r.get(0))
-        .map_err(|_| PersistenceError::Read)
+    let maximum: u64 = conn.query_row(
+        "SELECT MAX(id) FROM (SELECT COALESCE(MAX(task_id),0) AS id FROM main.task_records UNION ALL SELECT COALESCE(MAX(root_task_id),0) FROM main.cognitive_checkpoints)",
+        [], |r| r.get(0),
+    ).map_err(|_| PersistenceError::Read)?;
+    if maximum > crate::cognitive_resources::MAX_HANDOFF_SEQUENCE {
+        return Err(PersistenceError::Read);
+    }
+    Ok(maximum)
 }
 
-pub fn mark_failed(conn: &Connection, task_id: u64, error_code: &str) -> Result<(), PersistenceError> {
-    let updated = conn.execute(
-        "UPDATE task_records SET state='failed',error_code=?2 WHERE task_id=?1",
-        params![task_id,error_code],
-    ).map_err(|_| PersistenceError::Write)?;
-    if updated == 1 { Ok(()) } else { Err(PersistenceError::Write) }
+pub fn mark_failed(
+    conn: &Connection,
+    task_id: u64,
+    error_code: &str,
+) -> Result<(), PersistenceError> {
+    let updated = conn
+        .execute(
+            "UPDATE task_records SET state='failed',error_code=?2 WHERE task_id=?1",
+            params![task_id, error_code],
+        )
+        .map_err(|_| PersistenceError::Write)?;
+    if updated == 1 {
+        Ok(())
+    } else {
+        Err(PersistenceError::Write)
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -150,7 +167,10 @@ mod tests {
             .collect();
         assert_eq!(providers, vec!["groq", "cloudflare"]);
 
-        let invalid_root = TaskRecord { task_id: 43, ..root };
+        let invalid_root = TaskRecord {
+            task_id: 43,
+            ..root
+        };
         let invalid = vec![SubtaskRecord {
             root_task_id: 999,
             subtask_id: "wrong-root".into(),
@@ -162,7 +182,11 @@ mod tests {
         }];
         assert!(insert_with_subtasks(&mut conn, &invalid_root, &invalid).is_err());
         let missing: i64 = conn
-            .query_row("SELECT COUNT(*) FROM task_records WHERE task_id=43", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM task_records WHERE task_id=43",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(missing, 0);
         drop(conn);

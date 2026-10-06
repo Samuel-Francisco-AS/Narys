@@ -17,6 +17,12 @@ export type TaskGraphResult = {
   workerUsage: { providerCalls: number; inputTokens: number; outputTokens: number; outputTokensMeasured: boolean; outputTokensAccounted: number; providersUsed: string[]; retries: number; fallbacks: number }
 }
 
+export type ExecutionUnitId = { rootTaskId: number; sequence: number }
+export type CheckpointId = { unitId: ExecutionUnitId; sequence: number }
+export type UnitAllocation = { resourceId: string; accessPath: string; billingDomainId: string; modelId: string; effort: string | null }
+export type BoundaryReason = { kind: 'fresh_unit_at_confirmed_boundary' | 'successor_at_confirmed_completion' }
+export type AllocationTransition = { predecessor: CheckpointId; reason: BoundaryReason; change: { resource: boolean; accessPath: boolean; model: boolean; effort: boolean } }
+
 type TaskEventBase = {
   taskId: TaskId
   sequence: number
@@ -40,8 +46,8 @@ export type TaskEvent = TaskEventBase & (
   | { type: 'task_result_ready'; result: CognitiveResult }
   | { type: 'task_planned'; step_count: number }
   | { type: 'subtask_waiting'; subtask_id: string; depends_on: string[] }
-  | { type: 'subtask_started'; subtask_id: string; provider_id: string }
-  | { type: 'subtask_completed'; subtask_id: string; provider_id: string }
+  | { type: 'subtask_started'; subtask_id: string; provider_id: string; unit_id: ExecutionUnitId; allocation: UnitAllocation; handoff_reason: BoundaryReason; transitions: AllocationTransition[] }
+  | { type: 'subtask_completed'; subtask_id: string; provider_id: string; checkpoint_id: CheckpointId }
   | { type: 'subtask_retry'; subtask_id: string; provider_id: string; reason_code: string }
   | { type: 'subtask_output_observed'; subtask_id: string; provider_id: string }
   | { type: 'subtask_failed'; subtask_id: string; provider_id: string | null; error_code: string }

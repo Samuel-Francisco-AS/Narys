@@ -1,5 +1,11 @@
-use std::{collections::HashMap, sync::{atomic::{AtomicBool, Ordering}, Arc}};
 use serde::Deserialize;
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use tauri::ipc::Channel;
 
@@ -7,8 +13,8 @@ use super::{
     scheduler::{Scheduler, SchedulerEvent},
     task_graph::TaskGraphSubtaskResult,
     types::{
-        ContextBundle, ProviderCapabilities, ProviderSelection, ProviderTarget, ProviderTaskRequest,
-        RetryPolicy, SchedulerError, SchedulerUsage, TaskBudget, TaskResult,
+        ContextBundle, ProviderCapabilities, ProviderSelection, ProviderTaskRequest, RetryPolicy,
+        SchedulerError, SchedulerUsage, TaskBudget, TaskResult,
     },
 };
 use crate::{
@@ -23,9 +29,7 @@ fn emit(
     state: TaskState,
     kind: TaskEventKind,
 ) -> Result<(), &'static str> {
-    let sequence = sequence
-        .fetch_add(1, Ordering::AcqRel)
-        .saturating_add(1);
+    let sequence = sequence.fetch_add(1, Ordering::AcqRel).saturating_add(1);
     channel
         .send(TaskEvent {
             task_id: root,
@@ -45,17 +49,41 @@ fn worker_events<'a>(
 ) -> impl FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send + 'a {
     move |event| match event {
         SchedulerEvent::Selected { .. } => Ok(()),
-        SchedulerEvent::Queued { provider_id, traffic_class, queue_depth } => emit(
-            channel, root, sequence, TaskState::Running,
-            TaskEventKind::ProviderQueued { provider_id, traffic_class, queue_depth },
-        ).map_err(|_| {
+        SchedulerEvent::Queued {
+            provider_id,
+            traffic_class,
+            queue_depth,
+        } => emit(
+            channel,
+            root,
+            sequence,
+            TaskState::Running,
+            TaskEventKind::ProviderQueued {
+                provider_id,
+                traffic_class,
+                queue_depth,
+            },
+        )
+        .map_err(|_| {
             cancelled.store(true, Ordering::Release);
             SchedulerError::EventSinkClosed
         }),
-        SchedulerEvent::Admitted { provider_id, traffic_class, queue_delay_ms } => emit(
-            channel, root, sequence, TaskState::Running,
-            TaskEventKind::ProviderAdmitted { provider_id, traffic_class, queue_delay_ms },
-        ).map_err(|_| {
+        SchedulerEvent::Admitted {
+            provider_id,
+            traffic_class,
+            queue_delay_ms,
+        } => emit(
+            channel,
+            root,
+            sequence,
+            TaskState::Running,
+            TaskEventKind::ProviderAdmitted {
+                provider_id,
+                traffic_class,
+                queue_delay_ms,
+            },
+        )
+        .map_err(|_| {
             cancelled.store(true, Ordering::Release);
             SchedulerError::EventSinkClosed
         }),
@@ -77,7 +105,8 @@ fn worker_events<'a>(
             cancelled.store(true, Ordering::Release);
             SchedulerError::EventSinkClosed
         }),
-        SchedulerEvent::Chunk { provider_id, .. } | SchedulerEvent::OutputObserved { provider_id } => emit(
+        SchedulerEvent::Chunk { provider_id, .. }
+        | SchedulerEvent::OutputObserved { provider_id } => emit(
             channel,
             root,
             sequence,
@@ -158,8 +187,8 @@ fn parse_structured_worker_result(raw: &str, expected_id: &str) -> Result<String
     if raw.len() > MAX_STRUCTURED_WORKER_RESULT_BYTES {
         return Err("task_graph_worker_result_invalid");
     }
-    let result: StructuredWorkerResult = serde_json::from_str(raw)
-        .map_err(|_| "task_graph_worker_result_invalid")?;
+    let result: StructuredWorkerResult =
+        serde_json::from_str(raw).map_err(|_| "task_graph_worker_result_invalid")?;
     if result.subtask_id != expected_id
         || result.subtask_id.trim().is_empty()
         || result.text.trim().is_empty()
@@ -180,7 +209,9 @@ pub(crate) fn add_usage(total: &mut SchedulerUsage, item: &SchedulerUsage) {
     total.provider_calls = total.provider_calls.saturating_add(item.provider_calls);
     total.input_tokens = total.input_tokens.saturating_add(item.input_tokens);
     total.output_tokens = total.output_tokens.saturating_add(item.output_tokens);
-    total.output_tokens_accounted = total.output_tokens_accounted.saturating_add(item.output_tokens_accounted);
+    total.output_tokens_accounted = total
+        .output_tokens_accounted
+        .saturating_add(item.output_tokens_accounted);
     total.output_tokens_measured &= item.output_tokens_measured;
     total.retries = total.retries.saturating_add(item.retries);
     total.fallbacks = total.fallbacks.saturating_add(item.fallbacks);
@@ -199,7 +230,7 @@ pub(crate) async fn run_worker(
     scheduler: Arc<Scheduler>,
     root: TaskId,
     subtask_id: String,
-    target: ProviderTarget,
+    unit: super::task_graph_handoff::PreparedUnit,
     input: String,
     internal_system_instruction: Option<String>,
     max_output_tokens: Option<u32>,
@@ -213,6 +244,7 @@ pub(crate) async fn run_worker(
     if cancelled.load(Ordering::Acquire) {
         return (None, Err("cancelled"));
     }
+    let target = unit.pin().target().clone();
     let provider_id = target.provider_id.clone();
     if emit(
         channel,
@@ -222,6 +254,10 @@ pub(crate) async fn run_worker(
         TaskEventKind::SubtaskStarted {
             subtask_id: subtask_id.clone(),
             provider_id: provider_id.clone(),
+            unit_id: unit.id(),
+            allocation: unit.pin().variant().clone(),
+            handoff_reason: unit.reason(),
+            transitions: unit.transitions().to_vec(),
         },
     )
     .is_err()
@@ -262,29 +298,44 @@ pub(crate) async fn run_worker(
         .map_err(|error| error.code());
     let result = match result {
         Ok(result) => result,
-        Err(code) => return (Some(WorkerTiming {
-            started_at: started.clone(),
-            finished_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-        }), Err(code)),
+        Err(code) => {
+            return (
+                Some(WorkerTiming {
+                    started_at: started.clone(),
+                    finished_at: chrono::Utc::now()
+                        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                }),
+                Err(code),
+            )
+        }
     };
     let mut result = result;
     if structured_result {
         match parse_structured_worker_result(&result.text, &subtask_id) {
             Ok(text) => result.text = text,
-            Err(code) => return (Some(WorkerTiming {
-                started_at: started.clone(),
-                finished_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-            }), Err(code)),
+            Err(code) => {
+                return (
+                    Some(WorkerTiming {
+                        started_at: started.clone(),
+                        finished_at: chrono::Utc::now()
+                            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+                    }),
+                    Err(code),
+                )
+            }
         }
     }
     // Test-only acknowledgement after Scheduler and worker validation, before
     // returning the completed future to the wave join. No production event.
     #[cfg(test)]
     super::task_graph_runtime_tests::worker_completed_ack(cancelled, &subtask_id);
-    (Some(WorkerTiming {
-        started_at: started,
-        finished_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-    }), Ok(result))
+    (
+        Some(WorkerTiming {
+            started_at: started,
+            finished_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        }),
+        Ok(result),
+    )
 }
 
 #[cfg(test)]
@@ -309,11 +360,17 @@ mod tests {
     #[test]
     fn structured_worker_result_is_strict_and_bounded() {
         assert_eq!(
-            parse_structured_worker_result(r#"{"subtaskId":"unit-1","text":"resultado"}"#, "unit-1"),
+            parse_structured_worker_result(
+                r#"{"subtaskId":"unit-1","text":"resultado"}"#,
+                "unit-1"
+            ),
             Ok("resultado".into())
         );
         assert_eq!(
-            parse_structured_worker_result(r#"{"subtaskId":"unit-10","text":"resultado"}"#, "unit-1"),
+            parse_structured_worker_result(
+                r#"{"subtaskId":"unit-10","text":"resultado"}"#,
+                "unit-1"
+            ),
             Err("task_graph_worker_result_invalid")
         );
         for raw in [
@@ -327,9 +384,18 @@ mod tests {
             r#"{"subtaskId":"unit-1","text":"resultado","extra":true}"#,
             r#"{"subtaskId":"unit-1","text":"resultado"} {"subtaskId":"unit-1","text":"outro"}"#,
         ] {
-            assert_eq!(parse_structured_worker_result(raw, "unit-1"), Err("task_graph_worker_result_invalid"));
+            assert_eq!(
+                parse_structured_worker_result(raw, "unit-1"),
+                Err("task_graph_worker_result_invalid")
+            );
         }
-        let oversized = format!(r#"{{"subtaskId":"unit-1","text":"{}"}}"#, "x".repeat(16 * 1024));
-        assert_eq!(parse_structured_worker_result(&oversized, "unit-1"), Err("task_graph_worker_result_invalid"));
+        let oversized = format!(
+            r#"{{"subtaskId":"unit-1","text":"{}"}}"#,
+            "x".repeat(16 * 1024)
+        );
+        assert_eq!(
+            parse_structured_worker_result(&oversized, "unit-1"),
+            Err("task_graph_worker_result_invalid")
+        );
     }
 }

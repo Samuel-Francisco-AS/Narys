@@ -4,8 +4,10 @@ Estado: **C1 = PASS técnico após auditoria independente.**
 
 **C2 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
-O PASS abaixo é exclusivo do C1. LR-8.5C não recebe PASS neste checkpoint;
-C3/C4 permanecem sem implementação iniciada.
+**C3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+
+Os PASSs são exclusivos de C1/C2. LR-8.5C permanece aberta;
+C4 não foi iniciada.
 
 Esta subfase fecha a LR-8.5 provando continuidade segura entre decisões de alocação
 independentes. Os blocos C1–C4 são **blocos internos da LR-8.5C**, não novas subfases
@@ -1068,3 +1070,232 @@ afetado pelo drift legado; todos os oito arquivos Rust alterados passam
 **Decisão:** C2 aprovado para servir de base ao C3, condicionado às
 pré-condições de integração acima. Este PASS não aprova C3/C4, não encerra
 LR-8.5C e não autoriza merge da branch neste checkpoint.
+
+
+## C3 — Implementação candidata: Boundary Reallocation & TaskGraph Bridge
+
+Data: **06/10/2026**. Branch única: `lr-8.5c-safe-handoff`.
+Baseline local/remota confirmada, limpa, em
+`8af97050712bd0b13679b3dfa2625185375ebe7b` (auditoria C2 PASS).
+`main`/`origin/main` preservadas em
+`0024fec735e3f6cb2461dbdeba8fa6aa4be32d32`.
+C1/C2 continuam PASS; esta implementação não constitui auditoria independente.
+
+### Recovery de identidade raiz
+
+`persistence::task_history::max_id` passa a ser o high-water mark canônico:
+consulta única em `main.task_records` **e** `main.cognitive_checkpoints`.
+Inclui roots comprometidos antes do histórico terminal, sem inferir validade de
+boundary a partir desse máximo. Falha de leitura/ID acima do limite impede a
+inicialização. A consulta obrigatória ocorre no composition root, antes de
+construir o runtime/iniciar Summary ou expor dispatch; não depende do sucesso de
+uma abertura opcional anterior do banco.
+
+`TaskRegistry::seed_next_id` usa `fetch_max`, conservando monotonicidade mesmo
+com seed atrasado. O teto existente `2^53−1` permanece; seed além desse teto
+fecha o allocator por esgotamento, sem overflow. O teste reabre SQLite com
+checkpoint root=417 e histórico máximo=416 e obtém foreground=418,
+background=419, incluindo tentativa de seed regressivo. TEMP tables não
+substituem as fontes duráveis.
+
+### Policy por tarefa e allocation por unidade
+
+B4 `RoleRuntimePolicy` conserva também o DTO econômico original capturado na
+mesma read transaction de routing/allocation. O preflight real de TaskGraph
+continua capturando Orchestrator/Worker juntos e constrói `TaskPolicySnapshot`
+Worker uma vez, antes do Planner/Workers. Fixed/Preferred mantêm allocation
+None e independência da row econômica. Não há reload de Settings ao completar
+uma unidade ou preparar a próxima; o runtime econômico deriva daquele mesmo
+DTO validado, e cada checkpoint reutiliza o snapshot exato.
+
+B3 `AutoRouteEntry` passa a conservar `ranked.variant` junto de target/score.
+`Scheduler::ranked_provider_allocations` usa a mesma `resolve_provider_chain`
+e devolve `PinnedProviderAllocation`, com campos privados e construção apenas
+no Scheduler. Em Auto a identidade é a variante realmente selecionada pelo
+ResourceAllocator, incluindo access path/billing domain/model/effort. Em
+Fixed/Preferred é o binding local `provider_runtime` da rota explícita, sem
+consulta ao catálogo/policy econômica nem mudança de ordem.
+
+Worker recebe `PreparedUnit` e clona **somente seu target pinado** para o request
+Fixed já usado pela D3. O checkpoint usa a variante do mesmo pin e verifica o
+provider retornado/ledger de providers usados. Não escolhe a primeira variante
+da config, não aceita allocation detached do caller e não reconstrói o ranking
+após a resposta.
+
+### Bridge e fronteiras duráveis
+
+`cognition/task_graph_handoff.rs` mantém os claims de unidades e receipts desta
+execução. IDs numéricos avançam na ordem de preparação, não na posição arbitrária
+do plano. Cada step só pode ser preparado uma vez; a bridge não recria unidade
+falhada/cancelada e não repete commit já acknowledged. Retries pertencem
+exclusivamente ao Scheduler, dentro do mesmo target/model/effort.
+
+Antes de preparar uma unidade pronta, a bridge verifica estado Pending/ready,
+targets da policy original, resultados/dependências validados pela D3 e receipts
+C2 associados exatamente aos steps. Revalida os receipts no SQLite por lookup,
+incluindo identidade/sequence/conteúdo/policy/provenance. Ausência, corrupção ou
+receipt diferente não liberam dependentes. Usa `can_handoff` C1 para **cada**
+predecessor, com boundary do receipt e cancelamento atual. Uma unidade sem
+dependências recebe ConfirmedBeforeStart; row no banco não substitui C1.
+
+Auto executa uma nova decisão B3/B1/B2 por unidade pronta. Captura os fatos
+operacionais LR-8 atuais na engine compartilhada; não cria catálogo novo nem
+expande os targets autorizados. A primeira unidade de cada wave usa o winner
+atual; peers independentes conservam a distribuição D3 na cadeia recém-avaliada.
+Fixed permanece explícito; Preferred preserva ordem e cursor D3, sem reordenação
+econômica. A seleção não é autorização de execução: Scheduler conserva todos
+os gates de resilience/rate/admission/accounting/retry/cancellation.
+
+Após `run_worker` retornar sucesso já validado pelo Core, a bridge constrói C2
+com source TaskGraphSubtask, allocation efetiva, policy original e referências
+exatas aos checkpoints das dependências. O fence é NotStarted porque este
+runtime aceita somente trabalho cognitivo e não executa efeitos externos.
+Somente após `CheckpointRepository::commit` devolver receipt committed a D3
+marca Completed, disponibiliza o resultado em memória e emite SubtaskCompleted.
+Falha de commit impede a boundary e bloqueia dependentes; rollback C2 inclui a
+policy. Não há write intermediário por retry/chunk/token.
+
+O fluxo Worker existente foi extraído em `execute_workers`, utilizado pelo
+TaskGraph real e pelos gates sintéticos, para testar a integração sem Planner
+remoto/vault. Compilação PlanV1, budget conservador, consolidação e formato dos
+resultados cognitivos permanecem os da D3.
+
+### Cancelamento, paralelismo e falhas
+
+Cancelamento é checado no loop da wave, em prepare (antes/depois do lookup e da
+alocação), no Worker e pelo Scheduler na invocation/admission/transporte.
+Cancelar em SubtaskCompleted, já depois de COMMIT, impede B e conserva A.
+Cancelar no callback SubtaskStarted de B também produz zero requests B e nenhum
+checkpoint B. SubtaskStarted descreve intenção/lifecycle local, não HTTP factual.
+A precedence channel failure > cancellation e o terminal único permanecem nos
+caminhos D3/TaskRegistry existentes.
+
+`tokio::join!` continua executando até duas Workers independentes. Cada uma tem
+pin/claim/receipt próprios; nenhum lock/connection SQLite atravessa transporte
+ou await. I/O de checkpoint/lookup usa spawn_blocking bounded pelo busy timeout
+existente. Selecionar B enquanto A já aguarda no provider não muda A. As waves
+preservam o fail-fast existente: uma falha pode encerrar a wave/tarefa mesmo que
+outra branch não dependa dela; não foi introduzido um novo executor de branches.
+
+Códigos locais distinguem `handoff_checkpoint_write_failed`,
+`handoff_checkpoint_mismatch`, `handoff_boundary_unsafe`,
+`handoff_allocation_unavailable`, identidade/contexto inválidos e cancellation.
+Falha depois de partial output não produz checkpoint, retry/handoff alternativo
+ou sucessor. UnknownOrInFlight permanece inseguro mesmo em receipt committed.
+
+### Provenance e schema
+
+Sem migration nova: schema continua **14**, usando exclusivamente as duas tabelas
+C2. Receipts permitem reconstruir predecessor/source allocation e destination
+allocation pelas referências de dependências, sem persistir Worker output.
+SubtaskStarted recebe IDs/allocation/reason C1 e transitions por predecessor,
+com flags estruturadas resource/accessPath/model/effort; todas false representa
+allocation unchanged. SubtaskCompleted recebe CheckpointId somente após COMMIT.
+Os tipos TypeScript foram estendidos para esses campos aditivos; nenhuma nova
+UI, policy editor ou ação de produto foi criada.
+
+Nenhuma metadata nova contém prompt, output, reasoning, secrets, HTTP payloads,
+preços ou timestamps inventados. Model/resource/effort continuam sujeitos aos
+limites e labels públicos do C2. O resultado cognitivo real continua no mecanismo
+D3 em memória; checkpoints não o substituem nem inventam contexto pós-crash.
+
+### Arquivos
+
+Criados:
+
+- `src-tauri/src/cognition/task_graph_handoff.rs`;
+- `src-tauri/src/cognition/task_graph_handoff/tests.rs`;
+- `src-tauri/src/cognition/task_graph_runtime/c3_tests.rs`.
+
+Alterados:
+
+- `src-tauri/src/cognition/allocation_policy.rs` e seu `runtime_tests.rs`;
+- `src-tauri/src/cognition/mod.rs`, `scheduler.rs`, `task_graph_runtime.rs`,
+  `task_graph_worker.rs`;
+- `src-tauri/src/cognitive_resources/provider_bridge.rs`;
+- `src-tauri/src/lib.rs`, `luna/runtime.rs`, `luna/task.rs`;
+- `src-tauri/src/persistence/task_history.rs` e `checkpoints.rs` (somente comentário
+  de integração neste último; contratos/schema C2 preservados);
+- `src/luna/types.ts`;
+- este documento.
+
+### Gates locais
+
+Gates locais/determinísticos, sem API/quota comercial:
+
+| Gate/filtro | Resultado |
+|---|---:|
+| C3 `c3_` (A–R) | **25 aprovados** |
+| C1 `cognitive_resources::handoff_tests::` | **25 aprovados** |
+| C2 `c2_` | **39 aprovados** |
+| `cognitive_resources::` | 246 aprovados |
+| B1 `allocation_tests::` | 46 aprovados |
+| B2 `scoring_tests::` | 96 aprovados |
+| B3 `provider_bridge::tests::` | 41 aprovados |
+| B4 `b4_` | 56 aprovados (54 B4 + 2 C2 com B4 no nome) |
+| `persistence::` (inclui checkpoints/migrations) | 71 aprovados |
+| `task_graph` (inclui C3) | 49 aprovados |
+| D3 `task_graph_runtime_tests::` | 13 aprovados |
+| `luna::runtime::tests::` | 6 aprovados |
+| `admission_tests::` | 18 aprovados |
+| `rate_tests::` | 69 aprovados |
+| `resilience_tests::` | 76 aprovados |
+| `telemetry_tests::` | 33 aprovados |
+| `lr8e_gate_tests::` | 14 aprovados |
+| `scheduler::tests::` | 2 aprovados |
+| Suíte Rust completa | **905 aprovados, 0 falhas, 2 ignorados** |
+
+A suíte integral concluiu em **261,08 s**, sem falhas nem flakiness observada.
+Os dois testes ignorados são gates manuais legados que exigem app-server real
+ou autenticação/quota; não foram ativados. Binário e doc-tests também concluíram
+sem falhas.
+
+Os filtros se sobrepõem; as contagens descrevem os módulos/nomes realmente
+executados. Admission inclui ainda os dois gates D3 de cap 1/cap 2 no grupo
+TaskGraph. C1 usa filtro de módulo para excluir o gate C3 que cita C1 no nome.
+
+Comandos: `cargo test --lib --manifest-path src-tauri/Cargo.toml <filtro> --
+--test-threads=4` para cada linha focada; `RUST_TEST_THREADS=4 cargo test
+--manifest-path src-tauri/Cargo.toml`; `cargo check --manifest-path
+src-tauri/Cargo.toml`; `npm run typecheck`; `git diff --check`.
+
+`cargo check` aprovado, com os 12 warnings de biblioteca da baseline; testes
+mantêm o warning legado de IdentitySnapshot. `npm run typecheck` e
+`git diff --check` aprovados. `rustfmt --check --edition 2021 --config
+skip_children=true` aprovado diretamente nos **15 arquivos Rust alterados**.
+`cargo fmt --check --manifest-path src-tauri/Cargo.toml` ainda retorna 1 por
+drift global conhecido: baseline auditada tinha **30 arquivos**, candidata tem
+**27**, todos já presentes na baseline, sem drift novo. Formatação local de
+mod.rs/Worker/task_history resolveu três desses arquivos; não se reformatou o
+restante do workspace.
+
+Durante desenvolvimento, a primeira fixture de recovery associou DTO econômico
+a Worker Preferred e recebeu InvalidPolicy; a fixture foi corrigida para
+Fixed/None, sem alterar C2. Um assert esperava `no_provider`, mas o código
+Scheduler existente era `provider_unavailable`; C3 passou a expor o código local
+`handoff_allocation_unavailable` para falha de seleção antes de execução,
+separando-a de falha remota. Os gates finais C3 passaram após a correção.
+Não foram classificados como flakiness nem ocultados.
+
+### Limitações para auditoria e C4
+
+Esta candidata só conecta checkpoints às unidades Worker da execução atual;
+não implementa resume pós-crash, novo dispatch de outputs ausentes, checkpoint
+do Planner, Tool Runtime, resolução de efeito incerto ou pausa de produto.
+Após restart os receipts e a proteção contra reutilização de root sobrevivem;
+ausência de output textual durável não vira contexto fictício nem replay.
+
+O catálogo de produção continua minimalista/Unknown. C3 reobserva LR-8 entre
+unidades, sem discovery comercial, refresh de catálogo, pricing, novo auto-spend
+ou alteração de policy dentro da tarefa. Persistem as limitações aprovadas B/LR-8:
+snapshots operacionais não são globalmente atômicos; race entre ranking e
+reservation pode encerrar localmente sem replan; SQLite/OS e instância única
+mantêm as premissas C2. A verificação de receipts é factual, não uma assinatura
+contra edição maliciosa coerente do banco.
+
+A auditoria deve revisar especialmente o binding variante→invocation→checkpoint,
+policy original, recovery antes de startup do runtime, gates após cancelamento,
+interpretação de eventos como intenção e distribuição Auto por wave/paralelismo.
+C1/C2 permanecem PASS; C4 não iniciada; LR-8.5C não encerrada.
+
+**C3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**

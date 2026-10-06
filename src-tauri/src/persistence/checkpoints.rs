@@ -1,5 +1,5 @@
-//! C2 durable ledger. Deliberately not connected to dispatch, Scheduler or resume.
-#![allow(dead_code)] // Candidate API remains dormant until independently audited C3.
+//! C2 durable ledger. C3 consumes receipts; this layer never dispatches work.
+#![allow(dead_code)] // Factual recovery APIs also serve future consumers.
 mod contracts;
 use crate::cognitive_resources::{EffectState, ExecutionUnitId, ExecutionUnitState};
 pub use contracts::*;

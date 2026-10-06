@@ -134,6 +134,7 @@ fn write_in_transaction(
 pub struct RoleRuntimePolicy {
     pub routing: CognitiveRolePolicy,
     pub allocation: Option<AllocationRuntimePolicy>,
+    pub allocation_snapshot: Option<CognitiveRoleAllocationPolicy>,
 }
 /// Fixed/Preferred never depend on economics, even if its table/row is corrupt.
 /// Multiple roles in a TaskGraph preflight share this one SQLite snapshot.
@@ -149,18 +150,20 @@ pub fn load_role_runtime_policies(
             .iter()
             .map(|role| {
                 let routing = policy::load(conn, *role)?;
-                let allocation = if routing.routing_mode == RoutingMode::Auto {
-                    Some(
-                        load(conn, *role)?
-                            .to_runtime()
-                            .map_err(|_| PersistenceError::Read)?,
-                    )
+                let allocation_snapshot = if routing.routing_mode == RoutingMode::Auto {
+                    Some(load(conn, *role)?)
                 } else {
                     None
                 };
+                let allocation = allocation_snapshot
+                    .as_ref()
+                    .map(|dto| dto.to_runtime())
+                    .transpose()
+                    .map_err(|_| PersistenceError::Read)?;
                 Ok(RoleRuntimePolicy {
                     routing,
                     allocation,
+                    allocation_snapshot,
                 })
             })
             .collect()

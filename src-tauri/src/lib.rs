@@ -23,14 +23,14 @@ pub fn run() {
                     .map_err(|_| "orphan_session_normalization_failed")?;
                 persistence::conversation::reset_interrupted_summaries(&conn)
                     .map_err(|_| "summary_recovery_failed")?;
-                if let Ok(max_id) = persistence::task_history::max_id(&conn) {
-                    app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>()
-                        .seed_next_id(max_id);
-                }
             }
             app.manage(db.clone());
             let secrets = std::sync::Arc::new(security::secrets::SecretStore::new(directory));
             let conn = db.open().map_err(|_| "provider_settings_unavailable")?;
+            let max_id = persistence::task_history::max_id(&conn)
+                .map_err(|_| "task_identity_recovery_failed")?;
+            app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>()
+                .seed_next_id(max_id);
             let mut providers = cognition::registry::ProviderRegistry::default();
             let gemini_adapter = std::sync::Arc::new(
                 cognition::gemini::GeminiProvider::new(

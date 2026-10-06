@@ -89,10 +89,15 @@ pub enum TaskEventKind {
     SubtaskStarted {
         subtask_id: String,
         provider_id: String,
+        unit_id: crate::cognitive_resources::ExecutionUnitId,
+        allocation: crate::cognitive_resources::AllocationVariant,
+        handoff_reason: crate::cognitive_resources::HandoffReason,
+        transitions: Vec<crate::cognition::task_graph_handoff::AllocationTransition>,
     },
     SubtaskCompleted {
         subtask_id: String,
         provider_id: String,
+        checkpoint_id: crate::cognitive_resources::CheckpointId,
     },
     SubtaskRetry {
         subtask_id: String,
