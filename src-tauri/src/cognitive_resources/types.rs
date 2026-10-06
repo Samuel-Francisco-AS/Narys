@@ -4,7 +4,7 @@ use crate::{
     cognition::{policy::ThinkingLevel, telemetry::MAX_FACT_VALUE, types::ProviderConfig},
 };
 use serde::Serialize;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const MAX_RESOURCES: usize = 256;
 pub const MAX_MODELS: usize = 128;
@@ -265,12 +265,38 @@ impl CognitiveResource {
             if models.len() > MAX_MODELS {
                 return Err(CatalogError::CapacityExceeded);
             }
+            // Only this resource's declared states establish dimension units.
+            // Missing states remain unreported; no domain-wide reconciliation.
+            let allowance_units: BTreeMap<_, _> = self
+                .economics
+                .allowances
+                .iter()
+                .map(|state| (&state.id, &state.unit))
+                .collect();
             let mut ids = BTreeSet::new();
             for model in models {
                 if !ids.insert(&model.id) {
                     return Err(CatalogError::DuplicateModel);
                 }
                 model.validate()?;
+                let executions = std::iter::once(&model.facts.execution).chain(
+                    model
+                        .supported_efforts
+                        .value()
+                        .into_iter()
+                        .flatten()
+                        .map(|effort| &effort.facts),
+                );
+                for execution in executions {
+                    for consumption in &execution.allowance_costs {
+                        if allowance_units
+                            .get(&consumption.dimension_id)
+                            .is_some_and(|unit| *unit != &consumption.unit)
+                        {
+                            return Err(CatalogError::AllowanceUnitMismatch);
+                        }
+                    }
+                }
             }
         }
         Ok(())

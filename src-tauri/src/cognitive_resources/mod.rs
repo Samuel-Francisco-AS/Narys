@@ -24,3 +24,6 @@ mod fix1_tests;
 
 #[cfg(test)]
 mod fix2_tests;
+
+#[cfg(test)]
+mod fix3_tests;

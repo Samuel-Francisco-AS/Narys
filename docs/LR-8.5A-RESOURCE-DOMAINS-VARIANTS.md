@@ -399,7 +399,7 @@ A reauditoria deve procurar especialmente:
 
 Registro histórico da candidata `35b601daeb82d4697c3328c99a086f4b6f1c966a`.
 As decisões de identidade econômica e fatos de modelo/effort abaixo foram
-refinadas pelo FIX-1 e FIX-2 ao final deste documento. A seção FIX-2 registra o contrato
+refinadas pelo FIX-1, FIX-2 e FIX-3 ao final deste documento. A seção FIX-3 registra o contrato
 vigente depois da correção incremental.
 
 Pré-condições verificadas antes de qualquer edição: branch obrigatória
@@ -884,3 +884,48 @@ TaskGraph permanecem behavior-neutral; nenhum arquivo desses runtimes foi tocado
 Scarcity, ResourceAllocator, quality-floor selection, spend authorization e
 handoff continuam adiados para LR-8.5B/C. Não há declaração de PASS ou conclusão
 da LR-8.5, nem merge para main.
+
+## FIX-3 — Integridade da unidade por dimensão dentro do resource
+
+Estado mantido: **IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente e gate.**
+Correção incremental sobre `6719852873043fc4a7ae15c265cc623f951317a5`, na mesma
+branch obrigatória, conferida/sincronizada por fast-forward com workspace limpo.
+
+Invariância: **AllowanceDimensionId conhecido dentro de um resource possui uma
+única unidade factual.** Após validar os estados econômicos, a validação de
+`CognitiveResource` constrói a relação ID → unidade de seus próprios allowances
+e percorre os consumos de todos os modelos e efforts declarados. Quando o ID
+possui estado correspondente, a unidade deve ser exatamente igual; divergência
+retorna `CatalogError::AllowanceUnitMismatch`, antes de qualquer registro.
+A regra vale também com quantidade de consumo Unknown ou saldo/reset Unknown.
+
+Consumos sem estado correspondente continuam válidos; nenhum estado é criado.
+Não há inferência pelo ID, conversão, reconciliação entre resources ou alteração
+de `domain_economics`: observações divergentes do mesmo billing domain continuam
+separadas, e sua consulta consolidada permanece fail-closed.
+
+Arquivos alterados: `types.rs`, `ids.rs`, `mod.rs` no módulo cognitive_resources
+e este documento. Novo `fix3_tests.rs`, com sete testes: modelo com unidade
+compatível; rejeição em qualquer modelo/effort, inclusive com quantidade Unknown;
+consumo Credits sem estado; mesma dimensão/unidade em modelo e effort com custos
+separados; atomicidade com catálogo já preenchido; isolamento entre resources
+que compartilham billing domain. Os 31 testes anteriores permanecem intactos.
+
+Validação executada:
+
+- `/home/sam/.cargo/bin/rustfmt --edition 2021 --check src-tauri/src/cognitive_resources/*.rs`: exit 0; módulo formatado/verificado.
+- `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources`: 38 aprovados, 0 falhas (31 anteriores + 7 novos).
+- `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4`: exit 0; 580 aprovados, 0 falhas, 2 ignorados; 255,23 s; main e doc-tests sem falhas.
+- Regressões na suíte completa: cognition 370, agents 110, rate 69, telemetry 33, admission 18, resilience 76, operational 8, LR-8E 14, TaskGraph runtime 13; todas aprovadas.
+- `git diff --check` no diff incremental: exit 0.
+
+Os dois ignorados são os gates manuais Codex preexistentes
+`real_app_server_handshake` e `manual_final_codex_agent_bridge_gate`.
+Mantidos 15 warnings de biblioteca e dois de testes preexistentes, sem warning
+novo. Nenhum arquivo legado com diferenças de formatação foi reformatado.
+
+Routing permanece behavior-neutral: Scheduler, Auto/auto_score, fallback, retry,
+affinity, admission, resilience, TaskGraph, registries e RateLimitManager não
+foram tocados. Sem selection, scarcity, quality floor, spend authorization ou
+migration. Esta correção é validação estrutural descritiva, sem declaração de
+PASS, conclusão da LR-8.5 ou merge para main.

@@ -10,6 +10,7 @@ pub enum CatalogError {
     ConflictingEconomicFacts,
     BillingDomainNotFound,
     DuplicateAllowanceDimension,
+    AllowanceUnitMismatch,
     InvalidOrigin,
     DuplicateRuntimeBinding,
     ResourceNotFound,
