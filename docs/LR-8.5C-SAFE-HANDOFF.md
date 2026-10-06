@@ -6,7 +6,7 @@ Estado: **C1 = PASS técnico após auditoria independente.**
 
 **C3 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
-**C4 FIX-1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+**C4 FIX-1 corrige terminalização normal, mas auditoria detectou FIX-2 obrigatória no cancelamento durável.**
 
 C4 continua **NÃO PASS**.
 
@@ -1939,3 +1939,127 @@ explicitamente descritos acima. Warnings de código não utilizado permanecem
 **C4 FIX-1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
 C1 PASS; C2 PASS; C3 PASS; C4 ainda NÃO PASS; LR-8.5C ainda NÃO PASS;
 merge ainda NÃO autorizado.
+
+
+## Auditoria independente do C4 FIX-1 — 06/10/2026
+
+**Resultado: FIX-1 correta para terminalização normal, porém C4 ainda NÃO PASS.
+FIX-2 obrigatória: cancelamento durável ainda cria estado terminal sem history
+atômico.**
+
+A auditoria comparou o finding documental
+`8f05dfca3408cbbb7cb4697e211ced140484575a` com a candidata FIX-1
+`e41fcc63be9640c3c39d9cf606a4a76ff7b5f150`.
+
+### O que a FIX-1 corrigiu corretamente
+
+- `task_history::insert_with_subtasks_in_transaction` permite que o caller
+  componha history com outro fato SQLite sem transaction aninhada.
+- `ContinuationRepository::finish_terminal` usa `BEGIN IMMEDIATE` e grava
+  `task_records`, `task_subtask_records` e o estado terminal da continuation
+  no mesmo COMMIT.
+- A validação usa root/lease/generation, manifest, receipts/results e estado
+  incerto antes de permitir `completed`.
+- Cancelamento já committed antes do writer terminal é observado e ganha
+  precedência sobre um `completed` solicitado.
+- Falha em root history, subtask history ou no COMMIT deferred reverte tanto o
+  history quanto o novo estado terminal.
+- Após rollback, o runtime tenta persistir `RecoveryRequired`; se isso também
+  falhar, mantém estado não terminal para startup recovery.
+- O caminho inicial e `resume_task_graph` convergem em
+  `finalize_execution`/`finish_terminal`.
+- Retry após falha terminal reaproveita receipts/results e não chama providers
+  novamente.
+- Nenhuma migration nova foi necessária para a FIX-1.
+
+### Achado bloqueante remanescente — `cancel()` ainda terminaliza isoladamente
+
+`ContinuationRepository::cancel` continua executando, em uma operação
+independente:
+
+`UPDATE cognitive_continuations SET state='cancelled' ...`
+
+sem gravar `task_records` e `task_subtask_records` na mesma transação.
+
+O command real `luna::cancel_task` chama `registry.cancel(...)` e depois
+essa operação durável; ele não cria history terminal.
+
+Portanto ainda existe a sequência:
+
+1. tarefa está `paused` ou `running`;
+2. `ContinuationRepository::cancel` COMMITA `state='cancelled'`;
+3. processo cai antes de qualquer `finish_terminal`;
+4. SQLite fica com continuation terminal cancelled, mas sem history terminal.
+
+Para tarefa pausada o caso é ainda mais direto: não existe worker ativo que vá
+naturalmente chamar `finish_terminal` depois do command. O teste
+`lr85c_final_i_cancel_paused_survives_restart_and_resume_is_terminal` valida
+que resume é recusado, mas não exige a presença de `task_records`; portanto ele
+aceita exatamente o estado parcial que a FIX-1 deveria eliminar.
+
+Startup `ContinuationRepository::recover` consulta somente
+`state IN ('running','paused')`. Logo uma continuation `cancelled` sem
+history é ignorada no restart e permanece terminal/incompleta indefinidamente.
+
+### Por que é bloqueante
+
+A propriedade final não pode ser apenas “completion/history é atômico”. Deve
+ser:
+
+**qualquer transição durável para um estado terminal
+(`completed`, `cancelled`, `failed`) precisa concordar atomicamente com o
+history terminal correspondente.**
+
+O cancelamento é uma transição terminal e hoje ainda foge desse writer.
+
+Além disso, enquanto `cancel()` usa o próprio estado terminal como sinal de
+cancel request, Core mistura dois conceitos distintos:
+
+- pedido durável de cancelamento;
+- fato terminal cancelled já materializado.
+
+A FIX-2 deve separar essas semânticas ou fazer o próprio cancelamento produzir
+history terminal no mesmo COMMIT, sem criar uma janela de crash.
+
+### Requisito da FIX-2
+
+É necessário garantir simultaneamente:
+
+1. cancel de tarefa pausada produz, atomicamente, continuation cancelled +
+   root/subtask history cancelled;
+2. cancel de tarefa running não cria continuation terminal isolada antes de o
+   lifecycle factual estar fechado;
+3. crash imediatamente depois do pedido durável de cancelamento nunca deixa
+   `cancelled` sem history;
+4. restart não dispara provider e preserva a intenção de cancelamento;
+5. provider/result tardio não pode transformar uma task cancelada em completed
+   nem comprometer novo receipt após terminalização;
+6. `resume_task_graph` de uma task realmente cancelled continua recusado;
+7. history e continuation concordam em todos os caminhos de cancelamento.
+
+Uma solução limpa pode introduzir um conceito persistente não terminal de
+`cancel_requested` (campo/tabela/migration, se realmente necessário) e deixar
+`finish_terminal` como a única autoridade que escreve `state='cancelled'`.
+Outra solução é aceitável se provar os mesmos invariantes. Não mascarar o
+problema apenas fazendo startup “reparar depois” um terminal parcial: a meta
+continua sendo evitar que o fato terminal parcial seja committed.
+
+### Gate mínimo adicional
+
+Adicionar testes para:
+
+- paused → cancel → crash imediato: history e continuation já concordam em
+  cancelled antes do restart;
+- running → cancel request → crash antes do worker finalizar: restart faz zero
+  provider calls e conclui/retém cancelamento de forma segura sem replay;
+- cancel concorrente com provider/result tardio: nenhum checkpoint/result novo
+  após terminal cancelled;
+- falha de history durante cancel: rollback do cancel terminal;
+- falha de COMMIT durante cancel: rollback integral;
+- sucesso: `task_records.state == cognitive_continuations.state == 'cancelled'`
+  e subtasks coerentes;
+- regressões FIX-1 + A-Z permanecem verdes.
+
+**Decisão:** FIX-1 não deve ser revertida; ela resolve o finding original.
+Entretanto C4 e LR-8.5C permanecem NÃO PASS até a FIX-2 eliminar a via de
+terminalização isolada em `ContinuationRepository::cancel`.
