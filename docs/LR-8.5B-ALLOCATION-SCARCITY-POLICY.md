@@ -1,6 +1,6 @@
 # LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy
 
-Estado: **PLANEJAMENTO APROVADO — implementação ainda não iniciada.**
+Estado: **IMPLEMENTAÇÃO EM ANDAMENTO — B1 candidata; demais checkpoints não implementados.**
 
 Branch de trabalho: `lr-8.5b-allocation-scarcity-policy`  
 Base: `main@a6eec1b63655d860279f606bc55766255903f1fe`
@@ -647,3 +647,190 @@ Depois do PASS da B:
 
 A C utilizará a decisão da B em fronteiras seguras e cuidará de continuidade,
 idempotência, cancelamento e proteção contra efeitos duplicados.
+
+
+## B1 — Implementação candidata
+
+**B1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+A LR-8.5B permanece em andamento; este registro não declara PASS da B1 nem
+PASS da trilha, e não inicia B2/B3/B4.
+
+### Pré-condições e boundary
+
+Implementação exclusiva na branch `lr-8.5b-allocation-scarcity-policy`, após
+confirmar HEAD local/remoto `bd808cfa1b2094b7fc75ccb24587928c1c6cbc6b`, fetch,
+fast-forward (já atualizado), workspace limpo e base da trilha
+`main@a6eec1b63655d860279f606bc55766255903f1fe`. Os cinco documentos exigidos
+foram lidos, e os contratos de cognitive_resources, policy, scheduler e types
+foram revisados antes das alterações.
+
+A API é pura, síncrona, determinística e sem relógio implícito. Não possui
+Database, SecretStore, HTTP, filesystem, backend handles, Provider/AgentBackend
+ou manager mutável. Timestamps existentes são evidência recebida explicitamente
+em CatalogFact, sem decisão de freshness ou refresh.
+
+`AllocationRequest` recebe somente o universo **já autorizado pelo Core/policy**.
+A API não prova a autorização do chamador e não enumera ResourceCatalog,
+ProviderRegistry ou AgentRegistry. Universo vazio produz relatório vazio.
+A construção desse universo e a prova operacional pertencem à futura B3.
+`Eligible` descreve suficiência dos gates de catálogo B1, nunca permissão de
+execução ou gasto, nem admission LR-8.
+
+### Contratos adicionados
+
+- `AllocationRequest`, `AllocationPolicy`, `AllocationCandidate` e
+  `AllocationVariant` (identidade completa da variante).
+- `CandidateRequirements`, `CapabilityRequirement` e `CapabilityScope`.
+- `CandidateEligibility`, `EligibilityReport`, `EligibilityStatus` e
+  `EligibilityReason`, com `CapabilityEvidence`, `AvailabilityEvidence`,
+  `EffectiveTier` e `EvidenceLayer`.
+- `QualityFloor` reutiliza `CognitiveTier`; `PaidBudget` reutiliza
+  `MonetaryAmount`, cujo `micros` representa o teto autorizado neste contrato.
+- `AllocationProfile::{Economy, Balanced, Fast}` e
+  `VariantSelectionMode::{Explicit, Auto}` são apenas configuração.
+- `PaidUsePolicy::{Deny, AllowKnownCostWithinBudget { budget }}`: default Deny;
+  budget obrigatório dentro da variante Allow impede pares moeda/budget ausentes
+  e combinações Deny-com-budget. Moeda possui três letras ASCII maiúsculas,
+  micros é JSON-safe, zero é permitido como teto zero. Sem FX ou spend decision.
+- `ReservePolicy` valida `0 <= reserve <= reduced <= 100`, com campos privados;
+  `ScarcityState::{Comfortable, Reduced, Reserve, Exhausted, Unknown}` não é
+  derivado nem aplicado aos gates. Nenhum threshold comercial/default é inventado.
+- `AllocationError` oferece erros tipados e sanitizados, sem eco de payload.
+
+O candidato contém uma referência imutável a `CognitiveResource` validado,
+`ModelId` e `Option<EffortId>`. Sua projeção de identidade inclui `resource_id`,
+`access_path`, `billing_domain_id`, `model_id` e `effort`. Classe, enabled,
+capabilities, availability, ModelFacts e EffortFacts vêm dos descriptors LR-8.5A
+já associados ao recurso, sem ModelProfile destacado ou cópia de todo o resource.
+Isso evita inconsistência entre identidade e evidência. `ExecutionVariant` não
+é usado como entrada porque `describe_variant` rejeita suporte de effort Unknown
+antes que B1 possa explicá-lo. Nenhum contrato LR-8.5A foi alterado.
+
+### Hard gates e explainability
+
+- `Eligible`: todos os gates exigidos comprovados.
+- `Ineligible`: existe contradição factual obrigatória, mesmo que outros fatos
+  estejam Unknown; as demais reasons não são descartadas.
+- `Unresolved`: nenhuma contradição, mas falta prova obrigatória. Não participa
+  como se estivesse aprovado; requer evidência adicional na futura B3.
+- Enabled Known(false) exclui; Unknown gera Unresolved. Enabled não reescreve
+  availability e não afirma disponibilidade remota.
+- Availability Known(Unavailable) exclui em resource, model ou effort selecionado;
+  Known(Available) satisfaz aquela camada; Unknown conserva Unresolved.
+- Catálogo de modelos Known sem o modelo pedido exclui com ModelNotSupported;
+  Unknown produz ModelSupportUnknown. O modelo não é inventado.
+- Effort pedido ausente em lista Known (inclusive vazia) exclui com
+  EffortNotSupported; catálogo Unknown produz EffortSupportUnknown.
+  Availability de effort não pedido é None, sem default inventado. Se suporte
+  não foi provado, a evidence de availability permanece Unknown e a reason é
+  de suporte, sem fabricar disponibilidade ou multiplicar razões redundantes.
+
+**Capabilities:** requisito declara scope Runtime ou Model, sem mappings por
+provider. Runtime avalia somente o fato do resource. Model exige Known(true)
+no ModelProfile; resource Known(true) nunca supre model Unknown. Resource
+Known(false) veta uma capability model-specific mesmo com modelo Known(true).
+Resource Unknown com model Known(true) satisfaz apenas o scope Model; exigir
+ambas as provas usa dois requisitos distintos, um por scope. Model Known(false)
+não define uma característica estrutural exigida somente no Runtime.
+Known(false) gera CapabilityUnsupported; ausência/Unknown gera CapabilityUnknown.
+Não há equivalência silenciosa ToolCalling/ToolUse nem herança de adapter.
+
+**Quality floor:** tier Known do effort selecionado tem precedência descritiva;
+caso contrário usa tier Known do modelo; caso contrário Unknown. Effort Known
+inferior não é mascarado por modelo superior. Não há soma, inferência por nome,
+QualityLabel, provider, preço ou marca. Com piso, Known abaixo exclui,
+Known suficiente satisfaz e Unknown gera Unresolved/CognitiveTierUnknown.
+Sem piso, tier Unknown não acrescenta uma reason. O relatório registra o fato
+resolvido e sua camada/provenance sem reescrever os fatos originais.
+
+Economia não participa da eligibility: custo monetário, allowances, saldo,
+latência, RelativeCostTier, profile, reserve e paid policy não favorecem nem
+excluem. Descriptors estruturalmente inválidos são recusados no construtor como
+InvalidCandidate, reutilizando a validação LR-8.5A (inclusive consistência de
+unidades), antes da avaliação; isso não deriva uma decisão econômica.
+
+### Bounds, ordering e serialização
+
+Requisitos são privados, limitados a 20 pares capability/scope, sem duplicatas
+exatas e canonizados pela ordem dos enums. Runtime e Model para a mesma capability
+são requisitos distintos. Piso reutiliza o bound 0..=255 da LR-8.5A.
+Requests aceitam até 256 variantes completas, rejeitam tuplas duplicadas e mantêm
+a ordem do chamador, sem seleção, sort econômico ou winner. O descriptor mantém
+os bounds e invariantes existentes de modelos, efforts, fatos e allowances.
+Policies são válidas por construção: não há desserialização agregada permissiva
+que possa contornar os construtores; persistência/desserialização ficam para B4.
+
+Reasons seguem ordem fixa: enabled, resource availability, model support e
+availability, effort support e availability, capabilities canonizadas (resource
+antes de model quando ambos falham), quality. Somente BTreeSet interno e ordering
+explícito; nenhuma iteração HashMap/HashSet define o output.
+
+Relatórios possuem collections privadas produzidas exclusivamente de inputs
+bounded. Serialização inclui somente identidade pública local da variante,
+configuração validada, facts/provenance dos hard gates e razões enum; exclui
+metadata opaca de qualidade, economics do descriptor, outros modelos/efforts,
+origem/runtime binding, secrets, remote account IDs, backend handles e texto de
+tarefa/prompt. IDs continuam labels públicos fornecidos pelo Core: validação
+sintática não é redator de segredos nem autorização para usá-los como labels.
+
+### Arquivos e gate sintético
+
+- Criados: `src-tauri/src/cognitive_resources/allocation.rs` e
+  `src-tauri/src/cognitive_resources/allocation_tests.rs`.
+- Alterados: `src-tauri/src/cognitive_resources/mod.rs` (módulo, export e testes)
+  e este documento (estado e registro B1).
+- Nenhum arquivo de Scheduler, cognition policy/types, registries, providers,
+  agents, LR-8, TaskGraph, frontend ou migration foi modificado.
+
+33 testes B1 determinísticos, sem backend ou provider real, cobrem A–R:
+capability true/false/Unknown; tiers suficiente/insuficiente/Unknown/sem piso;
+tier effort específico, fallback descritivo e precedência de esforço inferior;
+unavailable resource/model/effort; availability Unknown em cada camada;
+disabled/enabled Unknown; effort ausente/lista vazia/catálogo Unknown;
+modelo ausente/catálogo Unknown; múltiplas falhas com ordem estável e precedência;
+economia Unknown/conhecida sem efeito; independência resource/model e scopes;
+serialização sanitizada com provenance e identidade. Também cobrem bounds,
+duplicatas, policies válidas por construção, todas as classes de recurso,
+labels opacos sem tier inferido, request vazia e ausência de expansão/ranking.
+
+### Resultados técnicos
+
+| Gate | Resultado |
+|---|---|
+| `/home/sam/.cargo/bin/rustfmt --edition 2021 --check src-tauri/src/cognitive_resources/*.rs` | Exit 0; módulo inteiro |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources` | Exit 0; 71 aprovados, 0 falhas: 38 LR-8.5A + 33 B1 |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | Exit 0; 613 aprovados, 0 falhas, 2 ignorados; 249,84 s; main/doc-tests sem falhas |
+| cognition / agents na suíte completa | 370 / 110 aprovados; agents com 2 manuais ignorados |
+| LR-8 na suíte completa | rate 69, telemetry 33, admission 18, resilience 76, operational 8 e LR-8E 14; todos aprovados |
+| smart routing / TaskGraph runtime na suíte completa | 10 / 13 aprovados; demais testes de TaskGraph, Scheduler e roles também passaram |
+| `git diff --check` e `git diff --cached --check` | Exit 0 no diff final |
+
+Os dois ignorados são os gates Codex manuais preexistentes
+`real_app_server_handshake` e `manual_final_codex_agent_bridge_gate`.
+Mantidos 15 warnings da biblioteca e dois de fixtures de testes, todos fora do
+módulo novo; nenhum warning suprimido ou novo. Não houve falha de teste nos
+gates finais. A primeira compilação dirigida detectou lifetime ausente no helper
+novo de testes; corrigido para vincular o borrow somente ao resource antes da
+execução dirigida final e da suíte completa.
+
+A global usa quatro threads, como os gates finais LR-8.5A, para limitar contenção
+Stronghold; nenhum timeout/fixture legado foi alterado. Não foi aplicado rustfmt
+global: os arquivos legados com drift preexistente ficaram intocados. Não há
+necessidade de gate frontend, release ou comercial/real para esta superfície
+pura, sem alteração de DTO/comando/runtime exposto.
+
+### Dívidas deliberadamente adiadas
+
+- **B2:** derivação de scarcity, spend guard/cálculo de budget restante,
+  reserve operacional, pesos, scoring, comparação econômica e winner selection.
+- **B3:** builder autorizado, catálogo/expansão real de variantes, combinação com
+  supports_invocation/prova operacional, bridge Auto e plano para Scheduler.
+  Unresolved não pode ser silenciosamente convertido em Eligible.
+- **B4:** persistência/desserialização agregada, migration/configuração e UI mínima,
+  defaults duráveis e gate integrado final.
+- Freshness/calibração/reconciliação de fontes e integrações comerciais reais não
+  são resolvidas por estes gates. Handoff continua LR-8.5C.
+
+**B1 filtra e explica. B2 pontua. B3 altera o Auto real.** Não existe scoring,
+rank, winner, alteração em Scheduler/auto_score/Fixed/Preferred/Auto/affinity,
+fallback/retry/admission/resilience/RateLimitManager/TaskGraph ou nos registries.
