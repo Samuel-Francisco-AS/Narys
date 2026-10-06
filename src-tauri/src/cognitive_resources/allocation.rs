@@ -220,6 +220,17 @@ pub struct AllocationRequest<'a> {
     candidates: Vec<AllocationCandidate<'a>>,
 }
 impl<'a> AllocationRequest<'a> {
+    /// Immutable bridges for pure B2. The request owns the validated universe;
+    /// B2 must join by full variant identity and require a B1 Eligible result.
+    pub fn candidates(&self) -> &[AllocationCandidate<'a>] {
+        &self.candidates
+    }
+    pub fn requirements(&self) -> &CandidateRequirements {
+        &self.requirements
+    }
+    pub fn policy(&self) -> &AllocationPolicy {
+        &self.policy
+    }
     pub fn new(
         requirements: CandidateRequirements,
         policy: AllocationPolicy,
