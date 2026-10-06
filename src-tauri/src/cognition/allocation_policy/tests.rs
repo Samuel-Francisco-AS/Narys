@@ -16,7 +16,7 @@ fn defaults(conn: &Connection) {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        13
+        14
     );
     assert_eq!(
         conn.query_row(
@@ -72,7 +72,7 @@ fn b4_fresh_v13_defaults_and_idempotence() {
 }
 fn v12() -> Connection {
     let conn = fresh();
-    conn.execute_batch("DROP TABLE cognitive_role_allocation_policies; PRAGMA user_version=12;")
+    conn.execute_batch("DROP TABLE cognitive_checkpoints; DROP TABLE checkpoint_task_policies; DROP TABLE cognitive_role_allocation_policies; PRAGMA user_version=12;")
         .unwrap();
     conn
 }
@@ -96,7 +96,7 @@ fn b4_v12_upgrade_preserves_routing_and_b3_defaults() {
 #[test]
 fn b4_future_version_rejected() {
     let conn = fresh();
-    conn.pragma_update(None, "user_version", 14).unwrap();
+    conn.pragma_update(None, "user_version", 15).unwrap();
     assert_eq!(
         migrations::apply(&conn).unwrap_err().code(),
         "migration_failed"

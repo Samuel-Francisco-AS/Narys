@@ -13,7 +13,7 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(|_| PersistenceError::Migration)?;
-    if version > 13 {
+    if version > 14 {
         return Err(PersistenceError::Migration);
     }
     if version == 0 {
@@ -105,6 +105,18 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
         ))
         .map_err(|_| PersistenceError::Migration)?;
         tx.pragma_update(None, "user_version", 13)
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.commit().map_err(|_| PersistenceError::Migration)?;
+    }
+    if version < 14 {
+        let tx =
+            rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+                .map_err(|_| PersistenceError::Migration)?;
+        tx.execute_batch(include_str!(
+            "../../migrations/014_cognitive_checkpoints.sql"
+        ))
+        .map_err(|_| PersistenceError::Migration)?;
+        tx.pragma_update(None, "user_version", 14)
             .map_err(|_| PersistenceError::Migration)?;
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }

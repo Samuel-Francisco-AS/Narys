@@ -1,9 +1,11 @@
 # LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff
 
-Estado: **C1 = PASS técnico após auditoria independente; C2 é o próximo bloco interno.**
+Estado: **C1 = PASS técnico após auditoria independente.**
+
+**C2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
 
 O PASS abaixo é exclusivo do C1. LR-8.5C não recebe PASS neste checkpoint;
-C2/C3/C4 permanecem sem implementação iniciada.
+C3/C4 permanecem sem implementação iniciada.
 
 Esta subfase fecha a LR-8.5 provando continuidade segura entre decisões de alocação
 independentes. Os blocos C1–C4 são **blocos internos da LR-8.5C**, não novas subfases
@@ -711,3 +713,236 @@ global não bloqueia este C1.
 
 **Decisão:** C1 aprovado para servir de base ao C2. Este PASS não aprova C2/C3/C4,
 não encerra LR-8.5C e não autoriza merge da branch neste checkpoint.
+
+
+## C2 — implementação candidata (06/10/2026)
+
+**C2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+
+C1 continua **PASS**, conforme auditoria do commit
+`7407b0f8d2a530d8dcc5a13fcfd2e8faf9b357b0`. Esta implementação parte dessa
+baseline limpa e sincronizada com `origin/lr-8.5c-safe-handoff`; `main` e
+`origin/main` foram confirmadas em `0024fec735e3f6cb2461dbdeba8fa6aa4be32d32`.
+Os registros anteriores de C1 são históricos; C3/C4 não foram iniciados e
+LR-8.5C permanece sem PASS global.
+
+### Contratos e fronteira de confiança
+
+- `CognitiveCheckpoint`: proposta validada de gravação, ainda sem durabilidade.
+  Recebe fatos confirmados pelo Core, exige `Completed`, identidade exata da
+  unidade e `ConfirmedCompletion` identificando o mesmo `CheckpointId`.
+  Não aceita `HandoffDecision` como autorização, nem promove output parcial,
+  running, cancelamento, failure ou lifecycle incerto a conclusão.
+- `CheckpointRecord`: receipt retornado apenas após commit bem-sucedido ou
+  leitura verificada de registro committed. Contém a proposta e timestamp factual.
+  Seu `replay()` reutiliza o evaluator C1 e sempre retorna `Forbidden`.
+- `CheckpointRepository::commit/lookup`: armazenamento e consulta factuais,
+  sem dispatch, reallocation, ranking, fallback ou execução do sucessor.
+- `CheckpointLoadResult`: `Committed`, `Absent`, `HistoryWithoutCheckpoint`
+  com estado terminal observado, ou `Invalid` com `CheckpointError` estruturado.
+  Ausência/erro nunca equivalem a `NotStarted` ou autorização de replay.
+- `TaskPolicySnapshot`: cópia imutável dos DTOs existentes
+  `CognitiveRolePolicy` e, somente em Auto, `CognitiveRoleAllocationPolicy` da B4.
+  Reutiliza os validadores da B. Fixed/Preferred permanecem independentes da
+  policy econômica. Não há score ou novo allocator no checkpoint.
+- Allocation: a identidade completa existente `AllocationVariant`, incluindo
+  resource/access path/billing domain/model/effort efetivamente observados.
+  DTO privado de leitura reutiliza os validadores de IDs da B, sem habilitar
+  deserialização de agregados C1/B.
+- `CheckpointProvenance`: fonte `RootTask` ou `TaskGraphSubtask` com ID público
+  local e `RuntimeId`. Runtime deve pertencer à policy capturada; em modos
+  explícitos model/effort devem corresponder ao target executado. Auto admite
+  variante distinta, sem inferir disponibilidade, custo, quota ou autorização.
+
+Não existia identidade persistida de snapshot: as rows de Settings são mutáveis,
+e B4 captura snapshots de execução em memória. Por isso o ledger mantém uma
+cópia por `(root_task_id, role)` e rejeita alterações dessa cópia durante a tarefa.
+O chamador Core deve fornecer o snapshot capturado para a tarefa; esta API nunca
+recaptura Settings durante commit/reload. A captura conjunta de papéis já existe
+na B4; sua conexão à gravação fica para etapa posterior.
+
+`UnknownOrInFlight` pode ser registrado para preservar a evidência incerta de
+uma unidade cognitivamente concluída. **Committed do ledger significa gravação
+confirmada, não sucesso dos efeitos.** Nesse caso `CheckpointRecord::boundary()`
+retorna `Unknown`, replay continua `EffectUnknownOrInFlight` e o receipt não pode
+ser predecessor/dependência segura. Não existe operação de resolver/substituir
+esse fence. `Committed` de efeito sobrevive ao reload com replay proibido.
+
+### Modelo persistido e migration 014
+
+O schema inspecionado terminava em 013. A nova migration
+`014_cognitive_checkpoints.sql` acrescenta somente duas tabelas, inicialmente
+vazias, sem modificar tabelas/rows atuais:
+
+| Tabela | Identidade e conteúdo |
+| --- | --- |
+| `checkpoint_task_policies` | PK `(root_task_id, role)`; JSON limitado do snapshot existente |
+| `cognitive_checkpoints` | PK `(root_task_id, unit_sequence)`; checkpoint sequence, role/FK ao snapshot, source kind/key, effect fence, estado committed, envelope validado e timestamp SQLite |
+
+Há um único checkpoint **final** por unidade: qualquer outro checkpoint sequence
+nessa unidade, crescente ou regressivo, conflita. Não há atualizações de checkpoint
+intermediário nesta etapa. Sequences de unidades independentes podem ter gaps e
+chegar fora de ordem; vínculos de predecessor/dependência exigem mesma root e
+sequence de unidade estritamente menor. O checkpoint sequence de cada referência
+precisa coincidir exatamente com o receipt armazenado.
+
+A constraint UNIQUE `(root_task_id, source_kind, source_key)` impede associar a
+mesma fonte terminal a duas unidades. `RootTask` identifica a conclusão da tarefa
+inteira (um receipt); `TaskGraphSubtask` identifica a conclusão de uma subtarefa
+atual (um receipt por ID). Uma eventual granularidade diferente exigirá contrato
+explícito; não foi inferida a partir de event sequences ou IDs textuais.
+
+Não há FK para `task_records`: essa tabela só recebe tarefas terminais e uma
+unidade pode concluir antes da root. Quando presentes, `task_records` e
+`task_subtask_records` são consultados no mesmo snapshot e precisam concordar
+com a fonte específica e seu runtime. Subtarefa completed permanece concluída
+mesmo sob root cancelled/failed; esse fato não autoriza sucessor. Root terminal
+sem a subtarefa referida é contradição. Histórico terminal sem checkpoint é
+exposto como evidência, nunca convertido em unidade não iniciada.
+
+Os campos JSON são DTOs fechados com enums/códigos estáveis (`completed`,
+`confirmed_completion`, os três fences), não dumps ou reasons de texto livre.
+O timestamp vem do `strftime` SQLite já usado pela infraestrutura e é validado
+como UTC/RFC3339 com milissegundos. `committed_at` registra o instante da
+inserção SQLite na transação confirmada, não o instante físico de fsync; não
+implica freshness, monotonicidade ou clock global.
+
+### Commit, idempotência, integridade e concorrência
+
+1. Validar linkage/lifecycle/snapshots/contexto em construção, sem criar receipt.
+2. Exigir conexão em arquivo, autocommit, FK habilitada, synchronous FULL/EXTRA e
+   journal DELETE/TRUNCATE/PERSIST/WAL. Queries C2 qualificam explicitamente
+   `main`, impedindo shadowing por tabelas TEMP ou outro schema. Modos não duráveis e transações externas
+   são rejeitados, sem mudar as configurações do database existente.
+3. Abrir `BEGIN IMMEDIATE`, verificar histórico e referências committed, comparar
+   ou inserir snapshot imutável e comparar ou inserir checkpoint.
+4. Recarregar e validar os dados gravados ainda dentro da transação.
+5. Retornar receipt somente depois do `COMMIT` bem-sucedido. Erro desfaz ambas
+   as gravações; há teste de falha real de commit por FK deferred.
+
+Uma gravação semanticamente idêntica retorna o receipt original, inclusive
+`committed_at`, sem atualização. Alteração de qualquer campo ou identidade
+incompatível retorna conflito e não sobrescreve. Os writers são serializados pelo
+SQLite; constraints acompanham a transação. Duas tentativas idênticas convergem;
+em conflito, a primeira transação confirmada conserva seu conteúdo e a outra
+falha. A ordem de chegada não confere autoridade nem permite dois conteúdos.
+
+Lookup usa transação de leitura própria e valida JSON, IDs, enums, limites,
+identidade indexada, snapshot, timestamp, histórico e cadeia de referências.
+Registro inválido não se torna boundary segura; erros de infraestrutura também
+falham fechado. Não há autenticação criptográfica contra edição maliciosa coerente
+do arquivo SQLite ou garantia além da durabilidade fornecida por SQLite/OS.
+
+### Shared Cognitive State e limites
+
+`HandoffContext` contém **somente até 32 `CheckpointId`s de dependências concluídas**,
+ordenados canonicamente, sem duplicatas. Predecessor é uma referência separada.
+Todas as referências devem existir, estar verificadas e não possuir fence incerto.
+A verificação transitiva é iterativa, com limite de 256 receipts distintos;
+exceder o limite impede afirmar uma boundary segura.
+
+Envelope serializado de checkpoint: máximo **8.192 bytes**; snapshot de policy:
+máximo **16.384 bytes**. Há limites em construção/schema/leitura, inclusive antes
+de deserializar JSON corrompido superdimensionado. IDs numéricos reutilizam o teto
+C1 `9_007_199_254_740_991`, excluindo zero. Subtask ID: 1–64 bytes ASCII
+alfanuméricos/`_`/`-`, igual ao contrato TaskGraph atual. IDs da allocation/runtime
+reutilizam bounds e sintaxe da B. Model IDs no snapshot também precisam ser IDs
+públicos válidos da B; policy legada com label fora dessa sintaxe é rejeitada nesta
+API candidata, sem alterar sua execução atual.
+
+Não há prompt, output textual, reasoning, secrets, credenciais, headers, cookies,
+corpos HTTP, texto livre de contexto, caminhos arbitrários ou memória global.
+Referências provam conclusão/provenance; não fingem conter resultados textuais que
+TaskGraph hoje mantém apenas em memória. Não foi adicionado um storage de resultados
+ou artefatos sem necessidade demonstrada.
+
+### Arquivos alterados
+
+- `src-tauri/migrations/014_cognitive_checkpoints.sql`.
+- `src-tauri/src/persistence/checkpoints.rs`.
+- `src-tauri/src/persistence/checkpoints/contracts.rs`.
+- `src-tauri/src/persistence/checkpoints/tests.rs`.
+- `src-tauri/src/persistence/migrations.rs`: aplicar 014 e ceiling de versão 14.
+- `src-tauri/src/persistence/mod.rs`: declaração do módulo.
+- `src-tauri/src/persistence/tests.rs`: versões esperadas de migration.
+- `src-tauri/src/cognition/allocation_policy/tests.rs`: versões e fixture de upgrade
+  compatíveis com 014; gates econômicos/routing preservados.
+- `src-tauri/src/cognition/policy.rs`: somente versão esperada no teste de upgrade.
+- Este documento.
+
+Rustfmt foi aplicado aos arquivos Rust alterados, incluindo o drift prévio de
+`persistence/mod.rs` e dois trechos de `persistence/tests.rs`. Essas alterações de
+formatação não mudam comportamento.
+
+### Gates C2
+
+A primeira suíte completa registrou 878 aprovados, 1 falha e 2 ignorados: o teste
+`cognition::policy::tests::v8_to_v11_preserves_existing_roles_and_adds_worker_defaults`
+esperava schema 13 e recebeu 14 (`left: 14 / right: 13`). A FIX atualiza somente
+a versão esperada nesse teste de upgrade. Não foi flakiness nem mudança de policy.
+
+A revisão da durabilidade também fixou as queries do ledger/histórico no schema
+`main`, com teste de shadowing por tabelas TEMP. Não há FIX conhecida pendente;
+a implementação candidata ainda requer auditoria independente.
+
+Todos os gates abaixo foram executados localmente, sem quota/API real. A suíte
+completa usa quatro threads, como na baseline C1/B, para limitar contenção do
+SecretStore. Após a FIX da expectativa de schema, nenhuma falha/flakiness foi
+observada na rodada final. Os dois testes manuais de app-server/inferência real
+continuam ignorados pela configuração existente; não foram executados.
+
+| Gate / comando | Resultado final |
+| --- | --- |
+| `cargo test --manifest-path src-tauri/Cargo.toml c2_ -- --test-threads=4` | 39 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml c1_ -- --test-threads=4` | 25 aprovados, 0 falhas; C1 intacto |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources:: -- --test-threads=4` | 246 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources::allocation_tests:: -- --test-threads=4` | B1: 46 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources::scoring_tests:: -- --test-threads=4` | B2: 96 aprovados, 0 falhas |
+| `cargo test --manifest-path src-tauri/Cargo.toml b3_ -- --test-threads=4 --skip cognition::allocation_policy::` | B3: 41 aprovados, 0 falhas; exclui apenas nome de teste B4 que contém `b3_` |
+| `cargo test --manifest-path src-tauri/Cargo.toml b4_ -- --test-threads=4 --skip persistence::checkpoints::` | B4: 54 aprovados, 0 falhas; exclui apenas nomes C2 que contêm `b4_` |
+| `cargo test --manifest-path src-tauri/Cargo.toml persistence:: -- --test-threads=4` | 71 aprovados, 0 falhas; inclui migrations/ledger/histórico |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognition::policy::tests::v8_to_v11_preserves_existing_roles_and_adds_worker_defaults -- --test-threads=4` | Upgrade corrigido: 1 aprovado, 0 falhas |
+| `RUST_TEST_THREADS=4 cargo test --manifest-path src-tauri/Cargo.toml` | 880 aprovados, 0 falhas, 2 ignorados; binário/doctests sem falhas |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | Exit 0; 12 warnings preexistentes da lib |
+| `cargo fmt --check --manifest-path src-tauri/Cargo.toml` | Exit 1 pelo drift preexistente: baseline 32 arquivos, final 30; zero novo drift e diffs dos arquivos restantes idênticos à baseline |
+| Rustfmt direto em todos os 8 arquivos Rust alterados | Exit 0 |
+| `git diff --check` | Exit 0 |
+
+Rustfmt direto: `/home/sam/.cargo/bin/rustfmt --edition 2021 --config
+skip_children=true --check` com os oito arquivos Rust listados acima explicitamente.
+`skip_children` evita percorrer módulos legados intactos; contracts e testes C2
+foram incluídos separadamente. A suíte test também emite o warning preexistente
+de campos não lidos em IdentitySnapshot.
+
+Cobertura A–N: identidade exata; durabilidade somente após write/commit;
+rollback das duas tabelas e falha real de commit; reopen sem replay; idempotência
+com timestamp original; conflitos de conteúdo/source/policy; unidade/root
+incompatíveis; limites e sequences regressivas; preservação de fences incertos e
+committed; corrupção de JSON/IDs/enums/linkage/policy/timestamp; whitelist de
+provenance; bounds de contexto/envelope; ausência de payload genérico e de binding
+comercial. Também há gates de concorrência, evidência terminal contraditória,
+dependências transitivas/limite de verificação, shadowing TEMP, upgrade 13→14 e
+rollback/retry da migration. O/P são os gates C1 e B acima.
+
+### Limitações e pontos para auditoria
+
+- C2 é ledger candidato, sem conexão ao dispatch/lifecycle real. O Core continua
+  responsável por confirmar os fatos fornecidos; persistência não prova por si só
+  que um request ocorreu. C1 permaneceu intacto e sem dependência SQLite.
+- Antes de futura integração, auditar captura estável da policy, identidade real
+  da allocation, associação unidade/fonte e confirmação Core; verificar o limite
+  de 256 receipts para os fluxos concretos. Nenhuma integração C3 foi iniciada.
+- O seed atual de TaskRegistry considera apenas `MAX(task_records.task_id)`.
+  Quando o ledger passar a receber unidades de tarefas ainda não terminais,
+  a futura integração deverá impedir reutilização de root IDs após restart,
+  considerando também essas identidades. O seed/runtime não foi alterado em C2.
+- Lookup após reopen reconhece Unit A committed e proíbe replay de A; não despacha
+  Unit B. Ausência/contradição/incerteza não iniciam unidade alguma.
+- Não há resultados textuais persistidos de Worker, pausa/resume de produto,
+  resolução de efeitos incertos, Tool Runtime, idempotency keys externas ou
+  testes com queda física de energia. As provas usam arquivos SQLite locais,
+  rollback e reopen; dependem das garantias usuais do SQLite/OS.
+- Receipts não são capability tokens de spend/availability/cancelamento. A decisão
+  futura exige novo fato de cancelamento e os gates do Core/Scheduler/LR-8/B.
+- C1 continua PASS; C2 aguarda auditoria independente. C3/C4 não iniciados;
+  LR-8.5C não encerrada.
