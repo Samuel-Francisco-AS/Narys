@@ -722,3 +722,6 @@ async fn lr85c_final_z_v14_upgrade_preserves_b4_checkpoints_history_and_rate_sch
 
 #[path = "c4_tests/storage_tests.rs"]
 mod storage_tests;
+
+#[path = "c4_tests/terminal_fix1_tests.rs"]
+mod terminal_fix1_tests;

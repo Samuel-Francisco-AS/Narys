@@ -1,5 +1,5 @@
 use super::database::PersistenceError;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Transaction};
 
 #[derive(Debug)]
 pub struct TaskRecord {
@@ -47,6 +47,18 @@ pub fn insert_with_subtasks(
     record: &TaskRecord,
     subtasks: &[SubtaskRecord],
 ) -> Result<(), PersistenceError> {
+    let tx = conn.transaction().map_err(|_| PersistenceError::Write)?;
+    insert_with_subtasks_in_transaction(&tx, record, subtasks)?;
+    tx.commit().map_err(|_| PersistenceError::Write)?;
+    Ok(())
+}
+
+/// The caller owns COMMIT/rollback when history is part of a larger fact.
+pub(crate) fn insert_with_subtasks_in_transaction(
+    tx: &Transaction<'_>,
+    record: &TaskRecord,
+    subtasks: &[SubtaskRecord],
+) -> Result<(), PersistenceError> {
     if !valid_task_state(&record.state)
         || subtasks.iter().any(|item| {
             item.root_task_id != record.task_id
@@ -57,7 +69,6 @@ pub fn insert_with_subtasks(
     {
         return Err(PersistenceError::Write);
     }
-    let tx = conn.transaction().map_err(|_| PersistenceError::Write)?;
     tx.execute(
         "INSERT INTO task_records(task_id,kind,state,started_at,finished_at,summary,error_code) VALUES (?1,?2,?3,?4,?5,?6,?7)",
         params![record.task_id,record.kind,record.state,record.started_at,record.finished_at,record.summary,record.error_code],
@@ -68,7 +79,6 @@ pub fn insert_with_subtasks(
             params![item.root_task_id,item.subtask_id,item.provider_id,item.state,item.started_at,item.finished_at,item.error_code],
         ).map_err(|_| PersistenceError::Write)?;
     }
-    tx.commit().map_err(|_| PersistenceError::Write)?;
     Ok(())
 }
 

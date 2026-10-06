@@ -182,7 +182,7 @@ async fn c4_terminal_state_write_failure_never_reports_completed() {
     let mut f = Fixture::new(RoutingMode::Auto, false, false, false);
     f.db.open().unwrap().execute_batch("CREATE TRIGGER fail_terminal BEFORE UPDATE OF state ON cognitive_continuations WHEN NEW.state='completed' BEGIN SELECT RAISE(ABORT,'local test'); END;").unwrap();
     let (outcome, events) = f.run(vec![step("a", &[])], |_| {}).await;
-    assert_eq!(outcome.state, TaskState::Failed);
+    assert_eq!(outcome.state, TaskState::Paused);
     assert!(outcome.result.is_none());
     assert!(!events.iter().any(|e| e["type"] == "task_completed"));
     assert_eq!(f.receipts().len(), 1);
@@ -271,7 +271,7 @@ async fn c4_lease_from_before_restart_cannot_start_another_unit() {
     let (new, _) = ContinuationRepository::claim(&mut conn, 100).unwrap();
     assert_eq!(new.generation, 2);
     assert_eq!(
-        ContinuationRepository::finish(&conn, lease(), "completed", None),
+        finish_terminal_completed(&mut conn, lease()),
         Err("continuation_claim_lost")
     );
     assert_eq!(
@@ -419,10 +419,7 @@ async fn c4_durable_cancel_between_resume_claim_and_dispatch_wins_without_regist
     let mut conn = f.db.open().unwrap();
     let (claimed, _) = ContinuationRepository::claim(&mut conn, 100).unwrap();
     assert!(ContinuationRepository::cancel(&conn, 100).unwrap());
-    assert_eq!(
-        ContinuationRepository::finish(&conn, claimed, "completed", None),
-        Ok(true)
-    );
+    assert_eq!(finish_terminal_completed(&mut conn, claimed), Ok(true));
     assert_eq!(state(&f).0, "cancelled");
     assert_eq!(f.calls().len(), 1);
 }
@@ -456,7 +453,7 @@ async fn c4_finish_completed_requires_all_exact_receipts_and_results() {
     let mut f = Fixture::new(RoutingMode::Auto, false, false, false);
     crash_after_a(&mut f).await;
     assert_eq!(
-        ContinuationRepository::finish(&f.db.open().unwrap(), lease(), "completed", None),
+        finish_terminal_completed(&mut f.db.open().unwrap(), lease()),
         Err("continuation_state_invalid")
     );
     assert_eq!(state(&f).0, "running");
@@ -518,4 +515,24 @@ async fn c4_cancel_resume_preserves_terminal_state_and_never_started_descendants
             .unwrap(),
         "cancelled"
     );
+}
+
+fn finish_terminal_completed(
+    conn: &mut rusqlite::Connection,
+    lease: ContinuationLease,
+) -> Result<bool, &'static str> {
+    ContinuationRepository::finish_terminal(
+        conn,
+        lease,
+        TaskRecord {
+            task_id: lease.root,
+            kind: "task_graph".into(),
+            state: "completed".into(),
+            started_at: now(),
+            finished_at: now(),
+            summary: None,
+            error_code: None,
+        },
+        vec![],
+    )
 }

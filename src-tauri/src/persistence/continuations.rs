@@ -1,5 +1,9 @@
 //! Core-owned continuation ledger. Loading/recovery never executes a provider.
-use super::{checkpoints::*, database::Database};
+use super::{
+    checkpoints::*,
+    database::Database,
+    task_history::{self, SubtaskRecord, TaskRecord},
+};
 use crate::{
     agents::planner::{PlanStepV1, PlanV1},
     cognition::{
@@ -296,6 +300,7 @@ impl ContinuationRepository {
         }).map_err(|_| "handoff_checkpoint_write_failed")
     }
 
+    /// Pauses have no terminal history. Terminal states use finish_terminal.
     pub fn finish(
         conn: &Connection,
         lease: ContinuationLease,
@@ -303,9 +308,7 @@ impl ContinuationRepository {
         reason: Option<PauseReason>,
     ) -> Result<bool, &'static str> {
         durable(conn)?;
-        if !matches!(state, "paused" | "completed" | "cancelled" | "failed")
-            || (state == "paused") != reason.is_some()
-        {
+        if state != "paused" || reason.is_none() {
             return Err("continuation_state_invalid");
         }
         let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
@@ -327,16 +330,117 @@ impl ContinuationRepository {
         if stored != "running" {
             return Err("continuation_claim_lost");
         }
-        if state == "completed" {
-            let loaded = load_in_transaction(&tx, lease.root)?;
-            if loaded.completed.len() != loaded.manifest.steps.len() || !loaded.uncertain.is_empty()
-            {
-                return Err("continuation_state_invalid");
-            }
-        }
         tx.execute("UPDATE main.cognitive_continuations SET state=?3,pause_reason=?4 WHERE root_task_id=?1 AND generation=?2 AND state='running'",params![lease.root,lease.generation,state,reason.map(PauseReason::code)]).map_err(|_| "continuation_write_failed")?;
         tx.commit().map_err(|_| "continuation_write_failed")?;
-        Ok(state == "cancelled")
+        Ok(false)
+    }
+
+    /// Terminal lifecycle and history are one SQLite fact. Cancellation that
+    /// committed before this writer acquired its lock takes precedence.
+    pub fn finish_terminal(
+        conn: &mut Connection,
+        lease: ContinuationLease,
+        mut record: TaskRecord,
+        mut subtasks: Vec<SubtaskRecord>,
+    ) -> Result<bool, &'static str> {
+        durable(conn)?;
+        if record.task_id != lease.root
+            || record.kind != "task_graph"
+            || !matches!(record.state.as_str(), "completed" | "cancelled" | "failed")
+        {
+            return Err("continuation_state_invalid");
+        }
+        let tx = conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|_| "continuation_write_failed")?;
+        let loaded = load_in_transaction(&tx, lease.root)?;
+        if loaded.generation != lease.generation
+            || !matches!(loaded.state.as_str(), "running" | "cancelled")
+        {
+            return Err("continuation_claim_lost");
+        }
+        let cancelled = loaded.state == "cancelled" || record.state == "cancelled";
+        if cancelled {
+            record.state = "cancelled".into();
+            record.error_code = Some("cancelled".into());
+            for item in &mut subtasks {
+                if item.state != "completed" {
+                    item.state = "cancelled".into();
+                    item.error_code = Some("cancelled".into());
+                }
+            }
+        }
+        if record.state == "completed"
+            && (loaded.completed.len() != loaded.manifest.steps.len()
+                || !loaded.uncertain.is_empty())
+        {
+            return Err("continuation_state_invalid");
+        }
+        // Early cancellation/failure can precede construction of the in-memory
+        // graph. Its ledger still supplies all IDs and confirmed completions.
+        if subtasks.is_empty() && record.state != "completed" {
+            subtasks = loaded
+                .manifest
+                .steps
+                .iter()
+                .map(|step| {
+                    let done = loaded
+                        .completed
+                        .get(&step.id)
+                        .filter(|_| !loaded.uncertain.contains(&step.id));
+                    SubtaskRecord {
+                        root_task_id: lease.root,
+                        subtask_id: step.id.clone(),
+                        provider_id: done.map(|u| u.result.provider_id.clone()),
+                        state: if done.is_some() {
+                            "completed"
+                        } else if cancelled {
+                            "cancelled"
+                        } else {
+                            "blocked"
+                        }
+                        .into(),
+                        started_at: None,
+                        finished_at: done
+                            .map(|u| u.receipt.committed_at().to_owned())
+                            .unwrap_or_else(|| record.finished_at.clone()),
+                        error_code: done.is_none().then(|| record.error_code.clone()).flatten(),
+                    }
+                })
+                .collect();
+        }
+        let ids: BTreeSet<_> = subtasks.iter().map(|s| s.subtask_id.as_str()).collect();
+        if subtasks.len() != loaded.manifest.steps.len()
+            || ids.len() != subtasks.len()
+            || loaded
+                .manifest
+                .steps
+                .iter()
+                .any(|s| !ids.contains(s.id.as_str()))
+            || subtasks.iter().any(|s| {
+                s.root_task_id != lease.root
+                    || (record.state == "completed" && s.state != "completed")
+                    || (s.state == "completed"
+                        && (loaded.uncertain.contains(&s.subtask_id)
+                            || loaded.completed.get(&s.subtask_id).is_none_or(|u| {
+                                s.provider_id.as_deref() != Some(u.result.provider_id.as_str())
+                            })))
+                    || (loaded.completed.contains_key(&s.subtask_id)
+                        && !loaded.uncertain.contains(&s.subtask_id)
+                        && s.state != "completed")
+            })
+        {
+            return Err("continuation_history_invalid");
+        }
+        task_history::insert_with_subtasks_in_transaction(&tx, &record, &subtasks)
+            .map_err(|_| "task_history_write_failed")?;
+        let changed = tx.execute("UPDATE main.cognitive_continuations SET state=?3,pause_reason=NULL WHERE root_task_id=?1 AND generation=?2 AND state IN ('running','cancelled')",params![lease.root,lease.generation,record.state])
+            .map_err(|_| "continuation_write_failed")?;
+        if changed != 1 {
+            return Err("continuation_claim_lost");
+        }
+        tx.commit().map_err(|_| "continuation_write_failed")?;
+        Ok(cancelled)
     }
 
     pub fn cancel(conn: &Connection, root: u64) -> Result<bool, &'static str> {

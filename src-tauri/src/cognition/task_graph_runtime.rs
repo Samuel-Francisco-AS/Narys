@@ -57,6 +57,7 @@ struct ExecutionOutcome {
     graph: Option<TaskGraph>,
     meta: HashMap<String, SubtaskMeta>,
     result: Option<TaskGraphResult>,
+    lease: Option<ContinuationLease>,
 }
 
 fn now() -> String {
@@ -197,6 +198,7 @@ async fn execute(
     sequence: &AtomicU32,
 ) -> ExecutionOutcome {
     let fail = |code: &'static str| ExecutionOutcome {
+        lease: None,
         state: if code == "cancelled" {
             TaskState::Cancelled
         } else {
@@ -340,6 +342,7 @@ async fn execute_workers(
     }
     if cancelled.load(Ordering::Acquire) {
         return ExecutionOutcome {
+            lease: None,
             state: TaskState::Cancelled,
             error_code: Some("cancelled"),
             graph: None,
@@ -387,12 +390,13 @@ async fn execute_workers(
         None,
     )
     .await;
-    finish_continuation(&db, lease, &cancelled, &mut outcome).await;
+    outcome.lease = Some(lease);
     outcome
 }
 
 fn early_failure(code: &'static str) -> ExecutionOutcome {
     ExecutionOutcome {
+        lease: None,
         state: TaskState::Failed,
         error_code: Some(code),
         graph: None,
@@ -412,40 +416,123 @@ fn pause_reason(code: Option<&str>) -> PauseReason {
         _ => PauseReason::InvalidRecovery,
     }
 }
-async fn finish_continuation(
+async fn finalize_execution(
     db: &Database,
-    lease: ContinuationLease,
+    root: TaskId,
     cancelled: &AtomicBool,
     outcome: &mut ExecutionOutcome,
-) {
+    started_at: String,
+) -> Option<PauseReason> {
     if cancelled.load(Ordering::Acquire) && outcome.error_code != Some("channel_closed") {
         outcome.state = TaskState::Cancelled;
         outcome.error_code = Some("cancelled");
         outcome.result = None;
+        if let Some(graph) = outcome.graph.as_mut() {
+            graph.cancel_unfinished();
+        }
     }
-    let (state, reason) = match outcome.state {
-        TaskState::Completed => ("completed", None),
-        TaskState::Cancelled => ("cancelled", None),
-        TaskState::Paused => ("paused", Some(pause_reason(outcome.error_code))),
-        _ => ("failed", None),
-    };
-    match continuations::with_connection(db, move |conn| {
-        ContinuationRepository::finish(conn, lease, state, reason)
-    })
-    .await
-    {
+    let lease = outcome.lease;
+    let write = async {
+        if outcome.state == TaskState::Paused {
+            let reason = pause_reason(outcome.error_code);
+            let lease = lease.ok_or("continuation_absent")?;
+            let cancelled_durably = continuations::with_connection(db, move |conn| {
+                ContinuationRepository::finish(conn, lease, "paused", Some(reason))
+            })
+            .await?;
+            if !cancelled_durably {
+                return Ok(false);
+            }
+            // Durable cancellation won against the requested pause. Its terminal
+            // history still goes through the same atomic writer below.
+            outcome.state = TaskState::Cancelled;
+            outcome.result = None;
+            if let Some(graph) = outcome.graph.as_mut() {
+                graph.cancel_unfinished();
+            }
+        }
+        let finished_at = now();
+        let state = match outcome.state {
+            TaskState::Completed => "completed",
+            TaskState::Cancelled => "cancelled",
+            _ => "failed",
+        };
+        let error = if state == "failed" {
+            Some(outcome.error_code.unwrap_or("task_graph_failed"))
+        } else {
+            None
+        };
+        let records = outcome
+            .graph
+            .as_ref()
+            .map(|g| build_records(root, g, &outcome.meta, error, &finished_at))
+            .unwrap_or_default();
+        let record = TaskRecord {
+            task_id: root.0,
+            kind: TASK_KIND.into(),
+            state: state.into(),
+            started_at,
+            finished_at,
+            summary: Some("LR-7D3 task graph".into()),
+            error_code: error.map(str::to_owned),
+        };
+        continuations::with_connection(db, move |conn| {
+            if let Some(lease) = lease {
+                ContinuationRepository::finish_terminal(conn, lease, record, records)
+            } else {
+                // Preflight failed before any continuation was created.
+                task_history::insert_with_subtasks(conn, &record, &records)
+                    .map_err(|_| "task_history_write_failed")?;
+                Ok(state == "cancelled")
+            }
+        })
+        .await
+    }
+    .await;
+    let persistence_failed = write.is_err();
+    match write {
         Ok(true) => {
             outcome.state = TaskState::Cancelled;
             outcome.error_code = Some("cancelled");
             outcome.result = None;
+            if let Some(graph) = outcome.graph.as_mut() {
+                graph.cancel_unfinished();
+            }
         }
         Ok(false) => {}
         Err(code) => {
-            outcome.state = TaskState::Failed;
-            outcome.error_code = Some(code);
             outcome.result = None;
+            outcome.error_code = Some(code);
+            // The terminal transaction has rolled back. A separate pause may
+            // preserve recovery, but never compensates a committed terminal.
+            let pause = match lease {
+                Some(lease) => {
+                    continuations::with_connection(db, move |conn| {
+                        ContinuationRepository::finish(
+                            conn,
+                            lease,
+                            "paused",
+                            Some(PauseReason::RecoveryRequired),
+                        )
+                    })
+                    .await
+                }
+                None => Err("continuation_absent"),
+            };
+            outcome.state = if matches!(pause, Ok(false)) {
+                TaskState::Paused
+            } else {
+                TaskState::Failed
+            };
         }
     }
+    (outcome.state == TaskState::Paused).then(|| {
+        if persistence_failed {
+            PauseReason::RecoveryRequired
+        } else {
+            pause_reason(outcome.error_code)
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -464,6 +551,7 @@ async fn execute_workers_claimed(
     restored: Option<ContinuationLoad>,
 ) -> ExecutionOutcome {
     let fail = |code| ExecutionOutcome {
+        lease: None,
         state: if code == "cancelled" {
             TaskState::Cancelled
         } else {
@@ -521,6 +609,7 @@ async fn execute_workers_claimed(
         cancelled.store(true, Ordering::Release);
         graph.cancel_unfinished();
         return ExecutionOutcome {
+            lease: None,
             state: TaskState::Failed,
             error_code: Some("channel_closed"),
             graph: Some(graph),
@@ -550,6 +639,7 @@ async fn execute_workers_claimed(
             cancelled.store(true, Ordering::Release);
             graph.cancel_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: TaskState::Failed,
                 error_code: Some("channel_closed"),
                 graph: Some(graph),
@@ -564,6 +654,7 @@ async fn execute_workers_claimed(
         Err(code) => {
             graph.block_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: TaskState::Failed,
                 error_code: Some(code),
                 graph: Some(graph),
@@ -636,6 +727,7 @@ async fn execute_workers_claimed(
         if cancelled.load(Ordering::Acquire) {
             graph.cancel_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: TaskState::Cancelled,
                 error_code: Some("cancelled"),
                 graph: Some(graph),
@@ -647,6 +739,7 @@ async fn execute_workers_claimed(
         if ready.is_empty() {
             graph.block_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: if recovery_uncertain {
                     TaskState::Paused
                 } else {
@@ -680,6 +773,7 @@ async fn execute_workers_claimed(
         if count == 0 {
             graph.block_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: if recovery_uncertain {
                     TaskState::Paused
                 } else {
@@ -705,6 +799,7 @@ async fn execute_workers_claimed(
         if output_share == Some(0) {
             graph.block_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: if recovery_uncertain {
                     TaskState::Paused
                 } else {
@@ -748,6 +843,7 @@ async fn execute_workers_claimed(
                         graph.block_unfinished();
                     }
                     return ExecutionOutcome {
+                        lease: None,
                         state: if code == "cancelled" {
                             TaskState::Cancelled
                         } else if matches!(
@@ -780,6 +876,7 @@ async fn execute_workers_claimed(
                     Err(code) => {
                         graph.block_unfinished();
                         return ExecutionOutcome {
+                            lease: None,
                             state: TaskState::Failed,
                             error_code: Some(code),
                             graph: Some(graph),
@@ -868,6 +965,7 @@ async fn execute_workers_claimed(
                 if graph.mark_running(&subtask_id).is_err() {
                     graph.block_unfinished();
                     return ExecutionOutcome {
+                        lease: None,
                         state: TaskState::Failed,
                         error_code: Some("subtask_state_invalid"),
                         graph: Some(graph),
@@ -887,6 +985,7 @@ async fn execute_workers_claimed(
                     {
                         graph.block_unfinished();
                         return ExecutionOutcome {
+                            lease: None,
                             state: TaskState::Failed,
                             error_code: Some("subtask_state_invalid"),
                             graph: Some(graph),
@@ -925,6 +1024,7 @@ async fn execute_workers_claimed(
                     if graph.mark_completed(&subtask_id).is_err() {
                         graph.block_unfinished();
                         return ExecutionOutcome {
+                            lease: None,
                             state: TaskState::Failed,
                             error_code: Some("subtask_state_invalid"),
                             graph: Some(graph),
@@ -955,6 +1055,7 @@ async fn execute_workers_claimed(
                         cancelled.store(true, Ordering::Release);
                         graph.cancel_unfinished();
                         return ExecutionOutcome {
+                            lease: None,
                             state: TaskState::Failed,
                             error_code: Some("channel_closed"),
                             graph: Some(graph),
@@ -996,6 +1097,7 @@ async fn execute_workers_claimed(
                         cancelled.store(true, Ordering::Release);
                         graph.cancel_unfinished();
                         return ExecutionOutcome {
+                            lease: None,
                             state: TaskState::Failed,
                             error_code: Some("channel_closed"),
                             graph: Some(graph),
@@ -1009,6 +1111,7 @@ async fn execute_workers_claimed(
         if wave_channel_failed {
             graph.cancel_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: TaskState::Failed,
                 error_code: Some("channel_closed"),
                 graph: Some(graph),
@@ -1019,6 +1122,7 @@ async fn execute_workers_claimed(
         if cancelled.load(Ordering::Acquire) {
             graph.cancel_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: TaskState::Cancelled,
                 error_code: Some("cancelled"),
                 graph: Some(graph),
@@ -1029,6 +1133,7 @@ async fn execute_workers_claimed(
         if wave_failed || checkpoint_error.is_some() {
             graph.block_unfinished();
             return ExecutionOutcome {
+                lease: None,
                 state: TaskState::Failed,
                 error_code: Some(checkpoint_error.unwrap_or("task_graph_subtask_failed")),
                 graph: Some(graph),
@@ -1055,6 +1160,7 @@ async fn execute_workers_claimed(
         .collect::<Vec<_>>()
         .join("\n\n");
     ExecutionOutcome {
+        lease: None,
         state: TaskState::Completed,
         error_code: None,
         graph: Some(graph),
@@ -1102,6 +1208,7 @@ pub fn start_task(
 
         let mut execution = if start_delivery_failed {
             ExecutionOutcome {
+                lease: None,
                 state: TaskState::Failed,
                 error_code: Some("channel_closed"),
                 graph: None,
@@ -1110,6 +1217,7 @@ pub fn start_task(
             }
         } else if cancelled.load(Ordering::Acquire) {
             ExecutionOutcome {
+                lease: None,
                 state: TaskState::Cancelled,
                 error_code: Some("cancelled"),
                 graph: None,
@@ -1149,6 +1257,10 @@ pub fn start_task(
             }
         }
 
+        execution.state = state;
+        let paused_reason =
+            finalize_execution(&db, id, &cancelled, &mut execution, started_at).await;
+        state = execution.state;
         if state == TaskState::Paused {
             let _ = emit(
                 &channel,
@@ -1156,56 +1268,10 @@ pub fn start_task(
                 &sequence,
                 state,
                 TaskEventKind::TaskPaused {
-                    reason: pause_reason(execution.error_code),
+                    reason: paused_reason.unwrap_or_else(|| pause_reason(execution.error_code)),
                 },
             );
             return;
-        }
-        if state == TaskState::Cancelled {
-            let db_cancel = db.clone();
-            if let Err(code) = continuations::with_connection(&db_cancel, move |conn| {
-                conn.execute("UPDATE main.cognitive_continuations SET state='cancelled',pause_reason=NULL WHERE root_task_id=?1 AND state IN ('completed','paused')", [id.0]).map_err(|_| "continuation_write_failed")?;
-                Ok(())
-            }).await {
-                state = TaskState::Failed; execution.error_code = Some(code); execution.result = None;
-            }
-        }
-        let finished_at = now();
-        let error_code = if state == TaskState::Failed {
-            Some(execution.error_code.unwrap_or("task_graph_failed"))
-        } else {
-            None
-        };
-        let record = TaskRecord {
-            task_id: id.0,
-            kind: TASK_KIND.into(),
-            state: match state {
-                TaskState::Completed => "completed",
-                TaskState::Cancelled => "cancelled",
-                _ => "failed",
-            }
-            .into(),
-            started_at,
-            finished_at: finished_at.clone(),
-            summary: Some("LR-7D3 task graph".into()),
-            error_code: error_code.map(str::to_owned),
-        };
-        let subtask_records = execution
-            .graph
-            .as_ref()
-            .map(|graph| build_records(id, graph, &execution.meta, error_code, &finished_at))
-            .unwrap_or_default();
-        let db_record = db.clone();
-        let history = tauri::async_runtime::spawn_blocking(move || {
-            let mut conn = db_record.open().map_err(|error| error.code())?;
-            task_history::insert_with_subtasks(&mut conn, &record, &subtask_records)
-                .map_err(|error| error.code())
-        })
-        .await;
-        if !matches!(history, Ok(Ok(()))) {
-            state = TaskState::Failed;
-            execution.result = None;
-            execution.error_code = Some("task_history_write_failed");
         }
 
         if state == TaskState::Completed {
@@ -1222,13 +1288,6 @@ pub fn start_task(
                     cancelled.store(true, Ordering::Release);
                     state = TaskState::Failed;
                     execution.error_code = Some("channel_closed");
-                    let db_update = db.clone();
-                    let _ = tauri::async_runtime::spawn_blocking(move || {
-                        let conn = db_update.open().map_err(|error| error.code())?;
-                        task_history::mark_failed(&conn, id.0, "channel_closed")
-                            .map_err(|error| error.code())
-                    })
-                    .await;
                 }
             }
         }
@@ -1242,13 +1301,6 @@ pub fn start_task(
         };
         if emit(&channel, id, &sequence, state, terminal).is_err() {
             cancelled.store(true, Ordering::Release);
-            let db_update = db.clone();
-            let _ = tauri::async_runtime::spawn_blocking(move || {
-                let conn = db_update.open().map_err(|error| error.code())?;
-                task_history::mark_failed(&conn, id.0, "channel_closed")
-                    .map_err(|error| error.code())
-            })
-            .await;
         }
     });
     Ok(id)
@@ -1308,6 +1360,7 @@ pub(crate) async fn resume_task_graph(
     .await;
     let mut execution = match context {
         Err(code) => ExecutionOutcome {
+            lease: None,
             state: TaskState::Paused,
             error_code: Some(code),
             graph: None,
@@ -1344,43 +1397,9 @@ pub(crate) async fn resume_task_graph(
     };
     let state = registry.finish(root, execution.state);
     execution.state = state;
-    finish_continuation(&db, lease, &cancelled, &mut execution).await;
+    execution.lease = Some(lease);
+    let paused_reason = finalize_execution(&db, root, &cancelled, &mut execution, resumed_at).await;
     let state = execution.state;
-    if state != TaskState::Paused {
-        let finished_at = now();
-        let records = execution
-            .graph
-            .as_ref()
-            .map(|graph| {
-                build_records(
-                    root,
-                    graph,
-                    &execution.meta,
-                    execution.error_code,
-                    &finished_at,
-                )
-            })
-            .unwrap_or_default();
-        let record = TaskRecord {
-            task_id: root.0,
-            kind: TASK_KIND.into(),
-            state: match state {
-                TaskState::Completed => "completed",
-                TaskState::Cancelled => "cancelled",
-                _ => "failed",
-            }
-            .into(),
-            started_at: resumed_at,
-            finished_at,
-            summary: Some("LR-8.5C resumed task graph".into()),
-            error_code: execution.error_code.map(str::to_owned),
-        };
-        continuations::with_connection(&db, move |conn| {
-            task_history::insert_with_subtasks(conn, &record, &records)
-                .map_err(|_| "task_history_write_failed")
-        })
-        .await?;
-    }
     if state == TaskState::Completed {
         if let Some(result) = execution.result {
             emit(
@@ -1396,7 +1415,7 @@ pub(crate) async fn resume_task_graph(
         TaskState::Completed => TaskEventKind::TaskCompleted,
         TaskState::Cancelled => TaskEventKind::TaskCancelled,
         TaskState::Paused => TaskEventKind::TaskPaused {
-            reason: pause_reason(execution.error_code),
+            reason: paused_reason.unwrap_or_else(|| pause_reason(execution.error_code)),
         },
         _ => TaskEventKind::TaskFailed {
             detail: execution.error_code.unwrap_or("continuation_failed").into(),

@@ -1676,3 +1676,67 @@ fn lr8b_task_graph_cap_one_serializes_same_provider_workers_with_provenance() {
 fn lr8b_task_graph_cap_two_admits_parallel_same_provider_workers_with_provenance() {
     same_provider_workers_admission(2);
 }
+
+#[test]
+fn c4_fix1_a_b_initial_path_history_failures_roll_back_terminal_and_history() {
+    for table in ["task_records", "task_subtask_records"] {
+        let (db, runtime, store, active, _, dir) = fixture("terminal-history-rollback", 2, 1);
+        db.open().unwrap().execute_batch(&format!(
+            "CREATE TRIGGER fail_terminal_history BEFORE INSERT ON {table} BEGIN SELECT RAISE(ABORT,'local terminal fault'); END;"
+        )).unwrap();
+        let registry = Arc::new(TaskRegistry::default());
+        let (channel, receiver) = channel();
+        let id = start_task(
+            registry.clone(),
+            db.clone(),
+            runtime,
+            store,
+            "Terminal atomicity gate".into(),
+            channel,
+        )
+        .unwrap();
+        let events = collect(&receiver);
+        assert!(!events.iter().any(|e| e.contains("\"task_completed\"")));
+        assert!(events.iter().any(|e| e.contains("\"task_paused\"")));
+        assert_eq!(active.load(Ordering::Acquire), 0);
+        assert!(!registry.contains_for_test(id));
+        let conn = db.open().unwrap();
+        let state: (String, Option<String>) = conn
+            .query_row(
+                "SELECT state,pause_reason FROM cognitive_continuations WHERE root_task_id=?1",
+                [id.0],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(state, ("paused".into(), Some("recovery_required".into())));
+        for table in ["task_records", "task_subtask_records"] {
+            let root_column = if table == "task_records" {
+                "task_id"
+            } else {
+                "root_task_id"
+            };
+            let count: u32 = conn
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM {table} WHERE {root_column}=?1"),
+                    [id.0],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(count, 0);
+        }
+        let loaded =
+            crate::persistence::continuations::ContinuationRepository::load(&conn, id.0).unwrap();
+        assert_eq!(loaded.completed.len(), 2);
+        assert!(loaded.uncertain.is_empty());
+        let checkpoints: u32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM cognitive_checkpoints WHERE root_task_id=?1",
+                [id.0],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(checkpoints, 2);
+        drop(conn);
+        fs::remove_dir_all(dir).unwrap();
+    }
+}

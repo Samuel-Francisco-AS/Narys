@@ -6,7 +6,9 @@ Estado: **C1 = PASS técnico após auditoria independente.**
 
 **C3 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
-**C4 = FIX OBRIGATÓRIA após auditoria independente; candidata ainda NÃO aprovada.**
+**C4 FIX-1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+
+C4 continua **NÃO PASS**.
 
 C1 PASS; C2 PASS; C3 PASS. LR-8.5C ainda **NÃO PASS**.
 Merge ainda **NÃO autorizado**.
@@ -1782,3 +1784,158 @@ terminais. A propriedade necessária é atomicidade no mesmo SQLite transaction.
 
 **Decisão:** não abrir PR, não fazer merge e não marcar LR-8.5C PASS até a FIX
 de atomicidade terminal passar por nova auditoria.
+
+
+## C4 FIX-1 — atomicidade terminal, implementação candidata
+
+**C4 FIX-1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+
+Baseline de auditoria `8f05dfca3408cbbb7cb4697e211ced140484575a`, posterior à
+candidata C4 `29ce2a618483e9923a36908855d2fb8fcdbec7f9`. A branch estava limpa,
+sincronizada com `origin/lr-8.5c-safe-handoff`; `main` permanece em
+`0024fec735e3f6cb2461dbdeba8fa6aa4be32d32`. Esta FIX atende exclusivamente ao
+achado bloqueante de terminalização/histórico. Não há migration/schema novo,
+mudança de Scheduler/policy/allocation/UI nem redesign de C1/C2/C3.
+
+### Um único fato terminal SQLite
+
+`task_history::insert_with_subtasks_in_transaction` é o writer interno que recebe
+uma `rusqlite::Transaction` já aberta. A API pública existente
+`insert_with_subtasks` mantém assinatura e validações, abre sua própria transação
+e delega a esse writer quando usada pelos demais consumidores.
+
+`ContinuationRepository::finish_terminal` abre **BEGIN IMMEDIATE** e, antes do
+único COMMIT:
+
+1. valida root/kind/estado terminal, lease/generation e lifecycle durável;
+2. carrega/valida o mesmo manifest, grants, checkpoints e results C4/C2;
+3. observa cancelamento durável: `cancelled` nunca é promovido a `completed`;
+4. exige todos os receipts/results e ausência de incerteza para `completed`;
+5. valida IDs únicos/exatos de subtasks e provenance de cada completed;
+6. escreve `task_records` e todas as `task_subtask_records`;
+7. atualiza `cognitive_continuations` com o mesmo estado terminal factual;
+8. COMMITA ambos os lados juntos.
+
+Cancelamento conserva unidades já completed e marca as demais cancelled. Se um
+cancelamento/falha ocorre antes da construção do grafo em memória, os IDs e
+completions confirmados vêm do manifest/ledger; não se inventam outputs nem
+started_at perdidos. `ContinuationRepository::finish` agora só aceita **paused**;
+nenhum caller pode usá-lo para terminalizar sem history. `cancel` conserva sua
+semântica de fence durável, inclusive quando já venceu antes da transação terminal;
+um rollback nunca desfaz um cancelamento anteriormente committed.
+
+### Runtime inicial, resume e falhas
+
+A fase Worker devolve seu lease ao runtime e não terminaliza antecipadamente.
+`finalize_execution` é a ponte única de persistência usada por `start_task` e
+`resume_task_graph`, após reconciliar cancelamento e antes de publicar conclusão.
+Os testes sintéticos de Worker também passam pela mesma ponte. Falhas de preflight
+anteriores à criação de continuation conservam o writer de history existente.
+
+~~~text
+checkpoint/result de cada unit já COMMITTED
+→ terminal transaction: history + continuation
+→ COMMIT único
+→ somente então TaskCompleted / resultado final
+~~~
+
+Falha de INSERT, UPDATE ou COMMIT faz rollback do novo fato terminal inteiro;
+receipts/results anteriores não participam desse rollback e continuam íntegros.
+Não há compensação de completed para failed. Depois do rollback, a ponte tenta
+uma pausa separada **RecoveryRequired**, sem histórico terminal. Se essa pausa
+também falhar, o ledger permanece running para startup recovery e o erro de
+persistência é reportado em memória; não se grava um terminal failed para ocultar
+o erro. Nenhum caminho dispara novamente providers automaticamente.
+
+Após remover a falha, recovery/resume explicitamente carregam as units já
+completed e finalizam usando seus receipts/results: zero novas calls, zero replay.
+Pausa econômica/incerta/contextual continua separada de histórico terminal. Se
+cancelamento vencer uma tentativa de pause, a mesma ponte terminal grava history
+cancelled. A transação SQLite serializa writers: cancelamento committed antes
+de adquirir o lock vence; um cancelamento posterior não reescreve um fato terminal
+já committed, conforme o CAS existente de `cancel`.
+
+Entrega de eventos ocorre depois do fato durável. O TaskGraph não chama mais
+`task_history::mark_failed` isoladamente se o canal fecha depois do COMMIT: erro
+de transporte não pode reescrever apenas um lado de continuation/history. Falha
+de canal durante execução conserva o estado failed e sua terminalização atômica.
+
+### Gates novos e regressões
+
+O filtro `c4_fix1_` contém **8 testes novos**, com loops determinísticos onde
+apropriado:
+
+| Gate | Prova |
+| --- | --- |
+| A/B | `start_task` real com mocks: falha de root ou subtask history deixa ambos os históricos vazios, continuation paused/RecoveryRequired, checkpoints/results íntegros e nenhum TaskCompleted |
+| C/D | A committed → crash → resume somente B → falha em cada history → rollback; remove fault/reopen/recovery/resume → zero novas calls, receipts idênticos e terminal agreement |
+| E | cancel durável entre A/B, depois do último result no resume e contra economic pause; history cancelled, sem promoção para completed |
+| F | completed/cancelled/failed normais concordam com history e IDs/estados de todas as subtasks |
+| G | FK DEFERRABLE INITIALLY DEFERRED introduzida só na fixture falha no COMMIT após os writes: rollback de continuation/history e da row auxiliar; retry conclui sem provider replay |
+| Falha adicional | terminal write + pause write falham: ledger permanece running, history vazio; recovery/resume finaliza sem novas calls |
+
+A primeira bateria nova foi interrompida ao detectar um parâmetro incorreto de
+fixture: barreira de paralelismo em plano sequencial. Corrigido o parâmetro, os
+oito testes passaram. A primeira suíte integral teve **957 PASS, 3 falhas, 2
+ignorados**: três assertions C3 ainda esperavam terminal/diagnóstico anteriores
+em fixtures que mudam receipts duráveis. O writer terminal validado agora recusa
+esse ledger: os gates foram atualizados para exigir paused/RecoveryRequired,
+nenhuma row de history e B ainda Blocked, além de uma única provider call e dos
+fences/IDs anteriormente testados. Os códigos finais são
+`continuation_history_invalid`, `continuation_checkpoint_invalid` e
+`continuation_checkpoint_mismatch`, respectivamente. A bridge C3 e seus guards
+não foram alterados. Nenhuma falha foi atribuída a flakiness.
+
+| Validação final sobre a FIX | Resultado |
+| --- | --- |
+| `c4_fix1_` | **8 PASS**, zero falhas; A–G e falha adicional de pause |
+| `c4_` | **55 PASS** |
+| `lr85c_final` A–Z | **24 PASS** |
+| C1 `cognitive_resources::handoff_tests` / C2 `c2_` / C3 `c3_` | **25 / 39 / 25 PASS** |
+| B1/B2/B3/B4, filtros `b1_`/`b2_`/`b3_`/`b4_` | **51 / 99 / 42 / 57 PASS** (referências cruzadas incluídas) |
+| TaskGraph `task_graph` | **103 PASS**, incluindo D3, C3 e C4 |
+| `persistence::` / TaskRegistry `luna::runtime::tests` | **71 / 7 PASS** |
+| Scheduler / admission | **2 / 26 PASS** |
+| rate / resilience / telemetry / LR-8E | **69 / 77 / 40 / 14 PASS** |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | **960 PASS, zero falhas, 2 ignorados**, 327,54 s; main/doc-tests sem falhas |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | **Exit 0** |
+| `npm run typecheck` | **Exit 0** |
+| Rustfmt direto nos **8 arquivos Rust alterados** | **Exit 0**, edition 2021, `skip_children=true --check` |
+| `cargo fmt --check --manifest-path src-tauri/Cargo.toml` | Exit 1 pelo drift legado: **25 arquivos antes/depois**, log byte a byte idêntico à baseline |
+| `git diff --check` | **Exit 0** |
+
+Os filtros se sobrepõem e não devem ser somados. Os dois ignorados continuam
+sendo `real_app_server_handshake` e `manual_final_codex_agent_bridge_gate`;
+não foram habilitados. Nenhum gate consumiu API/quota comercial real.
+A rodada final completa e todos os filtros passaram após os FIXes/assertions
+explicitamente descritos acima. Warnings de código não utilizado permanecem
+(15 na lib / 1 na lib test); não há erro de compilação.
+
+
+### Arquivos desta FIX
+
+- `docs/LR-8.5C-SAFE-HANDOFF.md`
+- `src-tauri/src/cognition/task_graph_runtime.rs`
+- `src-tauri/src/cognition/task_graph_runtime/c3_tests.rs`
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests.rs`
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests/storage_tests.rs`
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests/terminal_fix1_tests.rs`
+- `src-tauri/src/cognition/task_graph_runtime_tests.rs`
+- `src-tauri/src/persistence/continuations.rs`
+- `src-tauri/src/persistence/task_history.rs`
+
+### Limites preservados
+
+- Sem migration nova, reparação automática de terminais inconsistentes anteriores
+  ou expansão do resume. Bases que já tenham sido alteradas externamente continuam
+  fail-closed; esta FIX impede a nova janela no caminho real de terminalização.
+- O fence autônomo de `cancel` é preservado como exigido; não se desfaz cancelamento
+  durável diante de erro posterior de histórico. A materialização terminal feita
+  pela ponte, inclusive após cancelamento, usa o writer atômico.
+- Eventos não são transacionados com SQLite. Falha de entrega depois do COMMIT não
+  muda o fato durável já coerente nem autoriza replay.
+- As demais limitações da candidata C4 continuam válidas; não há nova feature.
+
+**C4 FIX-1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+C1 PASS; C2 PASS; C3 PASS; C4 ainda NÃO PASS; LR-8.5C ainda NÃO PASS;
+merge ainda NÃO autorizado.

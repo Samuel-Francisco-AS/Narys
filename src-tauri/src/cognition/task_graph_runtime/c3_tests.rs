@@ -327,7 +327,8 @@ impl Fixture {
             usage: SchedulerUsage::default(),
             plan: plan(steps),
         };
-        let outcome = execute_workers(
+        let started_at = now();
+        let mut outcome = execute_workers(
             self.db.clone(),
             self.runtime.clone(),
             TaskId(100),
@@ -338,6 +339,14 @@ impl Fixture {
             timeouts,
             self.context.take().unwrap(),
             planner,
+        )
+        .await;
+        let _ = finalize_execution(
+            &self.db,
+            TaskId(100),
+            &self.cancelled,
+            &mut outcome,
+            started_at,
         )
         .await;
         let events = events.lock().unwrap().clone();
@@ -698,8 +707,10 @@ async fn c3_j_unknown_effect_in_durable_predecessor_blocks_successor() {
     let (outcome, _) = f.run(sequential(), move |e| {
         if e["type"] == "subtask_completed" && e["subtask_id"] == "a" { db.open().unwrap().execute_batch("UPDATE main.cognitive_checkpoints SET effect_state='unknown_or_in_flight',checkpoint_json=json_set(checkpoint_json,'$.effects','unknown_or_in_flight') WHERE source_key='a';").unwrap(); }
     }).await;
-    assert_eq!(outcome.state, TaskState::Failed);
+    assert_eq!(outcome.state, TaskState::Paused);
+    assert_eq!(outcome.error_code, Some("continuation_history_invalid"));
     assert_eq!(f.calls().len(), 1);
+    assert_paused_without_terminal_history(&f, &outcome);
     let receipt = f.receipts().remove(0);
     assert_eq!(
         receipt.checkpoint().effects(),
@@ -817,8 +828,10 @@ async fn c3_p_corrupt_or_changed_receipt_cannot_release_a_dependent() {
     let (outcome, _) = f.run(sequential(), move |e| {
         if e["type"] == "subtask_completed" && e["subtask_id"] == "a" { db.open().unwrap().execute_batch("UPDATE main.cognitive_checkpoints SET checkpoint_json='{}' WHERE source_key='a';").unwrap(); }
     }).await;
-    assert_eq!(outcome.error_code, Some("handoff_checkpoint_mismatch"));
+    assert_eq!(outcome.state, TaskState::Paused);
+    assert_eq!(outcome.error_code, Some("continuation_checkpoint_invalid"));
     assert_eq!(f.calls().len(), 1);
+    assert_paused_without_terminal_history(&f, &outcome);
 }
 
 #[tokio::test]
@@ -974,8 +987,10 @@ async fn c3_p_valid_but_different_checkpoint_sequence_does_not_match_receipt() {
     let (outcome, _) = f.run(sequential(), move |e| {
         if e["type"] == "subtask_completed" && e["subtask_id"] == "a" { db.open().unwrap().execute_batch("UPDATE main.cognitive_checkpoints SET checkpoint_sequence=2,checkpoint_json=json_set(checkpoint_json,'$.id.sequence',2) WHERE source_key='a';").unwrap(); }
     }).await;
-    assert_eq!(outcome.error_code, Some("handoff_checkpoint_mismatch"));
+    assert_eq!(outcome.state, TaskState::Paused);
+    assert_eq!(outcome.error_code, Some("continuation_checkpoint_mismatch"));
     assert_eq!(f.calls().len(), 1);
+    assert_paused_without_terminal_history(&f, &outcome);
     assert_eq!(f.receipts()[0].checkpoint().id().sequence(), 2);
 }
 
@@ -1120,5 +1135,21 @@ async fn c3_o_reallocating_b_while_a_runs_never_changes_a_pin_or_serializes_them
             .await
             .unwrap_err(),
         "handoff_unit_already_committed"
+    );
+}
+
+fn assert_paused_without_terminal_history(f: &Fixture, outcome: &ExecutionOutcome) {
+    assert_eq!(
+        outcome.graph.as_ref().unwrap().state("b"),
+        Some(SubtaskState::Blocked)
+    );
+    let conn = f.db.open().unwrap();
+    let stored: (String, Option<String>, u32, u32) = conn.query_row(
+        "SELECT state,pause_reason,(SELECT COUNT(*) FROM task_records WHERE task_id=100),(SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=100) FROM cognitive_continuations WHERE root_task_id=100",
+        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+    ).unwrap();
+    assert_eq!(
+        stored,
+        ("paused".into(), Some("recovery_required".into()), 0, 0)
     );
 }
