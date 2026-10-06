@@ -1,6 +1,6 @@
 # LR-8.5 — Cognitive Resource Economy & Allocation
 
-Estado: **EM EXECUÇÃO — LR-8.5A iniciada após LR-8 = PASS completo.**\n\nSubfase corrente: **[LR-8.5A — Resource Domains, Access Paths & Cognitive Variants](LR-8.5A-RESOURCE-DOMAINS-VARIANTS.md)**.
+Estado: **EM EXECUÇÃO — LR-8.5A = PASS técnico; próxima subfase LR-8.5B.**\n\nSubfase concluída: **[LR-8.5A — Resource Domains, Access Paths & Cognitive Variants](LR-8.5A-RESOURCE-DOMAINS-VARIANTS.md)** — PASS técnico em 06/10/2026.\n\nPróxima subfase: **LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy**.
 
 ## Motivação
 
