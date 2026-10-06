@@ -2242,6 +2242,120 @@ API/quota comercial real. Permanecem os warnings legados de código não utiliza
 - Eventos continuam sem transaction distribuída com SQLite. Não há nova UI,
   migration de checkpoints, alteração de C1/C2/C3/policy/Scheduler ou nova feature.
 
-**C4 FIX-2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
-C1 PASS; C2 PASS; C3 PASS; C4 ainda NÃO PASS; LR-8.5C ainda NÃO PASS;
-merge ainda NÃO autorizado.
+**C4 FIX-2 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
+C1 PASS; C2 PASS; C3 PASS; C4 PASS; **LR-8.5C = PASS TÉCNICO**;
+merge ainda NÃO executado.
+
+
+## Auditoria independente final — C4 FIX-2 / fechamento LR-8.5C — 06/10/2026
+
+**Resultado: PASS técnico. C4 aprovado e LR-8.5C aprovada tecnicamente.**
+
+A auditoria comparou o finding FIX-2 em
+`bee611faeafb269720420a669714daa25f3289c4` com a candidata
+`3bd0f49eeb32e2d9b0d15dfb77ae51f547af5627`. O diff contém um único
+commit de implementação, migration 016 e os 13 arquivos declarados. Não houve
+merge, PR ou alteração da `main`.
+
+### Verificações da FIX-2
+
+1. **Intenção de cancelamento e estado terminal foram separados.**
+   `cancel_requested=1` só pode coexistir com `running`/`paused`; estados
+   terminais exigem `cancel_requested=0`. A migration 016 preserva rows antigas
+   com default 0.
+
+2. **Running cancel não cria terminal parcial.**
+   `ContinuationRepository::cancel` em `running` persiste somente
+   `cancel_requested=1` sob `BEGIN IMMEDIATE`. O TaskRegistry sinaliza o
+   `AtomicBool`, mas o estado terminal continua pertencendo ao writer atômico.
+
+3. **Paused cancel é terminalizado atomicamente.**
+   Como não há owner ativo, `cancel` reutiliza
+   `finish_terminal_in_transaction`: root history, subtask history e
+   `cognitive_continuations.state='cancelled'` entram no mesmo COMMIT.
+   Receipts/results já committed permanecem intactos; units restantes tornam-se
+   cancelled.
+
+4. **Não há mais terminalização cancelled autônoma no fluxo C4 auditado.**
+   O writer compartilhado é a autoridade de materialização terminal. O marcador
+   não terminal não substitui history.
+
+5. **Cancel request sobrevive restart sem autorizar execução.**
+   Recovery converte running interrompido para paused preservando
+   `cancel_requested`. `claim` recusa resume com
+   `continuation_cancel_requested`; startup continua sem provider calls.
+
+6. **Late result/checkpoint é bloqueado.**
+   `commit_result` valida generation, estado e `cancel_requested` dentro da
+   mesma transaction que tentaria gravar receipt/result. Uma intenção de cancel
+   já committed impede nova conclusão. Estado terminal também não aceita novo
+   receipt.
+
+7. **A precedência das corridas é determinística.**
+   Cancel committed antes da transaction terminal vence um requested
+   `completed`; completion já terminalmente committed antes do cancel não é
+   reescrita. Dois cancels concorrentes são serializados e idempotentes.
+
+8. **A FIX-1 continua íntegra.**
+   Completion/failure/cancellation terminal usam history + continuation em um
+   único fato SQLite. Falha em root/subtask INSERT ou deferred COMMIT reverte o
+   fato terminal inteiro; recovery/retry usa receipts/results já duráveis sem
+   replay de provider.
+
+9. **Migration 016 é compatível e atômica.**
+   Upgrade v15 → v16 preserva continuation ledger, checkpoints, B4 policy,
+   task history e rate state; falha do ALTER não avança `user_version` e pode
+   ser retentada.
+
+10. **Terminal rows agora são autovalidantes.**
+    `load_in_transaction` rejeita estado terminal sem root history completo,
+    rejeita terminal com `cancel_requested` e valida o conjunto inteiro de
+    `task_subtask_records` contra manifest/receipts/results.
+
+### Gates auditados
+
+Os resultados reportados são consistentes com o diff e com os contratos
+revisados:
+
+- FIX-2: 13 PASS;
+- FIX-1: 8 PASS;
+- C4: 68 PASS;
+- final gate A–Z: 24 PASS;
+- C1/C2/C3: 25/39/25 PASS;
+- B1/B2/B3/B4: 51/99/42/57 PASS;
+- TaskGraph: 116 PASS;
+- persistence/migrations/TaskRegistry: 71/14/7 PASS;
+- Scheduler/admission: 2/26 PASS;
+- rate/resilience/telemetry/LR-8E: 103/77/40/14 PASS;
+- suíte Rust integral: 973 PASS, 0 falhas, 2 gates manuais legados ignorados;
+- `cargo check` e typecheck: PASS;
+- rustfmt direto nos 11 arquivos Rust alterados: PASS;
+- `git diff --check`: PASS;
+- `cargo fmt --check` mantém os mesmos 25 arquivos de drift legado, sem drift
+  novo.
+
+Nenhum gate consumiu API/quota comercial.
+
+### Limitações aceitas
+
+- Startup não auto-finaliza um `cancel_requested`; mantém o estado não terminal
+  bloqueado até cancel explícito. Isso é conservador e não autoriza replay.
+- Estados terminais inconsistentes criados por versões candidatas antigas ou por
+  edição externa não são reparados automaticamente; o loader os rejeita e o root
+  permanece protegido.
+- O horário original de início não existia no manifest v15; cancel de paused usa
+  timestamp factual de finalização para os campos obrigatórios de root history.
+- Não há cleanup automático do ledger.
+- Não há Tool Runtime, distributed lock, billing real, SpecialistAgent ou
+  resolução automática de effects incertos.
+
+Essas limitações não quebram os invariantes da LR-8.5C e ficam fora do escopo
+desta trilha.
+
+### Decisão final da auditoria
+
+**C1 PASS · C2 PASS · C3 PASS · C4 PASS · LR-8.5C PASS TÉCNICO.**
+
+A branch `lr-8.5c-safe-handoff` está tecnicamente apta para o procedimento
+padrão de fechamento/merge. Este registro não executa o merge nem altera
+`main`.
