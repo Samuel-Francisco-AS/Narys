@@ -1471,3 +1471,280 @@ B3 é o primeiro checkpoint autorizado a alterar o comportamento real de Auto.
 Fixed e Preferred devem permanecer semanticamente inalterados. Scheduler continua
 autoridade de execução/admission/rate/resilience e não deve absorver regras
 comerciais do allocator.
+
+## B3 — Implementação candidata
+
+**B3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+Somente B3: sem PASS antecipado, B4/C, migration, UI, nova policy persistida,
+pricing remoto ou integração de SpecialistAgent/Codex/Copilot.
+
+### Pré-condições e arquitetura
+
+Branch exclusiva `lr-8.5b-allocation-scarcity-policy`; HEAD inicial local/remoto
+`b915a963ce92141daf1bd7c5e9c327a21918a89d`. Fetch + fast-forward já atualizado,
+workspace limpo e ancestral original
+`main@a6eec1b63655d860279f606bc55766255903f1fe` confirmados antes das edições.
+Os quatro documentos solicitados foram lidos integralmente; cognitive_resources,
+Scheduler, policy/types/registry, TaskGraph, Luna runtime, smart routing e o
+composition root foram revisados.
+
+`cognitive_resources/provider_bridge.rs` contém `ProviderAutoAllocator`,
+`OperationalVariantProof`, `ResolvedProviderCandidate`, `AutoRoutePlan`,
+`AutoRouteEntry`, exclusões e erros tipados. A bridge não executa provider,
+HTTP, reservation, admission, refresh de quota ou mutação de catálogo.
+
+~~~text
+ProviderTaskRequest.targets (CognitiveRolePolicy)
+→ enumeração bounded das variantes autorizadas
+→ B1 + prova operacional exata, sem reescrever facts
+→ entrada interna sealed para o mesmo núcleo econômico B2
+→ ranking global B2
+→ primeira/melhor variante de cada provider
+→ AutoRoutePlan congelado
+→ Scheduler: resilience / budget / rate / admission / execução / retry / fallback
+~~~
+
+A fonte do universo é exclusivamente `targets`. O Registry só fornece config e
+adapter para IDs já autorizados; não acrescenta candidatos. O catálogo só fornece
+descriptors desses IDs. ResourceId deve corresponder ao provider_id, classe deve
+ser CognitiveProvider e origin deve apontar ao mesmo Provider Runtime. Enabled e
+capabilities Known contraditórios com o Registry falham fechado; não há merge
+permissivo. IDs duplicados/inválidos, ausência de descriptor e incoerência não
+produzem uma cadeia parcialmente inventada.
+
+### Catálogo de produção e default temporário
+
+Scheduler possui um allocator com catálogo provider-only, inicializado uma vez a
+partir de ProviderConfig, usando `CognitiveResource::from_provider_config`:
+
+- ResourceId, ProviderFamily e BillingDomainId recebem a identidade local do provider;
+- access_path é `provider_runtime`; origin é `Provider(provider_id)`;
+- enabled e capabilities descrevem somente o contrato registrado;
+- models, availability remota e todos os economics permanecem Unknown.
+
+Não foram criadas tabelas de preço, latência, qualidade, billing kind, quotas,
+modelos ou efforts. Um erro na inicialização de allocation é guardado e bloqueia
+Auto; não impede construir/executar Fixed ou Preferred. Catálogo enriquecido,
+AllocationPolicy e quality floor podem ser injetados por constructor nos testes.
+
+Produção usa explicitamente: **Balanced / VariantSelectionMode::Auto /
+PaidUsePolicy::Deny / reserve=None**, sem quality floor configurado nesta B3.
+`AllocationPolicy::default()` público da B1/B2 não mudou. Thresholds sintéticos
+ficam nas fixtures; defaults persistíveis e controles pertencem à B4.
+
+### OperationalVariantProof e Unknown
+
+A prova tem constructor privado e nasce somente após registro, enabled, runtime
+capabilities suficientes e `supports_invocation` aceitando o target/mode exatos.
+Ela conserva identidade completa, ProviderTarget (incluindo timeouts), InvocationMode
+exato e capabilities do runtime. Sua reutilização para modelo, effort, timeout ou
+mode diferentes retorna InvalidOperationalProof. Não contém backend handles;
+não é serializada e seu Debug omite o mode/schema.
+
+`ResolvedProviderCandidate` tem campos/constructor privados. Conserva a evidence
+B1 original, a prova e CandidateSignals; só aceita B1 sem contradições e com
+**todas** as reasons restantes cobertas. A whitelist operacional permite:
+
+- ModelSupportUnknown e EffortSupportUnknown da invocação exata;
+- AvailabilityUnknown em Resource/Model e em Effort quando selecionado;
+- ResourceEnabledUnknown, porque registro enabled foi comprovado separadamente;
+- CapabilityUnknown apenas no scope Runtime/camada Resource, quando o contrato
+  registrado prova explicitamente a capability exigida.
+
+Nunca cobre ResourceDisabled, ModelNotSupported, EffortNotSupported,
+AvailabilityUnavailable, CapabilityUnsupported, CognitiveTierBelowFloor,
+CognitiveTierUnknown com floor obrigatório ou CapabilityUnknown model-specific.
+Known(false)/Unavailable não são reescritos; catálogo Known sem modelo/effort
+pedido continua rejeitando essa variante mesmo se o adapter a aceitar.
+
+Models Unknown não vira Known([policy_model]); supported_efforts Unknown também
+não é preenchido artificialmente. Sem ModelProfile descrito, uma ExecutionFacts
+Unknown transitória alimenta a resolução B2: tier, RelativeCostTier, monetary
+cost e latency Unknown, sem consumos/allowances inventados. Com modelo descrito e
+effort Unknown, fatos realmente descritos do modelo seguem a resolução B2 já
+aprovada; não há facts falsos de effort. Quality floor Unknown não é promovido.
+
+A entrada interna `AllocationScoringRequest::from_provider_candidates` só aceita
+os valores sealed da bridge. Reutiliza o join econômico, spend/scarcity guards,
+pesos, score, sorting e desempate B2. A API pública B2 continua exigindo B1
+Eligible e recusando Unresolved/Ineligible; B1 e seu relatório não foram alterados.
+As evidence Unknown originais permanecem Unknown, inclusive na avaliação interna.
+
+### Variant expansion e collapse
+
+A variante explícita sempre entra na avaliação. Em Auto, listas Known de modelos
+são enumeradas, com no-effort e efforts explicitamente descritos. Todas as
+invocações representáveis são validadas pelo adapter no InvocationMode real.
+Não há inferência por nome, lista remota ou modelo hardcoded.
+
+`EffortId::try_thinking_level()` aceita apenas low/medium/high. xhigh, ultra,
+reasoning-4 e outros não representáveis geram `EffortBridgeUnsupported`, sem
+converter para High, panic ou invalidar as outras variantes válidas. Isso é uma
+limitação da bridge atual, não um erro dos facts do catálogo.
+
+A expansão é canonizada por AllocationVariant e limitada a
+MAX_ALLOCATION_CANDIDATES=256, incluindo variantes não representáveis na contagem.
+Excesso retorna ExpansionOverflow antes de consultar adapters/scorer; não trunca.
+Depois do ranking global B2, a primeira entrada de cada provider é mantida.
+Assim há no máximo um ProviderTarget por provider, mantendo UNIQUE(role,provider_id),
+validação do Scheduler e fallback somente entre providers. O target vencedor
+preserva provider_id/timeouts e substitui somente model/thinking_level.
+
+### CandidateSignals e affinity
+
+Todos os modelos/efforts de um provider recebem seu ordinal original da policy
+(0..MAX_TARGETS-1). Priority usa explicitamente `min(priority,32)`, sem rejeitar
+u16 maior. Required ProviderCapabilities são mapeadas para CapabilityScope::Runtime;
+não são copiadas para ModelProfile. `supports_invocation` valida a compatibilidade
+concreta de modelo/effort/mode.
+
+`context_switch_signal(bytes) = min(100, ceil(bytes/1024))`, com divisão antes da
+adição para evitar overflow. Zero produz ausência de continuidade/switching;
+sem affinity autorizada conhecida, ambos são neutros. Para affinity conhecida,
+a variante daquele provider recebe continuidade positiva; os demais recebem
+switching cost positivo na mesma escala. São sinais relativos locais, não preço,
+quota, tokens, capacidade, qualidade ou economia de cache comprovada.
+
+Affinity permanece no mesmo armazenamento bounded, session/runtime scoped e
+atualizada após sucesso, inclusive Fixed/Preferred. Restart limpa affinity.
+Não foi criado banco/ledger de continuidade. Pesos B2 podem mudar o winner por
+profile e contexto; as expectativas numéricas D2 dos testes foram atualizadas
+para B2, inclusive o menor sinal positivo de contexto. `auto_score()` e suas
+constantes exclusivas foram removidos; não há soma/reordenação Auto posterior.
+
+### Scheduler, TaskGraph, eventos e LR-8
+
+`resolve_provider_chain` é a única engine de ordering. `run` a chama uma vez antes
+da primeira tentativa; `ranked_provider_ids` a usa através da projeção read-only
+`ranked_provider_targets`. A assinatura de ranking recebe InvocationMode explícito,
+com callers atualizados, sem assumir streaming para structured output.
+TaskGraph usa os targets escolhidos nessa mesma engine, conservando a variante
+B2 ao fixar cada Worker. O pin Fixed posterior é a fronteira de execução já
+existente, não uma segunda decisão Auto. A projeção de IDs permanece disponível
+para os callers/testes que só precisam de IDs.
+
+Fixed/Preferred conservam também a distinção operacional anterior: a projeção
+consultiva ignora runtimes desabilitados ou sem capabilities exigidas, enquanto
+execução preserva suas recusas/validação exata. Essa finalidade não cria outro
+ordering Auto; ambas usam o mesmo plano B3 nesse modo.
+
+O plano contém targets/scores/exclusões bounded, sem prompt, input, histórico,
+affinity key, credenciais, account IDs remotos, headers, handles ou ScoreBreakdown.
+SchedulerEvent::Selected e TaskEventKind::ProviderSelected agora usam Option<i64>.
+Auto emite `auto_allocator` e o total B2 da variante planejada; Fixed conserva
+`fixed`, Preferred conserva `preferred_order`, ambos score=None. TypeScript
+continua number|null e adiciona auto_allocator; strings antigas permanecem no
+union apenas para compatibilidade. Os bridges Luna/TaskGraph repassam o i64.
+
+Cada planejamento captura telemetry.snapshots() e **rate.read_only_snapshots()**
+uma única vez por autoridade. Não usa o reader mutável rate.snapshots().
+`EconomicContext::capture_provider_models` aplica as mesmas validações de DTO,
+identity, generation, bounds e duplicatas da captura B2, projetando também o
+scope exato de modelos operacionalmente comprovados sem ModelProfile. Isso não
+altera membership do catálogo. Provider scope aplica; sibling model não aplica.
+Capturas não prometem transação global; generation divergente falha fechado.
+
+Rate/resilience/admission continuam sendo revalidados nos gates existentes antes
+de chamada real. Uma recusa depois do plano é respeitada, sem re-score. Retries
+usam o mesmo target/score; fallback consome somente o próximo provider do plano.
+429 não adiciona provider, não relaxa PaidUsePolicy e não habilita path pago.
+Partial output continua terminal para retry/fallback; cancellation, output budget,
+PendingSchedulerAttempt/call budget, event ordering, usage e RAII foram preservados.
+Fixed/Preferred bypassam integralmente allocation/economics/expansion, inclusive
+com facts paid/exhausted/expensive ou catálogo de allocation inválido.
+
+### Gates sintéticos e integrados
+
+`provider_bridge_tests.rs` contém 41 gates B3, com adapters controlados, clocks
+injetados, LR-8/Scheduler reais e HTTP exclusivamente loopback no gate Paid Deny.
+Matriz dos requisitos A–AE:
+
+| Gates | Evidência |
+|---|---|
+| A/B/L | Fixed/Preferred com paid+exhausted+expensive; invocação/timeouts explícitos e distinção ranking/execução preservados; erro de catálogo não bloqueia modos explícitos |
+| C/D/E/F | Só B2, registry-only ausente, modelo/effort Unknown com prova exata, Known absent/Unavailable e quality floor invioláveis |
+| G/H/I/J | Model/effort expansion Economy, múltiplos providers/variantes e collapse global, timeouts, exclusões xhigh/ultra/reasoning-4, overflow sem truncar |
+| K/M/N | Paid Deny antes de HTTP/reservation/admission, Reserve reordena e continua utilizável quando único, Exhausted exclui |
+| O/P/Q/AC | LR-8 provider/exact/sibling com catálogo Unknown, reset só projetado em cópia, ledger/DTO/catalog invariantes e geração divergente tipada |
+| R/S/T | Signals bounded/clamp/ordinal, continuidade por sucesso real, zero/ausência neutros, restart sem affinity, Balanced/Fast versus Reserve |
+| U/V/W | Engine compartilhada por ranking/run/targets TaskGraph, auto_allocator com total B2 e serialização real de score negativo |
+| X/Y/Z/AA/AB | Plano/variante/score congelados, retries antes de fallback, 429 sem salto pago, chunk terminal, cancellation e call budget |
+| AD/AE | Determinismo com registry/catalog em ordens diferentes, JSON plan/event sem markers privados e Debug de proof sem schema |
+
+Gates adicionais verificam impossibilidade de reutilizar a prova para sibling,
+outro effort, timeout/mode diferente, nenhuma fabricação de Known e recusa da
+mesma request Unresolved pela API pública B2. As regressões antigas conservam
+Fixed/Preferred e os gates operacionais; somente expectativas do Auto D2 ou de
+seleção esgotada foram adaptadas à decisão B3 autorizada.
+
+Validação final em 2026-10-06 (contagens por módulo dentro da suíte completa;
+grupos sobrepostos não devem ser somados):
+
+| Gate | Resultado técnico |
+|---|---|
+| B3, execução dirigida `provider_bridge` | 41 aprovados, 0 falhas |
+| B2 | 96 aprovados, 0 falhas |
+| B1/FIX-1 | 46 aprovados, 0 falhas |
+| LR-8.5A (base + FIX-1/2/3) | 38 aprovados, 0 falhas |
+| `cognitive_resources`, execução dirigida | 221 aprovados, 0 falhas |
+| Smart routing / Scheduler unitários | 10 / 2 aprovados |
+| Rate / admission (módulos principais + integração) | 70 / 20 aprovados |
+| Resilience / telemetry | 76 / 33 aprovados |
+| LR-8E | 14 aprovados |
+| TaskGraph runtime | 13 aprovados |
+| Conversation preflight | 12 aprovados |
+| Orchestrator / summary | 17 / 12 aprovados |
+| Suíte Rust completa, `--test-threads=4` | 762 aprovados, 0 falhas, 2 ignorados; 272,92s |
+| `cargo check` | concluído sem erros |
+| Frontend `npm run typecheck` | concluído sem erros |
+| `test-provider-operations.cjs` / `test-provider-operations-dom.cjs` | ambos concluídos sem falhas |
+| `git diff --check` e staged diff | sem erros |
+| rustfmt dos 16 arquivos Rust criados/alterados | sem diferenças |
+
+Comandos Rust dirigidos:
+
+~~~bash
+cargo test --manifest-path src-tauri/Cargo.toml provider_bridge
+cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources
+cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4
+cargo check --manifest-path src-tauri/Cargo.toml
+~~~
+
+A execução completa inclui todas as regressões listadas acima, testes HTTP
+loopback dos adapters, segurança/persistence e demais módulos.
+
+Os dois ignorados são `real_app_server_handshake` (requer app-server local) e
+`manual_final_codex_agent_bridge_gate` (requer Codex autenticado e quota). Não
+pertencem à B3 e não foram habilitados para consumir inferência externa.
+
+Avisos: 12 warnings de biblioteca e 1 warning da fixture de testes, sem
+supressão. Incluem a projeção `ranked_provider_ids` sem consumidor de produção
+agora que TaskGraph precisa dos targets completos; os demais são warnings já
+existentes. A checagem global de rustfmt ainda encontra 41 arquivos com drift
+anterior; cada um foi comparado com `b915a963ce92141daf1bd7c5e9c327a21918a89d`
+usando o mesmo formatter. Nenhum drift novo foi introduzido; esses arquivos fora
+do escopo não foram reformatados.
+
+Durante desenvolvimento foram corrigidas uma comparação que incluía timestamps
+observacionais e a expectativa numérica de Conversation (1542 = 1524 + 2 + 4×4).
+A distinção anterior de ranking/execução de Fixed/Preferred recebeu regressão
+explícita antes da validação final. Não houve relaxamento de deadlines, retirada
+de gates ou alteração dos contratos públicos B1/B2 para obter os resultados.
+
+### Dívidas B4/C e limitações
+
+B4: persistência/configuração por role, UI, defaults duráveis, configuração de
+budget/Reserve/quality floor e calibração futura dos pesos/sinal de contexto.
+Economics e catálogo de modelos/efforts de produção continuam Unknown enquanto
+não houver fonte real. Sem refresh econômico remoto, tabela comercial, pricing
+web, ledger monetário, purchase/refill ou configuração de budgets nesta B3.
+
+C/trilhas posteriores: same-provider fallback entre variantes, handoff seguro,
+replay/checkpoint e continuidade após output; SpecialistAgent allocation e
+execução real de Codex/Copilot permanecem fora do escopo. Preservam-se as
+limitações LR-8: snapshots não globalmente atômicos, TokenUpperBound possivelmente
+ausente, accounting Unknown/conservador, health transitório, SQLite síncrono em
+mutações e pressuposto de uma instância ativa. Prova operacional não garante
+availability remota nem substitui qualquer autoridade operacional.
+
+**B3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
