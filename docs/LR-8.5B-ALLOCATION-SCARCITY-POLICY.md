@@ -1,6 +1,7 @@
 # LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy
 
-Estado: **IMPLEMENTAÇÃO EM ANDAMENTO — B1/B2/B3 = PASS técnico; B4 é o checkpoint corrente.**
+Estado: **B4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+B1/B2/B3 permanecem em PASS técnico; a LR-8.5B ainda não está encerrada.
 
 Branch de trabalho: `lr-8.5b-allocation-scarcity-policy`  
 Base: `main@a6eec1b63655d860279f606bc55766255903f1fe`
@@ -1786,3 +1787,284 @@ ambiente local; a auditoria independente revisou código, testes e diffs remotos
 
 B4 deve tornar a policy econômica durável/configurável sem alterar as fronteiras
 B1/B2/B3, sem introduzir pricing remoto e sem antecipar LR-8.5C.
+
+
+## B4 — Implementação candidata
+
+Data: **06/10/2026**
+Branch: `lr-8.5b-allocation-scarcity-policy`
+HEAD remoto de entrada confirmado: `1c752d29236d5ef4ea92c24d49721106ef01529d`
+Commit de implementação validado: `d8554e04f15b472e7bfdc5db0ce09a962a8cf04b`
+Base da trilha: `main@a6eec1b63655d860279f606bc55766255903f1fe`
+
+Esta candidata implementa exclusivamente **Policy Persistence, Settings Surface &
+Final Gate**. B1/B2/B3 mantêm seus contratos. A auditoria independente deverá
+avaliar a B4 antes do fechamento e merge da trilha.
+
+### Migration 013 e contrato persistido
+
+`013_cognitive_allocation_policy.sql` cria `cognitive_role_allocation_policies`,
+separada de `cognitive_role_policies`. A migration e `PRAGMA user_version = 13`
+compartilham uma transação com rollback por RAII. Versões futuras `>13` falham.
+
+| Coluna | Contrato SQLite |
+|---|---|
+| `role` | PK não nula, quatro roles, FK para routing com `ON DELETE CASCADE` |
+| `allocation_profile` | `economy`, `balanced`, `fast` |
+| `variant_selection_mode` | `explicit`, `auto` |
+| `minimum_cognitive_tier` | NULL ou inteiro `0..255` |
+| `paid_use_policy` | `deny`, `allow_known_cost_within_budget` |
+| `max_paid_currency` / `max_paid_micros` | Deny exige ambos NULL; Allow exige ambos presentes, moeda exatamente três bytes ASCII A–Z e inteiro `0..9007199254740991` |
+| `reduced_below_percent` / `reserve_below_percent` | Ambos NULL ou inteiros `0 <= reserve <= reduced <= 100` |
+| `updated_at` | Texto não nulo atualizado pelo save |
+
+Os CHECKs incluem presença explícita e `typeof`, evitando tanto pares parciais
+quanto o bypass de CHECK por resultado NULL. Não há JSON econômico opaco, FX,
+observações privadas, preços, account IDs ou secrets na tabela.
+
+Fresh DB → v13 e upgrade v12 → v13 produzem as mesmas quatro linhas:
+Conversation, Summary, Orchestrator e Worker com **Balanced / Auto variant /
+Paid Deny / sem floor / sem reserve**. Currency, micros e thresholds começam
+NULL. Esses defaults são exatamente a policy temporária de produção aprovada na
+B3. O teste do upgrade usa routing Auto com dois targets e compara os snapshots
+runtime com a fixture B3; os gates sintéticos de ranking preservam esse contrato.
+
+### DTO e snapshot runtime validado
+
+`cognition/allocation_policy.rs` introduz `CognitiveRoleAllocationPolicy`, DTO de
+configuração local separado de `CognitiveRolePolicy`. O DTO é desserializável;
+`MonetaryAmount`, `ReservePolicy`, `PaidUsePolicy`, `AllocationPolicy` e
+`AllocationRuntimePolicy` não ganham Deserialize de aggregates.
+
+`to_runtime()` usa exclusivamente `CognitiveTier::new`, `MonetaryAmount::new` e
+`ReservePolicy::new` para criar `AllocationRuntimePolicy`, com campos privados:
+`AllocationPolicy` e `Option<QualityFloor>`. O snapshot é provider-agnostic e
+válido por construção. Enum desconhecido, row ausente, pares incoerentes e valores
+inválidos falham com códigos sanitizados, sem ecoar budget/currency/payload.
+
+`load_role_runtime_policy(s)` captura routing, targets e allocation na mesma
+SQLite read transaction. TaskGraph captura Orchestrator e Worker em uma única
+transação de preflight. Uma transação já aberta pelo caller é respeitada. Após o
+preflight, o snapshot viaja na tarefa; não há consulta global durante ranking.
+
+### Save composto e API Settings
+
+`get_ai_settings` mantém o contrato de routing e acrescenta `allocationPolicies`
+com as quatro configurações locais. Sua leitura composta também usa uma única
+read transaction. Não expõe catálogo, ScoreBreakdown ou observations econômicas.
+
+`update_cognitive_role_settings` valida roles iguais, routing, allocation e
+credentials/compatibility atuais. Routing, targets, allocation e limpeza de
+pending summaries quando Summary está disabled são escritos na **mesma write
+transaction**. Qualquer falha faz rollback de tudo. A resposta contém os dois
+DTOs relidos no banco antes do commit. SummaryWorker continua recebendo kick.
+
+O command de routing anterior permanece compatível e conserva a limpeza
+transacional de Summary disabled. `summary_input_max_bytes = 0` continua
+significando desligamento; salvar economics não reativa o resumo.
+
+### Policy por tarefa e wiring dos quatro papéis
+
+`ProviderTaskRequest.allocation_policy` transporta `Option<AllocationRuntimePolicy>`.
+Auto exige Some válido. None falha antes de ProviderSelected, fallback,
+reservation, admission ou provider call. O preflight também rejeita row ausente
+ou corrompida; não há default silencioso de produção.
+
+Fixed/Preferred ignoram allocation no Scheduler e não carregam a row econômica
+no preflight. Continuam executando com row econômica ausente/corrompida ou até
+com tabela econômica indisponível na fixture. O editor exige o conjunto completo
+para exibir configuração, mas explicit execution não depende dele.
+
+- **Conversation:** o preflight real carrega o par; `chat_budget_and_request`
+  repassa o snapshot para Scheduler. Gates adicionais atravessam `start_conversation`
+  e comprovam corrupção fail-closed e save durante preflight já capturado.
+- **Summary:** cada execução claimed captura routing/allocation juntos. Auto
+  inválido é deferido como configuração inválida antes de provider call;
+  Fixed/Preferred continuam independentes e disabled permanece disabled.
+- **Orchestrator:** preflight carrega o par e os builders de planning/TaskGraph
+  recebem a allocation do próprio papel.
+- **Worker/TaskGraph:** a allocation de Worker capturada junto com Orchestrator
+  chega ao ranking inicial através de `rank_worker_targets`. Após atribuição, a
+  unidade executa Fixed com allocation None; não recebe novo score econômico.
+
+`ranked_provider_ids`, `ranked_provider_targets` e `run` continuam compartilhando
+`resolve_provider_chain`. A engine recebe só o snapshot runtime e não lê SQLite,
+role ou Settings. `cognitive_resources` continua sem SQLite.
+
+`ProviderAutoAllocator` possui **somente ResourceCatalog**. `plan` recebe a policy
+da tarefa e deriva o floor dessa policy. A antiga policy B3 existe apenas como
+helper cfg(test) para fixtures de regressão; não é autoridade de produção.
+O catálogo de produção continua minimalista, com economics/tiers/latency/
+allowances/modelos adicionais Unknown.
+
+`routing_mode` escolhe o modo de ordenação entre providers. Separadamente,
+`variant_selection_mode = explicit` limita cada provider à invocação configurada;
+`auto` permite a expansão B3 de variantes conhecidas, representáveis e suportadas.
+Nenhum modo introduz providers fora dos targets autorizados ou discovery remoto.
+
+### Painel IA e precisão monetária
+
+Cada RoleForm mantém um único botão Salvar e inclui a seção compacta **Auto
+econômico**: perfil, seleção de variante, mínimo cognitivo opcional, reserva local
+e paid use. Fixed/Preferred desativam visualmente a seção preservando os valores.
+Voltar para Auto reapresenta a configuração anterior. A UI atualiza seu estado
+com a resposta do backend; reload retorna os valores efetivamente persistidos.
+
+O teto decimal é por decisão/invocação. O parser string-based com BigInt aceita
+no máximo seis casas, rejeita expoentes, negativos, overflow e moeda fora de três
+letras ASCII maiúsculas; micros é convertido para Number somente após validar o
+limite JSON-safe. O formatador permite roundtrip exato inclusive no máximo.
+Não há multiplicação floating-point, arredondamento de autorização, FX, saldo,
+depósito, orçamento mensal, preço de plano ou ledger acumulado.
+
+Reserva exige os dois thresholds locais em `0 <= reserve <= reduced <= 100`;
+desabilitada persiste ambos NULL. Floor aceita sem mínimo ou `0..255` e avisa que
+Unknown não é promovido, podendo deixar Auto sem candidatos no catálogo atual.
+A UI explica que facts desconhecidos não são presumidos gratuitos, pagos,
+rápidos ou abundantes. Não há fields de preço/provider ou editor BillingDomain.
+
+### Gate integrado final e congelamento
+
+O gate `b4_final_integrated_persisted_deny_zero_paid_http_then_allow_new_task`
+atravessa SQLite → runtime snapshot → builder Conversation/ProviderTaskRequest →
+expansão B3 → B1 → B2 → AutoRoutePlan → Scheduler → adapter sintético com HTTP
+loopback. Economy/Deny exclui A pago/rápido com **zero HTTP, reservation e admission**;
+B suficiente executa e o evento usa `auto_allocator`. Persistir Allow com teto
+suficiente permite A na nova tarefa; o snapshot antigo mantém Deny. Nenhuma API
+comercial é chamada.
+
+Os gates também comprovam Economy→Fast mudando o winner somente na nova tarefa;
+profiles/paid independentes por role; Explicit→Auto na expansão; floor eliminando
+tier insuficiente e Unknown; cost Unknown, currency mismatch, exceeded/zero
+budget, zero known cost e Prepaid; reserve configurada e ausência de thresholds.
+
+O gate de save durante fallback conserva a cadeia [A,B,C]: A 429 → B 503 → C.
+Ordem, modelos, scores, autorização paga, floor e thresholds permanecem
+congelados. Provider recém-autorizado e paid previamente excluído não entram na
+tarefa; não há reload, expansão adicional ou re-score. A alteração persistida
+vale somente para a próxima tarefa. Os eventos públicos não recebem economics.
+
+### Validação e regressões
+
+B4 dedicada: **54 testes Rust aprovados**, incluindo 37 persistence/atomicity,
+15 runtime/gate/settings/architecture e 2 preflight real de Conversation.
+Frontend B4: **85 verificações aprovadas**, cobrindo precisão/bounds, currency,
+thresholds, floor, preservação e renderização React estática da seção econômica.
+`npm run typecheck`, helpers de operações e DOM de operações também aprovados.
+
+As contagens abaixo foram extraídas da execução integral final; grupos se
+sobrepõem, e os 54 testes B4 também foram executados como filtro dedicado.
+
+| Gate/grupo | Aprovados |
+|---|---:|
+| B4 dedicada | 54 |
+| B3 | 41 |
+| B2 | 96 |
+| B1/FIX-1 | 46 |
+| LR-8.5A | 38 |
+| Todos cognitive_resources | 221 |
+| Persistence legado | 32 |
+| Smart routing | 10 |
+| Scheduler (módulo) | 2 |
+| Rate | 70 |
+| Admission | 20 |
+| Resilience | 76 |
+| Telemetry | 33 |
+| LR-8E | 14 |
+| TaskGraph runtime | 13 |
+| Conversation preflight | 14 |
+| Orchestrator | 17 |
+| Summary | 12 |
+| Suíte Rust completa | **816**, 0 falhas, 2 ignorados |
+
+Comandos executados: `cargo test --manifest-path src-tauri/Cargo.toml b4_ -- --test-threads=4` e
+`cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4`;
+`cargo check --manifest-path src-tauri/Cargo.toml`; `npm run typecheck`;
+`node scripts/test-allocation-settings.cjs`,
+`node scripts/test-provider-operations.cjs` e
+`node scripts/test-provider-operations-dom.cjs`.
+
+A primeira execução integral encontrou dois asserts de fixtures: uma contagem
+antiga de mensagens alterada indevidamente ao atualizar asserts de versão e um
+assert de migration ainda esperando v12. Ambos foram corrigidos sem alterar
+comportamento de produção; a suíte integral foi repetida e passou.
+
+Rustfmt executado nos arquivos Rust alterados. Drift legado fora desses
+arquivos não foi reformatado; diffs amplos apenas de formatação foram revertidos
+nos módulos de registro/persistence e builders com alteração pontual. `git diff --check` aprovado. Os warnings de base
+permanecem sem supressão: 12 de biblioteca e 1 da fixture de testes, sem warnings
+novos; inclui `ranked_provider_ids` sem consumidor de produção. Os dois gates
+externos ignorados continuam exigindo app-server/Codex autenticado e quota.
+
+### Arquivos desta candidata
+
+Criados (8):
+
+~~~text
+scripts/test-allocation-settings.cjs
+src-tauri/migrations/013_cognitive_allocation_policy.sql
+src-tauri/permissions/autogenerated/update_cognitive_role_settings.toml
+src-tauri/src/cognition/allocation_policy.rs
+src-tauri/src/cognition/allocation_policy/runtime_tests.rs
+src-tauri/src/cognition/allocation_policy/tests.rs
+src/settings/AllocationPolicyEditor.tsx
+src/settings/allocationPolicyDraft.ts
+~~~
+
+Alterados (32):
+
+~~~text
+docs/LR-8.5B-ALLOCATION-SCARCITY-POLICY.md
+src-tauri/build.rs
+src-tauri/capabilities/settings-ai.json
+src-tauri/src/cognition/admission_tests.rs
+src-tauri/src/cognition/fix5_tests.rs
+src-tauri/src/cognition/gemini.rs
+src-tauri/src/cognition/groq.rs
+src-tauri/src/cognition/groq_commands.rs
+src-tauri/src/cognition/lr8e_gate_tests.rs
+src-tauri/src/cognition/mod.rs
+src-tauri/src/cognition/orchestrator.rs
+src-tauri/src/cognition/policy.rs
+src-tauri/src/cognition/rate_tests.rs
+src-tauri/src/cognition/resilience_tests.rs
+src-tauri/src/cognition/scheduler.rs
+src-tauri/src/cognition/settings.rs
+src-tauri/src/cognition/summary.rs
+src-tauri/src/cognition/task_graph_runtime.rs
+src-tauri/src/cognition/task_graph_worker.rs
+src-tauri/src/cognition/telemetry_tests.rs
+src-tauri/src/cognition/tests.rs
+src-tauri/src/cognition/types.rs
+src-tauri/src/cognitive_resources/allocation.rs
+src-tauri/src/cognitive_resources/provider_bridge.rs
+src-tauri/src/cognitive_resources/provider_bridge_tests.rs
+src-tauri/src/lib.rs
+src-tauri/src/luna/conversation_preflight_tests.rs
+src-tauri/src/luna/runtime.rs
+src-tauri/src/persistence/migrations.rs
+src-tauri/src/persistence/mod.rs
+src-tauri/src/persistence/tests.rs
+src/settings/AiSettingsApp.tsx
+~~~
+
+### Limitações e dívidas LR-8.5C
+
+Policy configurável não cria fatos econômicos. O catálogo de produção continua
+Unknown; ativar floor pode eliminar todos os candidatos. Não há inferência de
+tier/preço/latency, refresh, fonte econômica nova ou alteração de pesos B2.
+
+Permanece a race operacional aprovada: capacidade LR-8 pode estar disponível no
+plano e a reservation real falhar depois de mudança concorrente. B4 não converte
+`RateCapacityExceeded` em replan econômico; melhoria de liveness fica para trilha
+futura. Snapshots de telemetria/rate não são globalmente atômicos. Demais
+limitações de accounting/health/instância LR-8 e congelamento B3 permanecem.
+
+LR-8.5C e trilhas posteriores continuam responsáveis por eventual handoff seguro,
+fallback de segunda variante no mesmo provider, replay/idempotency/checkpoint de
+efeitos externos e continuidade após output. Nada disso foi implementado aqui.
+SpecialistAgent allocation, Codex/Copilot execution, novas APIs comerciais,
+price discovery/web fetch, compras/refill, balance polling, invoices, ledger
+monetário e FX permanecem fora do escopo.
+
+**B4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
