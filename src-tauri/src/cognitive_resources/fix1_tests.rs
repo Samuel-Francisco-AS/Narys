@@ -44,10 +44,11 @@ fn execution(tier: u16, allowance: u64) -> ExecutionFacts {
         relative_cost: configured(RelativeCostTier::new(tier).unwrap()),
         latency_ms: catalogued(10, 2),
         monetary_cost: CatalogFact::Unknown,
-        allowance_cost: configured(AllowanceConsumption {
+        allowance_costs: vec![AllowanceConsumption {
+            dimension_id: AllowanceDimensionId::new("credits-allowance").unwrap(),
             unit: AllowanceUnit::Credits,
-            amount: allowance,
-        }),
+            amount: configured(allowance),
+        }],
     }
 }
 fn strong() -> ModelProfile {
@@ -73,6 +74,7 @@ fn resource_with_model(id: &str, model: ModelProfile) -> CognitiveResource {
 }
 fn credits(remaining: u64, at: u64) -> AllowanceState {
     AllowanceState {
+        id: AllowanceDimensionId::new("credits-allowance").unwrap(),
         unit: AllowanceUnit::Credits,
         limit: catalogued(100, at),
         remaining: catalogued(remaining, at),
@@ -97,11 +99,8 @@ fn fix1_effort_specific_economics_survive_snapshot_and_variant_without_name_rank
             effort.facts.cognitive_tier.value().unwrap().value(),
             tier as u8
         );
-        assert_eq!(effort.facts.allowance_cost.value().unwrap().amount, cost);
-        assert_eq!(
-            effort.facts.allowance_cost.value().unwrap().unit,
-            AllowanceUnit::Credits
-        );
+        assert_eq!(effort.facts.allowance_costs[0].amount.value(), Some(&cost));
+        assert_eq!(effort.facts.allowance_costs[0].unit, AllowanceUnit::Credits);
         let variant = catalog
             .describe_variant(&original.identity.id, &model.id, Some(&effort.id))
             .unwrap();
@@ -117,7 +116,7 @@ fn fix1_effort_specific_economics_survive_snapshot_and_variant_without_name_rank
         "integration_catalog"
     );
     assert_eq!(
-        efforts[2]["facts"]["allowanceCost"]["provenance"]["source"],
+        efforts[2]["facts"]["allowanceCosts"][0]["amount"]["provenance"]["source"],
         "user_configuration"
     );
     assert_eq!(efforts[2]["facts"]["latencyMs"]["observedAtUnixMs"], 2);
@@ -156,8 +155,8 @@ fn fix1_same_effort_name_can_have_different_facts_on_different_resources() {
         execution(8, 9).cognitive_tier
     );
     assert_ne!(
-        effort(0).facts.allowance_cost,
-        effort(1).facts.allowance_cost
+        effort(0).facts.allowance_costs,
+        effort(1).facts.allowance_costs
     );
     assert_ne!(effort(0).facts.monetary_cost, effort(1).facts.monetary_cost);
     assert_ne!(effort(0).facts.latency_ms, effort(1).facts.latency_ms);
@@ -181,8 +180,8 @@ fn fix1_model_cognitive_tiers_are_explicit_and_names_do_not_define_capacity() {
     assert!(CognitiveTier::new(2).unwrap() < CognitiveTier::new(5).unwrap());
     assert_eq!(model(&a.id).supported_efforts, CatalogFact::Unknown);
     assert_eq!(
-        model(&b.id).facts.execution.allowance_cost,
-        CatalogFact::Unknown
+        model(&b.id).facts.execution.allowance_costs,
+        Vec::<AllowanceConsumption>::new()
     );
 }
 
@@ -258,7 +257,10 @@ fn fix1_unknown_allowance_fields_stay_independent_for_every_resource_class() {
         ("local", ResourceClass::LocalSupport),
     ] {
         let mut resource = descriptor(id, id, class);
-        resource.economics.allowances = vec![AllowanceState::unknown(AllowanceUnit::Credits)];
+        resource.economics.allowances = vec![AllowanceState::unknown(
+            AllowanceDimensionId::new("credits-allowance").unwrap(),
+            AllowanceUnit::Credits,
+        )];
         catalog.register(resource).unwrap();
     }
     let snapshot = catalog.snapshot(&[], &[]).unwrap();
@@ -276,7 +278,10 @@ fn fix1_unknown_allowance_fields_stay_independent_for_every_resource_class() {
         assert!(resource.lr8.is_none());
     }
     let mut partial = descriptor("partial", "partial", ResourceClass::SpecialistAgent);
-    let mut observation = AllowanceState::unknown(AllowanceUnit::Percent);
+    let mut observation = AllowanceState::unknown(
+        AllowanceDimensionId::new("percent-allowance").unwrap(),
+        AllowanceUnit::Percent,
+    );
     observation.remaining = catalogued(5, 3);
     partial.economics.allowances = vec![observation.clone()];
     catalog.register(partial).unwrap();
@@ -348,9 +353,10 @@ fn fix1_same_domain_identical_evidence_and_distinct_units_are_explicit() {
     a.economics.monetary_balance = configured(MonetaryAmount::new("USD", 7).unwrap());
     a.economics.allowances = vec![
         credits(5, 1),
-        AllowanceState::unknown(AllowanceUnit::Custom(
-            AllowanceUnitId::new("compute-units").unwrap(),
-        )),
+        AllowanceState::unknown(
+            AllowanceDimensionId::new("compute-allowance").unwrap(),
+            AllowanceUnit::Custom(AllowanceUnitId::new("compute-units").unwrap()),
+        ),
     ];
     let mut b = descriptor("b", "shared", ResourceClass::SpecialistAgent);
     b.economics = a.economics.clone();
@@ -396,6 +402,7 @@ fn fix1_bounded_tiers_and_economic_values_fail_closed() {
     ] {
         let mut bad = descriptor("bad", "bad", ResourceClass::SpecialistAgent);
         bad.economics.allowances = vec![AllowanceState {
+            id: AllowanceDimensionId::new("credits-allowance").unwrap(),
             unit: AllowanceUnit::Credits,
             limit: limit.map_or(CatalogFact::Unknown, configured),
             remaining: remaining.map_or(CatalogFact::Unknown, configured),
@@ -409,16 +416,18 @@ fn fix1_bounded_tiers_and_economic_values_fail_closed() {
             match field {
                 0 => value[0].facts.latency_ms = configured(MAX_FACT_VALUE + 1),
                 1 => {
-                    value[0].facts.allowance_cost = configured(AllowanceConsumption {
+                    value[0].facts.allowance_costs = vec![AllowanceConsumption {
+                        dimension_id: AllowanceDimensionId::new("credits-allowance").unwrap(),
                         unit: AllowanceUnit::Credits,
-                        amount: MAX_FACT_VALUE + 1,
-                    })
+                        amount: configured(MAX_FACT_VALUE + 1),
+                    }]
                 }
                 2 => {
-                    value[0].facts.allowance_cost = configured(AllowanceConsumption {
+                    value[0].facts.allowance_costs = vec![AllowanceConsumption {
+                        dimension_id: AllowanceDimensionId::new("percent-allowance").unwrap(),
                         unit: AllowanceUnit::Percent,
-                        amount: 101,
-                    })
+                        amount: configured(101),
+                    }]
                 }
                 _ => {
                     value[0].facts.cognitive_tier = CatalogFact::Known {
@@ -438,20 +447,22 @@ fn fix1_bounded_tiers_and_economic_values_fail_closed() {
     bad.economics.allowances = vec![credits(5, 1), credits(4, 2)];
     assert_eq!(
         catalog.register(bad),
-        Err(CatalogError::DuplicateAllowanceUnit)
+        Err(CatalogError::DuplicateAllowanceDimension)
     );
     let mut bad = descriptor("bad", "bad", ResourceClass::LocalSupport);
     bad.economics.allowances = (0..=MAX_ALLOWANCES)
         .map(|n| {
-            AllowanceState::unknown(AllowanceUnit::Custom(
-                AllowanceUnitId::new(format!("unit-{n}")).unwrap(),
-            ))
+            AllowanceState::unknown(
+                AllowanceDimensionId::new(format!("dimension-{n}")).unwrap(),
+                AllowanceUnit::Requests,
+            )
         })
         .collect();
     assert_eq!(catalog.register(bad), Err(CatalogError::CapacityExceeded));
     assert_eq!(catalog.resources().count(), 0);
     let mut boundary = descriptor("boundary", "boundary", ResourceClass::SpecialistAgent);
     boundary.economics.allowances = vec![AllowanceState {
+        id: AllowanceDimensionId::new("credits-allowance").unwrap(),
         unit: AllowanceUnit::Credits,
         limit: configured(MAX_FACT_VALUE),
         remaining: configured(0),

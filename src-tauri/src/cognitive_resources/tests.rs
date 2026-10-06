@@ -107,10 +107,11 @@ fn included() -> CognitiveResource {
         observed_at_unix_ms: Some(43),
     });
     cheap.facts.execution.monetary_cost = known(MonetaryAmount::new("USD", 0).unwrap());
-    cheap.facts.execution.allowance_cost = configured(AllowanceConsumption {
+    cheap.facts.execution.allowance_costs = vec![AllowanceConsumption {
+        dimension_id: AllowanceDimensionId::new("request-allowance").unwrap(),
         unit: AllowanceUnit::Requests,
-        amount: 1,
-    });
+        amount: configured(1),
+    }];
     cheap.facts.quality = configured(QualityLabel::new("task-qualified").unwrap());
     resource.models = known(vec![
         cheap,

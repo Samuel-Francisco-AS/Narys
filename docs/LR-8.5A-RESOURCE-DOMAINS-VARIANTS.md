@@ -399,7 +399,7 @@ A reauditoria deve procurar especialmente:
 
 Registro histórico da candidata `35b601daeb82d4697c3328c99a086f4b6f1c966a`.
 As decisões de identidade econômica e fatos de modelo/effort abaixo foram
-refinadas pelo FIX-1 ao final deste documento. A seção FIX-1 registra o contrato
+refinadas pelo FIX-1 e FIX-2 ao final deste documento. A seção FIX-2 registra o contrato
 vigente depois da correção incremental.
 
 Pré-condições verificadas antes de qualquer edição: branch obrigatória
@@ -604,6 +604,10 @@ esta auto-revisão e os testes não substituem esse fechamento.
 
 ## FIX-1 — Contratos cognitivos/econômicos e allowance genérico
 
+Registro histórico da correção em `4458c8e45f1d95e8ab31af42231896cd52a2b707`.
+A unicidade por unidade e o consumo único descritos nesta seção foram refinados
+pela FIX-2 abaixo, inclusive a limitação de múltiplas janelas da mesma unidade.
+
 Estado mantido: **IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente e gate.**
 Correção incremental sobre `35b601daeb82d4697c3328c99a086f4b6f1c966a`,
 exclusivamente em `lr-8.5a-resource-domains-variants`.
@@ -768,3 +772,115 @@ continuidade em LR-8.5C. Scheduler, Auto/auto_score, fallback, retry, ordering,
 affinity, admission, resilience e TaskGraph permanecem behavior-neutral:
 nenhum arquivo desses runtimes foi alterado pelo FIX-1. Não houve merge para main
 nem declaração de PASS ou conclusão da LR-8.5.
+
+## FIX-2 — Dimensões de allowance e consumo multidimensional
+
+Estado: **IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente e gate.**
+Correção incremental sobre `4458c8e45f1d95e8ab31af42231896cd52a2b707`,
+exclusivamente em `lr-8.5a-resource-domains-variants`. Antes das alterações,
+branch/HEAD local e remoto foram conferidos, a branch foi sincronizada por
+fast-forward (já atualizada) e o workspace estava limpo.
+
+### DimensionId separado da unidade
+
+A auditoria identificou que a unicidade por `AllowanceUnit` impedia múltiplas
+janelas da mesma unidade. `AllowanceDimensionId` agora identifica explicitamente
+uma dimensão no billing domain, com spelling exato, até 64 bytes ASCII
+alfanuméricos/`-`/`_`/`.`; vazio, caracteres inválidos e excesso de tamanho são
+recusados também na desserialização. O Core não interpreta janelas a partir do ID.
+
+`AllowanceState` contém `id: AllowanceDimensionId`, `unit: AllowanceUnit`,
+`limit: CatalogFact<u64>`, `remaining: CatalogFact<u64>` e
+`reset: CatalogFact<Timing>`. `EconomicFacts.allowances` exige unicidade por ID,
+permitindo rolling-5h e weekly com Percent, ou requests-per-minute e
+requests-per-day com Requests, no mesmo domínio. ID duplicado falha com
+`DuplicateAllowanceDimension`, mesmo se a unidade/observação for diferente.
+Registro continua validado atomicamente.
+
+Requests, Tokens, Credits, Percent e Custom foram preservados. Custom representa
+uma unidade realmente customizada; não identifica janelas. Percent continua
+explicitamente limitado a pontos percentuais inteiros 0..=100, sem derivação.
+Limit/remaining/reset continuam independentemente Unknown ou Known com
+provenance/timestamp. `BillingDomain` permanece somente uma identidade estável;
+observações econômicas e consulta consolidada fail-closed mantêm o contrato FIX-1.
+
+### Consumo por múltiplas dimensões
+
+`ExecutionFacts.allowance_costs: Vec<AllowanceConsumption>` substitui o fato
+único. Cada entrada contém `dimension_id: AllowanceDimensionId`,
+`unit: AllowanceUnit` e `amount: CatalogFact<u64>`; a quantidade possui sua própria
+provenance/timestamp e pode ser Unknown independentemente das outras entradas.
+O mesmo ID repetido dentro de um ExecutionFacts é recusado, mesmo com unidades
+ou quantidades diferentes. Tanto states quanto consumos são bounded a 16 entradas;
+quantidades e timestamps mantêm os bounds numéricos existentes.
+
+Uma invocação pode descrever rolling-5h → 2 Percent e weekly → 1 Percent ao mesmo
+tempo. Os fatos de modelo e effort preservam suas listas separadamente no
+snapshot e em ExecutionVariant, sem soma, conversão, herança ou override.
+Uma dimensão ausente da lista é consumo não reportado, nunca zero; lista vazia
+também não afirma invocação gratuita. Uma dimensão declarada com amount Unknown
+preserva essa incerteza explicitamente. Somente Known(0) afirma quantidade zero.
+O catálogo não cria consumos com base no estado de allowance, nem cria estados
+a partir de consumos. Fatos de consumo podem existir sem saldo/janela conhecidos;
+não há cruzamento automático com evidência LR-8 ou interpretação de IDs.
+
+### Arquivos e gate adicional
+
+- Novo: `src-tauri/src/cognitive_resources/fix2_tests.rs`.
+- Alterados: `economics.rs`, `ids.rs`, `mod.rs`, `tests.rs`, `fix1_tests.rs`
+  no mesmo módulo, e este documento.
+
+Os 25 testes anteriores foram adaptados somente para IDs explícitos, lista de
+consumos e provenance da quantidade. O teste antigo de duplicatas agora exige
+ID repetido; não se perdeu cobertura de valores/fatos/bridges/identidades.
+Seis testes adicionais cobrem:
+
+1. SpecialistAgent com duas janelas Percent, 100/60 e 100/20, resets distintos,
+   snapshot/provenance preservados e consulta ao mesmo domínio, sem LR-8.
+2. Duas dimensões Requests com IDs distintos; duplicatas falham atomicamente,
+   inclusive quando a unidade diverge.
+3. Consumos multidimensionais conhecidos em modelo/effort, preservados
+   independentemente no snapshot e ExecutionVariant, com provenance/timestamp.
+4. Consumo Unknown explícito e dimensão sem consumo reportado, sem criação de
+   zeros, herança ou dimensões automáticas.
+5. Duplicatas/bounds de consumo nos dois perfis, incluindo quantidade Percent,
+   timestamps e cardinalidade, com rejeição atômica.
+6. Validação/desserialização bounded de IDs e preservação das cinco unidades;
+   Percent inválido é recusado também no estado econômico.
+
+### Validação da FIX-2
+
+| Gate | Resultado |
+|---|---|
+| `/home/sam/.cargo/bin/rustfmt --edition 2021 --check src-tauri/src/cognitive_resources/*.rs` | Exit 0; módulo inteiro formatado/verificado |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources` | Exit 0; 31 aprovados, 0 falhas: 25 anteriores e 6 novos |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | Exit 0; 573 aprovados, 0 falhas, 2 ignorados; 240,89 s de testes; main e doc-tests sem falhas |
+| cognition / agents na suíte completa | 370 / 110 aprovados; agents com 2 manuais ignorados |
+| Regressões LR-8 na suíte completa | rate_tests 69, telemetry_tests 33, admission_tests 18, resilience_tests 76, operational_tests 8 e LR-8E 14; todos aprovados |
+| TaskGraph runtime na suíte completa | 13 aprovados, 0 falhas |
+| `git diff --check` no diff incremental | Exit 0 |
+| Typecheck/frontend | Não aplicável; nenhum contrato exposto ao frontend alterado |
+
+Os dois ignorados continuam sendo os testes manuais Codex
+`real_app_server_handshake` e `manual_final_codex_agent_bridge_gate`.
+A compilação manteve os 15 warnings de biblioteca e dois de testes preexistentes,
+sem warning novo desta correção. Não houve falha de teste. Os gates LR-8 foram
+executados na suíte completa, sem repetir rodadas dirigidas já cobertas.
+Os 44 arquivos com diferenças preexistentes no check global de formatação
+continuam fora do diff; foi usado somente rustfmt do módulo, sem refactor legado.
+
+### Fronteiras e limitações
+
+Sem migration, integração real, ledger, depletion, accounting ou seleção.
+ProviderRegistry, AgentRegistry e autoridade LR-8 não foram modificados.
+SpecialistAgent continua publicando allowance sem se tornar Provider.
+ThinkingLevel não foi ampliado e a bridge de xhigh continua fail-closed.
+Model/effort economics e identidade estável do domínio permanecem separados.
+As quantidades continuam inteiras; não foi introduzida política de freshness,
+calibração de produção ou reconciliação de fontes.
+
+Scheduler, Auto/auto_score, fallback, retry, affinity, admission, resilience e
+TaskGraph permanecem behavior-neutral; nenhum arquivo desses runtimes foi tocado.
+Scarcity, ResourceAllocator, quality-floor selection, spend authorization e
+handoff continuam adiados para LR-8.5B/C. Não há declaração de PASS ou conclusão
+da LR-8.5, nem merge para main.

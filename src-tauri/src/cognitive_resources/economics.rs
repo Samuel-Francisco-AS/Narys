@@ -82,12 +82,18 @@ impl AllowanceUnit {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AllowanceConsumption {
+    /// Explicit dimension within the resource's billing domain, never an inferred window.
+    pub dimension_id: AllowanceDimensionId,
     pub unit: AllowanceUnit,
-    pub amount: u64,
+    pub amount: CatalogFact<u64>,
 }
 impl AllowanceConsumption {
     fn validate(&self) -> Result<(), CatalogError> {
-        self.unit.validate_amount(self.amount)
+        validate_number(&self.amount)?;
+        if let Some(amount) = self.amount.value() {
+            self.unit.validate_amount(*amount)?;
+        }
+        Ok(())
     }
 }
 /// Per-invocation facts for either a model or an effort. These are separate
@@ -99,7 +105,8 @@ pub struct ExecutionFacts {
     pub relative_cost: CatalogFact<RelativeCostTier>,
     pub latency_ms: CatalogFact<u64>,
     pub monetary_cost: CatalogFact<MonetaryAmount>,
-    pub allowance_cost: CatalogFact<AllowanceConsumption>,
+    /// Independent per-dimension observations. Absence means unreported, not zero.
+    pub allowance_costs: Vec<AllowanceConsumption>,
 }
 impl ExecutionFacts {
     pub(super) fn validate(&self) -> Result<(), CatalogError> {
@@ -107,9 +114,15 @@ impl ExecutionFacts {
         self.relative_cost.validate()?;
         validate_number(&self.latency_ms)?;
         self.monetary_cost.validate()?;
-        self.allowance_cost.validate()?;
-        if let Some(value) = self.allowance_cost.value() {
-            value.validate()?;
+        if self.allowance_costs.len() > MAX_ALLOWANCES {
+            return Err(CatalogError::CapacityExceeded);
+        }
+        let mut dimensions = BTreeSet::new();
+        for consumption in &self.allowance_costs {
+            if !dimensions.insert(&consumption.dimension_id) {
+                return Err(CatalogError::DuplicateAllowanceDimension);
+            }
+            consumption.validate()?;
         }
         Ok(())
     }
@@ -121,14 +134,17 @@ impl ExecutionFacts {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AllowanceState {
+    /// Stable local dimension label, independent of its measurement unit.
+    pub id: AllowanceDimensionId,
     pub unit: AllowanceUnit,
     pub limit: CatalogFact<u64>,
     pub remaining: CatalogFact<u64>,
     pub reset: CatalogFact<Timing>,
 }
 impl AllowanceState {
-    pub fn unknown(unit: AllowanceUnit) -> Self {
+    pub fn unknown(id: AllowanceDimensionId, unit: AllowanceUnit) -> Self {
         Self {
+            id,
             unit,
             limit: CatalogFact::Unknown,
             remaining: CatalogFact::Unknown,
@@ -167,7 +183,7 @@ pub const MAX_ALLOWANCES: usize = 16;
 pub struct EconomicFacts {
     pub billing_kind: CatalogFact<BillingKind>,
     pub monetary_balance: CatalogFact<MonetaryAmount>,
-    /// One observation per explicit unit. Multiple units are not convertible.
+    /// One observation per dimension ID; different dimensions may share a unit.
     pub allowances: Vec<AllowanceState>,
 }
 impl EconomicFacts {
@@ -177,10 +193,10 @@ impl EconomicFacts {
         if self.allowances.len() > MAX_ALLOWANCES {
             return Err(CatalogError::CapacityExceeded);
         }
-        let mut units = BTreeSet::new();
+        let mut dimensions = BTreeSet::new();
         for allowance in &self.allowances {
-            if !units.insert(&allowance.unit) {
-                return Err(CatalogError::DuplicateAllowanceUnit);
+            if !dimensions.insert(&allowance.id) {
+                return Err(CatalogError::DuplicateAllowanceDimension);
             }
             allowance.validate()?;
         }

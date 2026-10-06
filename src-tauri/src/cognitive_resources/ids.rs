@@ -9,7 +9,7 @@ pub enum CatalogError {
     DuplicateEffort,
     ConflictingEconomicFacts,
     BillingDomainNotFound,
-    DuplicateAllowanceUnit,
+    DuplicateAllowanceDimension,
     InvalidOrigin,
     DuplicateRuntimeBinding,
     ResourceNotFound,
@@ -80,3 +80,4 @@ id!(EffortId, 64, false);
 id!(QualityLabel, 64, false);
 
 id!(AllowanceUnitId, 64, false);
+id!(AllowanceDimensionId, 64, false);
