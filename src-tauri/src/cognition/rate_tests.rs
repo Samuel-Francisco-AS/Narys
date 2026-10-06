@@ -862,6 +862,10 @@ fn scheduler(
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: TrafficClass::ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt-marker".into(),
@@ -988,7 +992,17 @@ async fn scheduler_rate_block_is_local_before_admission_no_cooldown_retry_or_fal
         quota(&s, "a", QuotaDimension::RequestsPerMinute, 0);
         let r = request(&["a", "b"], selection.clone());
         let before = s
-            .ranked_provider_ids(&selection, &r.targets, &r.required_capabilities, &r.mode)
+            .ranked_provider_ids(
+                &selection,
+                &r.targets,
+                &r.required_capabilities,
+                &r.mode,
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None,
+                ))
+                .as_ref(),
+            )
             .unwrap();
         if selection == ProviderSelection::Auto {
             assert_eq!(before, vec!["b"]);
@@ -1035,8 +1049,18 @@ async fn scheduler_rate_block_is_local_before_admission_no_cooldown_retry_or_fal
         let r = request(&["a", "b"], selection.clone());
         assert_eq!(
             before,
-            s.ranked_provider_ids(&selection, &r.targets, &r.required_capabilities, &r.mode)
-                .unwrap()
+            s.ranked_provider_ids(
+                &selection,
+                &r.targets,
+                &r.required_capabilities,
+                &r.mode,
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None
+                ))
+                .as_ref()
+            )
+            .unwrap()
         );
         clean(&s);
     }

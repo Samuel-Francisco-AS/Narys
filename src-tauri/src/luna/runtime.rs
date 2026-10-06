@@ -1,3 +1,5 @@
+#[cfg(test)]
+use crate::cognition::policy;
 use std::{
     collections::HashMap,
     sync::{
@@ -8,7 +10,7 @@ use std::{
 };
 
 use crate::cognition::gemini_commands::CurrentRunSessions;
-use crate::cognition::policy::{self, CognitiveRole, CognitiveRolePolicy};
+use crate::cognition::policy::{CognitiveRole, CognitiveRolePolicy};
 use crate::cognition::{
     context::{ContextBuilder, ContextRequest},
     scheduler::SchedulerEvent,
@@ -272,13 +274,14 @@ fn emit_cognitive(
     })
 }
 
-fn chat_budget_and_request(
+pub(crate) fn chat_budget_and_request(
     session_id: i64,
     message: String,
     history: Vec<ProviderMessage>,
     context: ContextBundle,
     policy: &CognitiveRolePolicy,
     timeouts: &HashMap<String, crate::cognition::types::ProviderTimeouts>,
+    allocation_policy: Option<crate::cognitive_resources::AllocationRuntimePolicy>,
 ) -> Result<(TaskBudget, ProviderTaskRequest), &'static str> {
     let budget = TaskBudget {
         max_provider_calls: policy.max_provider_calls,
@@ -297,6 +300,7 @@ fn chat_budget_and_request(
         },
     );
     let request = ProviderTaskRequest {
+        allocation_policy,
         traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
         mode: crate::cognition::types::InvocationMode::default(),
         input: message,
@@ -383,7 +387,7 @@ pub fn start_conversation(
                     if preflight_cancelled.load(Ordering::Acquire) {
                         return Err("cancelled");
                     }
-                    let (conn, policy) = preflight_stage("session_policy", || {
+                    let (conn, snapshot) = preflight_stage("session_policy", || {
                         // Never hold the session registry lock across DB/credential I/O.
                         if !sessions
                             .0
@@ -399,10 +403,16 @@ pub fn start_conversation(
                         {
                             return Err("session_invalid");
                         }
-                        let policy = policy::load(&conn, CognitiveRole::Conversation)
+                        let snapshot =
+                            crate::cognition::allocation_policy::load_role_runtime_policy(
+                                &conn,
+                                CognitiveRole::Conversation,
+                            )
                             .map_err(|e| e.code())?;
-                        Ok::<_, &'static str>((conn, policy))
+                        Ok::<_, &'static str>((conn, snapshot))
                     })?;
+                    let policy = snapshot.routing;
+                    let allocation = snapshot.allocation;
                     preflight_stage("credentials", || {
                         crate::cognition::catalog::validate_policy(
                             &policy,
@@ -436,7 +446,7 @@ pub fn start_conversation(
                         .map_err(|e| e.code())?;
                         Ok::<_, &'static str>((context, history))
                     })?;
-                    Ok::<_, &'static str>((policy, timeouts, context, history))
+                    Ok::<_, &'static str>((policy, timeouts, context, history, allocation))
                 })();
                 #[cfg(test)]
                 conversation_preflight_tests::wait_at_gate(&sessions, true);
@@ -452,7 +462,8 @@ pub fn start_conversation(
             if cancelled.load(Ordering::Acquire) {
                 return Err("cancelled");
             }
-            let (policy, timeouts, context, history) = preflight.map_err(|_| "worker_failed")??;
+            let (policy, timeouts, context, history, allocation) =
+                preflight.map_err(|_| "worker_failed")??;
             emit_cognitive(
                 &channel,
                 id,
@@ -481,6 +492,7 @@ pub fn start_conversation(
                 context,
                 &policy,
                 &timeouts,
+                allocation,
             )?;
             let result = runtime
                 .scheduler
@@ -522,7 +534,9 @@ pub fn start_conversation(
                                 routing_reason: routing_reason.into(),
                                 score,
                             },
-                            SchedulerEvent::OutputObserved { provider_id } => TaskEventKind::ProviderOutputObserved { provider_id },
+                            SchedulerEvent::OutputObserved { provider_id } => {
+                                TaskEventKind::ProviderOutputObserved { provider_id }
+                            }
                             SchedulerEvent::Chunk { provider_id, text } => {
                                 TaskEventKind::ProviderChunk {
                                     provider_id,
@@ -829,7 +843,13 @@ pub fn start_cognition(
             Some(
                 tauri::async_runtime::spawn_blocking(move || {
                     let conn = db_for_context.open().map_err(|e| e.code())?;
-                    ContextBuilder::build(
+                    let allocation = crate::cognition::allocation_policy::load(
+                        &conn,
+                        CognitiveRole::Conversation,
+                    )
+                    .map_err(|e| e.code())?
+                    .to_runtime()?;
+                    let context = ContextBuilder::build(
                         &conn,
                         ContextRequest {
                             domain: None,
@@ -839,7 +859,8 @@ pub fn start_cognition(
                             include_recent_conversation: true,
                         },
                     )
-                    .map_err(|e| e.code())
+                    .map_err(|e| e.code())?;
+                    Ok::<_, &'static str>((context, allocation))
                 })
                 .await,
             )
@@ -848,7 +869,7 @@ pub fn start_cognition(
         };
         let result = match context {
             None => Err("channel_closed"),
-            Some(Ok(Ok(context))) => {
+            Some(Ok(Ok((context, allocation)))) => {
                 let context_event = emit_cognitive(
                     &channel,
                     id,
@@ -871,6 +892,7 @@ pub fn start_cognition(
                     }
                 };
                 let request = ProviderTaskRequest {
+                    allocation_policy: Some(allocation),
                     traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
                     mode: crate::cognition::types::InvocationMode::default(),
                     input: "Execute o diagnóstico cognitivo LR-5.".into(),
@@ -932,7 +954,9 @@ pub fn start_cognition(
                                     routing_reason: routing_reason.into(),
                                     score,
                                 },
-                                SchedulerEvent::OutputObserved { provider_id } => TaskEventKind::ProviderOutputObserved { provider_id },
+                                SchedulerEvent::OutputObserved { provider_id } => {
+                                    TaskEventKind::ProviderOutputObserved { provider_id }
+                                }
                                 SchedulerEvent::Chunk { provider_id, text } => {
                                     TaskEventKind::ProviderChunk {
                                         provider_id,
@@ -1108,9 +1132,19 @@ mod tests {
             ("gemini".into(), first_timeouts.into()),
             ("groq".into(), groq_timeouts),
         ]);
-        let (first_budget, first) =
-            chat_budget_and_request(42, "Oi".into(), vec![], context(), &policy, &first_configs)
-                .unwrap();
+        let (first_budget, first) = chat_budget_and_request(
+            42,
+            "Oi".into(),
+            vec![],
+            context(),
+            &policy,
+            &first_configs,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
+        )
+        .unwrap();
         policy.targets[0].model = "gemini-new".into();
         policy.targets[0].thinking_level = None;
         policy.max_output_tokens = None;
@@ -1125,9 +1159,19 @@ mod tests {
             ("gemini".into(), next_timeouts.into()),
             ("groq".into(), groq_timeouts),
         ]);
-        let (next_budget, next) =
-            chat_budget_and_request(42, "Oi".into(), vec![], context(), &policy, &next_configs)
-                .unwrap();
+        let (next_budget, next) = chat_budget_and_request(
+            42,
+            "Oi".into(),
+            vec![],
+            context(),
+            &policy,
+            &next_configs,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
+        )
+        .unwrap();
         assert_eq!(first.selection, ProviderSelection::Fixed("gemini".into()));
         assert_eq!(
             (
@@ -1173,9 +1217,19 @@ mod tests {
         policy.targets[1].provider_id = "gemini".into();
         policy.targets[1].model = "gemini-fallback".into();
         policy.targets[1].thinking_level = Some(ThinkingLevel::High);
-        let (_, reversed) =
-            chat_budget_and_request(42, "Oi".into(), vec![], context(), &policy, &next_configs)
-                .unwrap();
+        let (_, reversed) = chat_budget_and_request(
+            42,
+            "Oi".into(),
+            vec![],
+            context(),
+            &policy,
+            &next_configs,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
+        )
+        .unwrap();
         assert_eq!(reversed.selection, ProviderSelection::Preferred);
         assert_eq!(reversed.targets[0].invocation.timeouts, Some(groq_timeouts));
         assert_eq!(
@@ -1226,6 +1280,10 @@ mod tests {
             context(),
             &policy,
             &next_configs,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
         )
         .unwrap();
         assert_eq!(request.affinity_key.as_deref(), Some("conversation:42"));
@@ -1246,6 +1304,10 @@ mod tests {
                 context(),
                 &policy,
                 &next_configs,
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None,
+                )),
             )
             .unwrap();
             assert_eq!(request.estimated_context_bytes, 4101);
@@ -1268,6 +1330,10 @@ mod tests {
             context(),
             &policy,
             &next_configs,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
         )
         .unwrap();
         assert_eq!(request.estimated_context_bytes, 1024 * 1024);

@@ -17,6 +17,139 @@ use std::{
     },
 };
 
+// These fixtures keep B3 scenarios unchanged while passing their configured
+// policy explicitly into each real Scheduler request/ranking and bridge call.
+struct FixtureAllocator {
+    engine: ProviderAutoAllocator,
+    snapshot: AllocationRuntimePolicy,
+}
+impl FixtureAllocator {
+    fn new(
+        catalog: ResourceCatalog,
+        policy: AllocationPolicy,
+        floor: Option<QualityFloor>,
+    ) -> Self {
+        Self {
+            engine: ProviderAutoAllocator::new(catalog),
+            snapshot: AllocationRuntimePolicy::new(policy, floor),
+        }
+    }
+    fn production(registry: &ProviderRegistry) -> Result<Self, ProviderBridgeError> {
+        Ok(Self {
+            engine: ProviderAutoAllocator::production(registry)?,
+            snapshot: AllocationRuntimePolicy::new(provider_allocation_default(), None),
+        })
+    }
+    fn catalog(&self) -> &ResourceCatalog {
+        self.engine.catalog()
+    }
+    fn plan(
+        &self,
+        registry: &ProviderRegistry,
+        targets: &[ProviderTarget],
+        required: ProviderCapabilities,
+        mode: &InvocationMode,
+        affinity: Option<&str>,
+        bytes: usize,
+        telemetry: &[crate::cognition::telemetry::ProviderTelemetrySnapshot],
+        rate: &[crate::cognition::rate::RateSnapshot],
+    ) -> Result<AutoRoutePlan, ProviderBridgeError> {
+        self.engine.plan(
+            registry,
+            &self.snapshot,
+            targets,
+            required,
+            mode,
+            affinity,
+            bytes,
+            telemetry,
+            rate,
+        )
+    }
+}
+struct FixtureScheduler {
+    engine: Scheduler,
+    snapshot: AllocationRuntimePolicy,
+}
+impl std::ops::Deref for FixtureScheduler {
+    type Target = Scheduler;
+    fn deref(&self) -> &Scheduler {
+        &self.engine
+    }
+}
+impl FixtureScheduler {
+    fn new(registry: ProviderRegistry) -> Self {
+        Self {
+            engine: Scheduler::new(registry),
+            snapshot: AllocationRuntimePolicy::new(provider_allocation_default(), None),
+        }
+    }
+    fn with_rate_config(
+        registry: ProviderRegistry,
+        admission: AdmissionConfig,
+        clock: Arc<dyn RateClock>,
+        storage: Option<crate::persistence::database::Database>,
+    ) -> Result<Self, SchedulerError> {
+        Ok(Self {
+            engine: Scheduler::with_rate_config(registry, admission, clock, storage)?,
+            snapshot: AllocationRuntimePolicy::new(provider_allocation_default(), None),
+        })
+    }
+    fn with_auto_allocator(mut self, fixture: FixtureAllocator) -> Self {
+        self.engine = self.engine.with_auto_allocator(fixture.engine);
+        self.snapshot = fixture.snapshot;
+        self
+    }
+    fn ranked_provider_ids(
+        &self,
+        selection: &ProviderSelection,
+        targets: &[ProviderTarget],
+        required: &ProviderCapabilities,
+        mode: &InvocationMode,
+    ) -> Result<Vec<String>, SchedulerError> {
+        self.engine
+            .ranked_provider_ids(selection, targets, required, mode, Some(&self.snapshot))
+    }
+    fn ranked_provider_targets(
+        &self,
+        selection: &ProviderSelection,
+        targets: &[ProviderTarget],
+        required: &ProviderCapabilities,
+        mode: &InvocationMode,
+    ) -> Result<Vec<ProviderTarget>, SchedulerError> {
+        self.engine.ranked_provider_targets(
+            selection,
+            targets,
+            required,
+            mode,
+            Some(&self.snapshot),
+        )
+    }
+    async fn run(
+        &self,
+        mut request: ProviderTaskRequest,
+        budget: TaskBudget,
+        cancelled: &AtomicBool,
+        events: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
+    ) -> Result<TaskResult, SchedulerError> {
+        request.allocation_policy = Some(self.snapshot.clone());
+        self.engine.run(request, budget, cancelled, events).await
+    }
+    async fn run_with_retry(
+        &self,
+        mut request: ProviderTaskRequest,
+        budget: TaskBudget,
+        retry: RetryPolicy,
+        cancelled: &AtomicBool,
+        events: &mut (dyn FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send),
+    ) -> Result<TaskResult, SchedulerError> {
+        request.allocation_policy = Some(self.snapshot.clone());
+        self.engine
+            .run_with_retry(request, budget, retry, cancelled, events)
+            .await
+    }
+}
+
 struct Fake {
     seen: Mutex<Vec<ProviderTarget>>,
     supports: AtomicUsize,
@@ -161,11 +294,8 @@ fn catalog(resources: Vec<CognitiveResource>) -> ResourceCatalog {
     }
     catalog
 }
-fn allocator(
-    resources: Vec<CognitiveResource>,
-    profile: AllocationProfile,
-) -> ProviderAutoAllocator {
-    ProviderAutoAllocator::new(
+fn allocator(resources: Vec<CognitiveResource>, profile: AllocationProfile) -> FixtureAllocator {
+    FixtureAllocator::new(
         catalog(resources),
         AllocationPolicy {
             profile,
@@ -188,7 +318,7 @@ fn target(id: &str) -> ProviderTarget {
     }
 }
 fn plan(
-    allocator: &ProviderAutoAllocator,
+    allocator: &FixtureAllocator,
     registry: &ProviderRegistry,
     targets: &[ProviderTarget],
 ) -> Result<AutoRoutePlan, ProviderBridgeError> {
@@ -205,6 +335,7 @@ fn plan(
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: None,
         traffic_class: TrafficClass::ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt".into(),
@@ -223,7 +354,7 @@ fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     }
 }
 async fn run(
-    scheduler: &Scheduler,
+    scheduler: &FixtureScheduler,
     request: ProviderTaskRequest,
     calls: u32,
     retries: u32,
@@ -287,7 +418,7 @@ fn allowance(resource: &mut CognitiveResource, remaining: u64) {
         reset: CatalogFact::Unknown,
     });
 }
-fn pressure(scheduler: &Scheduler, provider: &str, scope: QuotaScope) {
+fn pressure(scheduler: &FixtureScheduler, provider: &str, scope: QuotaScope) {
     scheduler
         .rate
         .set_policy(
@@ -323,7 +454,7 @@ fn b3_defaults_are_explicit_conservative_without_thresholds() {
 #[test]
 fn b3_production_catalog_is_identity_only_unknown_economics_and_models() {
     let r = registry(&[("a", Arc::new(Fake::new())), ("b", Arc::new(Fake::new()))]);
-    let allocator = ProviderAutoAllocator::production(&r).unwrap();
+    let allocator = FixtureAllocator::production(&r).unwrap();
     assert_eq!(allocator.catalog().resources().count(), 2);
     for descriptor in allocator.catalog().resources() {
         assert_eq!(descriptor.models, CatalogFact::Unknown);
@@ -405,7 +536,7 @@ fn b3_adapter_false_and_unknown_quality_floor_cannot_be_promoted() {
         Err(ProviderBridgeError::NoEligibleCandidates)
     );
     let registry = super::tests::registry(&[("a", Arc::new(Fake::new()))]);
-    let allocator = ProviderAutoAllocator::new(
+    let allocator = FixtureAllocator::new(
         catalog(vec![resource("a")]),
         provider_allocation_default(),
         Some(CognitiveTier::new(1).unwrap()),
@@ -418,7 +549,7 @@ fn b3_adapter_false_and_unknown_quality_floor_cannot_be_promoted() {
 #[test]
 fn b3_registry_only_provider_never_enters_authorized_universe() {
     let registry = registry(&[("a", Arc::new(Fake::new())), ("b", Arc::new(Fake::new()))]);
-    let allocator = ProviderAutoAllocator::production(&registry).unwrap();
+    let allocator = FixtureAllocator::production(&registry).unwrap();
     let p = plan(&allocator, &registry, &[target("a")]).unwrap();
     assert_eq!(p.entries().len(), 1);
     assert_eq!(p.entries()[0].target.provider_id, "a");
@@ -478,7 +609,7 @@ fn b3_known_unavailable_resource_model_and_effort_remain_excluded() {
         r.models = known(vec![m]);
         let mut policy = provider_allocation_default();
         policy.variant_selection_mode = VariantSelectionMode::Explicit;
-        let a = ProviderAutoAllocator::new(catalog(vec![r]), policy, None);
+        let a = FixtureAllocator::new(catalog(vec![r]), policy, None);
         let mut t = target("a");
         t.invocation.thinking_level = Some(ThinkingLevel::High);
         assert_eq!(
@@ -797,7 +928,7 @@ async fn b3_fixed_and_preferred_ignore_paid_exhausted_expensive_catalog() {
     let mut rb = resource("b");
     allowance(&mut rb, 80);
     rb.economics.billing_kind = known(BillingKind::FreeTier);
-    let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]))
+    let s = FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]))
         .with_auto_allocator(allocator(vec![ra, rb], AllocationProfile::Balanced));
     for selection in [
         ProviderSelection::Fixed("a".into()),
@@ -834,7 +965,7 @@ async fn b3_explicit_ranking_and_execution_preserve_original_operational_distinc
         let mut registry = ProviderRegistry::default();
         registry.register(a_config, a.clone()).unwrap();
         registry.register(config("b"), b.clone()).unwrap();
-        let s = Scheduler::new(registry);
+        let s = FixtureScheduler::new(registry);
         let req = request(&["a", "b"], ProviderSelection::Preferred);
         let ids = s
             .ranked_provider_ids(
@@ -928,7 +1059,7 @@ async fn b3_paid_deny_excludes_before_reservation_and_real_loopback_http() {
     let mut m = model("model-A", 0);
     m.facts.execution.latency_ms = known(1);
     ra.models = known(vec![m]);
-    let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]))
+    let s = FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]))
         .with_auto_allocator(allocator(vec![ra, resource("b")], AllocationProfile::Fast));
     let (result, events) = run(&s, request(&["a", "b"], ProviderSelection::Auto), 2, 0).await;
     assert_eq!(result.unwrap().provider_id, "b");
@@ -969,7 +1100,7 @@ async fn b3_reserve_reorders_but_single_reserve_remains_usable_exhausted_exclude
         allowance(&mut ra, remaining);
         let mut rb = resource("b");
         allowance(&mut rb, 80);
-        let allocation = ProviderAutoAllocator::new(
+        let allocation = FixtureAllocator::new(
             catalog(vec![ra, rb]),
             AllocationPolicy {
                 reserve: Some(ReservePolicy::new(40, 10).unwrap()),
@@ -977,7 +1108,7 @@ async fn b3_reserve_reorders_but_single_reserve_remains_usable_exhausted_exclude
             },
             None,
         );
-        let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]))
+        let s = FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]))
             .with_auto_allocator(allocation);
         let (result, _) = run(
             &s,
@@ -1014,7 +1145,7 @@ async fn b3_lr8_provider_exact_model_exclude_and_sibling_does_not_interfere_unkn
     ] {
         let a = Arc::new(Fake::new());
         let b = Arc::new(Fake::new());
-        let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]));
+        let s = FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]));
         pressure(&s, "a", scope);
         let req = request(&["a", "b"], ProviderSelection::Auto);
         assert_eq!(
@@ -1039,7 +1170,7 @@ async fn b3_lr8_provider_exact_model_exclude_and_sibling_does_not_interfere_unkn
 async fn b3_operational_rate_gate_revalidates_after_frozen_plan_without_rescore() {
     let a = Arc::new(Fake::new());
     let b = Arc::new(Fake::new());
-    let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]));
+    let s = FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]));
     let result = s
         .run(
             request(&["a", "b"], ProviderSelection::Auto),
@@ -1064,14 +1195,18 @@ async fn b3_affinity_real_success_to_b2_zero_context_and_restart() {
     let a = Arc::new(Fake::new());
     let b = Arc::new(Fake::new());
     let providers = [("a", a.clone()), ("b", b.clone())];
-    let s = Scheduler::new(registry(&providers));
+    let s = FixtureScheduler::new(registry(&providers));
     let mut req = request(&["b"], ProviderSelection::Fixed("b".into()));
     req.affinity_key = Some("session".into());
     run(&s, req, 1, 0).await.0.unwrap();
     for (scheduler, bytes, winner) in [
         (&s, 4096, "b"),
         (&s, 0, "a"),
-        (&Scheduler::new(registry(&providers)), usize::MAX, "a"),
+        (
+            &FixtureScheduler::new(registry(&providers)),
+            usize::MAX,
+            "a",
+        ),
     ] {
         let mut req = request(&["a", "b"], ProviderSelection::Auto);
         req.affinity_key = Some("session".into());
@@ -1096,7 +1231,7 @@ async fn b3_run_and_ranked_ids_and_taskgraph_targets_share_variant_engine() {
     ra.models = known(vec![model("better", 0)]);
     let mut rb = resource("b");
     rb.models = known(vec![model("model-A", 200)]);
-    let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]))
+    let s = FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]))
         .with_auto_allocator(allocator(vec![ra, rb], AllocationProfile::Economy));
     let req = request(&["b", "a"], ProviderSelection::Auto);
     let ids = s
@@ -1127,7 +1262,7 @@ async fn b3_negative_b2_score_serializes_through_selected_event_without_private_
     let a = Arc::new(Fake::new());
     let mut ra = resource("a");
     ra.models = known(vec![model("model-A", 255)]);
-    let s = Scheduler::new(registry(&[("a", a)]))
+    let s = FixtureScheduler::new(registry(&[("a", a)]))
         .with_auto_allocator(allocator(vec![ra], AllocationProfile::Economy));
     let (result, events) = run(&s, request(&["a"], ProviderSelection::Auto), 1, 0).await;
     result.unwrap();
@@ -1173,9 +1308,10 @@ async fn b3_retry_fallback_freezes_variants_scores_order_and_call_budget() {
     let b = Arc::new(Fake::new());
     let mut ra = resource("a");
     ra.models = known(vec![model("winner", 0), model("second", 50)]);
-    let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())])).with_auto_allocator(
-        allocator(vec![ra, resource("b")], AllocationProfile::Economy),
-    );
+    let s =
+        FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())])).with_auto_allocator(
+            allocator(vec![ra, resource("b")], AllocationProfile::Economy),
+        );
     let (result, events) = run(&s, request(&["a", "b"], ProviderSelection::Auto), 3, 1).await;
     let result = result.unwrap();
     assert_eq!(result.provider_id, "b");
@@ -1211,9 +1347,10 @@ async fn b3_429_never_reintroduces_paid_candidate_or_replans() {
     let b = Arc::new(Fake::new());
     let mut rb = resource("b");
     rb.economics.billing_kind = known(BillingKind::MeteredBilling);
-    let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())])).with_auto_allocator(
-        allocator(vec![resource("a"), rb], AllocationProfile::Balanced),
-    );
+    let s =
+        FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())])).with_auto_allocator(
+            allocator(vec![resource("a"), rb], AllocationProfile::Balanced),
+        );
     let (result, events) = run(&s, request(&["a", "b"], ProviderSelection::Auto), 4, 3).await;
     assert!(matches!(
         result,
@@ -1234,7 +1371,7 @@ async fn b3_partial_output_still_prevents_retry_and_fallback() {
         ..Fake::new()
     });
     let b = Arc::new(Fake::new());
-    let s = Scheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]));
+    let s = FixtureScheduler::new(registry(&[("a", a.clone()), ("b", b.clone())]));
     let (result, events) = run(&s, request(&["a", "b"], ProviderSelection::Auto), 4, 3).await;
     assert_eq!(
         result.unwrap_err(),
@@ -1249,7 +1386,7 @@ async fn b3_partial_output_still_prevents_retry_and_fallback() {
 #[tokio::test]
 async fn b3_cancellation_before_and_after_selection_and_call_budget_still_gate() {
     let a = Arc::new(Fake::new());
-    let s = Scheduler::new(registry(&[("a", a.clone())]));
+    let s = FixtureScheduler::new(registry(&[("a", a.clone())]));
     for before in [true, false] {
         let cancelled = AtomicBool::new(before);
         let result = s
@@ -1286,7 +1423,7 @@ impl RateClock for Clock {
 async fn b3_readonly_ranking_keeps_usage_reservations_blocks_and_boundary_projection() {
     let clock = Arc::new(Clock(AtomicU64::new(0)));
     let a = Arc::new(Fake::new());
-    let s = Scheduler::with_rate_config(
+    let s = FixtureScheduler::with_rate_config(
         registry(&[("a", a)]),
         AdmissionConfig::default(),
         clock.clone(),
@@ -1366,7 +1503,7 @@ fn b3_quality_floor_below_and_unknown_remain_inviolable_with_runtime_proof() {
             known(CognitiveTier::new(n).unwrap())
         });
         r.models = known(vec![m]);
-        let a = ProviderAutoAllocator::new(
+        let a = FixtureAllocator::new(
             catalog(vec![r]),
             provider_allocation_default(),
             Some(CognitiveTier::new(2).unwrap()),
@@ -1404,7 +1541,7 @@ fn b3_unknown_effort_support_keeps_described_model_economics_and_b1_evidence() {
     let registry = registry(&[("a", Arc::new(Fake::new()))]);
     let mut policy = provider_allocation_default();
     policy.variant_selection_mode = VariantSelectionMode::Explicit;
-    let a = ProviderAutoAllocator::new(catalog(vec![r]), policy, None);
+    let a = FixtureAllocator::new(catalog(vec![r]), policy, None);
     let mut t = target("a");
     t.invocation.thinking_level = Some(ThinkingLevel::High);
     let p = plan(&a, &registry, &[t.clone()]).unwrap();
@@ -1420,8 +1557,8 @@ fn b3_unknown_effort_support_keeps_described_model_economics_and_b1_evidence() {
 #[test]
 fn b3_lr8_dtos_are_immutable_and_generation_mismatch_is_typed() {
     let registry = registry(&[("a", Arc::new(Fake::new()))]);
-    let a = ProviderAutoAllocator::production(&registry).unwrap();
-    let scheduler = Scheduler::new(super::tests::registry(&[("a", Arc::new(Fake::new()))]));
+    let a = FixtureAllocator::production(&registry).unwrap();
+    let scheduler = FixtureScheduler::new(super::tests::registry(&[("a", Arc::new(Fake::new()))]));
     let telemetry = scheduler.telemetry_snapshot();
     let mut rate = scheduler.rate.read_only_snapshots();
     let before_t = serde_json::to_value(&telemetry).unwrap();
@@ -1465,7 +1602,7 @@ async fn b3_affinity_profile_weights_can_trade_context_against_reserve() {
         allowance(&mut ra, 80);
         let mut rb = resource("b");
         allowance(&mut rb, 5);
-        let a = ProviderAutoAllocator::new(
+        let a = FixtureAllocator::new(
             catalog(vec![ra, rb]),
             AllocationPolicy {
                 profile,
@@ -1474,7 +1611,7 @@ async fn b3_affinity_profile_weights_can_trade_context_against_reserve() {
             },
             None,
         );
-        let s = Scheduler::new(registry(&providers)).with_auto_allocator(a);
+        let s = FixtureScheduler::new(registry(&providers)).with_auto_allocator(a);
         let mut req = request(&["b"], ProviderSelection::Fixed("b".into()));
         req.affinity_key = Some("session".into());
         run(&s, req, 1, 0).await.0.unwrap();
@@ -1531,7 +1668,7 @@ fn b3_proof_is_bound_to_exact_timeouts_and_invocation_mode() {
 async fn b3_allocation_initialization_error_cannot_block_explicit_modes() {
     let a = Arc::new(Fake::new());
     let bad = Arc::new(Fake::new());
-    let s = Scheduler::new(registry(&[("a", a.clone()), ("invalid/id", bad.clone())]));
+    let s = FixtureScheduler::new(registry(&[("a", a.clone()), ("invalid/id", bad.clone())]));
     for mode in [
         ProviderSelection::Fixed("a".into()),
         ProviderSelection::Preferred,

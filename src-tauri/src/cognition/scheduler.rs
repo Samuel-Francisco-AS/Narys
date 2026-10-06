@@ -251,8 +251,7 @@ impl Scheduler {
             })
             .collect()
     }
-    /// Internal constructor override for enriched catalogs and allocation policy.
-    /// Production construction above always uses the conservative B3 defaults.
+    /// Test catalog injection only; allocation policy belongs to the request.
     #[cfg(test)]
     pub(crate) fn with_auto_allocator(mut self, allocator: ProviderAutoAllocator) -> Self {
         self.auto_allocator = Ok(allocator);
@@ -264,9 +263,10 @@ impl Scheduler {
         targets: &[ProviderTarget],
         required: &ProviderCapabilities,
         mode: &InvocationMode,
+        allocation_policy: Option<&crate::cognitive_resources::AllocationRuntimePolicy>,
     ) -> Result<Vec<String>, SchedulerError> {
         Ok(self
-            .ranked_provider_targets(selection, targets, required, mode)?
+            .ranked_provider_targets(selection, targets, required, mode, allocation_policy)?
             .into_iter()
             .map(|target| target.provider_id)
             .collect())
@@ -279,12 +279,14 @@ impl Scheduler {
         targets: &[ProviderTarget],
         required: &ProviderCapabilities,
         mode: &InvocationMode,
+        allocation_policy: Option<&crate::cognitive_resources::AllocationRuntimePolicy>,
     ) -> Result<Vec<ProviderTarget>, SchedulerError> {
         let chain = self.resolve_provider_chain(
             selection,
             targets,
             required,
             mode,
+            allocation_policy,
             None,
             0,
             ProviderChainPurpose::Ranking,
@@ -308,6 +310,7 @@ impl Scheduler {
         targets: &[ProviderTarget],
         required: &ProviderCapabilities,
         mode: &InvocationMode,
+        allocation_policy: Option<&crate::cognitive_resources::AllocationRuntimePolicy>,
         affinity_key: Option<&str>,
         bytes: usize,
         purpose: ProviderChainPurpose,
@@ -322,6 +325,7 @@ impl Scheduler {
             }
         }
         if matches!(selection, ProviderSelection::Auto) {
+            let allocation_policy = allocation_policy.ok_or(SchedulerError::InvalidTargetConfig)?;
             let affinity = affinity_key.and_then(|key| {
                 self.affinities
                     .lock()
@@ -340,6 +344,7 @@ impl Scheduler {
                 .map_err(|e| e.scheduler_error())?
                 .plan(
                     &self.registry,
+                    allocation_policy,
                     targets,
                     *required,
                     mode,
@@ -494,6 +499,7 @@ impl Scheduler {
             &request.targets,
             &request.required_capabilities,
             &request.mode,
+            request.allocation_policy.as_ref(),
             request.affinity_key.as_deref(),
             request.estimated_context_bytes,
             ProviderChainPurpose::Execution,
@@ -971,6 +977,11 @@ mod tests {
                     &targets,
                     &ProviderCapabilities::text_stream(),
                     &InvocationMode::default(),
+                    Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                        crate::cognitive_resources::provider_allocation_default(),
+                        None
+                    ))
+                    .as_ref(),
                 )
                 .unwrap(),
             vec!["a", "b", "c"]
@@ -982,6 +993,11 @@ mod tests {
                     &targets,
                     &ProviderCapabilities::text_stream(),
                     &InvocationMode::default(),
+                    Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                        crate::cognitive_resources::provider_allocation_default(),
+                        None
+                    ))
+                    .as_ref(),
                 )
                 .unwrap(),
             vec!["b"]
@@ -994,6 +1010,11 @@ mod tests {
                     &targets,
                     &ProviderCapabilities::text_stream(),
                     &InvocationMode::default(),
+                    Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                        crate::cognitive_resources::provider_allocation_default(),
+                        None
+                    ))
+                    .as_ref(),
                 )
                 .unwrap(),
             vec!["a", "b", "c"]

@@ -275,6 +275,10 @@ fn harness(cfg: AdmissionConfig) -> (Arc<Scheduler>, mpsc::UnboundedReceiver<Inv
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt".into(),
@@ -716,7 +720,17 @@ async fn local_saturation_and_quota_zero_preserve_ranking_selection_score_and_af
             "a"
         };
         let _ranking = s
-            .ranked_provider_ids(&selection, &r.targets, &r.required_capabilities, &r.mode)
+            .ranked_provider_ids(
+                &selection,
+                &r.targets,
+                &r.required_capabilities,
+                &r.mode,
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None,
+                ))
+                .as_ref(),
+            )
             .unwrap();
         let held = hold(&s.admission, expected).await;
         s.telemetry.observe_quota(
@@ -748,7 +762,12 @@ async fn local_saturation_and_quota_zero_preserve_ranking_selection_score_and_af
                     &selection,
                     &targets.targets,
                     &targets.required_capabilities,
-                    &targets.mode
+                    &targets.mode,
+                    Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                        crate::cognitive_resources::provider_allocation_default(),
+                        None
+                    ))
+                    .as_ref(),
                 )
                 .unwrap(),
                 vec!["a"]
@@ -792,7 +811,12 @@ async fn local_saturation_and_quota_zero_preserve_ranking_selection_score_and_af
                 &selection,
                 &targets.targets,
                 &targets.required_capabilities,
-                &targets.mode
+                &targets.mode,
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None
+                ))
+                .as_ref(),
             )
             .unwrap()
         );

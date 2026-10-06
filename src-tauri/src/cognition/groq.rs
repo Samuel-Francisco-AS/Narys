@@ -276,7 +276,9 @@ impl Provider for GroqProvider {
                 .header(AUTHORIZATION, auth)
                 .json(&payload)
                 .build()
-                .map_err(|error| diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started))?;
+                .map_err(|error| {
+                    diagnosed_network_error(&error, "groq", request, timeouts, connect_ms, started)
+                })?;
             let mut response = tokio::select! {
               _ = cancellation(cancelled) => return Err(ProviderError::Cancelled),
               result = async {
@@ -338,12 +340,19 @@ impl Provider for GroqProvider {
                     && value
                         .get("choices")
                         .and_then(Value::as_array)
-                        .is_some_and(|v| v.len() == 1 && v[0].get("message").is_some_and(Value::is_object))
+                        .is_some_and(|v| {
+                            v.len() == 1 && v[0].get("message").is_some_and(Value::is_object)
+                        })
                 {
                     if let Ok(usage) = non_streaming_usage(&value) {
                         // Complete non-streaming response: request usage per the
                         // official chat-completions API reference (see LR-8C docs).
-                        if matches!(value.pointer("/choices/0/finish_reason").and_then(Value::as_str), Some("stop" | "length" | "tool_calls" | "function_call")) {
+                        if matches!(
+                            value
+                                .pointer("/choices/0/finish_reason")
+                                .and_then(Value::as_str),
+                            Some("stop" | "length" | "tool_calls" | "function_call")
+                        ) {
                             observation.final_usage(usage);
                         } else {
                             observation.usage(usage);
@@ -741,6 +750,10 @@ mod tests {
 
     fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
         ProviderTaskRequest {
+            allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
             traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
             mode: crate::cognition::types::InvocationMode::default(),
             input: request.input,
@@ -1021,7 +1034,8 @@ mod tests {
             .unwrap();
             let (rate, telemetry) = super::super::rate_tests::adapter_token_accounting("groq");
             let obs = telemetry.attempt("groq");
-            let guard = super::super::rate_tests::adapter_token_reservation(&rate, &obs, "groq", bound);
+            let guard =
+                super::super::rate_tests::adapter_token_reservation(&rate, &obs, "groq", bound);
             let response = tauri::async_runtime::block_on(provider.execute_observed(
                 &request(Some(ThinkingLevel::Low)),
                 &AtomicBool::new(false),

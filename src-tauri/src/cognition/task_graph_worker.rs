@@ -231,6 +231,7 @@ pub(crate) async fn run_worker(
     }
     let started = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
     let request = ProviderTaskRequest {
+        allocation_policy: None,
         traffic_class: crate::cognition::admission::TrafficClass::ForegroundTask,
         mode: crate::cognition::types::InvocationMode::default(),
         input,

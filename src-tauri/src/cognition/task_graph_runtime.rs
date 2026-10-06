@@ -13,7 +13,7 @@ use super::{
     catalog,
     context::{ContextBuilder, ContextRequest},
     orchestrator::{self, OrchestratorResult},
-    policy::{self, CognitiveRole},
+    policy::CognitiveRole,
     scheduler::SchedulerEvent,
     task_graph::{SubtaskState, TaskGraph, TaskGraphResult, TaskGraphSubtaskResult},
     task_graph_worker::{
@@ -207,10 +207,16 @@ async fn execute(
     let preflight_store = store.clone();
     let preflight = tauri::async_runtime::spawn_blocking(move || {
         let conn = preflight_db.open().map_err(|error| error.code())?;
-        let orchestrator_policy =
-            policy::load(&conn, CognitiveRole::Orchestrator).map_err(|error| error.code())?;
-        let worker_policy =
-            policy::load(&conn, CognitiveRole::Worker).map_err(|error| error.code())?;
+        let mut snapshots = super::allocation_policy::load_role_runtime_policies(
+            &conn,
+            &[CognitiveRole::Orchestrator, CognitiveRole::Worker],
+        )
+        .map_err(|error| error.code())?
+        .into_iter();
+        let orchestrator = snapshots.next().expect("two requested roles");
+        let worker = snapshots.next().expect("two requested roles");
+        let orchestrator_policy = orchestrator.routing;
+        let worker_policy = worker.routing;
         orchestrator_policy.validate()?;
         worker_policy.validate()?;
         catalog::validate_policies(
@@ -241,6 +247,8 @@ async fn execute(
             worker_policy,
             worker_timeouts,
             worker_context,
+            orchestrator.allocation,
+            worker.allocation,
         ))
     })
     .await;
@@ -250,6 +258,8 @@ async fn execute(
         worker_policy,
         worker_timeouts,
         worker_context,
+        orchestrator_allocation,
+        worker_allocation,
     ) = match preflight {
         Ok(Ok(value)) => value,
         Ok(Err(code)) => return fail(code),
@@ -267,6 +277,7 @@ async fn execute(
         orchestrator_timeouts,
         &cancelled,
         &mut planner_events,
+        orchestrator_allocation,
     )
     .await;
     drop(planner_events);
@@ -367,11 +378,11 @@ async fn execute(
             };
         }
     };
-    let chain = match runtime.scheduler.ranked_provider_targets(
-        &worker_policy.selection(),
+    let chain = match rank_worker_targets(
+        &runtime.scheduler,
+        &worker_policy,
         &worker_targets,
-        &ProviderCapabilities::text_stream(),
-        &super::types::InvocationMode::default(),
+        worker_allocation.as_ref(),
     ) {
         Ok(value) => value,
         Err(error) => {
@@ -924,4 +935,21 @@ pub fn start_task(
         }
     });
     Ok(id)
+}
+
+/// Initial Worker allocation uses the same engine as Scheduler::run. Execution
+/// later pins this chosen target as Fixed and never re-scores the unit.
+pub(crate) fn rank_worker_targets(
+    scheduler: &super::scheduler::Scheduler,
+    policy: &super::policy::CognitiveRolePolicy,
+    targets: &[super::types::ProviderTarget],
+    allocation: Option<&crate::cognitive_resources::AllocationRuntimePolicy>,
+) -> Result<Vec<super::types::ProviderTarget>, super::types::SchedulerError> {
+    scheduler.ranked_provider_targets(
+        &policy.selection(),
+        targets,
+        &ProviderCapabilities::text_stream(),
+        &super::types::InvocationMode::default(),
+        allocation,
+    )
 }

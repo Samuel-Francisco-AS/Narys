@@ -170,6 +170,8 @@ pub struct ProviderTarget {
 
 #[derive(Debug)]
 pub struct ProviderTaskRequest {
+    /// Captured by Core preflight; required for Auto and ignored in explicit modes.
+    pub allocation_policy: Option<crate::cognitive_resources::AllocationRuntimePolicy>,
     pub traffic_class: super::admission::TrafficClass,
     pub mode: InvocationMode,
     pub input: String,

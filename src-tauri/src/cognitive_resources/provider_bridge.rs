@@ -11,7 +11,8 @@ use crate::cognition::{
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// B3 temporary production policy. Persistence/settings belong to B4.
+/// B3 baseline for regression fixtures only; production has no fallback.
+#[cfg(test)]
 pub fn provider_allocation_default() -> AllocationPolicy {
     AllocationPolicy {
         profile: AllocationProfile::Balanced,
@@ -274,8 +275,6 @@ impl AutoRoutePlan {
 
 pub struct ProviderAutoAllocator {
     catalog: ResourceCatalog,
-    policy: AllocationPolicy,
-    floor: Option<QualityFloor>,
 }
 impl ProviderAutoAllocator {
     pub fn production(registry: &ProviderRegistry) -> Result<Self, ProviderBridgeError> {
@@ -300,19 +299,11 @@ impl ProviderAutoAllocator {
                 )
                 .map_err(|_| ProviderBridgeError::CatalogRuntimeMismatch)?;
         }
-        Ok(Self::new(catalog, provider_allocation_default(), None))
+        Ok(Self::new(catalog))
     }
-    /// Constructor injection only; production uses the explicit B3 defaults.
-    pub fn new(
-        catalog: ResourceCatalog,
-        policy: AllocationPolicy,
-        floor: Option<QualityFloor>,
-    ) -> Self {
-        Self {
-            catalog,
-            policy,
-            floor,
-        }
+    /// Catalog injection does not carry per-role policy.
+    pub fn new(catalog: ResourceCatalog) -> Self {
+        Self { catalog }
     }
     pub fn catalog(&self) -> &ResourceCatalog {
         &self.catalog
@@ -321,6 +312,7 @@ impl ProviderAutoAllocator {
     pub fn plan(
         &self,
         registry: &ProviderRegistry,
+        runtime_policy: &AllocationRuntimePolicy,
         targets: &[ProviderTarget],
         required: ProviderCapabilities,
         mode: &InvocationMode,
@@ -361,7 +353,7 @@ impl ProviderAutoAllocator {
             )
             .map_err(|_| ProviderBridgeError::InvalidAllocationUniverse)?;
             insert_variant(&mut variants, explicit, ordinal)?;
-            if self.policy.variant_selection_mode == VariantSelectionMode::Auto {
+            if runtime_policy.policy().variant_selection_mode == VariantSelectionMode::Auto {
                 for model in resource.models.value().into_iter().flatten() {
                     insert_variant(
                         &mut variants,
@@ -386,10 +378,14 @@ impl ProviderAutoAllocator {
         }
         // Full expansion bound checked before any adapter compatibility/scoring.
         // Unsupported efforts count too; no truncation or hidden overflow.
-        let requirements = provider_requirements(required, self.floor);
+        let requirements = provider_requirements(required, runtime_policy.minimum_cognitive_tier());
         let candidates = variants.values().map(|(c, _)| c.clone()).collect();
-        let b1 = AllocationRequest::new(requirements.clone(), self.policy.clone(), candidates)
-            .map_err(|_| ProviderBridgeError::InvalidAllocationUniverse)?;
+        let b1 = AllocationRequest::new(
+            requirements.clone(),
+            runtime_policy.policy().clone(),
+            candidates,
+        )
+        .map_err(|_| ProviderBridgeError::InvalidAllocationUniverse)?;
         let report = b1.evaluate();
         let mut resolved = Vec::new();
         let mut exclusions = Vec::new();
@@ -497,7 +493,7 @@ impl ProviderAutoAllocator {
             );
         }
         let decision = AllocationScoringRequest::from_provider_candidates(
-            self.policy.clone(),
+            runtime_policy.policy().clone(),
             requirements,
             resolved,
             contexts,

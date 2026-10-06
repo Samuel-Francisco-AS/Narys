@@ -71,7 +71,8 @@ pub fn run() {
                         id: "groq".into(),
                         enabled: true,
                         priority: 2,
-                        capabilities: cognition::types::ProviderCapabilities::with_structured_output(),
+                        capabilities:
+                            cognition::types::ProviderCapabilities::with_structured_output(),
                     },
                     groq_adapter,
                 )
@@ -106,7 +107,9 @@ pub fn run() {
                 .map_err(|_| "cloudflare_http_client_unavailable")?,
             );
             let cloudflare_timeouts = cloudflare_adapter.timeout_handle();
-            *cloudflare_timeouts.write().unwrap_or_else(|p| p.into_inner()) =
+            *cloudflare_timeouts
+                .write()
+                .unwrap_or_else(|p| p.into_inner()) =
                 persistence::provider_timeouts::load(&conn, "cloudflare")
                     .map_err(|_| "provider_settings_unavailable")?;
             providers
@@ -180,6 +183,7 @@ pub fn run() {
         cognition::settings::get_ai_settings,
         cognition::settings::get_provider_operational_snapshot,
         cognition::settings::update_cognitive_role_policy,
+        cognition::settings::update_cognitive_role_settings,
         cognition::settings::update_provider_timeouts,
         cognition::settings::update_provider_rate_policy,
         cognition::settings::get_general_settings,
@@ -223,6 +227,7 @@ pub fn run() {
         cognition::settings::get_ai_settings,
         cognition::settings::get_provider_operational_snapshot,
         cognition::settings::update_cognitive_role_policy,
+        cognition::settings::update_cognitive_role_settings,
         cognition::settings::update_provider_timeouts,
         cognition::settings::update_provider_rate_policy,
         cognition::settings::get_general_settings,

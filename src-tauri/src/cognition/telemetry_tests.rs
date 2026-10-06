@@ -136,6 +136,10 @@ fn scheduler(actions: &[(&str, Vec<Action>)]) -> Scheduler {
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt-marker".into(),
@@ -519,6 +523,11 @@ fn telemetry_quotas_do_not_change_ranking_but_lr8c_enforces_selected_capacity() 
                 &targets,
                 &ProviderCapabilities::text_stream(),
                 &InvocationMode::default(),
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None,
+                ))
+                .as_ref(),
             )
             .unwrap();
         for dim in [
@@ -547,7 +556,12 @@ fn telemetry_quotas_do_not_change_ranking_but_lr8c_enforces_selected_capacity() 
                     &mode,
                     &targets,
                     &ProviderCapabilities::text_stream(),
-                    &InvocationMode::default()
+                    &InvocationMode::default(),
+                    Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                        crate::cognitive_resources::provider_allocation_default(),
+                        None
+                    ))
+                    .as_ref(),
                 )
                 .unwrap(),
                 vec!["b"]
@@ -560,7 +574,12 @@ fn telemetry_quotas_do_not_change_ranking_but_lr8c_enforces_selected_capacity() 
                 &mode,
                 &targets,
                 &ProviderCapabilities::text_stream(),
-                &InvocationMode::default()
+                &InvocationMode::default(),
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None
+                ))
+                .as_ref(),
             )
             .unwrap(),
             before

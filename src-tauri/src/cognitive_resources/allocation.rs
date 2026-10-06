@@ -2,7 +2,7 @@
 //! Core/policy supplies the authorized universe; this module cannot discover or
 //! authorize resources, call adapters, or replace operational runtime gates.
 use super::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Local structural bounds, without commercial meaning.
@@ -32,14 +32,14 @@ impl std::fmt::Display for AllocationError {
 }
 impl std::error::Error for AllocationError {}
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AllocationProfile {
     Economy,
     Balanced,
     Fast,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum VariantSelectionMode {
     Explicit,
@@ -593,5 +593,27 @@ fn evaluate_candidate(
         effective_tier,
         capability_evidence,
         availability_evidence,
+    }
+}
+
+/// Immutable task snapshot. Components can only be obtained through validated
+/// constructors. No Deserialize, database, role, settings or provider binding.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AllocationRuntimePolicy {
+    policy: AllocationPolicy,
+    minimum_cognitive_tier: Option<QualityFloor>,
+}
+impl AllocationRuntimePolicy {
+    pub fn new(policy: AllocationPolicy, minimum_cognitive_tier: Option<QualityFloor>) -> Self {
+        Self {
+            policy,
+            minimum_cognitive_tier,
+        }
+    }
+    pub fn policy(&self) -> &AllocationPolicy {
+        &self.policy
+    }
+    pub fn minimum_cognitive_tier(&self) -> Option<QualityFloor> {
+        self.minimum_cognitive_tier
     }
 }

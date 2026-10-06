@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-cognitive-role-settings"
+description = "Enables the update_cognitive_role_settings command without any pre-configured scope."
+commands.allow = ["update_cognitive_role_settings"]
+
+[[permission]]
+identifier = "deny-update-cognitive-role-settings"
+description = "Denies the update_cognitive_role_settings command without any pre-configured scope."
+commands.deny = ["update_cognitive_role_settings"]

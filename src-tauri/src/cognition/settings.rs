@@ -73,6 +73,7 @@ pub struct AiSettings {
     telemetry: Vec<super::telemetry::ProviderTelemetrySnapshot>,
     providers: Vec<catalog::ProviderInfo>,
     roles: Vec<CognitiveRolePolicy>,
+    allocation_policies: Vec<super::allocation_policy::CognitiveRoleAllocationPolicy>,
     credential_store_available: bool,
     provider_timeouts: std::collections::HashMap<String, super::types::ProviderTimeouts>,
 }
@@ -92,12 +93,10 @@ pub async fn get_ai_settings(
     let resilience = runtime.scheduler.resilience_snapshot();
     tauri::async_runtime::spawn_blocking(move || {
         let conn = db.open().map_err(|e| e.code())?;
-        let roles = vec![
-            policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code())?,
-            policy::load(&conn, CognitiveRole::Summary).map_err(|e| e.code())?,
-            policy::load(&conn, CognitiveRole::Orchestrator).map_err(|e| e.code())?,
-            policy::load(&conn, CognitiveRole::Worker).map_err(|e| e.code())?,
-        ];
+        let settings =
+            super::allocation_policy::load_all_role_settings(&conn).map_err(|e| e.code())?;
+        let roles = settings.iter().map(|s| s.policy.clone()).collect();
+        let allocation_policies = settings.into_iter().map(|s| s.allocation_policy).collect();
         let mut timeouts = std::collections::HashMap::new();
         for status in statuses
             .iter()
@@ -116,6 +115,7 @@ pub async fn get_ai_settings(
             telemetry,
             providers: infos.providers,
             roles,
+            allocation_policies,
             credential_store_available: infos.credential_store_available,
             provider_timeouts: timeouts,
         })
@@ -196,16 +196,52 @@ pub async fn update_cognitive_role_policy(
     let db = db.inner().clone();
     let saved = tauri::async_runtime::spawn_blocking(move || {
         let mut conn = db.open().map_err(|e| e.code())?;
-        let saved = policy::save(&mut conn, &policy).map_err(|e| e.code())?;
-        if saved.role == CognitiveRole::Summary && saved.summary_input_max_bytes == 0 {
-            conversation::disable_pending_summaries(&conn).map_err(|e| e.code())?;
+        // Preserve compatibility while keeping disabled Summary cleanup atomic.
+        let tx = conn.transaction().map_err(|_| "write_failed")?;
+        policy::write_in_transaction(&tx, &policy).map_err(|e| e.code())?;
+        if policy.role == CognitiveRole::Summary && policy.summary_input_max_bytes == 0 {
+            conversation::disable_pending_summaries(&tx).map_err(|e| e.code())?;
         }
+        let saved = policy::load(&tx, policy.role).map_err(|e| e.code())?;
+        tx.commit().map_err(|_| "write_failed")?;
         Ok::<_, &'static str>(saved)
     })
     .await
     .map_err(|_| "worker_failed".to_string())?
     .map_err(str::to_owned)?;
     if saved.role == CognitiveRole::Summary {
+        worker.kick();
+    }
+    Ok(saved)
+}
+
+/// One user action, one validated write transaction, including Summary disable.
+#[tauri::command]
+pub async fn update_cognitive_role_settings(
+    db: State<'_, Database>,
+    worker: State<'_, Arc<SummaryWorker>>,
+    runtime: State<'_, Arc<ProviderRuntime>>,
+    store: State<'_, Arc<SecretStore>>,
+    policy: CognitiveRolePolicy,
+    allocation_policy: super::allocation_policy::CognitiveRoleAllocationPolicy,
+) -> Result<super::allocation_policy::CognitiveRoleSettings, String> {
+    super::allocation_policy::validate_role_settings(&policy, &allocation_policy)
+        .map_err(str::to_owned)?;
+    let db = db.inner().clone();
+    let store = store.inner().clone();
+    let statuses = runtime.scheduler.status();
+    let saved = tauri::async_runtime::spawn_blocking(move || {
+        if !(policy.role == CognitiveRole::Summary && policy.summary_input_max_bytes == 0) {
+            catalog::validate_policy(&policy, &statuses, &store)?;
+        }
+        let mut conn = db.open().map_err(|e| e.code())?;
+        super::allocation_policy::save_role_settings(&mut conn, &policy, &allocation_policy)
+            .map_err(|e| e.code())
+    })
+    .await
+    .map_err(|_| "worker_failed".to_owned())?
+    .map_err(str::to_owned)?;
+    if saved.policy.role == CognitiveRole::Summary {
         worker.kick();
     }
     Ok(saved)

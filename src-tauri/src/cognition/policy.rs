@@ -269,12 +269,23 @@ fn load_snapshot(
     Ok(policy)
 }
 
+#[cfg(test)]
 pub fn save(
     conn: &mut Connection,
     policy: &CognitiveRolePolicy,
 ) -> Result<CognitiveRolePolicy, PersistenceError> {
     policy.validate().map_err(|_| PersistenceError::Write)?;
     let tx = conn.transaction().map_err(|_| PersistenceError::Write)?;
+    write_in_transaction(&tx, policy)?;
+    tx.commit().map_err(|_| PersistenceError::Write)?;
+    Ok(policy.clone())
+}
+
+pub(crate) fn write_in_transaction(
+    tx: &rusqlite::Transaction<'_>,
+    policy: &CognitiveRolePolicy,
+) -> Result<(), PersistenceError> {
+    policy.validate().map_err(|_| PersistenceError::Write)?;
     let changed = tx.execute(
         "UPDATE cognitive_role_policies SET routing_mode=?2,max_output_tokens=?3,max_provider_calls=?4,retry_enabled=?5,max_retries=?6,retry_backoff_ms=?7,history_max_messages=?8,history_max_bytes=?9,summary_input_max_bytes=?10,context_max_bytes=?11,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE role=?1",
         params![policy.role.as_str(),policy.routing_mode.as_str(),policy.max_output_tokens,policy.max_provider_calls,
@@ -294,8 +305,7 @@ pub fn save(
             params![policy.role.as_str(),position,target.provider_id,target.model,target.thinking_level.map(ThinkingLevel::as_str)])
             .map_err(|_| PersistenceError::Write)?;
     }
-    tx.commit().map_err(|_| PersistenceError::Write)?;
-    Ok(policy.clone())
+    Ok(())
 }
 
 #[cfg(test)]
@@ -344,7 +354,7 @@ mod tests {
         assert_eq!(
             conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
                 .unwrap(),
-            12
+            13
         );
         let conversation = load(&conn, CognitiveRole::Conversation).unwrap();
         assert_eq!(conversation.routing_mode, RoutingMode::Preferred);
@@ -419,7 +429,11 @@ mod tests {
         assert_eq!(worker.max_output_tokens, Some(4096));
         assert_eq!(worker.context_max_bytes, 16384);
         assert_eq!(
-            worker.targets.iter().map(|target| target.provider_id.as_str()).collect::<Vec<_>>(),
+            worker
+                .targets
+                .iter()
+                .map(|target| target.provider_id.as_str())
+                .collect::<Vec<_>>(),
             vec!["groq", "cloudflare"]
         );
         drop(conn);

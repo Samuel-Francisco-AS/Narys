@@ -929,6 +929,10 @@ fn default_harness() -> (
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: TrafficClass::ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt-marker".into(),
@@ -1161,14 +1165,34 @@ async fn resilience_auto_gates_after_b2_score_and_ranking() {
     let (s, _, _, mut calls) = default_harness();
     let r = request(&["a", "b", "c"], ProviderSelection::Auto);
     assert_eq!(
-        s.ranked_provider_ids(&r.selection, &r.targets, &r.required_capabilities, &r.mode)
-            .unwrap(),
+        s.ranked_provider_ids(
+            &r.selection,
+            &r.targets,
+            &r.required_capabilities,
+            &r.mode,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None
+            ))
+            .as_ref()
+        )
+        .unwrap(),
         vec!["a", "b", "c"]
     );
     open(&s.resilience, "a");
     assert_eq!(
-        s.ranked_provider_ids(&r.selection, &r.targets, &r.required_capabilities, &r.mode)
-            .unwrap(),
+        s.ranked_provider_ids(
+            &r.selection,
+            &r.targets,
+            &r.required_capabilities,
+            &r.mode,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None
+            ))
+            .as_ref()
+        )
+        .unwrap(),
         vec!["b", "c"]
     );
     let (result, events) = succeed(s, &mut calls, r).await;

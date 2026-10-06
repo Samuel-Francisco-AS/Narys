@@ -103,7 +103,8 @@ impl MinimalOutboundContext {
       self.system_instruction
     );
         if let Some(internal) = internal_system_instruction {
-            execution_instruction.push_str("\nInstrução técnica interna do Luna Core (prioritária):\n");
+            execution_instruction
+                .push_str("\nInstrução técnica interna do Luna Core (prioritária):\n");
             execution_instruction.push_str(internal);
         }
         json!({"model":model,"store":false,"stream":true,"system_instruction":execution_instruction,
@@ -746,6 +747,10 @@ mod tests {
     }
     fn task_request(request: ProviderRequest) -> ProviderTaskRequest {
         ProviderTaskRequest {
+            allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
             traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
             mode: crate::cognition::types::InvocationMode::default(),
             input: request.input,
@@ -1902,6 +1907,10 @@ mod tests {
         let signal = AtomicBool::new(false);
         let result = tauri::async_runtime::block_on(Scheduler::new(registry).run(
             ProviderTaskRequest {
+                allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None,
+                )),
                 traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
                 mode: crate::cognition::types::InvocationMode::default(),
                 input: "Quanto é 2 + 2?".into(),

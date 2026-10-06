@@ -347,6 +347,10 @@ fn run_plan(
             events.push(e);
             Ok(())
         },
+        Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
     ))
 }
 
@@ -771,6 +775,10 @@ fn fix5_event_coalescing_hundreds_of_chunks_and_scheduler_byte_guard() {
             )
             .unwrap();
         let req = ProviderTaskRequest {
+            allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
             traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
             mode: mode(limit),
             input: "data".into(),
@@ -880,6 +888,10 @@ fn fix5_scheduler_rejects_fixed_incompatible_mode_without_selection_or_remote_ca
             target.invocation.model = "unproven-model".into();
         }
         let req = ProviderTaskRequest {
+            allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
             traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
             mode: mode(MAX_PLAN_BYTES),
             input: "data".into(),
@@ -929,6 +941,10 @@ fn fix5_structured_planner_accepts_exact_max_plan_bytes_and_standalone_mode() {
             std::collections::HashMap::from([("groq".into(), timeouts())]),
             &AtomicBool::new(false),
             &mut |_| Ok(()),
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None,
+            )),
         ))
         .unwrap();
         assert_eq!(result.plan.steps.len(), 2);

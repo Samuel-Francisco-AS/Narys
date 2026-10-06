@@ -87,6 +87,10 @@ fn context(db: &Database) -> super::types::ContextBundle {
 }
 fn request(db: &Database, ids: &[&str]) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
         mode: crate::cognition::types::InvocationMode::default(),
         input: "synthetic".into(),
@@ -1054,18 +1058,33 @@ fn task_graph_conservatively_accounts_unknown_output_usage() {
     let (db, dir) = fixture();
     seed(&db);
     let mut registry = ProviderRegistry::default();
-    registry.register(
-        ProviderConfig { id: "only".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::text_stream() },
-        Arc::new(NoUsage),
-    ).unwrap();
+    registry
+        .register(
+            ProviderConfig {
+                id: "only".into(),
+                enabled: true,
+                priority: 1,
+                capabilities: ProviderCapabilities::text_stream(),
+            },
+            Arc::new(NoUsage),
+        )
+        .unwrap();
     let scheduler = Scheduler::new(registry);
     let result = tauri::async_runtime::block_on(scheduler.run_with_retry_conservative_output(
         request(&db, &["only"]),
-        TaskBudget { max_provider_calls: 1, max_output_tokens: Some(17) },
-        super::types::RetryPolicy { enabled: false, max_retries: 0, initial_backoff_ms: 0 },
+        TaskBudget {
+            max_provider_calls: 1,
+            max_output_tokens: Some(17),
+        },
+        super::types::RetryPolicy {
+            enabled: false,
+            max_retries: 0,
+            initial_backoff_ms: 0,
+        },
         &AtomicBool::new(false),
         &mut |_| Ok(()),
-    )).unwrap();
+    ))
+    .unwrap();
     assert_eq!(result.usage.output_tokens, 0);
     assert!(!result.usage.output_tokens_measured);
     assert_eq!(result.usage.output_tokens_accounted, 17);
@@ -1422,14 +1441,27 @@ fn conservative_output_reserves_current_and_future_attempts_before_retry_events(
                 }
                 Ok(ProviderResponse {
                     text: "ok".into(),
-                    usage: ProviderUsage { output_tokens: 7, output_tokens_measured: true, ..Default::default() },
+                    usage: ProviderUsage {
+                        output_tokens: 7,
+                        output_tokens_measured: true,
+                        ..Default::default()
+                    },
                 })
             })
         }
     }
 
-    fn execute_case(max_calls: u32, failures: usize, output_limit: u32, max_retries: u32)
-        -> (Result<super::types::TaskResult, SchedulerError>, u32, Vec<Option<u32>>, Vec<SchedulerEvent>) {
+    fn execute_case(
+        max_calls: u32,
+        failures: usize,
+        output_limit: u32,
+        max_retries: u32,
+    ) -> (
+        Result<super::types::TaskResult, SchedulerError>,
+        u32,
+        Vec<Option<u32>>,
+        Vec<SchedulerEvent>,
+    ) {
         let (db, dir) = fixture();
         seed(&db);
         let provider = Arc::new(ScriptedProvider {
@@ -1438,10 +1470,17 @@ fn conservative_output_reserves_current_and_future_attempts_before_retry_events(
             limits: std::sync::Mutex::new(Vec::new()),
         });
         let mut registry = ProviderRegistry::default();
-        registry.register(ProviderConfig {
-            id: "groq".into(), enabled: true, priority: 1,
-            capabilities: ProviderCapabilities::text_stream(),
-        }, provider.clone()).unwrap();
+        registry
+            .register(
+                ProviderConfig {
+                    id: "groq".into(),
+                    enabled: true,
+                    priority: 1,
+                    capabilities: ProviderCapabilities::text_stream(),
+                },
+                provider.clone(),
+            )
+            .unwrap();
         let scheduler = Scheduler::new(registry);
         let mut req = request(&db, &["groq"]);
         req.selection = ProviderSelection::Fixed("groq".into());
@@ -1449,10 +1488,20 @@ fn conservative_output_reserves_current_and_future_attempts_before_retry_events(
         let mut events = Vec::new();
         let result = tauri::async_runtime::block_on(scheduler.run_with_retry_conservative_output(
             req,
-            TaskBudget { max_provider_calls: max_calls, max_output_tokens: Some(output_limit) },
-            RetryPolicy { enabled: true, max_retries, initial_backoff_ms: 0 },
+            TaskBudget {
+                max_provider_calls: max_calls,
+                max_output_tokens: Some(output_limit),
+            },
+            RetryPolicy {
+                enabled: true,
+                max_retries,
+                initial_backoff_ms: 0,
+            },
             &AtomicBool::new(false),
-            &mut |event| { events.push(event); Ok(()) },
+            &mut |event| {
+                events.push(event);
+                Ok(())
+            },
         ));
         let calls = provider.calls.load(Ordering::SeqCst);
         let limits = provider.limits.lock().unwrap().clone();
@@ -1466,7 +1515,13 @@ fn conservative_output_reserves_current_and_future_attempts_before_retry_events(
     assert_eq!(result.usage.retries, 1);
     assert_eq!(limits, vec![Some(1024), Some(1024)]);
     assert!(result.usage.output_tokens_accounted <= 2048);
-    assert_eq!(events.iter().filter(|event| matches!(event, SchedulerEvent::Retry { .. })).count(), 1);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, SchedulerEvent::Retry { .. }))
+            .count(),
+        1
+    );
 
     let (result, calls, limits, events) = execute_case(3, 2, 2048, 2);
     let result = result.expect("third attempt must have reserved output budget");
@@ -1474,22 +1529,46 @@ fn conservative_output_reserves_current_and_future_attempts_before_retry_events(
     assert_eq!(result.usage.retries, 2);
     assert_eq!(limits, vec![Some(683), Some(683), Some(682)]);
     assert!(result.usage.output_tokens_accounted <= 2048);
-    assert_eq!(events.iter().filter(|event| matches!(event, SchedulerEvent::Retry { .. })).count(), 2);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, SchedulerEvent::Retry { .. }))
+            .count(),
+        2
+    );
 
     // No retry event when its attempt has no output budget left to reserve.
     let (result, calls, limits, events) = execute_case(2, 2, 1, 2);
-    assert!(matches!(result, Err(SchedulerError::Provider(ProviderError::Timeout))));
+    assert!(matches!(
+        result,
+        Err(SchedulerError::Provider(ProviderError::Timeout))
+    ));
     assert_eq!(calls, 1);
     assert_eq!(limits, vec![Some(1)]);
-    assert_eq!(events.iter().filter(|event| matches!(event, SchedulerEvent::Retry { .. })).count(), 0);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, SchedulerEvent::Retry { .. }))
+            .count(),
+        0
+    );
 
     // Exhausting provider calls must never start a third call.
     let (result, calls, limits, events) = execute_case(2, 3, 2048, 3);
-    assert!(matches!(result, Err(SchedulerError::Provider(ProviderError::Timeout))));
+    assert!(matches!(
+        result,
+        Err(SchedulerError::Provider(ProviderError::Timeout))
+    ));
     assert_eq!(calls, 2);
     assert_eq!(limits, vec![Some(1024), Some(1024)]);
     assert!(limits.iter().flatten().sum::<u32>() <= 2048);
-    assert_eq!(events.iter().filter(|event| matches!(event, SchedulerEvent::Retry { .. })).count(), 1);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, SchedulerEvent::Retry { .. }))
+            .count(),
+        1
+    );
 }
 
 #[test]
