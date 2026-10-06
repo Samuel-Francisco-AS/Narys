@@ -6,7 +6,7 @@ Estado: **C1 = PASS técnico após auditoria independente.**
 
 **C3 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
-**C4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+**C4 = FIX OBRIGATÓRIA após auditoria independente; candidata ainda NÃO aprovada.**
 
 C1 PASS; C2 PASS; C3 PASS. LR-8.5C ainda **NÃO PASS**.
 Merge ainda **NÃO autorizado**.
@@ -1665,3 +1665,120 @@ restaurada e lookup factual do ledger); não há erro de compilação.
 
 **C4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
 C1 PASS; C2 PASS; C3 PASS; LR-8.5C ainda NÃO PASS; merge ainda NÃO autorizado.
+
+
+## Auditoria independente do C4 — 06/10/2026
+
+**Resultado: FIX obrigatória. C4 e LR-8.5C ainda NÃO PASS.**
+
+A auditoria comparou o C3 auditado em
+`c07e2a8398531fcd40823f22d4973a986d5706d7` com a candidata C4
+`29ce2a618483e9923a36908855d2fb8fcdbec7f9`. O diff contém um único
+commit e os 29 arquivos declarados. A maior parte dos invariantes C4 está
+implementada de forma coerente: migration 015 atômica, manifest/result bounded,
+marca `started` anterior ao dispatch, claim geracional, startup sem auto-dispatch,
+resume explícito, fences incertos, policy congelada, spend denial e provenance
+Auto sanitizada.
+
+### Achado bloqueante — terminalização não é atômica com task history
+
+O runtime atualmente terminaliza `cognitive_continuations` em
+`finish_continuation` **antes** de persistir `task_records` e
+`task_subtask_records`.
+
+No caminho inicial:
+
+1. Workers/checkpoints/results concluem;
+2. `ContinuationRepository::finish(..., "completed" | "cancelled" | "failed")`
+   pode COMMITAR o estado terminal da continuation;
+3. somente depois `task_history::insert_with_subtasks` abre outra transação.
+
+No caminho de resume ocorre a mesma separação: `finish_continuation` é chamado
+antes de `task_history::insert_with_subtasks`.
+
+Se o segundo write falhar (I/O, constraint, trigger, disk failure etc.), o Core
+passa a reportar falha, mas a continuation pode permanecer duravelmente
+`completed`, `cancelled` ou `failed` sem o histórico terminal
+correspondente. Não existe rollback entre as duas transações.
+
+Esse estado é especialmente problemático para `completed`: startup
+`ContinuationRepository::recover` examina somente continuations
+`running`/`paused`, portanto uma continuation `completed` sem
+`task_records` não é automaticamente reconciliada. `claim` também a trata
+como terminal. O root fica protegido contra reutilização, mas o lifecycle
+durável fica contraditório e não existe caminho normal de reparo/resume.
+
+O teste `c4_terminal_state_write_failure_never_reports_completed` cobre a
+falha **do UPDATE da própria continuation**, o que é correto, mas não cobre a
+janela inversa: continuation terminal COMMITADA seguida por falha no write de
+`task_history`.
+
+Isso viola os requisitos C4 de lifecycle persistente e de falha fechada para
+terminal cleanup. Portanto o final gate A-Z ainda não é suficiente para fechar a
+trilha.
+
+### FIX exigida
+
+A terminalização factual de TaskGraph deve tornar
+**continuation terminal + task history terminal um único fato SQLite atômico**.
+
+Direção preferida:
+
+- extrair uma variante de `task_history::insert_with_subtasks` que possa
+  escrever usando uma transação já existente, sem iniciar transaction aninhada;
+- adicionar uma operação de finalização que use `BEGIN IMMEDIATE` e, na mesma
+  transação:
+  1. valide lease/generation/cancelamento durável;
+  2. valide que `completed` só é permitido com todos receipts/results seguros;
+  3. determine o estado terminal factual;
+  4. grave `task_records` + `task_subtask_records`;
+  5. grave o estado terminal correspondente em `cognitive_continuations`;
+  6. COMMIT uma única vez.
+
+A ordem interna dos writes é secundária desde que ambos compartilhem a mesma
+transação e nenhum estado terminal escape se o COMMIT falhar.
+
+`paused` continua não sendo histórico terminal e pode usar o mecanismo
+persistente de pause separado.
+
+Cancelamento concorrente deve continuar vencendo: se a continuation já estiver
+duravelmente `cancelled`, a finalização deve produzir histórico
+`cancelled`, nunca promover para `completed`.
+
+### Gates mínimos da FIX
+
+Adicionar testes determinísticos cobrindo pelo menos:
+
+1. falha ao inserir `task_records` após todo trabalho cognitivo/checkpoints:
+   nenhuma continuation terminal parcial;
+2. falha ao inserir `task_subtask_records`: rollback de root history e estado
+   terminal da continuation;
+3. o mesmo cenário no caminho de `resume_task_graph`;
+4. retry/recovery após remover a falha finaliza sem nova provider call;
+5. cancelamento concorrente durante finalização continua terminal
+   `cancelled`;
+6. sucesso comprova `task_records.state == cognitive_continuations.state` para
+   completed/cancelled/failed;
+7. regressões C1/C2/C3/C4 e final A-Z continuam verdes.
+
+Não corrigir com compensação do tipo “se history falhar, depois tente mudar
+completed para failed”: isso ainda deixa janelas de crash e mistura estados
+terminais. A propriedade necessária é atomicidade no mesmo SQLite transaction.
+
+### Achados positivos preservados
+
+- `mark_started` ocorre antes do request e é deliberadamente conservador;
+- receipt + Worker result + completed unit são um único COMMIT;
+- restart não executa providers automaticamente;
+- claim por `generation` impede double-resume;
+- result ausente/corrompido não autoriza replay;
+- partial-output crash permanece `started`/incerto;
+- roots de continuations entram no high-water mark mesmo com manifest inválido;
+- Deny não salta para paid e UNKNOWN não vira custo zero;
+- policy snapshot antiga não é reescrita por Settings;
+- seleção Auto preserva `mode + score` separadamente de `HandoffReason`;
+- migration 015 parte de v14 com rollback/retry;
+- schema não adiciona campos de reasoning/credenciais.
+
+**Decisão:** não abrir PR, não fazer merge e não marcar LR-8.5C PASS até a FIX
+de atomicidade terminal passar por nova auditoria.
