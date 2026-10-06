@@ -1,6 +1,6 @@
 # LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy
 
-Estado: **IMPLEMENTAÇÃO EM ANDAMENTO — B1 = PASS técnico; B2 é o checkpoint corrente.**
+Estado: **IMPLEMENTAÇÃO EM ANDAMENTO — B1/B2 = PASS técnico; B3 é o checkpoint corrente.**
 
 Branch de trabalho: `lr-8.5b-allocation-scarcity-policy`  
 Base: `main@a6eec1b63655d860279f606bc55766255903f1fe`
@@ -1432,3 +1432,42 @@ Preferred, affinity real, fallback, retry, admission, resilience, RateLimitManag
 TaskGraph e registries permanecem intocados. As dívidas de B3/B4 acima não mudam.
 
 **B2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+
+
+## B2 — Fechamento técnico
+
+Data: **06/10/2026**  
+HEAD auditado: `54ce655575a00ab5a3f4b1497044a3bcd6bba333`
+
+A auditoria independente encerra o checkpoint **B2 — Scarcity, Spend Guard & Deterministic Scoring**
+em **PASS técnico**.
+
+Foram confirmados:
+
+- B1 Eligible obrigatório antes de qualquer ranking;
+- join B1/B2 por identidade completa, sem reinterpretação de descriptors;
+- BillingDomain compartilhado com economics divergentes falha fechado;
+- resolução effort → model sem soma de facts;
+- allowance multidimensional por dimension ID, sem conversão/soma de unidades;
+- scarcity Comfortable/Reduced/Reserve/Exhausted/Unknown;
+- Reserve como custo de oportunidade e Exhausted como exclusão econômica;
+- LR-8 read-only, provider/model scoped e sem dupla contagem com telemetry;
+- spend guard fail-closed para Metered/Prepaid e custos monetários positivos;
+- Unknown preservado como neutro, nunca convertido em free/paid/fast/slow;
+- Economy/Balanced/Fast com pesos locais explícitos;
+- ausência de bônus por CognitiveTier excedente;
+- score inteiro, bounded, auditável e determinístico;
+- preferência explícita domina ausência após B2 FIX-1;
+- nenhum efeito sobre Scheduler, Auto real, Fixed, Preferred, retry/fallback,
+  admission/resilience, TaskGraph ou registries.
+
+Gate reportado: B2 96 aprovados; `cognitive_resources` 180 aprovados;
+suíte Rust completa 722 aprovados, 0 falhas, 2 ignorados. A execução ocorreu no
+ambiente local; a auditoria independente revisou código e diffs remotos.
+
+**Próximo checkpoint: B3 — Variant Expansion & Provider Auto Bridge.**
+
+B3 é o primeiro checkpoint autorizado a alterar o comportamento real de Auto.
+Fixed e Preferred devem permanecer semanticamente inalterados. Scheduler continua
+autoridade de execução/admission/rate/resilience e não deve absorver regras
+comerciais do allocator.
