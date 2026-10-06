@@ -1,6 +1,6 @@
 # LR-8.5A — Resource Domains, Access Paths & Cognitive Variants
 
-Estado: **PLANEJAMENTO APROVADO — implementação ainda não iniciada.**
+Estado: **IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente e gate.**
 
 Branch de trabalho: `lr-8.5a-resource-domains-variants`  
 Base: `main@3829acca06c8a3a97090b7c921e31a0baf9a8970`
@@ -393,3 +393,206 @@ A reauditoria deve procurar especialmente:
 - mudanças silenciosas em Auto/fallback;
 - snapshots vazando segredo;
 - migrations sem necessidade comprovada.
+
+
+## Implementação candidata — 05/10/2026
+
+Pré-condições verificadas antes de qualquer edição: branch obrigatória
+`lr-8.5a-resource-domains-variants`, fetch + fast-forward sem divergência,
+workspace limpo e HEAD remoto/local
+`9d906c4ed74ae7c0098cc081d53e5669488e8706`. A base comum com `origin/main`
+foi confirmada em `3829acca06c8a3a97090b7c921e31a0baf9a8970`.
+Os quatro documentos da trilha e os contratos atuais de cognition, agents,
+catalog, policy, registries, telemetry/rate e Scheduler foram lidos antes das
+alterações. Esta candidata não declara PASS da LR-8.5A nem conclusão da LR-8.5.
+
+### Contratos e arquivos
+
+Novo módulo público de Core `src-tauri/src/cognitive_resources/`:
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `mod.rs` | Superfície descritiva e exports; sem execução ou singleton |
+| `ids.rs` | ResourceId, ProviderFamily, AccessPath, BillingDomainId, RuntimeId, ModelId, EffortId, QualityLabel e CatalogError |
+| `facts.rs` | CatalogFact e CatalogProvenance; bridge explícita de Fact da LR-8 |
+| `capabilities.rs` | CognitiveCapability, CapabilitySet e bridges distintas de ProviderCapabilities/AgentCapabilities |
+| `types.rs` | CognitiveResource, ResourceIdentity, ResourceClass, ResourceOrigin, BillingDomain/BillingKind, Availability, ModelProfile/ModelFacts, EffortProfile, ExecutionVariant e MonetaryAmount |
+| `catalog.rs` | ResourceCatalog, registro validado, lookup, enumeração e snapshots |
+| `lr8.rs` | Projeção read-only de ProviderTelemetrySnapshot e RateSnapshot |
+| `tests.rs` | Universo sintético obrigatório e regressões de contratos |
+
+Arquivos existentes alterados: `src-tauri/src/lib.rs` (somente declaração do
+módulo) e este documento (estado e registro da candidata). Nenhum arquivo de
+Scheduler, policy, adapters, AgentBackend, registries, telemetry, rate,
+resilience, TaskGraph, frontend ou migrations foi modificado.
+
+### Decisões arquiteturais
+
+- O catálogo possui somente descriptors; não armazena `Arc<dyn Provider>`,
+  `AgentBackend`, SecretStore, Database ou referências a managers. A derivação usa
+  `CognitiveResource::from_provider_config` e `from_agent_config` sobre as configs
+  consultadas nos registries existentes. Family, access path e billing domain
+  são fornecidos explicitamente pelo chamador, sem tabelas por marca no Core.
+- `ResourceOrigin` distingue IDs locais dos runtimes Provider/Agent e suporte
+  Local. Registro exige classe/origem compatíveis. Mesmo ID textual pode existir
+  nos dois registries; o catálogo não os funde. Um runtime Provider representa
+  um contexto LR-8: registrar o mesmo binding em outro access path é recusado,
+  evitando atribuir a mesma quota a dois domínios supostamente independentes.
+  Access paths independentes usam bindings independentes.
+- BillingDomainId não deriva de Family. Reutilizar explicitamente um domínio
+  exige descriptor de domínio idêntico; divergência falha antes do registro.
+  BillingKind suporta IncludedAllowance, FreeTier, PrepaidCredits, MeteredBilling
+  e Unknown. Kind informado não prova custo marginal, saldo ou quota.
+- IDs são bounded e validados também na desserialização. Labels locais aceitam
+  ASCII alfanumérico, `-`, `_`, `.` até 64 bytes; ModelId aceita adicionalmente
+  `/`, `:`, `@` até 128 bytes. Não há trim, case folding ou alias implícito.
+  Formatos mais amplos aceitos pela policy legada não são reescritos: a bridge
+  nova recusa um identificador incompatível, sem mudar o runtime legado.
+- Cardinalidades locais: 256 recursos, 128 modelos/recurso, 32 efforts/modelo.
+  São bounds estruturais, sem significado comercial. Registro é atômico, não
+  substitui duplicatas e não oferece referência mutável a descriptors armazenados.
+  Enumeração por ID torna snapshots determinísticos; não representa ranking.
+- `CatalogFact` mantém Unknown ou Known com valor, timestamp opcional e origem
+  tipada. CatalogProvenance adiciona somente IntegrationCatalog e RuntimeContract;
+  fatos operacionais reutilizam exatamente `Provenance` da LR-8, encapsulada em
+  Operational. Não foi ampliado o contrato de telemetria/front-end da LR-8 para
+  acomodar catálogo. Timestamp e metadata numérica usam o bound JSON-safe existente.
+- Capabilities do resource são fatos do contrato do runtime. As bridges preservam
+  os booleanos próprios de cada família e deixam as capacidades da outra família
+  unknown, sem equivaler ToolCalling a ToolUse. Models começam sem capabilities
+  herdadas; cada capacidade tem Known(true), Known(false) ou Unknown próprio.
+  Ausência no CapabilitySet significa Unknown.
+- Enabled lido da config tem provenance RuntimeContract: o registro pode ter
+  vindo de defaults do Core ou de configuração humana. Não se afirma origem de
+  usuário por inferência. Enabled=true não prova disponibilidade remota;
+  enabled=false descreve indisponibilidade por configuração registrada.
+- Models e supported_efforts distinguem catálogo Unknown de lista Known vazia.
+  `ModelProfile::unknown` aceita nome local explicitamente fornecido, mas não
+  inventa capabilities, disponibilidade ou esforços. Não lê/copia os níveis
+  globais de `cognition::catalog::Integration.thinking`.
+- EffortId aceita low/medium/high/xhigh e labels futuros/provider-specific.
+  `from_thinking_level`/`try_thinking_level` são bridges explícitas apenas de
+  vocabulário: low, medium e high correspondem exatamente; xhigh e outros
+  retornam LegacyEffortNotRepresentable. Isso não prova suporte do backend;
+  `ModelProfile::effort` exige declaração explícita naquele modelo.
+  `ThinkingLevel` e as policies legadas não foram ampliados.
+- `describe_variant` descreve uma tupla resource/access path/billing/model/effort
+  solicitada explicitamente. Não enumera, ranqueia ou escolhe candidatos. Rejeita
+  effort ausente no catálogo ou suporte Unknown; variantes declaradas indisponíveis
+  continuam descritíveis com seus fatos preservados. Effort=None não inventa um
+  nível default nem afirma sua disponibilidade.
+- ModelFacts comporta contexto, latência, qualidade como label sem ordenação,
+  custo por invocação e consumo nas unidades de allowance declaradas pela fonte.
+  MonetaryAmount usa moeda explicitamente fornecida e unidades milionésimas;
+  não calcula preço por token, conversões, saldo ou autorização de gasto.
+  Nesta fase não há fonte de produção de preço/qualidade/saldo; permanecem Unknown.
+
+### Consumo read-only da LR-8
+
+`ResourceCatalog::snapshot(&telemetry, &rate)` recebe DTOs já capturados pelas
+respectivas autoridades. O chamador deve capturar rate pela API existente
+`RateLimitManager::read_only_snapshots()`. A bridge não chama managers, não
+refresha estado vivo, não faz IO e não calcula saldo/reset a partir de usage.
+
+O join usa somente ResourceOrigin::Provider(RuntimeId), nunca Family ou
+BillingDomain. TelemetryFacts conserva usage provider-scoped, provider_quotas
+separado de model_quotas, retry hint histórico, timestamp e context generation.
+Somente modelos explicitamente descritos e com spelling exato recebem fatos
+model-scoped. Quota ausente significa Unknown; não existe herança provider → model,
+model → provider ou model → outro model.
+
+RateFacts conserva constraints de scope Provider separadas das constraints por
+Model, suas sources ExternalFact/LocalPolicy/DailyBudget, provenance, external
+facts, capacity/effective_remaining opcionais, consumed/reserved, uncertainty,
+reset e saturação. Facts retidos por rate não substituem os últimos fatos da
+telemetry. Capturas mantêm timestamps separados e não prometem atomicidade global.
+Gerações divergentes e snapshots/scopes telemetry duplicados são rejeitados.
+Um novo snapshot após rotação lê somente o estado atualizado das autoridades;
+o catálogo não tem cache de fatos operacionais.
+
+Agent e Local não recebem fatos LR-8 de Providers, mesmo se tiverem a mesma
+family/ID nominal. Nenhuma quota, reset, preço ou saldo foi criado para eles.
+Snapshots excluem payloads/raw outcomes, credentials, headers, URLs autenticadas,
+account IDs remotos, material Stronghold, pagamentos e backend handles. Os IDs
+são labels locais públicos fornecidos pelo Core; validação sintática não é um
+redator de segredos e não autoriza usar account/token como label.
+
+### Gate sintético e validação
+
+A fixture usa somente Family A/B e caminhos included/direct-api/free-api, com
+allowance-A/prepaid-B/free-C. Cheap declara low/medium; Strong declara
+medium/high/xhigh; API-Model e Alternative têm metadata Unknown. Há ainda modelo
+Unavailable, SpecialistAgent e LocalSupport, capabilities divergentes, fatos
+Known(0) e Unknown, várias provenances e quotas/constraints LR-8 reais sintéticas.
+
+Testes cobrem coexistência, independência de domínio/path/binding, múltiplos
+modelos, esforços específicos, bridge legada sem aproximação, disponibilidades
+Unavailable/Unknown, capabilities sem herança, facts/provenance/timestamps,
+quota exata por modelo (inclusive diferenças de case), ausência de vazamento para
+outro access path, snapshots sem mutação das autoridades, sources externas versus
+policies/budget locais, usage parcial provider-scoped, rotação e geração,
+validação de IDs/fatos/cardinalidades, registro atômico e snapshots sem segredos.
+O teste de segurança usa Provider com execute que falha se chamado e backend
+Agent com markers privados. Nenhum teste LR-8.5A decide qual candidato é melhor.
+Não há inferência comercial, conta real ou teste manual Codex executado.
+
+Uma rodada dirigida inicial teve 12 sucessos e uma falha: o teste novo de rotação
+esperava remoção dos buckets externos. A LR-8 mantém os índices de buckets e
+substitui sua evidência por Unknown. A asserção foi corrigida para exigir
+capacity/effective_remaining/provenance ausentes e QuotaSnapshot Unknown;
+nenhuma alteração na autoridade de rate foi feita para acomodar o teste.
+
+Resultados técnicos finais no código candidato:
+
+| Gate | Resultado |
+|---|---|
+| `cargo fmt --manifest-path src-tauri/Cargo.toml --check` | Exit 1 por diferenças preexistentes nos mesmos 44 arquivos detectados antes da implementação; nenhum arquivo novo com diff de formatação |
+| `/home/sam/.cargo/bin/rustfmt --edition 2021 --check src-tauri/src/cognitive_resources/*.rs` | Exit 0; todos os arquivos novos formatados |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources` | 16 aprovados, 0 falhas; validação dirigida e inclusão na suíte final |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | Exit 0; 558 aprovados, 0 falhas, 2 ignorados; 260,91 s de testes; main e doc-tests sem falhas |
+| cognition na suíte completa | 370 aprovados, 0 falhas |
+| agents na suíte completa | 110 aprovados, 0 falhas, 2 ignorados |
+| LR-8 na suíte completa | rate_tests 69; telemetry_tests 33; admission_tests 18; resilience_tests 76; operational_tests 8; gate LR-8E 14; todos aprovados |
+| TaskGraph runtime na suíte completa | 13 aprovados, 0 falhas |
+| `git diff --check` e `git diff --cached --check` | Exit 0 |
+| Typecheck/frontend | Não aplicável: nenhum contrato/comando/frontend exposto foi alterado |
+
+A suíte global usou quatro threads para limitar a contenção de Stronghold já
+registrada nos gates anteriores; nenhum timeout ou teste foi alterado. Os dois
+ignorados são `real_app_server_handshake` e
+`manual_final_codex_agent_bridge_gate`, manuais Codex preexistentes. Compilação
+manteve 15 warnings de biblioteca e dois de fixtures de testes preexistentes;
+nenhum warning novo no módulo. A execução completa final não apresentou falhas.
+
+O check global de formatação também foi executado antes das alterações e já
+falhava na base. A comparação das listas de arquivos com diferenças confirmou
+os mesmos 44 arquivos antes/depois, sem arquivo novo. Não se aplicou formatação
+global para evitar refactor cosmético fora do escopo. A primeira tentativa de
+chamar `rustfmt` sem caminho não o encontrou no PATH; a ferramenta instalada em
+`/home/sam/.cargo/bin/rustfmt` foi usada para formatar e verificar o módulo.
+Essa limitação de PATH foi resolvida e não impediu os gates do código novo.
+
+### Limitações e dívidas adiadas
+
+- Sem migration, persistência nova, comando Tauri, UI ou catálogo global gerenciado.
+  A superfície é derivável sob demanda de configs/registries e facts capturados;
+  não há catálogo factual por modelo de produção disponível para preencher campos
+  desconhecidos. A integração global atual não é fonte suficiente de effort support.
+- Provenance/timestamps descrevem origem e momento; não criam política de validade
+  temporal, refresh remoto ou afirmação de saldo atual. Captura não é admissão.
+- Metadata de custo por invocação e quota units depende de fonte explícita; não
+  existe pricing web ou schema comercial automático.
+- LR-8 permanece autoridade de constraints, reservations, accounting, cooldown,
+  resilience e bloqueios. Preservam-se seus limites aceitos, inclusive snapshots
+  não atômicos entre autoridades e token bounds ausentes nos adapters atuais.
+- LR-8.5B: elegibilidade, quality floor, comparação/ranking, selection de resource/
+  model/effort, scarcity/reserve policy, spend authorization e budgets monetários.
+- LR-8.5C: checkpoints, handoff e continuidade entre recursos/variantes, com
+  idempotência e proteção contra duplicação de efeitos.
+- Adapters paid novos e quotas agentivas reais continuam nas integrações futuras;
+  nenhum Codex/Copilot completo foi antecipado.
+
+**Auto/fallback/retry/affinity/routing/admission/resilience/TaskGraph não tiveram
+comportamento alterado.** O diff de produção existente é somente a declaração
+aditiva do módulo em lib.rs. A candidata aguarda auditoria independente e gate;
+esta auto-revisão e os testes não substituem esse fechamento.
