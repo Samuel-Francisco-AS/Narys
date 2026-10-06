@@ -439,8 +439,11 @@ fn score(e: &CandidateAssessment, w: ProfileWeights) -> ScoreBreakdown {
         });
     let mut result = ScoreBreakdown {
         policy_preference: component(
-            s.preference_ordinal
-                .map_or(0, |n| -i64::from(n).saturating_mul(w.policy_preference)),
+            // Explicit ordinals have nonnegative utility; absence stays neutral.
+            // MAX ties absence at zero, then the existing ordinal tie-break wins.
+            s.preference_ordinal.map_or(0, |n| {
+                i64::from(MAX_PREFERENCE_ORDINAL - n).saturating_mul(w.policy_preference)
+            }),
             s.preference_ordinal,
         ),
         registry_preference: component(

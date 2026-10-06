@@ -1729,6 +1729,306 @@ fn b2_allowance_fact_vec_and_capability_map_order_independent() {
     assert_eq!(decide(&[&a], AllocationProfile::Economy), first);
 }
 #[test]
+fn b2_fix1_none_vs_ordinal_one_explicit_preference_wins() {
+    let a = resource("a");
+    let b = resource("b");
+    for profile in [
+        AllocationProfile::Economy,
+        AllocationProfile::Balanced,
+        AllocationProfile::Fast,
+    ] {
+        let request = b1(&[&a, &b], policy(profile), Some(2));
+        let d = AllocationScoringRequest::new(
+            &request,
+            vec![
+                select(&request.candidates()[0], CandidateSignals::default()),
+                select(&request.candidates()[1], signals(Some(1), None, None, None)),
+            ],
+            vec![],
+        )
+        .unwrap()
+        .decide();
+        assert_eq!(winner(&d), "b", "{profile:?}");
+        assert_eq!(d.tie_break, TieBreakReason::HigherTotal);
+        assert_eq!(
+            d.ranked_candidates[0]
+                .score_breakdown
+                .policy_preference
+                .value,
+            254 * profile.scoring_weights().policy_preference,
+        );
+        assert_eq!(
+            d.ranked_candidates[1]
+                .score_breakdown
+                .policy_preference
+                .value,
+            0,
+        );
+    }
+}
+#[test]
+fn b2_fix1_none_vs_maximum_ordinal_uses_policy_tie_break() {
+    let a = resource("a");
+    let b = resource("b");
+    for profile in [
+        AllocationProfile::Economy,
+        AllocationProfile::Balanced,
+        AllocationProfile::Fast,
+    ] {
+        let request = b1(&[&a, &b], policy(profile), Some(2));
+        let d = AllocationScoringRequest::new(
+            &request,
+            vec![
+                select(&request.candidates()[0], CandidateSignals::default()),
+                select(
+                    &request.candidates()[1],
+                    signals(Some(255), None, None, None),
+                ),
+            ],
+            vec![],
+        )
+        .unwrap()
+        .decide();
+        assert_eq!(winner(&d), "b", "{profile:?}");
+        assert_eq!(d.tie_break, TieBreakReason::PolicyOrdinal);
+        for c in &d.ranked_candidates {
+            assert_eq!(c.score_breakdown.policy_preference.value, 0);
+            assert_eq!(c.score_breakdown.total, 0);
+        }
+    }
+}
+#[test]
+fn b2_fix1_full_preference_order_with_identical_evidence() {
+    let ordinals = [None, Some(255), Some(254), Some(100), Some(1), Some(0)];
+    let resources: Vec<_> = (0..ordinals.len())
+        .map(|n| resource(&format!("candidate-{n}")))
+        .collect();
+    let refs: Vec<_> = resources.iter().collect();
+    for profile in [
+        AllocationProfile::Economy,
+        AllocationProfile::Balanced,
+        AllocationProfile::Fast,
+    ] {
+        let request = b1(&refs, policy(profile), Some(2));
+        let d = AllocationScoringRequest::new(
+            &request,
+            request
+                .candidates()
+                .iter()
+                .zip(ordinals)
+                .map(|(c, ordinal)| select(c, signals(ordinal, None, None, None)))
+                .collect(),
+            vec![],
+        )
+        .unwrap()
+        .decide();
+        assert_eq!(
+            d.ranked_candidates
+                .iter()
+                .map(|c| c.evidence.signals.preference_ordinal())
+                .collect::<Vec<_>>(),
+            [Some(0), Some(1), Some(100), Some(254), Some(255), None],
+            "{profile:?}",
+        );
+        assert_eq!(
+            d.ranked_candidates[4].order_over_next,
+            Some(TieBreakReason::PolicyOrdinal)
+        );
+        assert_eq!(winner(&d), "candidate-5");
+    }
+}
+#[test]
+fn b2_fix1_all_explicit_ordinal_distances_are_preserved_each_profile() {
+    let resources: Vec<_> = (0..=255)
+        .map(|n| resource(&format!("candidate-{n:03}")))
+        .collect();
+    let refs: Vec<_> = resources.iter().collect();
+    for profile in [
+        AllocationProfile::Economy,
+        AllocationProfile::Balanced,
+        AllocationProfile::Fast,
+    ] {
+        let request = b1(&refs, policy(profile), Some(2));
+        let d = AllocationScoringRequest::new(
+            &request,
+            request
+                .candidates()
+                .iter()
+                .enumerate()
+                .map(|(n, c)| select(c, signals(Some(n as u16), None, None, None)))
+                .collect(),
+            vec![],
+        )
+        .unwrap()
+        .decide();
+        let w = profile.scoring_weights().policy_preference;
+        for a in 0..=255 {
+            let sa = &d.ranked_candidates[a].score_breakdown;
+            assert_eq!(sa.policy_preference.evidence, Some(a as u16));
+            assert_eq!(sa.policy_preference.value, (255 - a as i64) * w);
+            assert_eq!(sa.total, sa.component_sum());
+            for b in a..=255 {
+                let sb = &d.ranked_candidates[b].score_breakdown;
+                assert_eq!(
+                    sa.policy_preference.value - sb.policy_preference.value,
+                    (b - a) as i64 * w
+                );
+            }
+        }
+    }
+}
+#[test]
+fn b2_fix1_absent_preference_is_neutral_with_other_signals() {
+    let a = resource("a");
+    for profile in [
+        AllocationProfile::Economy,
+        AllocationProfile::Balanced,
+        AllocationProfile::Fast,
+    ] {
+        let request = b1(&[&a], policy(profile), Some(2));
+        let d = AllocationScoringRequest::new(
+            &request,
+            vec![select(
+                &request.candidates()[0],
+                signals(None, Some(0), Some(100), Some(100)),
+            )],
+            vec![],
+        )
+        .unwrap()
+        .decide();
+        let s = &d.ranked_candidates[0].score_breakdown;
+        assert_eq!(s.policy_preference.value, 0);
+        assert_eq!(s.policy_preference.evidence, None);
+        assert_eq!(s.total, s.component_sum());
+    }
+}
+#[test]
+fn b2_fix1_explicit_only_decision_preserves_old_totals_differences_and_winner() {
+    let a = resource("a");
+    let b = resource("b");
+    let c = resource("c");
+    for profile in [
+        AllocationProfile::Economy,
+        AllocationProfile::Balanced,
+        AllocationProfile::Fast,
+    ] {
+        let request = b1(&[&a, &b, &c], policy(profile), Some(2));
+        let d = AllocationScoringRequest::new(
+            &request,
+            vec![
+                select(
+                    &request.candidates()[0],
+                    signals(Some(10), Some(32), Some(0), Some(0)),
+                ),
+                select(
+                    &request.candidates()[1],
+                    signals(Some(20), Some(0), Some(100), Some(0)),
+                ),
+                select(
+                    &request.candidates()[2],
+                    signals(Some(255), Some(0), Some(100), Some(100)),
+                ),
+            ],
+            vec![],
+        )
+        .unwrap()
+        .decide();
+        // Old formula totals: A=-10P; B=-20P+3R+100C; C=-255P+3R+100C-100S.
+        // B wins in all three profiles, despite its worse explicit ordinal.
+        assert_eq!(winner(&d), "b", "{profile:?}");
+        let w = profile.scoring_weights();
+        let old_totals = BTreeMap::from([
+            ("a", -10 * w.policy_preference),
+            (
+                "b",
+                -20 * w.policy_preference + 3 * w.registry_preference + 100 * w.continuity,
+            ),
+            (
+                "c",
+                -255 * w.policy_preference + 3 * w.registry_preference + 100 * w.continuity
+                    - 100 * w.switching,
+            ),
+        ]);
+        for ranked in &d.ranked_candidates {
+            assert_eq!(
+                ranked.score_breakdown.total,
+                old_totals[ranked.variant.resource_id.as_str()] + 255 * w.policy_preference
+            );
+        }
+        for pair in d.ranked_candidates.windows(2) {
+            assert_eq!(
+                pair[0].score_breakdown.total - pair[1].score_breakdown.total,
+                old_totals[pair[0].variant.resource_id.as_str()]
+                    - old_totals[pair[1].variant.resource_id.as_str()],
+            );
+        }
+    }
+}
+#[test]
+fn b2_fix1_updated_score_extrema_checked_sum_without_overflow() {
+    let mut low = resource("low");
+    reserve(&mut low);
+    execution(&mut low).relative_cost = known(RelativeCostTier::new(255).unwrap());
+    execution(&mut low).latency_ms = known(MAX_FACT_VALUE);
+    execution(&mut low).monetary_cost = known(money("USD", MAX_FACT_VALUE));
+    let mut high = resource("high");
+    comfortable(&mut high);
+    execution(&mut high).relative_cost = known(RelativeCostTier::new(0).unwrap());
+    execution(&mut high).latency_ms = known(0);
+    execution(&mut high).monetary_cost = known(money("USD", 0));
+    for (profile, min, max, preference_max) in [
+        (AllocationProfile::Economy, -6260, 1423, 1020),
+        (AllocationProfile::Balanced, -3930, 2533, 1530),
+        (AllocationProfile::Fast, -3610, 4233, 1530),
+    ] {
+        let mut p = policy(profile);
+        p.paid_use = PaidUsePolicy::AllowKnownCostWithinBudget {
+            budget: money("USD", MAX_FACT_VALUE),
+        };
+        let request = b1(&[&low, &high], p, Some(2));
+        let d = AllocationScoringRequest::new(
+            &request,
+            vec![
+                select(
+                    &request.candidates()[0],
+                    signals(Some(255), Some(32), Some(0), Some(100)),
+                ),
+                select(
+                    &request.candidates()[1],
+                    signals(Some(0), Some(0), Some(100), Some(0)),
+                ),
+            ],
+            vec![],
+        )
+        .unwrap()
+        .decide();
+        assert_eq!(winner(&d), "high");
+        for (ranked, expected, preference) in [
+            (&d.ranked_candidates[0], max, preference_max),
+            (&d.ranked_candidates[1], min, 0),
+        ] {
+            let s = &ranked.score_breakdown;
+            let checked = [
+                s.policy_preference.value,
+                s.registry_preference.value,
+                s.continuity.value,
+                s.switching.value,
+                s.relative_cost.value,
+                s.scarcity.value,
+                s.monetary_cost.value,
+                s.latency.value,
+            ]
+            .into_iter()
+            .try_fold(0i64, i64::checked_add)
+            .unwrap();
+            assert_eq!(s.policy_preference.value, preference);
+            assert_eq!(s.total, expected, "{profile:?}");
+            assert_eq!(s.component_sum(), expected);
+            assert_eq!(checked, expected);
+        }
+    }
+}
+#[test]
 fn b2_policy_ordinal_is_explicit_and_can_change_winner() {
     let a = resource("a");
     let b = resource("b");
@@ -1759,7 +2059,8 @@ fn b2_policy_ordinal_tie_break_and_missing_ordinal_last() {
     let a = resource("a");
     let b = resource("b");
     let request = b1(&[&a, &b], policy(AllocationProfile::Economy), Some(2));
-    // A ordinal 1 costs 4, continuity 2 supplies 4; totals tie at zero.
+    // A ordinal 1 has 4 less preference utility; continuity 2 supplies 4.
+    // Both totals tie at 1020, preserving the explicit-only decision.
     let d = AllocationScoringRequest::new(
         &request,
         vec![
@@ -1786,7 +2087,7 @@ fn b2_policy_ordinal_tie_break_and_missing_ordinal_last() {
     .unwrap()
     .decide();
     assert_eq!(winner(&d), "b");
-    assert_eq!(d.tie_break, TieBreakReason::PolicyOrdinal);
+    assert_eq!(d.tie_break, TieBreakReason::HigherTotal);
 }
 #[test]
 fn b2_registry_priority_continuity_and_switching_are_independent_components() {
@@ -1803,11 +2104,11 @@ fn b2_registry_priority_continuity_and_switching_are_independent_components() {
     .unwrap()
     .decide();
     let s = &d.ranked_candidates[0].score_breakdown;
-    assert_eq!(s.policy_preference.value, -18);
+    assert_eq!(s.policy_preference.value, 1512);
     assert_eq!(s.registry_preference.value, 2);
     assert_eq!(s.continuity.value, 20);
     assert_eq!(s.switching.value, -32);
-    assert_eq!(s.total, -28);
+    assert_eq!(s.total, 1502);
 }
 #[test]
 fn b2_score_formula_auditable_with_maximum_inputs_each_profile() {
@@ -1838,7 +2139,7 @@ fn b2_score_formula_auditable_with_maximum_inputs_each_profile() {
         .decide();
         let s = &d.ranked_candidates[0].score_breakdown;
         let w = profile.scoring_weights();
-        let expected = -255 * w.policy_preference + 100 * w.continuity
+        let expected = 100 * w.continuity
             - 100 * w.switching
             - 255 * w.relative_cost
             - w.reserve

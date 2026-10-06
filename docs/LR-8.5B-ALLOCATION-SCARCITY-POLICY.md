@@ -1212,12 +1212,12 @@ Constantes de policy local do Core (não facts comerciais):
 | monetary_cost | 10 | 5 | 1 |
 | latency | 2 | 6 | 15 |
 
-Constantes auxiliares nomeadas: REGISTRY_PRIORITY_CAP=32,
+Constantes auxiliares nomeadas: MAX_PREFERENCE_ORDINAL=255, REGISTRY_PRIORITY_CAP=32,
 REGISTRY_UTILITY_CAP=3, LATENCY_BUCKET_MS=100, MAX_LATENCY_BUCKET=100 e
 MONETARY_NORMALIZATION=100. Para fatos/sinais conhecidos:
 
 ~~~text
-preference = -ordinal * policy_weight
+preference = (MAX_PREFERENCE_ORDINAL - ordinal) * policy_weight
 registry   = floor((32 - priority) * 3 / 32) * registry_weight
 continuity = continuity_signal * continuity_weight
 switching  = -switching_cost * switching_weight
@@ -1244,8 +1244,8 @@ lentas, sem afirmar que Unknown é a mais rápida/lenta. Clamp impede valores
 numéricos extremos de dominar/overflow; não é latência comercial default.
 
 Componentes usam i64 e operações saturating explícitas. Bounds e pesos impedem
-saturação para inputs válidos: totais possíveis dentro de Economy [-7280,403],
-Balanced [-5460,1003], Fast [-5140,2703]. `component_sum()` usa saturating_add;
+saturação para inputs válidos: totais possíveis dentro de Economy [-6260,1423],
+Balanced [-3930,2533], Fast [-3610,4233]. `component_sum()` usa saturating_add;
 os testes também somam com checked_add e verificam igualdade exata nos limites.
 ScoreBreakdown preserva evidence de cada influência, incluindo monetary
 comparability/fração, scarcity/Unknown e camada de cada fato resolvido.
@@ -1330,5 +1330,105 @@ três getters novos. Todos os boundaries de runtime ficaram fora do diff.
   do runtime e não substitui seu enforcement.
 - Handoff, partial output, fallback seguro e reexecução permanecem nas fronteiras
   B3/C. B2 não recebe estado de output parcial nem altera a proteção existente.
+
+**B2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+
+## B2 FIX-1 — Explicit Preference Dominance
+
+A auditoria independente do HEAD
+`986e17476c3f4c8557d18e88d533e24952bba296` identificou uma inconsistência:
+`None` indicava ausência de prova de preferência, mas recebia score 0 enquanto
+ordinais explícitos maiores que zero recebiam score negativo. Assim, com os
+demais componentes idênticos, a ausência vencia a preferência autorizada.
+O desempate por PolicyOrdinal não era alcançado nesses casos.
+
+Fórmula anterior:
+
+~~~text
+Some(ordinal) -> -ordinal * policy_weight
+None          -> 0
+~~~
+
+Fórmula corrigida, com MAX_PREFERENCE_ORDINAL=255 e os mesmos pesos locais:
+
+~~~text
+Some(ordinal) -> (MAX_PREFERENCE_ORDINAL - ordinal) * policy_weight
+None          -> 0
+~~~
+
+`None` permanece neutro, com evidence ausente e sem bônus ou penalidade.
+Some(0) recebe 255 vezes o peso; Some(254), uma vez; Some(255), zero.
+Em igualdade dos demais componentes, a ordem é Some(0), Some(1), ...,
+Some(255), None. A última relação usa o desempate PolicyOrdinal existente,
+sem alterar sua implementação nem usar MAX+1.
+
+Cada candidato com ordinal explícito recebe exatamente 255 vezes o peso a
+mais que na fórmula anterior. Para quaisquer dois ordinais explícitos a e b,
+a diferença absoluta continua `abs(a - b) * policy_weight`. Decisões nas quais
+todos os candidatos possuem ordinal explícito conservam as diferenças de
+score, a ordem e os winners; a FIX altera a relação com ordinal ausente.
+
+| Profile | Faixa de preference | Faixa anterior do total | Faixa corrigida do total |
+|---|---:|---:|---:|
+| Economy | [0,1020] | [-7280,403] | [-6260,1423] |
+| Balanced | [0,1530] | [-5460,1003] | [-3930,2533] |
+| Fast | [0,1530] | [-5140,2703] | [-3610,4233] |
+
+As faixas são atingíveis por inputs válidos. As operações continuam inteiras
+e saturating, com somas checked nos testes; os limites não causam overflow.
+Os demais componentes, pesos, guards, exclusões e boundaries permanecem iguais.
+A única alteração de produção está no componente policy_preference de
+`src-tauri/src/cognitive_resources/scoring.rs`.
+
+Sete novos gates em `scoring_tests.rs`, cada um exercitando os três profiles:
+
+- `b2_fix1_none_vs_ordinal_one_explicit_preference_wins`: preferência explícita
+  vence ausência; reproduz a falha no código auditado antes da correção.
+- `b2_fix1_none_vs_maximum_ordinal_uses_policy_tie_break`: ambos têm componente
+  e total zero, mas Some(255) vence None por PolicyOrdinal, mesmo com identidade
+  canônica desfavorável.
+- `b2_fix1_full_preference_order_with_identical_evidence`: valida a sequência
+  Some(0), Some(1), Some(100), Some(254), Some(255), None.
+- `b2_fix1_all_explicit_ordinal_distances_are_preserved_each_profile`: verifica
+  todos os 256 ordinais e todos os pares, incluindo 0–1 e 10–20.
+- `b2_fix1_absent_preference_is_neutral_with_other_signals`: componente None=0
+  e evidence None, independentemente de outros sinais presentes.
+- `b2_fix1_explicit_only_decision_preserves_old_totals_differences_and_winner`:
+  compara com os totais anteriores em decisão com sinais heterogêneos.
+- `b2_fix1_updated_score_extrema_checked_sum_without_overflow`: atinge os
+  limites mínimo/máximo de cada profile e verifica total, component_sum e
+  checked_add, incluindo a faixa positiva máxima de preferência.
+
+Gates anteriores de preferência e ScoreBreakdown foram ajustados para o novo
+baseline. Winners de decisões exclusivamente com ordinal explícito são
+preservados. O caso existente None versus Some(0) mantém o winner e agora registra
+HigherTotal; o caso Some(255) versus None registra PolicyOrdinal.
+
+Validação da FIX em 06/10/2026:
+
+| Gate | Resultado |
+|---|---|
+| Regressão None vs Some(1), antes da correção | Falha esperada: None venceu em Economy; reproduzido com a fórmula auditada |
+| rustfmt dos dois arquivos Rust alterados e `--check` de todo `cognitive_resources` | Exit 0; nenhum legado fora do escopo reformatado |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources::scoring_tests` | Exit 0; 96 aprovados, 0 falhas, 0 ignorados; 0,05 s |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources` | Exit 0; 180 aprovados, 0 falhas; 0,12 s |
+| B1/FIX-1 e LR-8.5A no módulo e na global | 46 e 38 aprovados, respectivamente |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | Exit 0; 722 aprovados, 0 falhas, 2 ignorados; 247,50 s; main/doc-tests sem falhas |
+| cognition / agents na global | 370 / 110 aprovados |
+| smart routing / TaskGraph runtime na global | 10 / 13 aprovados |
+| LR-8 na global | rate 69, telemetry 33, admission 18, resilience 76, operational 8, LR-8E 14; todos aprovados |
+| `git diff --check` e `git diff --cached --check` | Exit 0 |
+
+Warnings comparados com os logs finais da B2 anterior: os mesmos 15 da biblioteca
+e dois de fixtures de teste, sem warning novo ou suprimido. Os dois ignorados
+continuam sendo `real_app_server_handshake` e
+`manual_final_codex_agent_bridge_gate`, que exigem integração Codex manual.
+As regressões operacionais foram executadas na suíte global.
+
+O diff de produção foi comparado literalmente com o HEAD auditado: removendo
+apenas a substituição do componente policy_preference, `scoring.rs` permanece
+idêntico. Nenhum outro arquivo de produção mudou. Scheduler, Auto real, Fixed,
+Preferred, affinity real, fallback, retry, admission, resilience, RateLimitManager,
+TaskGraph e registries permanecem intocados. As dívidas de B3/B4 acima não mudam.
 
 **B2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
