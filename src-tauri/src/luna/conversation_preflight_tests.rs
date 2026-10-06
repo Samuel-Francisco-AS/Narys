@@ -554,15 +554,15 @@ fn preferred_auto_affinity_and_session_history_use_the_same_scheduler_contract()
         .find(|e| e["type"] == "provider_selected")
         .unwrap();
     assert_eq!(selected["provider_id"], "groq");
-    assert_eq!(selected["routing_reason"], "auto_affinity");
-    assert_eq!(selected["score"], 280); // 100 + 30 + (50 + 4*25), unchanged D2 formula.
+    assert_eq!(selected["routing_reason"], "auto_allocator");
+    assert_eq!(selected["score"], 1542); // B2: 1524 + registry 2 + continuity 4*4.
     let other = conversation::create_session(&f.db.open().unwrap()).unwrap();
     f.sessions.0.lock().unwrap().insert(other);
     let (id, receiver) = f.start(other, &"y".repeat(4000));
     let events = f.collect(id, receiver, "completed");
     assert!(events.iter().any(|e| e["type"] == "provider_selected"
         && e["provider_id"] == "gemini"
-        && e["routing_reason"] == "auto_score"));
+        && e["routing_reason"] == "auto_allocator"));
     // Explicit Preferred ignores the existing affinity and starts at Gemini again.
     f.configure(RoutingMode::Preferred, &["gemini", "groq"]);
     let (id, receiver) = f.start(f.session, "explicit");

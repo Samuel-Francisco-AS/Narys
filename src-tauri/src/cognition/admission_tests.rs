@@ -715,8 +715,8 @@ async fn local_saturation_and_quota_zero_preserve_ranking_selection_score_and_af
         } else {
             "a"
         };
-        let ranking = s
-            .ranked_provider_ids(&selection, &r.targets, &r.required_capabilities)
+        let _ranking = s
+            .ranked_provider_ids(&selection, &r.targets, &r.required_capabilities, &r.mode)
             .unwrap();
         let held = hold(&s.admission, expected).await;
         s.telemetry.observe_quota(
@@ -728,6 +728,35 @@ async fn local_saturation_and_quota_zero_preserve_ranking_selection_score_and_af
             None,
             super::telemetry::Provenance::ProviderHeader,
         );
+        if selection == ProviderSelection::Auto {
+            let (run, mut events) =
+                start(s.clone(), r, Arc::new(AtomicBool::new(false)), no_retry());
+            let chosen = event(&mut events, |e| {
+                matches!(e, SchedulerEvent::Selected { .. })
+            })
+            .await;
+            assert!(
+                matches!(chosen, SchedulerEvent::Selected { provider_id, routing_reason: "auto_allocator", .. } if provider_id == "a")
+            );
+            let call = bounded(calls.recv()).await.unwrap();
+            assert_eq!(call.provider, "a");
+            call.finish.send(Ok(())).unwrap();
+            assert_eq!(bounded(run).await.unwrap().unwrap().provider_id, "a");
+            let targets = request(&["a", "b"], selection.clone());
+            assert_eq!(
+                s.ranked_provider_ids(
+                    &selection,
+                    &targets.targets,
+                    &targets.required_capabilities,
+                    &targets.mode
+                )
+                .unwrap(),
+                vec!["a"]
+            );
+            drop(held);
+            clean(&s);
+            continue;
+        }
         let (run, mut events) = start(s.clone(), r, Arc::new(AtomicBool::new(false)), no_retry());
         let selected = event(&mut events, |e| {
             matches!(e, SchedulerEvent::Selected { .. })
@@ -741,19 +770,31 @@ async fn local_saturation_and_quota_zero_preserve_ranking_selection_score_and_af
         } = selected
         {
             assert_eq!(provider_id, expected);
-            if selection == ProviderSelection::Auto {
-                assert_eq!(score, Some(431));
-                assert_eq!(routing_reason, "auto_affinity");
-            }
+            assert_eq!(score, None);
+            assert!(matches!(routing_reason, "fixed" | "preferred_order"));
         }
-        assert_eq!(bounded(run).await.unwrap().unwrap_err(), SchedulerError::RateCapacityExceeded);
-        assert_eq!(s.admission_snapshot().iter().map(|s| s.queue_depth).sum::<usize>(), 0);
+        assert_eq!(
+            bounded(run).await.unwrap().unwrap_err(),
+            SchedulerError::RateCapacityExceeded
+        );
+        assert_eq!(
+            s.admission_snapshot()
+                .iter()
+                .map(|s| s.queue_depth)
+                .sum::<usize>(),
+            0
+        );
         assert!(calls.try_recv().is_err());
         let targets = request(&["a", "b"], selection.clone());
         assert_eq!(
-            ranking,
-            s.ranked_provider_ids(&selection, &targets.targets, &targets.required_capabilities)
-                .unwrap()
+            _ranking,
+            s.ranked_provider_ids(
+                &selection,
+                &targets.targets,
+                &targets.required_capabilities,
+                &targets.mode
+            )
+            .unwrap()
         );
         assert!(s.status().iter().all(|s| s.cooldown_ms == 0));
         drop(held);

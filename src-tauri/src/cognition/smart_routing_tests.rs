@@ -296,8 +296,8 @@ fn auto_is_authorized_deterministic_and_policy_position_beats_registry_priority(
         assert!(matches!(
             &events[0],
             SchedulerEvent::Selected {
-                routing_reason: "auto_score",
-                score: Some(200),
+                routing_reason: "auto_allocator",
+                score: Some(1530),
                 ..
             }
         ));
@@ -357,7 +357,7 @@ fn auto_affinity_requires_real_cost_is_session_scoped_and_disappears_on_restart(
         .provider_id,
         "a"
     );
-    // A small context cannot overcome the user's positional preference.
+    // Continuity/switching now enter B2, whose profile weights decide the winner.
     let (result, events) = execute(
         &s,
         route(
@@ -374,7 +374,7 @@ fn auto_affinity_requires_real_cost_is_session_scoped_and_disappears_on_restart(
     assert!(matches!(
         &events[0],
         SchedulerEvent::Selected {
-            routing_reason: "auto_affinity",
+            routing_reason: "auto_allocator",
             score: Some(_),
             ..
         }
@@ -431,7 +431,7 @@ fn auto_affinity_requires_real_cost_is_session_scoped_and_disappears_on_restart(
         .provider_id,
         "a"
     );
-    // Cost of one byte is below the 100-point positional advantage.
+    // One byte maps to the smallest positive bounded B2 context signal.
     execute(
         &s,
         route(
@@ -456,7 +456,7 @@ fn auto_affinity_requires_real_cost_is_session_scoped_and_disappears_on_restart(
         .0
         .unwrap()
         .provider_id,
-        "a"
+        "b"
     );
     fs::remove_dir_all(dir).unwrap();
 }
@@ -643,7 +643,7 @@ fn fixed_preferred_and_removed_targets_ignore_affinity_for_ordering() {
 fn auto_ties_respect_ordinal_and_priority_is_only_a_secondary_component() {
     let (db, dir) = fixture();
     seed(&db);
-    for (priority, expected) in [(32, "a"), (31, "b")] {
+    for (priority, expected) in [(32, "a"), (0, "a")] {
         let s = scheduler(&[
             ("a", 32, Synthetic::new(None)),
             ("b", priority, Synthetic::new(None)),
@@ -664,13 +664,13 @@ fn auto_ties_respect_ordinal_and_priority_is_only_a_secondary_component() {
         .unwrap();
         let (result, events) = execute(
             &s,
-            route(&db, &["a", "b"], ProviderSelection::Auto, Some("tie"), 1025),
+            route(&db, &["a", "b"], ProviderSelection::Auto, Some("tie"), 0),
             2,
             0,
         );
         assert_eq!(result.unwrap().provider_id, expected);
         assert!(
-            matches!(&events[0],SchedulerEvent::Selected{score:Some(score),..} if *score==if priority==32 {200} else {201})
+            matches!(&events[0],SchedulerEvent::Selected{score:Some(score),..} if *score==1530)
         );
     }
     fs::remove_dir_all(dir).unwrap();
@@ -717,9 +717,15 @@ fn hard_gates_prevent_calls_for_unknown_disabled_incompatible_or_invalid_targets
             req.targets[1].invocation.model = "".into();
         }
         let (result, events) = execute(&s, req, 2, 0);
-        assert!(result.is_err());
-        assert!(events.is_empty());
-        assert_eq!((a.calls(), b.calls()), (0, 0));
+        if matches!(gate, "unknown" | "invocation") {
+            assert!(result.is_err());
+            assert!(events.is_empty());
+            assert_eq!((a.calls(), b.calls()), (0, 0));
+        } else {
+            assert_eq!(result.unwrap().provider_id, "a");
+            assert_eq!(selected(&events), vec!["a"]);
+            assert_eq!((a.calls(), b.calls()), (1, 0));
+        }
     }
     fs::remove_dir_all(dir).unwrap();
 }

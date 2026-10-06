@@ -988,8 +988,30 @@ async fn scheduler_rate_block_is_local_before_admission_no_cooldown_retry_or_fal
         quota(&s, "a", QuotaDimension::RequestsPerMinute, 0);
         let r = request(&["a", "b"], selection.clone());
         let before = s
-            .ranked_provider_ids(&selection, &r.targets, &r.required_capabilities)
+            .ranked_provider_ids(&selection, &r.targets, &r.required_capabilities, &r.mode)
             .unwrap();
+        if selection == ProviderSelection::Auto {
+            assert_eq!(before, vec!["b"]);
+            let (run, mut events) =
+                start(s.clone(), r, Arc::new(AtomicBool::new(false)), no_retry());
+            let call = bounded(calls.recv()).await.unwrap();
+            assert_eq!(call.provider, "b");
+            call.finish.send((Some(1), None)).unwrap();
+            assert_eq!(bounded(run).await.unwrap().unwrap().provider_id, "b");
+            while let Ok(event) = events.try_recv() {
+                assert!(!matches!(event, SchedulerEvent::Fallback { .. }));
+            }
+            assert_eq!(
+                s.admission_snapshot()
+                    .iter()
+                    .find(|s| s.provider_id == "a")
+                    .unwrap()
+                    .total_admissions,
+                0
+            );
+            clean(&s);
+            continue;
+        }
         let mut events = vec![];
         assert_eq!(
             s.run(r, budget(), &AtomicBool::new(false), &mut |e| {
@@ -1013,7 +1035,7 @@ async fn scheduler_rate_block_is_local_before_admission_no_cooldown_retry_or_fal
         let r = request(&["a", "b"], selection.clone());
         assert_eq!(
             before,
-            s.ranked_provider_ids(&selection, &r.targets, &r.required_capabilities)
+            s.ranked_provider_ids(&selection, &r.targets, &r.required_capabilities, &r.mode)
                 .unwrap()
         );
         clean(&s);

@@ -66,6 +66,27 @@ impl ResolvedExecutionFacts {
             .map_err(|_| EconomicExclusion::EconomicEvidenceConflict)?
             .map(|e| &e.facts);
         let facts = &model.facts.execution;
+        Self::for_profiles(facts, effort)
+    }
+    /// Exact operational variant; missing descriptions stay Unknown. This is
+    /// private to B3 and does not relax the generic B2 descriptor requirements.
+    pub(super) fn for_provider_candidate(
+        candidate: &AllocationCandidate<'_>,
+    ) -> Result<Self, EconomicExclusion> {
+        let variant = candidate.variant();
+        let model = candidate.resource().model(&variant.model_id).ok();
+        let effort = variant
+            .effort
+            .as_ref()
+            .and_then(|id| model.and_then(|m| m.effort(id).ok()))
+            .map(|e| &e.facts);
+        let unknown = ExecutionFacts::default();
+        Self::for_profiles(model.map_or(&unknown, |m| &m.facts.execution), effort)
+    }
+    fn for_profiles(
+        facts: &ExecutionFacts,
+        effort: Option<&ExecutionFacts>,
+    ) -> Result<Self, EconomicExclusion> {
         let mut allowances = BTreeMap::new();
         for c in &facts.allowance_costs {
             allowances.insert(

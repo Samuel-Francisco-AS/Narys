@@ -55,7 +55,7 @@ pub enum TaskEventKind {
         model: String,
         attempt: u32,
         routing_reason: String,
-        score: Option<u32>,
+        score: Option<i64>,
     },
     ProviderChunk {
         provider_id: String,

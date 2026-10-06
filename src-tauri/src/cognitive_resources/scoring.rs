@@ -128,6 +128,8 @@ struct ScoringInput<'a> {
     candidate: AllocationCandidate<'a>,
     eligibility: CandidateEligibility,
     signals: CandidateSignals,
+    // Only the sealed B3 bridge can supply operationally resolved execution facts.
+    provider_facts: Option<Result<ResolvedExecutionFacts, EconomicExclusion>>,
 }
 /// Select a subset of the already authorized B1 universe by explicit variant
 /// identity. B1 is evaluated by this constructor; detached/fabricated reports
@@ -179,7 +181,51 @@ impl<'a> AllocationScoringRequest<'a> {
                 .clone(),
                 eligibility: (*eligibility).clone(),
                 signals: selection.signals,
+                provider_facts: None,
             });
+        }
+        Self::join(
+            b1.policy().clone(),
+            b1.requirements().clone(),
+            inputs,
+            contexts,
+        )
+    }
+    /// Internal B3 entry, inaccessible to generic B2 callers. Only the provider
+    /// bridge can construct these sealed values after B1 + exact runtime proof.
+    pub(super) fn from_provider_candidates(
+        policy: AllocationPolicy,
+        requirements: CandidateRequirements,
+        resolved: Vec<super::provider_bridge::ResolvedProviderCandidate<'a>>,
+        contexts: Vec<EconomicContext>,
+    ) -> Result<Self, ScoringError> {
+        if resolved.len() > MAX_ALLOCATION_CANDIDATES {
+            return Err(ScoringError::TooManyCandidates);
+        }
+        let mut seen = BTreeSet::new();
+        let mut inputs = Vec::new();
+        for resolved in resolved {
+            let (candidate, eligibility, signals, facts) = resolved.into_scoring_parts();
+            if !seen.insert(candidate.variant()) {
+                return Err(ScoringError::DuplicateCandidate);
+            }
+            inputs.push(ScoringInput {
+                candidate,
+                eligibility,
+                signals,
+                provider_facts: Some(facts),
+            });
+        }
+        Self::join(policy, requirements, inputs, contexts)
+    }
+    fn join(
+        policy: AllocationPolicy,
+        requirements: CandidateRequirements,
+        mut inputs: Vec<ScoringInput<'a>>,
+        contexts: Vec<EconomicContext>,
+    ) -> Result<Self, ScoringError> {
+        if contexts.len() > MAX_RESOURCES {
+            return Err(ScoringError::TooManyContexts);
         }
         let resources: BTreeMap<_, _> = inputs
             .iter()
@@ -215,8 +261,8 @@ impl<'a> AllocationScoringRequest<'a> {
         // caller's incidental Vec order. Explicit policy ordinal stays a signal.
         inputs.sort_by_key(|i| i.candidate.variant());
         Ok(Self {
-            policy: b1.policy().clone(),
-            requirements: b1.requirements().clone(),
+            policy,
+            requirements,
             inputs,
             contexts: joined,
         })
@@ -227,7 +273,10 @@ impl<'a> AllocationScoringRequest<'a> {
         for input in &self.inputs {
             let candidate = &input.candidate;
             let variant = candidate.variant();
-            let resolved = ResolvedExecutionFacts::for_candidate(candidate);
+            let resolved = input
+                .provider_facts
+                .clone()
+                .unwrap_or_else(|| ResolvedExecutionFacts::for_candidate(candidate));
             let pressure = super::scarcity::assess_pressure(
                 self.contexts
                     .get(&variant.resource_id)

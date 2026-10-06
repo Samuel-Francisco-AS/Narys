@@ -1,11 +1,12 @@
 use super::{
     registry::ProviderRegistry,
     types::{
-        ProviderCapabilities, ProviderChunk, ProviderError, ProviderRequest, ProviderSelection,
-        ProviderTarget, ProviderTaskRequest, RetryPolicy, SchedulerError, SchedulerUsage,
-        TaskBudget, TaskResult,
+        InvocationMode, ProviderCapabilities, ProviderChunk, ProviderError, ProviderRequest,
+        ProviderSelection, ProviderTarget, ProviderTaskRequest, RetryPolicy, SchedulerError,
+        SchedulerUsage, TaskBudget, TaskResult,
     },
 };
+use crate::cognitive_resources::{ProviderAutoAllocator, ProviderBridgeError};
 use serde::Serialize;
 use std::{
     collections::{HashSet, VecDeque},
@@ -32,7 +33,7 @@ pub enum SchedulerEvent {
         model: String,
         attempt: u32,
         routing_reason: &'static str,
-        score: Option<u32>,
+        score: Option<i64>,
     },
     OutputObserved {
         provider_id: String,
@@ -85,13 +86,6 @@ pub struct ProviderStatus {
     pub cooldown_ms: u64,
 }
 
-// Policy position is primary; registry priority is deliberately secondary.
-const POLICY_POSITION_WEIGHT: u32 = 100;
-const REGISTRY_PRIORITY_CAP: u32 = 32;
-const AFFINITY_BASE: u32 = 50;
-const AFFINITY_PER_KIB: u32 = 25;
-const AFFINITY_CAP: u32 = 500;
-const CONTEXT_KIB: usize = 1024;
 const MAX_AFFINITIES: usize = 256;
 const MAX_AFFINITY_KEY_BYTES: usize = 128;
 
@@ -113,36 +107,24 @@ impl Affinities {
     }
 }
 
-fn auto_score(
-    count: usize,
-    ordinal: usize,
-    priority: u16,
-    affinity: bool,
-    bytes: usize,
-) -> (u32, u32) {
-    let policy = (count.saturating_sub(ordinal) as u32).saturating_mul(POLICY_POSITION_WEIGHT);
-    let registry = REGISTRY_PRIORITY_CAP - u32::from(priority).min(REGISTRY_PRIORITY_CAP);
-    let affinity = if affinity && bytes > 0 {
-        let kib = bytes / CONTEXT_KIB + usize::from(bytes % CONTEXT_KIB != 0);
-        AFFINITY_BASE
-            .saturating_add(
-                u32::try_from(kib)
-                    .unwrap_or(u32::MAX)
-                    .saturating_mul(AFFINITY_PER_KIB),
-            )
-            .min(AFFINITY_CAP)
-    } else {
-        0
-    };
-    (
-        policy.saturating_add(registry).saturating_add(affinity),
-        affinity,
-    )
+/// The shared route representation. Auto scores come solely from B2; explicit
+/// selections never enter the allocator. Owned targets freeze model/effort.
+#[derive(Clone, Debug)]
+pub(crate) struct ProviderRouteEntry {
+    pub target: ProviderTarget,
+    pub score: Option<i64>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ProviderChainPurpose {
+    Execution,
+    Ranking,
 }
 
 pub struct Scheduler {
     pub(super) admission: super::admission::AdmissionController,
     registry: ProviderRegistry,
+    auto_allocator: Result<ProviderAutoAllocator, ProviderBridgeError>,
     pub(super) resilience: Arc<super::resilience::ResilienceManager>,
     affinities: Mutex<Affinities>,
     pub(super) telemetry: super::telemetry::TelemetryStore,
@@ -222,7 +204,11 @@ impl Scheduler {
             rate.clone(),
             resilience.clone(),
         );
+        // An invalid allocation catalog fails Auto closed, while explicit modes
+        // retain their pre-B3 construction/execution contract.
+        let auto_allocator = ProviderAutoAllocator::production(&registry);
         Ok(Self {
+            auto_allocator,
             admission,
             telemetry,
             rate,
@@ -265,21 +251,117 @@ impl Scheduler {
             })
             .collect()
     }
+    /// Internal constructor override for enriched catalogs and allocation policy.
+    /// Production construction above always uses the conservative B3 defaults.
+    #[cfg(test)]
+    pub(crate) fn with_auto_allocator(mut self, allocator: ProviderAutoAllocator) -> Self {
+        self.auto_allocator = Ok(allocator);
+        self
+    }
     pub fn ranked_provider_ids(
         &self,
         selection: &ProviderSelection,
         targets: &[ProviderTarget],
         required: &ProviderCapabilities,
+        mode: &InvocationMode,
     ) -> Result<Vec<String>, SchedulerError> {
-        if targets.is_empty() || targets.len() > super::policy::MAX_TARGETS {
+        Ok(self
+            .ranked_provider_targets(selection, targets, required, mode)?
+            .into_iter()
+            .map(|target| target.provider_id)
+            .collect())
+    }
+    /// TaskGraph needs the chosen variants as well as IDs. Both read-only views
+    /// use the same chain engine and existing operational eligibility check.
+    pub(crate) fn ranked_provider_targets(
+        &self,
+        selection: &ProviderSelection,
+        targets: &[ProviderTarget],
+        required: &ProviderCapabilities,
+        mode: &InvocationMode,
+    ) -> Result<Vec<ProviderTarget>, SchedulerError> {
+        let chain = self.resolve_provider_chain(
+            selection,
+            targets,
+            required,
+            mode,
+            None,
+            0,
+            ProviderChainPurpose::Ranking,
+        )?;
+        let targets: Vec<_> = chain
+            .into_iter()
+            .filter(|route| self.resilience.eligible(&route.target.provider_id))
+            .map(|route| route.target)
+            .collect();
+        if targets.is_empty() {
+            Err(SchedulerError::NoProvider)
+        } else {
+            Ok(targets)
+        }
+    }
+    /// Single ordering engine for run, read-only ranking and TaskGraph selection.
+    /// Capture LR-8 once per Auto plan. Never refresh live rate state for ranking.
+    fn resolve_provider_chain(
+        &self,
+        selection: &ProviderSelection,
+        targets: &[ProviderTarget],
+        required: &ProviderCapabilities,
+        mode: &InvocationMode,
+        affinity_key: Option<&str>,
+        bytes: usize,
+        purpose: ProviderChainPurpose,
+    ) -> Result<Vec<ProviderRouteEntry>, SchedulerError> {
+        if !mode.valid() || targets.is_empty() || targets.len() > super::policy::MAX_TARGETS {
             return Err(SchedulerError::InvalidTargetConfig);
         }
         let mut ids = HashSet::new();
-        let mut ranked = Vec::new();
-        for (ordinal, target) in targets.iter().enumerate() {
+        for target in targets {
             if !target.invocation.valid() || !ids.insert(&target.provider_id) {
                 return Err(SchedulerError::InvalidTargetConfig);
             }
+        }
+        if matches!(selection, ProviderSelection::Auto) {
+            let affinity = affinity_key.and_then(|key| {
+                self.affinities
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .get(key)
+                    .map(str::to_owned)
+            });
+            // Affinity outside the authorized provider universe is not evidence
+            // of continuity or switching cost for this request.
+            let affinity = affinity.filter(|id| targets.iter().any(|t| &t.provider_id == id));
+            let telemetry = self.telemetry.snapshots();
+            let rate = self.rate.read_only_snapshots();
+            let plan = self
+                .auto_allocator
+                .as_ref()
+                .map_err(|e| e.scheduler_error())?
+                .plan(
+                    &self.registry,
+                    targets,
+                    *required,
+                    mode,
+                    affinity.as_deref(),
+                    bytes,
+                    &telemetry,
+                    &rate,
+                )
+                .map_err(|e| e.scheduler_error())?;
+            return Ok(plan
+                .entries()
+                .iter()
+                .map(|entry| ProviderRouteEntry {
+                    target: entry.target.clone(),
+                    score: Some(entry.score),
+                })
+                .collect());
+        }
+        // Fixed/Preferred retain their original invocation and policy order,
+        // bypassing catalog, expansion, economics, scarcity and paid policy.
+        let mut chain = Vec::new();
+        for target in targets {
             if let ProviderSelection::Fixed(id) = selection {
                 if &target.provider_id != id {
                     continue;
@@ -289,25 +371,33 @@ impl Scheduler {
                 .registry
                 .get(&target.provider_id)
                 .ok_or(SchedulerError::NoProvider)?;
-            if !entry.config.enabled || !entry.config.capabilities.supports(required) {
+            if !entry.config.enabled {
+                if purpose == ProviderChainPurpose::Ranking {
+                    continue;
+                }
+                return Err(SchedulerError::NoProvider);
+            }
+            if purpose == ProviderChainPurpose::Ranking {
+                // Preserve the pre-B3 explicit ranking projection: registered
+                // enabled runtimes with the required capabilities, policy order.
+                // Exact invocation validation remains at the execution boundary.
+                if !entry.config.capabilities.supports(required) {
+                    continue;
+                }
+            } else if !entry.config.capabilities.supports(required)
+                || !entry.provider.supports_invocation(&target.invocation, mode)
+            {
+                if mode.text_stream() {
+                    return Err(SchedulerError::NoProvider);
+                }
                 continue;
             }
-            let (score, _) = auto_score(targets.len(), ordinal, entry.config.priority, false, 0);
-            ranked.push((entry.config.id.clone(), ordinal, score));
+            chain.push(ProviderRouteEntry {
+                target: target.clone(),
+                score: None,
+            });
         }
-        if matches!(selection, ProviderSelection::Auto) {
-            ranked.sort_by(|a, b| b.2.cmp(&a.2).then(a.1.cmp(&b.1)).then(a.0.cmp(&b.0)));
-        }
-        let result: Vec<_> = ranked
-            .into_iter()
-            .filter(|item| self.resilience.eligible(&item.0))
-            .map(|item| item.0)
-            .collect();
-        if result.is_empty() {
-            Err(SchedulerError::NoProvider)
-        } else {
-            Ok(result)
-        }
+        Ok(chain)
     }
 
     pub async fn run(
@@ -397,79 +487,24 @@ impl Scheduler {
                 return Err(SchedulerError::InvalidTargetConfig);
             }
         }
-        let affinity = request.affinity_key.as_deref().and_then(|key| {
-            self.affinities
-                .lock()
-                .unwrap_or_else(|p| p.into_inner())
-                .get(key)
-                .map(str::to_owned)
-        });
-        let mut eligible = Vec::new();
-        let mut candidates = Vec::new();
-        for (ordinal, target) in request.targets.iter().enumerate() {
-            if let ProviderSelection::Fixed(id) = &request.selection {
-                if &target.provider_id != id {
-                    continue;
-                }
-            }
+        // Frozen once before the first attempt. Retries and fallback consume
+        // these same targets/scores; 429 cannot replan or introduce paid paths.
+        let candidates = self.resolve_provider_chain(
+            &request.selection,
+            &request.targets,
+            &request.required_capabilities,
+            &request.mode,
+            request.affinity_key.as_deref(),
+            request.estimated_context_bytes,
+            ProviderChainPurpose::Execution,
+        )?;
+        let mut used_any = false;
+        for (index, route) in candidates.iter().enumerate() {
             let entry = self
                 .registry
-                .get(&target.provider_id)
+                .get(&route.target.provider_id)
                 .ok_or(SchedulerError::NoProvider)?;
-            if !entry.config.enabled {
-                return Err(SchedulerError::NoProvider);
-            }
-            if !entry
-                .config
-                .capabilities
-                .supports(&request.required_capabilities)
-                || !entry
-                    .provider
-                    .supports_invocation(&target.invocation, &request.mode)
-            {
-                if request.mode.text_stream() {
-                    return Err(SchedulerError::NoProvider);
-                }
-                // An incompatible target consumes neither a call nor retry/fallback.
-                continue;
-            }
-            eligible.push(entry);
-            // Operational health is applied after deterministic ranking.
-            // No registry-only provider can enter this authorized list.
-            let (score, affinity_score) = auto_score(
-                request.targets.len(),
-                ordinal,
-                entry.config.priority,
-                affinity.as_deref() == Some(entry.config.id.as_str()),
-                request.estimated_context_bytes,
-            );
-            // Retain ordinal independently from incidental registry order.
-            candidates.push((entry, target, ordinal, score, affinity_score));
-        }
-        if matches!(request.selection, ProviderSelection::Auto) {
-            candidates.sort_by(|a, b| {
-                b.3.cmp(&a.3)
-                    .then(a.2.cmp(&b.2))
-                    .then(a.0.config.id.cmp(&b.0.config.id))
-            });
-        }
-        // Attribute Auto affinity only when its bonus changes the winning selection.
-        let affinity_winner = if matches!(request.selection, ProviderSelection::Auto) {
-            let without = candidates.iter().max_by(|a, b| {
-                (a.3 - a.4)
-                    .cmp(&(b.3 - b.4))
-                    .then(b.2.cmp(&a.2))
-                    .then(b.0.config.id.cmp(&a.0.config.id))
-            });
-            candidates
-                .first()
-                .zip(without)
-                .is_some_and(|(winner, base)| winner.4 > 0 && winner.2 != base.2)
-        } else {
-            false
-        };
-        let mut used_any = false;
-        for (index, (entry, target, _, score, _)) in candidates.iter().enumerate() {
+            let target = &route.target;
             if cancelled.load(Ordering::Acquire) {
                 return Err(SchedulerError::Cancelled);
             }
@@ -526,10 +561,9 @@ impl Scheduler {
                     routing_reason: match request.selection {
                         ProviderSelection::Fixed(_) => "fixed",
                         ProviderSelection::Preferred => "preferred_order",
-                        ProviderSelection::Auto if index == 0 && affinity_winner => "auto_affinity",
-                        ProviderSelection::Auto => "auto_score",
+                        ProviderSelection::Auto => "auto_allocator",
                     },
-                    score: matches!(request.selection, ProviderSelection::Auto).then_some(*score),
+                    score: route.score,
                 })
                 .map_err(|_| {
                     cancelled.store(true, Ordering::Release);
@@ -857,7 +891,7 @@ impl Scheduler {
         if !used_any {
             #[cfg(debug_assertions)]
             {
-                if eligible.is_empty() {
+                if candidates.is_empty() {
                     eprintln!("[Scheduler][diag] no_provider reason=no_eligible_provider");
                 } else {
                     for snapshot in self.resilience_snapshot() {
@@ -868,7 +902,7 @@ impl Scheduler {
                     }
                 }
             }
-            if eligible.is_empty() && !request.mode.text_stream() {
+            if candidates.is_empty() && !request.mode.text_stream() {
                 Err(SchedulerError::Provider(ProviderError::UnsupportedMode))
             } else {
                 Err(SchedulerError::NoProvider)
@@ -897,12 +931,6 @@ mod tests {
         assert_eq!(entries.get("s1"), None);
         assert_eq!(entries.get("new"), Some("c"));
     }
-    #[test]
-    fn affinity_score_is_bounded_even_for_maximum_context_size() {
-        assert_eq!(auto_score(8, 7, u16::MAX, true, usize::MAX), (600, 500));
-        assert_eq!(auto_score(2, 1, 32, true, 0), (100, 0));
-    }
-
     #[test]
     fn task_graph_ranking_respects_authorized_order_fixed_and_auto() {
         use crate::cognition::{
@@ -942,6 +970,7 @@ mod tests {
                     &ProviderSelection::Preferred,
                     &targets,
                     &ProviderCapabilities::text_stream(),
+                    &InvocationMode::default(),
                 )
                 .unwrap(),
             vec!["a", "b", "c"]
@@ -952,6 +981,7 @@ mod tests {
                     &ProviderSelection::Fixed("b".into()),
                     &targets,
                     &ProviderCapabilities::text_stream(),
+                    &InvocationMode::default(),
                 )
                 .unwrap(),
             vec!["b"]
@@ -963,6 +993,7 @@ mod tests {
                     &ProviderSelection::Auto,
                     &targets,
                     &ProviderCapabilities::text_stream(),
+                    &InvocationMode::default(),
                 )
                 .unwrap(),
             vec!["a", "b", "c"]

@@ -82,6 +82,42 @@ impl EconomicContext {
             lr8,
         })
     }
+    /// B3 projects exact operationally proven models even without ModelProfile.
+    /// No catalog membership/availability facts are created or changed. The DTO
+    /// identity, generation, bounds and duplicate checks are still capture's.
+    pub(super) fn capture_provider_models(
+        descriptor: &CognitiveResource,
+        models: &BTreeSet<ModelId>,
+        telemetry: Option<&ProviderTelemetrySnapshot>,
+        rate: Option<&RateSnapshot>,
+    ) -> Result<Self, ScoringError> {
+        if models.len() > MAX_ALLOCATION_CANDIDATES {
+            return Err(ScoringError::TooManyCandidates);
+        }
+        let mut context = Self::capture(descriptor, telemetry, rate)?;
+        if let Some(lr8) = &mut context.lr8 {
+            if let Some(t) = &mut lr8.telemetry {
+                for scoped in telemetry.into_iter().flat_map(|s| &s.quotas) {
+                    if let QuotaScope::Model { model } = &scoped.scope {
+                        if let Some(id) = models.iter().find(|id| id.as_str() == model) {
+                            t.model_quotas.insert(id.clone(), scoped.dimensions.clone());
+                        }
+                    }
+                }
+            }
+            if let Some(r) = &mut lr8.rate {
+                for id in models {
+                    let constraints: Vec<_> = rate.into_iter().flat_map(|s| &s.constraints)
+                        .filter(|c| matches!(&c.scope, QuotaScope::Model { model } if model == id.as_str()))
+                        .cloned().collect();
+                    if !constraints.is_empty() {
+                        r.model_constraints.insert(id.clone(), constraints);
+                    }
+                }
+            }
+        }
+        Ok(context)
+    }
     pub fn descriptor(&self) -> &CognitiveResource {
         &self.descriptor
     }
