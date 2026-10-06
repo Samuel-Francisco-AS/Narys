@@ -510,19 +510,37 @@ mais capaz quando capability, qualidade esperada ou custo de retrabalho justific
 
 ### LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff
 
-**Estado: PRÓXIMA SUBFASE — planejamento/implementação ainda não iniciados neste fechamento.**
+**Estado: PLANEJADA — C1 é o próximo bloco de implementação.**
 
-Objetivo: provar continuidade entre recursos heterogêneos e entre variantes cognitivas do mesmo recurso.
+Plano detalhado: **[LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff](LR-8.5C-SAFE-HANDOFF.md)**.
+
+Objetivo: provar continuidade entre recursos heterogêneos e entre variantes cognitivas
+do mesmo recurso sem transformar handoff em fallback concorrente do Scheduler.
+
+Princípio operacional da fase: uma allocation permanece imutável durante a unidade
+cognitiva já iniciada; resource/access path/model/effort só podem ser reconsiderados
+para uma nova unidade depois de uma fronteira segura e de checkpoint/state
+suficientemente comprometido.
 
 Entregas:
 
-- checkpoints/handoff estruturado via Shared Cognitive State;
-- provenance por unidade;
+- checkpoints/handoff estruturado via Shared Cognitive State mínimo e ligado à execução;
+- provenance por unidade e transição;
 - troca de provider, access path, modelo ou effort somente em fronteiras seguras;
-- idempotência/anti-duplicação de efeitos;
+- policy snapshot por tarefa e allocation snapshot por unidade;
+- idempotência/anti-duplicação de unidades e efeitos;
 - cancelamento preservado;
-- política de pausa quando auto-spend não for autorizado;
+- política de pausa quando continuidade automática ou auto-spend não forem autorizados;
+- restart/resume sem replay de unidade committed;
 - cenários sintéticos allowance → alternativa incluída → paid reserve.
+
+A implementação interna será feita em quatro blocos auditáveis, sem criar novas
+subfases de roadmap:
+
+1. **C1 — Handoff Contract & Safe Boundaries**;
+2. **C2 — Checkpoint, Provenance & Shared Cognitive State**;
+3. **C3 — Boundary Reallocation & TaskGraph Bridge**;
+4. **C4 — Pause/Resume, Restart & Final Gate**.
 
 Gate mínimo desta fase usa mocks/fixtures e contratos já existentes. **Não puxar a
 implementação completa de Copilot ou Codex para LR-8.5.**
