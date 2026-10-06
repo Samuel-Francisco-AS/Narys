@@ -16,6 +16,7 @@ const stepLabels: Record<TaskStep, string> = {
 const stateLabels: Record<TaskState, string> = {
   pending: 'pendente',
   running: 'executando',
+  paused: 'pausada',
   completed: 'concluída',
   cancelled: 'cancelada',
   failed: 'falhou',
@@ -26,6 +27,7 @@ function eventLabel(event: TaskEvent): string {
     case 'task_started': return 'Tarefa iniciada'
     case 'step_started': return `${stepLabels[event.step]} iniciada`
     case 'step_completed': return `${stepLabels[event.step]} concluída`
+    case 'task_paused': return 'Tarefa pausada'
     case 'task_completed': return 'Tarefa concluída'
     case 'task_cancelled': return 'Tarefa cancelada'
     case 'task_failed': return `Tarefa falhou: ${event.detail}`

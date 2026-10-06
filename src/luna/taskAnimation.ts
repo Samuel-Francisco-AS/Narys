@@ -7,6 +7,7 @@ export function taskEventToAnimationIntent(event: TaskEvent): AnimationIntent | 
   switch (event.type) {
     case 'task_started':
     case 'step_started':
+    case 'task_paused':
     case 'task_cancelled':
     case 'task_failed':
       return { type: 'idle' }

@@ -30,6 +30,10 @@ use crate::{
     },
     persistence::{
         checkpoints::TaskPolicySnapshot,
+        continuations::{
+            self, ContinuationLease, ContinuationLoad, ContinuationManifest,
+            ContinuationRepository, PauseReason,
+        },
         database::Database,
         task_history::{self, SubtaskRecord, TaskRecord},
     },
@@ -331,6 +335,134 @@ async fn execute_workers(
     worker_context: super::types::ContextBundle,
     planner: OrchestratorResult,
 ) -> ExecutionOutcome {
+    if let Err(code) = TaskGraph::compile(&planner.plan) {
+        return early_failure(code);
+    }
+    if cancelled.load(Ordering::Acquire) {
+        return ExecutionOutcome {
+            state: TaskState::Cancelled,
+            error_code: Some("cancelled"),
+            graph: None,
+            meta: HashMap::new(),
+            result: None,
+        };
+    }
+    let manifest = ContinuationManifest {
+        version: 1,
+        root: root.0,
+        objective: planner.plan.objective.clone(),
+        steps: planner.plan.steps.clone(),
+        policy: worker_snapshot.clone(),
+        timeouts: worker_timeouts
+            .iter()
+            .map(|(k, v)| (k.clone(), *v))
+            .collect(),
+        identity_version: worker_context.metadata.identity_version.clone(),
+        planner_provider_id: planner.provider_id.clone(),
+        planner_usage: planner.usage.clone(),
+    };
+    if !worker_context.relevant_memories.is_empty() || !worker_context.recent_messages.is_empty() {
+        return early_failure("continuation_context_not_supported");
+    }
+    let lease = match continuations::with_connection(&db, move |conn| {
+        ContinuationRepository::create(conn, &manifest)
+    })
+    .await
+    {
+        Ok(lease) => lease,
+        Err(code) => return early_failure(code),
+    };
+    let mut outcome = execute_workers_claimed(
+        db.clone(),
+        runtime,
+        root,
+        cancelled.clone(),
+        channel,
+        sequence,
+        worker_snapshot,
+        worker_timeouts,
+        worker_context,
+        planner,
+        lease,
+        None,
+    )
+    .await;
+    finish_continuation(&db, lease, &cancelled, &mut outcome).await;
+    outcome
+}
+
+fn early_failure(code: &'static str) -> ExecutionOutcome {
+    ExecutionOutcome {
+        state: TaskState::Failed,
+        error_code: Some(code),
+        graph: None,
+        meta: HashMap::new(),
+        result: None,
+    }
+}
+fn pause_reason(code: Option<&str>) -> PauseReason {
+    match code {
+        Some("handoff_economic_authorization_required") => PauseReason::EconomicAuthorization,
+        Some("continuation_uncertain_execution" | "handoff_boundary_unsafe") => {
+            PauseReason::UncertainExecution
+        }
+        Some("continuation_context_not_supported" | "continuation_identity_context_changed") => {
+            PauseReason::InsufficientDurableContext
+        }
+        _ => PauseReason::InvalidRecovery,
+    }
+}
+async fn finish_continuation(
+    db: &Database,
+    lease: ContinuationLease,
+    cancelled: &AtomicBool,
+    outcome: &mut ExecutionOutcome,
+) {
+    if cancelled.load(Ordering::Acquire) && outcome.error_code != Some("channel_closed") {
+        outcome.state = TaskState::Cancelled;
+        outcome.error_code = Some("cancelled");
+        outcome.result = None;
+    }
+    let (state, reason) = match outcome.state {
+        TaskState::Completed => ("completed", None),
+        TaskState::Cancelled => ("cancelled", None),
+        TaskState::Paused => ("paused", Some(pause_reason(outcome.error_code))),
+        _ => ("failed", None),
+    };
+    match continuations::with_connection(db, move |conn| {
+        ContinuationRepository::finish(conn, lease, state, reason)
+    })
+    .await
+    {
+        Ok(true) => {
+            outcome.state = TaskState::Cancelled;
+            outcome.error_code = Some("cancelled");
+            outcome.result = None;
+        }
+        Ok(false) => {}
+        Err(code) => {
+            outcome.state = TaskState::Failed;
+            outcome.error_code = Some(code);
+            outcome.result = None;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn execute_workers_claimed(
+    db: Database,
+    runtime: Arc<ProviderRuntime>,
+    root: TaskId,
+    cancelled: Arc<AtomicBool>,
+    channel: &Channel<TaskEvent>,
+    sequence: &AtomicU32,
+    worker_snapshot: TaskPolicySnapshot,
+    worker_timeouts: HashMap<String, super::types::ProviderTimeouts>,
+    worker_context: super::types::ContextBundle,
+    planner: OrchestratorResult,
+    lease: ContinuationLease,
+    restored: Option<ContinuationLoad>,
+) -> ExecutionOutcome {
     let fail = |code| ExecutionOutcome {
         state: if code == "cancelled" {
             TaskState::Cancelled
@@ -454,6 +586,52 @@ async fn execute_workers(
         ..SchedulerUsage::default()
     };
 
+    let mut recovery_uncertain = false;
+    if let Some(loaded) = restored {
+        recovery_uncertain = !loaded.uncertain.is_empty();
+        add_usage(&mut worker_usage, &loaded.uncertain_budget);
+        if let Err(code) = handoff.advance_past(loaded.max_sequence) {
+            return fail(code);
+        }
+        provider_cursor = loaded.max_sequence as usize;
+        for key in &loaded.uncertain {
+            if graph
+                .mark_running(key)
+                .and_then(|_| graph.mark_failed(key))
+                .is_err()
+            {
+                return fail("continuation_graph_invalid");
+            }
+        }
+        let records = loaded
+            .completed
+            .iter()
+            .filter(|(key, _)| !loaded.uncertain.contains(*key))
+            .map(|(key, unit)| (key.clone(), unit.receipt.clone()))
+            .collect();
+        if let Err(code) = handoff.restore(records) {
+            return fail(code);
+        }
+        for (key, unit) in loaded.completed {
+            if loaded.uncertain.contains(&key) {
+                continue;
+            }
+            if graph
+                .mark_running(&key)
+                .and_then(|_| graph.mark_completed(&key))
+                .is_err()
+            {
+                return fail("continuation_graph_invalid");
+            }
+            if let Some(item) = meta.get_mut(&key) {
+                item.provider_id = Some(unit.result.provider_id.clone());
+                item.finished_at = Some(unit.receipt.committed_at().to_owned());
+            }
+            add_usage(&mut worker_usage, &unit.result.usage);
+            results.insert(key, unit.result);
+        }
+    }
+
     while !graph.all_completed() {
         if cancelled.load(Ordering::Acquire) {
             graph.cancel_unfinished();
@@ -469,8 +647,14 @@ async fn execute_workers(
         if ready.is_empty() {
             graph.block_unfinished();
             return ExecutionOutcome {
-                state: TaskState::Failed,
-                error_code: Some(if graph.has_failure() {
+                state: if recovery_uncertain {
+                    TaskState::Paused
+                } else {
+                    TaskState::Failed
+                },
+                error_code: Some(if recovery_uncertain {
+                    "continuation_uncertain_execution"
+                } else if graph.has_failure() {
                     "task_graph_subtask_failed"
                 } else {
                     "task_graph_deadlock"
@@ -496,8 +680,16 @@ async fn execute_workers(
         if count == 0 {
             graph.block_unfinished();
             return ExecutionOutcome {
-                state: TaskState::Failed,
-                error_code: Some("task_graph_budget_exceeded"),
+                state: if recovery_uncertain {
+                    TaskState::Paused
+                } else {
+                    TaskState::Failed
+                },
+                error_code: Some(if recovery_uncertain {
+                    "continuation_uncertain_execution"
+                } else {
+                    "task_graph_budget_exceeded"
+                }),
                 graph: Some(graph),
                 meta,
                 result: None,
@@ -513,8 +705,16 @@ async fn execute_workers(
         if output_share == Some(0) {
             graph.block_unfinished();
             return ExecutionOutcome {
-                state: TaskState::Failed,
-                error_code: Some("task_graph_budget_exceeded"),
+                state: if recovery_uncertain {
+                    TaskState::Paused
+                } else {
+                    TaskState::Failed
+                },
+                error_code: Some(if recovery_uncertain {
+                    "continuation_uncertain_execution"
+                } else {
+                    "task_graph_budget_exceeded"
+                }),
                 graph: Some(graph),
                 meta,
                 result: None,
@@ -528,7 +728,7 @@ async fn execute_workers(
             } else {
                 provider_cursor + offset
             };
-            let unit = match handoff
+            let mut unit = match handoff
                 .prepare(
                     &db,
                     &graph,
@@ -550,6 +750,11 @@ async fn execute_workers(
                     return ExecutionOutcome {
                         state: if code == "cancelled" {
                             TaskState::Cancelled
+                        } else if matches!(
+                            code,
+                            "handoff_economic_authorization_required" | "handoff_boundary_unsafe"
+                        ) {
+                            TaskState::Paused
                         } else {
                             TaskState::Failed
                         },
@@ -560,6 +765,10 @@ async fn execute_workers(
                     };
                 }
             };
+            unit.attach_durable(db.clone(), lease);
+            if let Err(code) = handoff.attach_durable(&subtask_id, db.clone(), lease) {
+                return fail(code);
+            }
             let provider_id = unit.pin().target().provider_id.clone();
             let step = graph
                 .step(&subtask_id)
@@ -940,6 +1149,27 @@ pub fn start_task(
             }
         }
 
+        if state == TaskState::Paused {
+            let _ = emit(
+                &channel,
+                id,
+                &sequence,
+                state,
+                TaskEventKind::TaskPaused {
+                    reason: pause_reason(execution.error_code),
+                },
+            );
+            return;
+        }
+        if state == TaskState::Cancelled {
+            let db_cancel = db.clone();
+            if let Err(code) = continuations::with_connection(&db_cancel, move |conn| {
+                conn.execute("UPDATE main.cognitive_continuations SET state='cancelled',pause_reason=NULL WHERE root_task_id=?1 AND state IN ('completed','paused')", [id.0]).map_err(|_| "continuation_write_failed")?;
+                Ok(())
+            }).await {
+                state = TaskState::Failed; execution.error_code = Some(code); execution.result = None;
+            }
+        }
         let finished_at = now();
         let error_code = if state == TaskState::Failed {
             Some(execution.error_code.unwrap_or("task_graph_failed"))
@@ -1024,6 +1254,158 @@ pub fn start_task(
     Ok(id)
 }
 
+/// Explicit Core entry point. Startup never invokes this path. A SQLite claim,
+/// not the registry alone, prevents concurrent resumes of the same root.
+#[allow(dead_code)]
+pub(crate) async fn resume_task_graph(
+    registry: Arc<TaskRegistry>,
+    db: Database,
+    runtime: Arc<ProviderRuntime>,
+    root: TaskId,
+    channel: Channel<TaskEvent>,
+) -> Result<TaskState, &'static str> {
+    let resumed_at = now();
+    let (lease, loaded) = continuations::with_connection(&db, move |conn| {
+        ContinuationRepository::claim(conn, root.0)
+    })
+    .await?;
+    let cancelled = match registry.register_existing(root) {
+        Ok(flag) => flag,
+        Err(_) => {
+            let reason = loaded.pause_reason.unwrap_or(PauseReason::RecoveryRequired);
+            continuations::with_connection(&db, move |conn| {
+                ContinuationRepository::finish(conn, lease, "paused", Some(reason))
+            })
+            .await?;
+            return Err("continuation_resume_busy");
+        }
+    };
+    let _active = ActiveTask::new(registry.clone(), root);
+    registry.mark_running(root);
+    let sequence = AtomicU32::new(0);
+    let expected_version = loaded.manifest.identity_version.clone();
+    let context = continuations::with_connection(&db, move |conn| {
+        let context = ContextBuilder::build(
+            conn,
+            ContextRequest {
+                domain: None,
+                kind: None,
+                min_importance: 0,
+                memory_limit: 0,
+                include_recent_conversation: false,
+            },
+        )
+        .map_err(|_| "continuation_identity_context_changed")?;
+        if context.metadata.identity_version != expected_version {
+            return Err("continuation_identity_context_changed");
+        }
+        context
+            .identity
+            .validate()
+            .map_err(|_| "continuation_identity_context_changed")?;
+        Ok(context)
+    })
+    .await;
+    let mut execution = match context {
+        Err(code) => ExecutionOutcome {
+            state: TaskState::Paused,
+            error_code: Some(code),
+            graph: None,
+            meta: HashMap::new(),
+            result: None,
+        },
+        Ok(context) => {
+            let manifest = &loaded.manifest;
+            let planner = OrchestratorResult {
+                provider_id: manifest.planner_provider_id.clone(),
+                plan: manifest.plan(),
+                usage: manifest.planner_usage.clone(),
+            };
+            execute_workers_claimed(
+                db.clone(),
+                runtime,
+                root,
+                cancelled.clone(),
+                &channel,
+                &sequence,
+                manifest.policy.clone(),
+                manifest
+                    .timeouts
+                    .iter()
+                    .map(|(k, v)| (k.clone(), *v))
+                    .collect(),
+                context,
+                planner,
+                lease,
+                Some(loaded),
+            )
+            .await
+        }
+    };
+    let state = registry.finish(root, execution.state);
+    execution.state = state;
+    finish_continuation(&db, lease, &cancelled, &mut execution).await;
+    let state = execution.state;
+    if state != TaskState::Paused {
+        let finished_at = now();
+        let records = execution
+            .graph
+            .as_ref()
+            .map(|graph| {
+                build_records(
+                    root,
+                    graph,
+                    &execution.meta,
+                    execution.error_code,
+                    &finished_at,
+                )
+            })
+            .unwrap_or_default();
+        let record = TaskRecord {
+            task_id: root.0,
+            kind: TASK_KIND.into(),
+            state: match state {
+                TaskState::Completed => "completed",
+                TaskState::Cancelled => "cancelled",
+                _ => "failed",
+            }
+            .into(),
+            started_at: resumed_at,
+            finished_at,
+            summary: Some("LR-8.5C resumed task graph".into()),
+            error_code: execution.error_code.map(str::to_owned),
+        };
+        continuations::with_connection(&db, move |conn| {
+            task_history::insert_with_subtasks(conn, &record, &records)
+                .map_err(|_| "task_history_write_failed")
+        })
+        .await?;
+    }
+    if state == TaskState::Completed {
+        if let Some(result) = execution.result {
+            emit(
+                &channel,
+                root,
+                &sequence,
+                TaskState::Running,
+                TaskEventKind::TaskGraphResultReady { result },
+            )?;
+        }
+    }
+    let event = match state {
+        TaskState::Completed => TaskEventKind::TaskCompleted,
+        TaskState::Cancelled => TaskEventKind::TaskCancelled,
+        TaskState::Paused => TaskEventKind::TaskPaused {
+            reason: pause_reason(execution.error_code),
+        },
+        _ => TaskEventKind::TaskFailed {
+            detail: execution.error_code.unwrap_or("continuation_failed").into(),
+        },
+    };
+    emit(&channel, root, &sequence, state, event)?;
+    Ok(state)
+}
+
 /// Read-only target projection retained for B regression fixtures. C3 uses the
 /// same engine through ranked_provider_allocations to retain complete identity.
 #[cfg(test)]
@@ -1045,3 +1427,7 @@ pub(crate) fn rank_worker_targets(
 #[cfg(test)]
 #[path = "task_graph_runtime/c3_tests.rs"]
 mod c3_tests;
+
+#[cfg(test)]
+#[path = "task_graph_runtime/c4_tests.rs"]
+mod c4_tests;

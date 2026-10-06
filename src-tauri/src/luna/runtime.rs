@@ -83,7 +83,7 @@ impl TaskRegistry {
     }
     #[cfg(test)]
     pub fn foreground_guard_for_test(self: &Arc<Self>, session_id: i64) -> impl Drop {
-        let (id, _) = self.register().unwrap();
+        let (id, cancelled) = self.register().unwrap();
         *self
             .foreground_provider_tasks
             .lock()
@@ -94,6 +94,7 @@ impl TaskRegistry {
             registry: self.clone(),
             id,
             session_id: Some(session_id),
+            control: Some(cancelled),
         }
     }
     pub fn seed_next_id(&self, last: u64) {
@@ -135,6 +136,25 @@ impl TaskRegistry {
         Ok((id, cancelled))
     }
 
+    pub(crate) fn register_existing(&self, id: TaskId) -> Result<Arc<AtomicBool>, &'static str> {
+        if id.0 == 0 || id.0 > crate::cognitive_resources::MAX_HANDOFF_SEQUENCE {
+            return Err("task_id_invalid");
+        }
+        let mut active = self.active.lock().unwrap_or_else(|p| p.into_inner());
+        if active.contains_key(&id) {
+            return Err("task_already_active");
+        }
+        let cancelled = Arc::new(AtomicBool::new(false));
+        active.insert(
+            id,
+            TaskControl {
+                state: TaskState::Pending,
+                cancelled: cancelled.clone(),
+            },
+        );
+        self.seed_next_id(id.0);
+        Ok(cancelled)
+    }
     pub fn mark_running(&self, id: TaskId) {
         if let Some(task) = self
             .active
@@ -200,10 +220,17 @@ impl TaskRegistry {
 
 impl ActiveTask {
     pub(crate) fn new(registry: Arc<TaskRegistry>, id: TaskId) -> Self {
+        let control = registry
+            .active
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(&id)
+            .map(|task| task.cancelled.clone());
         Self {
             registry,
             id,
             session_id: None,
+            control,
         }
     }
 }
@@ -213,11 +240,26 @@ pub(crate) struct ActiveTask {
     registry: Arc<TaskRegistry>,
     id: TaskId,
     session_id: Option<i64>,
+    control: Option<Arc<AtomicBool>>,
 }
 
 impl Drop for ActiveTask {
     fn drop(&mut self) {
-        self.registry.remove(self.id);
+        // Resume reuses the root ID. An old guard must not remove a newer
+        // registration for that same root after its own terminal/pause event.
+        let mut active = self
+            .registry
+            .active
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        if active.get(&self.id).is_some_and(|task| {
+            self.control
+                .as_ref()
+                .is_some_and(|owned| Arc::ptr_eq(&task.cancelled, owned))
+        }) {
+            active.remove(&self.id);
+        }
+        drop(active);
         if let Some(session_id) = self.session_id {
             let mut in_flight = self
                 .registry
@@ -363,6 +405,7 @@ pub fn start_conversation(
             registry: registry.clone(),
             id,
             session_id: Some(session_id),
+            control: Some(cancelled.clone()),
         };
         let mut sequence = 0;
         registry.mark_running(id);
@@ -761,6 +804,7 @@ pub fn start(
             registry: registry.clone(),
             id,
             session_id: None,
+            control: Some(cancelled.clone()),
         };
         let mut sequence = 0;
         let outcome = match run_mock_task(&registry, id, &cancelled, &channel, &mut sequence).await
@@ -831,6 +875,7 @@ pub fn start_cognition(
             registry: registry.clone(),
             id,
             session_id: None,
+            control: Some(cancelled.clone()),
         };
         let mut sequence = 0;
         registry.mark_running(id);
@@ -1345,7 +1390,7 @@ mod tests {
     #[test]
     fn ids_are_monotonic_and_tasks_are_removed() {
         let registry = Arc::new(TaskRegistry::default());
-        let (first, _) = registry.register().unwrap();
+        let (first, first_control) = registry.register().unwrap();
         let (second, _) = registry.register().unwrap();
         assert_eq!((first.0, second.0), (1, 2));
         registry.mark_running(first);
@@ -1357,9 +1402,23 @@ mod tests {
             registry: registry.clone(),
             id: first,
             session_id: None,
+            control: Some(first_control),
         });
         assert!(!registry.cancel(first));
         assert!(registry.cancel(second));
+    }
+
+    #[test]
+    fn c4_old_active_guard_does_not_remove_resumed_root_registration() {
+        let registry = Arc::new(TaskRegistry::default());
+        let (root, _) = registry.register().unwrap();
+        let old = ActiveTask::new(registry.clone(), root);
+        assert_eq!(registry.finish(root, TaskState::Paused), TaskState::Paused);
+        let resumed = registry.register_existing(root).unwrap();
+        drop(old);
+        assert!(registry.contains_for_test(root));
+        assert!(registry.cancel(root));
+        assert!(resumed.load(Ordering::Acquire));
     }
 
     #[test]

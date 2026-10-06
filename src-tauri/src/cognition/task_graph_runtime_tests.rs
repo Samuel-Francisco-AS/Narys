@@ -9,9 +9,13 @@ use super::{
     ProviderRuntime,
 };
 use crate::{
-    luna::{runtime::TaskRegistry, task::TaskEvent},
     cognition::policy::{self, CognitiveRole},
-    persistence::{conversation, database::Database, identity::{self, IdentityInput}},
+    luna::{runtime::TaskRegistry, task::TaskEvent},
+    persistence::{
+        conversation,
+        database::Database,
+        identity::{self, IdentityInput},
+    },
     security::secrets::{SecretError, SecretKey, SecretStore, UnlockKeyStore},
 };
 use std::{
@@ -54,26 +58,38 @@ impl WorkerAcknowledgement {
         let (sender, receiver) = mpsc::channel();
         assert!(COMPLETION_ACKS
             .get_or_init(Default::default)
-            .lock().unwrap()
-            .insert(key, sender).is_none());
+            .lock()
+            .unwrap()
+            .insert(key, sender)
+            .is_none());
         Self { key, receiver }
     }
     fn wait(self) -> String {
-        self.receiver.recv_timeout(Duration::from_secs(5)).expect("validated worker completion")
+        self.receiver
+            .recv_timeout(Duration::from_secs(5))
+            .expect("validated worker completion")
     }
 }
 impl Drop for WorkerAcknowledgement {
     fn drop(&mut self) {
-        COMPLETION_ACKS.get().unwrap().lock().unwrap().remove(&self.key);
+        COMPLETION_ACKS
+            .get()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .remove(&self.key);
     }
 }
 // Keyed by the task's shared cancellation allocation, never prompt/content or
 // a globally reused TaskId. Clone the sender and release the lock before send.
 pub(super) fn worker_completed_ack(cancelled: &AtomicBool, subtask_id: &str) {
     let key = cancelled as *const AtomicBool as usize;
-    let sender = COMPLETION_ACKS.get()
+    let sender = COMPLETION_ACKS
+        .get()
         .and_then(|acks| acks.lock().unwrap().get(&key).cloned());
-    if let Some(sender) = sender { let _ = sender.send(subtask_id.to_owned()); }
+    if let Some(sender) = sender {
+        let _ = sender.send(subtask_id.to_owned());
+    }
 }
 
 type WorkerEntry = (String, tokio::sync::oneshot::Sender<()>, usize);
@@ -105,7 +121,11 @@ impl GraphProvider {
 }
 
 impl Provider for GraphProvider {
-    fn supports_invocation(&self, invocation: &super::types::ProviderInvocationConfig, mode: &super::types::InvocationMode) -> bool {
+    fn supports_invocation(
+        &self,
+        invocation: &super::types::ProviderInvocationConfig,
+        mode: &super::types::InvocationMode,
+    ) -> bool {
         invocation.valid() && mode.valid() && (mode.text_stream() || self.planner_steps.is_some())
     }
 
@@ -167,7 +187,14 @@ impl Provider for GraphProvider {
             }
             if let Some(control) = &self.control {
                 let (tx, rx) = tokio::sync::oneshot::channel();
-                if control.send((self.label.into(), tx, cancelled as *const AtomicBool as usize)).is_err() {
+                if control
+                    .send((
+                        self.label.into(),
+                        tx,
+                        cancelled as *const AtomicBool as usize,
+                    ))
+                    .is_err()
+                {
                     self.active.fetch_sub(1, Ordering::AcqRel);
                     return Err(ProviderError::Cancelled);
                 }
@@ -194,12 +221,14 @@ impl Provider for GraphProvider {
                 return Err(ProviderError::Cancelled);
             }
             let text = if request.internal_system_instruction.is_some() {
-                let id = request.input
+                let id = request
+                    .input
                     .split("SUBTAREFA ")
                     .nth(1)
                     .and_then(|rest| rest.split(':').next())
                     .unwrap_or("invalid");
-                serde_json::json!({"subtaskId": id, "text": format!("resultado-{}", self.label)}).to_string()
+                serde_json::json!({"subtaskId": id, "text": format!("resultado-{}", self.label)})
+                    .to_string()
             } else {
                 format!("resultado-{}", self.label)
             };
@@ -226,10 +255,8 @@ fn dir(label: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let dir = std::env::temp_dir().join(format!(
-        "d3-runtime-{label}-{}-{stamp}",
-        std::process::id()
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("d3-runtime-{label}-{}-{stamp}", std::process::id()));
     fs::create_dir_all(&dir).unwrap();
     dir
 }
@@ -317,10 +344,13 @@ fn fixture_with_worker_control(
     // unlocks per fixture competing with TaskGraph preflight in the global suite.
     store
         .set_secrets(&[
-        (SecretKey::GeminiApiKey, b"gemini".to_vec()),
-        (SecretKey::GroqApiKey, b"groq".to_vec()),
-        (SecretKey::CloudflareApiToken, b"cloudflare-token".to_vec()),
-        (SecretKey::CloudflareAccountId, b"cloudflare-account".to_vec()),
+            (SecretKey::GeminiApiKey, b"gemini".to_vec()),
+            (SecretKey::GroqApiKey, b"groq".to_vec()),
+            (SecretKey::CloudflareApiToken, b"cloudflare-token".to_vec()),
+            (
+                SecretKey::CloudflareAccountId,
+                b"cloudflare-account".to_vec(),
+            ),
         ])
         .unwrap();
     let active = Arc::new(AtomicUsize::new(0));
@@ -337,13 +367,25 @@ fn fixture_with_worker_control(
                     id: id.into(),
                     enabled: true,
                     priority,
-                    capabilities: if planner.is_some() { ProviderCapabilities::with_structured_output() } else { ProviderCapabilities::text_stream() },
+                    capabilities: if planner.is_some() {
+                        ProviderCapabilities::with_structured_output()
+                    } else {
+                        ProviderCapabilities::text_stream()
+                    },
                 },
                 Arc::new(GraphProvider {
                     label: id,
                     planner_steps: planner,
-                    delay_ms: if planner.is_some() { 0 } else { worker_delay_ms },
-                    control: if planner.is_some() { None } else { control.clone() },
+                    delay_ms: if planner.is_some() {
+                        0
+                    } else {
+                        worker_delay_ms
+                    },
+                    control: if planner.is_some() {
+                        None
+                    } else {
+                        control.clone()
+                    },
                     active: active.clone(),
                     max_active: max_active.clone(),
                 }),
@@ -396,7 +438,9 @@ fn channel_fail_on(needle: &'static str) -> (Channel<TaskEvent>, mpsc::Receiver<
     (channel, receiver)
 }
 
-fn cancel_on_task_started(registry: Arc<TaskRegistry>) -> (Channel<TaskEvent>, mpsc::Receiver<String>) {
+fn cancel_on_task_started(
+    registry: Arc<TaskRegistry>,
+) -> (Channel<TaskEvent>, mpsc::Receiver<String>) {
     let (sender, receiver) = mpsc::channel();
     let channel = Channel::new(move |body| {
         if let tauri::ipc::InvokeResponseBody::Json(json) = body {
@@ -406,7 +450,9 @@ fn cancel_on_task_started(registry: Arc<TaskRegistry>) -> (Channel<TaskEvent>, m
                     assert!(registry.cancel(crate::luna::task::TaskId(id)));
                 }
             }
-            sender.send(json).map_err(|_| std::io::Error::other("test channel closed"))?;
+            sender
+                .send(json)
+                .map_err(|_| std::io::Error::other("test channel closed"))?;
         }
         Ok(())
     });
@@ -436,7 +482,9 @@ fn wait_for(receiver: &mpsc::Receiver<String>, needle: &str) -> Vec<String> {
     events
 }
 
-fn local_sse_server(bodies: Vec<String>) -> (String, std::thread::JoinHandle<Vec<serde_json::Value>>) {
+fn local_sse_server(
+    bodies: Vec<String>,
+) -> (String, std::thread::JoinHandle<Vec<serde_json::Value>>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
     let handle = std::thread::spawn(move || {
@@ -448,15 +496,23 @@ fn local_sse_server(bodies: Vec<String>) -> (String, std::thread::JoinHandle<Vec
             let mut chunk = [0u8; 4096];
             loop {
                 let count = conn.read(&mut chunk).unwrap();
-                if count == 0 { break; }
+                if count == 0 {
+                    break;
+                }
                 request.extend_from_slice(&chunk[..count]);
                 if let Some(end) = request.windows(4).position(|value| value == b"\r\n\r\n") {
                     let headers = String::from_utf8_lossy(&request[..end]);
-                    let length = headers.lines().find_map(|line| {
-                        line.to_ascii_lowercase().strip_prefix("content-length:")
-                            .and_then(|value| value.trim().parse::<usize>().ok())
-                    }).unwrap_or(0);
-                    if request.len() >= end + 4 + length { break; }
+                    let length = headers
+                        .lines()
+                        .find_map(|line| {
+                            line.to_ascii_lowercase()
+                                .strip_prefix("content-length:")
+                                .and_then(|value| value.trim().parse::<usize>().ok())
+                        })
+                        .unwrap_or(0);
+                    if request.len() >= end + 4 + length {
+                        break;
+                    }
                 }
             }
             let end = request.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
@@ -468,7 +524,9 @@ fn local_sse_server(bodies: Vec<String>) -> (String, std::thread::JoinHandle<Vec
             conn.write_all(head.as_bytes()).unwrap();
             // Deliberately split every byte, including bytes inside UTF-8 code points.
             for byte in body.as_bytes() {
-                if conn.write_all(std::slice::from_ref(byte)).is_err() { break; }
+                if conn.write_all(std::slice::from_ref(byte)).is_err() {
+                    break;
+                }
                 let _ = conn.flush();
                 std::thread::sleep(Duration::from_micros(100));
             }
@@ -480,14 +538,20 @@ fn local_sse_server(bodies: Vec<String>) -> (String, std::thread::JoinHandle<Vec
 
 fn groq_completion(text: &str, finish: &str, usage: bool) -> String {
     let mut value = serde_json::json!({"choices":[{"message":{"role":"assistant","content":text},"finish_reason":finish}]});
-    if usage { value["usage"] = serde_json::json!({"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}); }
+    if usage {
+        value["usage"] =
+            serde_json::json!({"prompt_tokens":10,"completion_tokens":20,"total_tokens":30});
+    }
     value.to_string()
 }
 
 fn groq_sse(text: &str, usage: bool) -> String {
-    let mut body = format!("data: {}\n\n", serde_json::json!({
-        "choices": [{"delta": {"content": text}, "finish_reason": "stop"}]
-    }));
+    let mut body = format!(
+        "data: {}\n\n",
+        serde_json::json!({
+            "choices": [{"delta": {"content": text}, "finish_reason": "stop"}]
+        })
+    );
     if usage {
         body.push_str("data: {\"choices\":[],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":20,\"total_tokens\":30}}\n\n");
     }
@@ -525,18 +589,35 @@ fn invalid_planner_id_fails_before_any_worker_subtask_starts() {
     let (db, runtime, store, active, _, dir) = fixture("invalid-id", 2, 1);
     let registry = Arc::new(TaskRegistry::default());
     let (channel, receiver) = channel();
-    let id = start_task(registry, db.clone(), runtime, store, "invalid machine id test".into(), channel).unwrap();
+    let id = start_task(
+        registry,
+        db.clone(),
+        runtime,
+        store,
+        "invalid machine id test".into(),
+        channel,
+    )
+    .unwrap();
     let events = collect(&receiver);
     assert_eq!(terminal_count(&events), 1);
-    assert!(events.iter().any(|event| event.contains("task_graph_id_invalid")), "{events:?}");
-    assert!(!events.iter().any(|event| event.contains("\"subtask_started\"")));
+    assert!(
+        events
+            .iter()
+            .any(|event| event.contains("task_graph_id_invalid")),
+        "{events:?}"
+    );
+    assert!(!events
+        .iter()
+        .any(|event| event.contains("\"subtask_started\"")));
     assert_eq!(active.load(Ordering::Acquire), 0);
     let conn = db.open().unwrap();
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1",
-        [id.0],
-        |row| row.get(0),
-    ).unwrap();
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1",
+            [id.0],
+            |row| row.get(0),
+        )
+        .unwrap();
     assert_eq!(count, 0);
     drop(conn);
     fs::remove_dir_all(dir).unwrap();
@@ -571,15 +652,21 @@ fn independent_workers_overlap_use_distinct_providers_and_persist_provenance() {
         channel,
     )
     .unwrap();
-    let first = workers.recv_timeout(Duration::from_secs(10)).expect("first worker entered");
-    let second = workers.recv_timeout(Duration::from_secs(5)).expect("second worker entered");
+    let first = workers
+        .recv_timeout(Duration::from_secs(10))
+        .expect("first worker entered");
+    let second = workers
+        .recv_timeout(Duration::from_secs(5))
+        .expect("second worker entered");
     assert_ne!(first.0, second.0);
     assert_eq!(active.load(Ordering::Acquire), 2);
     first.1.send(()).unwrap();
     second.1.send(()).unwrap();
     let events = collect(&receiver);
     assert_eq!(terminal_count(&events), 1);
-    assert!(events.iter().any(|event| event.contains("\"task_completed\"")));
+    assert!(events
+        .iter()
+        .any(|event| event.contains("\"task_completed\"")));
     assert!(events.iter().any(|event| event.contains("\"groq\"")));
     assert!(events.iter().any(|event| event.contains("\"cloudflare\"")));
     assert!(max_active.load(Ordering::Acquire) >= 2);
@@ -614,7 +701,11 @@ fn independent_workers_overlap_use_distinct_providers_and_persist_provenance() {
         .unwrap();
     assert_eq!(session_after, session_before);
     assert_eq!(
-        identity::current_identity(&conn).unwrap().unwrap().input.version,
+        identity::current_identity(&conn)
+            .unwrap()
+            .unwrap()
+            .input
+            .version,
         "d3-test-v1"
     );
     drop(conn);
@@ -623,7 +714,11 @@ fn independent_workers_overlap_use_distinct_providers_and_persist_provenance() {
 
 #[test]
 fn production_structured_groq_plan_through_scheduler_and_dispatch_two_workers() {
-    use super::{cloudflare::{CloudflareConfig, CloudflareProvider}, groq::{GroqConfig, GroqProvider}, policy::{CognitiveTargetPolicy, RoutingMode}};
+    use super::{
+        cloudflare::{CloudflareConfig, CloudflareProvider},
+        groq::{GroqConfig, GroqProvider},
+        policy::{CognitiveTargetPolicy, RoutingMode},
+    };
 
     let (db, _synthetic_runtime, store, _active, _max_active, dir) = fixture("http-boundary", 2, 1);
     let planner_json = serde_json::json!({
@@ -639,26 +734,63 @@ fn production_structured_groq_plan_through_scheduler_and_dispatch_two_workers() 
         groq_completion(&planner_json, "stop", true),
         groq_sse("Análise concluída pelo Worker Groq.", true),
     ]);
-    let (cloudflare_endpoint, cloudflare_server) = local_sse_server(vec![
-        cloudflare_sse_without_usage("Análise concluída pelo Worker Cloudflare.")
-    ]);
-    let groq = Arc::new(GroqProvider::new(GroqConfig {
-        endpoint: format!("{groq_endpoint}/openai/v1/chat/completions"),
-        ..Default::default()
-    }, store.clone()).unwrap());
-    let cloudflare = Arc::new(CloudflareProvider::new(CloudflareConfig {
-        endpoint: cloudflare_endpoint,
-        ..Default::default()
-    }, store.clone()).unwrap());
+    let (cloudflare_endpoint, cloudflare_server) =
+        local_sse_server(vec![cloudflare_sse_without_usage(
+            "Análise concluída pelo Worker Cloudflare.",
+        )]);
+    let groq = Arc::new(
+        GroqProvider::new(
+            GroqConfig {
+                endpoint: format!("{groq_endpoint}/openai/v1/chat/completions"),
+                ..Default::default()
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
+    let cloudflare = Arc::new(
+        CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint: cloudflare_endpoint,
+                ..Default::default()
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
     let mut provider_registry = ProviderRegistry::default();
-    provider_registry.register(ProviderConfig { id: "groq".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::with_structured_output() }, groq).unwrap();
-    provider_registry.register(ProviderConfig { id: "cloudflare".into(), enabled: true, priority: 2, capabilities: ProviderCapabilities::text_stream() }, cloudflare).unwrap();
+    provider_registry
+        .register(
+            ProviderConfig {
+                id: "groq".into(),
+                enabled: true,
+                priority: 1,
+                capabilities: ProviderCapabilities::with_structured_output(),
+            },
+            groq,
+        )
+        .unwrap();
+    provider_registry
+        .register(
+            ProviderConfig {
+                id: "cloudflare".into(),
+                enabled: true,
+                priority: 2,
+                capabilities: ProviderCapabilities::text_stream(),
+            },
+            cloudflare,
+        )
+        .unwrap();
     let runtime = Arc::new(ProviderRuntime::new(provider_registry));
     {
         let mut conn = db.open().unwrap();
         let mut planner = policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
         planner.routing_mode = RoutingMode::Fixed;
-        planner.targets = vec![CognitiveTargetPolicy { provider_id: "groq".into(), model: "openai/gpt-oss-20b".into(), thinking_level: None }];
+        planner.targets = vec![CognitiveTargetPolicy {
+            provider_id: "groq".into(),
+            model: "openai/gpt-oss-20b".into(),
+            thinking_level: None,
+        }];
         planner.max_provider_calls = 1;
         planner.retry_enabled = false;
         planner.max_retries = 0;
@@ -666,8 +798,16 @@ fn production_structured_groq_plan_through_scheduler_and_dispatch_two_workers() 
         let mut workers = policy::load(&conn, CognitiveRole::Worker).unwrap();
         workers.routing_mode = RoutingMode::Preferred;
         workers.targets = vec![
-            CognitiveTargetPolicy { provider_id: "groq".into(), model: "openai/gpt-oss-20b".into(), thinking_level: None },
-            CognitiveTargetPolicy { provider_id: "cloudflare".into(), model: "@cf/zai-org/glm-4.7-flash".into(), thinking_level: None },
+            CognitiveTargetPolicy {
+                provider_id: "groq".into(),
+                model: "openai/gpt-oss-20b".into(),
+                thinking_level: None,
+            },
+            CognitiveTargetPolicy {
+                provider_id: "cloudflare".into(),
+                model: "@cf/zai-org/glm-4.7-flash".into(),
+                thinking_level: None,
+            },
         ];
         workers.retry_enabled = false;
         workers.max_retries = 0;
@@ -675,29 +815,81 @@ fn production_structured_groq_plan_through_scheduler_and_dispatch_two_workers() 
     }
     let registry = Arc::new(TaskRegistry::default());
     let (channel, receiver) = channel();
-    let id = start_task(registry.clone(), db.clone(), runtime, store, "analisar vantagens e riscos de cache local em desktop".into(), channel).unwrap();
+    let id = start_task(
+        registry.clone(),
+        db.clone(),
+        runtime,
+        store,
+        "analisar vantagens e riscos de cache local em desktop".into(),
+        channel,
+    )
+    .unwrap();
     let events = collect(&receiver);
     let payloads = groq_server.join().unwrap();
     assert_eq!(payloads[0]["stream"], false);
     assert!(payloads[0].get("stream_options").is_none());
     assert_eq!(payloads[0]["response_format"]["type"], "json_schema");
-    assert_eq!(payloads[0]["response_format"]["json_schema"]["strict"], true);
-    assert_eq!(payloads[0]["response_format"]["json_schema"]["schema"], crate::agents::planner::output_schema());
+    assert_eq!(
+        payloads[0]["response_format"]["json_schema"]["strict"],
+        true
+    );
+    assert_eq!(
+        payloads[0]["response_format"]["json_schema"]["schema"],
+        crate::agents::planner::output_schema()
+    );
     assert_eq!(payloads[1]["stream"], true);
     assert!(payloads[1].get("response_format").is_none());
-    assert_eq!(events.iter().filter(|e| e.contains("\"provider_output_observed\"")).count(), 1);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|e| e.contains("\"provider_output_observed\""))
+            .count(),
+        1
+    );
     cloudflare_server.join().unwrap();
     assert_eq!(terminal_count(&events), 1);
-    assert!(events.iter().any(|event| event.contains("\"task_completed\"")), "{events:?}");
-    assert_eq!(events.iter().filter(|event| event.contains("\"subtask_started\"")).count(), 2);
-    assert_eq!(events.iter().filter(|event| event.contains("\"subtask_completed\"")).count(), 2);
-    assert!(events.iter().any(|event| event.contains("Análise concluída pelo Worker Groq")));
-    assert!(events.iter().any(|event| event.contains("Análise concluída pelo Worker Cloudflare")));
-    let result_event = events.iter().find(|event| event.contains("\"task_graph_result_ready\"")).unwrap();
+    assert!(
+        events
+            .iter()
+            .any(|event| event.contains("\"task_completed\"")),
+        "{events:?}"
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.contains("\"subtask_started\""))
+            .count(),
+        2
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.contains("\"subtask_completed\""))
+            .count(),
+        2
+    );
+    assert!(events
+        .iter()
+        .any(|event| event.contains("Análise concluída pelo Worker Groq")));
+    assert!(events
+        .iter()
+        .any(|event| event.contains("Análise concluída pelo Worker Cloudflare")));
+    let result_event = events
+        .iter()
+        .find(|event| event.contains("\"task_graph_result_ready\""))
+        .unwrap();
     let result_json: serde_json::Value = serde_json::from_str(result_event).unwrap();
-    assert_eq!(result_json["result"]["workerUsage"]["outputTokensMeasured"], false);
+    assert_eq!(
+        result_json["result"]["workerUsage"]["outputTokensMeasured"],
+        false
+    );
     assert_eq!(result_json["result"]["workerUsage"]["outputTokens"], 20);
-    assert!(result_json["result"]["workerUsage"]["outputTokensAccounted"].as_u64().unwrap() >= 2_068);
+    assert!(
+        result_json["result"]["workerUsage"]["outputTokensAccounted"]
+            .as_u64()
+            .unwrap()
+            >= 2_068
+    );
     let conn = db.open().unwrap();
     let providers: Vec<String> = conn.prepare("SELECT provider_id FROM task_subtask_records WHERE root_task_id=?1 ORDER BY subtask_id").unwrap()
         .query_map([id.0], |row| row.get(0)).unwrap().map(Result::unwrap).collect();
@@ -708,27 +900,70 @@ fn production_structured_groq_plan_through_scheduler_and_dispatch_two_workers() 
 
 #[test]
 fn production_groq_incomplete_plan_fails_before_any_worker_is_compiled_or_started() {
-    use super::{cloudflare::{CloudflareConfig, CloudflareProvider}, groq::{GroqConfig, GroqProvider}, policy::{CognitiveTargetPolicy, RoutingMode}};
+    use super::{
+        cloudflare::{CloudflareConfig, CloudflareProvider},
+        groq::{GroqConfig, GroqProvider},
+        policy::{CognitiveTargetPolicy, RoutingMode},
+    };
 
-    let (db, _synthetic_runtime, store, _active, _max_active, dir) = fixture("http-incomplete", 2, 1);
+    let (db, _synthetic_runtime, store, _active, _max_active, dir) =
+        fixture("http-incomplete", 2, 1);
     let partial = groq_completion("{\"version\":1,\"objective\":\"partial\"", "length", true);
     let (groq_endpoint, groq_server) = local_sse_server(vec![partial]);
     let (unused_cloudflare_endpoint, unused_cloudflare_server) = local_sse_server(vec![]);
-    let groq = Arc::new(GroqProvider::new(GroqConfig {
-        endpoint: format!("{groq_endpoint}/openai/v1/chat/completions"), ..Default::default()
-    }, store.clone()).unwrap());
-    let cloudflare = Arc::new(CloudflareProvider::new(CloudflareConfig {
-        endpoint: unused_cloudflare_endpoint, ..Default::default()
-    }, store.clone()).unwrap());
+    let groq = Arc::new(
+        GroqProvider::new(
+            GroqConfig {
+                endpoint: format!("{groq_endpoint}/openai/v1/chat/completions"),
+                ..Default::default()
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
+    let cloudflare = Arc::new(
+        CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint: unused_cloudflare_endpoint,
+                ..Default::default()
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
     let mut provider_registry = ProviderRegistry::default();
-    provider_registry.register(ProviderConfig { id: "groq".into(), enabled: true, priority: 1, capabilities: ProviderCapabilities::with_structured_output() }, groq).unwrap();
-    provider_registry.register(ProviderConfig { id: "cloudflare".into(), enabled: true, priority: 2, capabilities: ProviderCapabilities::text_stream() }, cloudflare).unwrap();
+    provider_registry
+        .register(
+            ProviderConfig {
+                id: "groq".into(),
+                enabled: true,
+                priority: 1,
+                capabilities: ProviderCapabilities::with_structured_output(),
+            },
+            groq,
+        )
+        .unwrap();
+    provider_registry
+        .register(
+            ProviderConfig {
+                id: "cloudflare".into(),
+                enabled: true,
+                priority: 2,
+                capabilities: ProviderCapabilities::text_stream(),
+            },
+            cloudflare,
+        )
+        .unwrap();
     let runtime = Arc::new(ProviderRuntime::new(provider_registry));
     {
         let mut conn = db.open().unwrap();
         let mut planner = policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
         planner.routing_mode = RoutingMode::Fixed;
-        planner.targets = vec![CognitiveTargetPolicy { provider_id: "groq".into(), model: "openai/gpt-oss-20b".into(), thinking_level: None }];
+        planner.targets = vec![CognitiveTargetPolicy {
+            provider_id: "groq".into(),
+            model: "openai/gpt-oss-20b".into(),
+            thinking_level: None,
+        }];
         planner.max_provider_calls = 1;
         planner.retry_enabled = false;
         planner.max_retries = 0;
@@ -736,17 +971,39 @@ fn production_groq_incomplete_plan_fails_before_any_worker_is_compiled_or_starte
     }
     let registry = Arc::new(TaskRegistry::default());
     let (channel, receiver) = channel();
-    let id = start_task(registry, db.clone(), runtime, store, "objective incompleto".into(), channel).unwrap();
+    let id = start_task(
+        registry,
+        db.clone(),
+        runtime,
+        store,
+        "objective incompleto".into(),
+        channel,
+    )
+    .unwrap();
     let events = collect(&receiver);
     groq_server.join().unwrap();
     unused_cloudflare_server.join().unwrap();
     assert_eq!(terminal_count(&events), 1);
     assert!(events.iter().any(|event| event.contains("\"task_failed\"") && event.contains("provider_incomplete")), "{events:?}");
-    assert!(!events.iter().any(|event| event.contains("\"subtask_started\"")));
+    assert!(!events
+        .iter()
+        .any(|event| event.contains("\"subtask_started\"")));
     let conn = db.open().unwrap();
-    let count: i64 = conn.query_row("SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1", [id.0], |row| row.get(0)).unwrap();
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1",
+            [id.0],
+            |row| row.get(0),
+        )
+        .unwrap();
     assert_eq!(count, 0);
-    let root: (String, Option<String>) = conn.query_row("SELECT state,error_code FROM task_records WHERE task_id=?1", [id.0], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();
+    let root: (String, Option<String>) = conn
+        .query_row(
+            "SELECT state,error_code FROM task_records WHERE task_id=?1",
+            [id.0],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
     assert_eq!(root, ("failed".into(), Some("provider_incomplete".into())));
     drop(conn);
     fs::remove_dir_all(dir).unwrap();
@@ -754,9 +1011,14 @@ fn production_groq_incomplete_plan_fails_before_any_worker_is_compiled_or_starte
 
 #[test]
 fn production_cloudflare_is_skipped_as_structured_planner_but_remains_worker() {
-    use super::{cloudflare::{CloudflareConfig, CloudflareProvider}, groq::{GroqConfig, GroqProvider}, policy::{CognitiveTargetPolicy, RoutingMode}};
+    use super::{
+        cloudflare::{CloudflareConfig, CloudflareProvider},
+        groq::{GroqConfig, GroqProvider},
+        policy::{CognitiveTargetPolicy, RoutingMode},
+    };
 
-    let (db, _synthetic_runtime, store, _active, _max_active, dir) = fixture("cloudflare-planner", 2, 1);
+    let (db, _synthetic_runtime, store, _active, _max_active, dir) =
+        fixture("cloudflare-planner", 2, 1);
     let planner_json = serde_json::json!({
         "version":1,"objective":"cache local",
         "steps":[
@@ -764,27 +1026,71 @@ fn production_cloudflare_is_skipped_as_structured_planner_but_remains_worker() {
             {"id":"riscos","description":"Avaliar riscos e privacidade","requiredCapabilities":["planning"],"dependsOn":[]}
         ],"risks":[],"needsUserInput":false,"questions":[]
     }).to_string();
-    let (groq_endpoint, groq_server) = local_sse_server(vec![groq_completion(&planner_json, "stop", true), groq_sse("Worker Groq real-style.", true)]);
-    let (cloudflare_endpoint, cloudflare_server) = local_sse_server(vec![
-        cloudflare_sse("Worker Cloudflare real-style."),
+    let (groq_endpoint, groq_server) = local_sse_server(vec![
+        groq_completion(&planner_json, "stop", true),
+        groq_sse("Worker Groq real-style.", true),
     ]);
-    let groq = Arc::new(GroqProvider::new(GroqConfig {
-        endpoint: format!("{groq_endpoint}/openai/v1/chat/completions"), ..Default::default()
-    }, store.clone()).unwrap());
-    let cloudflare = Arc::new(CloudflareProvider::new(CloudflareConfig {
-        endpoint: cloudflare_endpoint, ..Default::default()
-    }, store.clone()).unwrap());
+    let (cloudflare_endpoint, cloudflare_server) =
+        local_sse_server(vec![cloudflare_sse("Worker Cloudflare real-style.")]);
+    let groq = Arc::new(
+        GroqProvider::new(
+            GroqConfig {
+                endpoint: format!("{groq_endpoint}/openai/v1/chat/completions"),
+                ..Default::default()
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
+    let cloudflare = Arc::new(
+        CloudflareProvider::new(
+            CloudflareConfig {
+                endpoint: cloudflare_endpoint,
+                ..Default::default()
+            },
+            store.clone(),
+        )
+        .unwrap(),
+    );
     let mut providers = ProviderRegistry::default();
-    providers.register(ProviderConfig { id:"groq".into(), enabled:true, priority:1, capabilities:ProviderCapabilities::with_structured_output() }, groq).unwrap();
-    providers.register(ProviderConfig { id:"cloudflare".into(), enabled:true, priority:2, capabilities:ProviderCapabilities::text_stream() }, cloudflare).unwrap();
+    providers
+        .register(
+            ProviderConfig {
+                id: "groq".into(),
+                enabled: true,
+                priority: 1,
+                capabilities: ProviderCapabilities::with_structured_output(),
+            },
+            groq,
+        )
+        .unwrap();
+    providers
+        .register(
+            ProviderConfig {
+                id: "cloudflare".into(),
+                enabled: true,
+                priority: 2,
+                capabilities: ProviderCapabilities::text_stream(),
+            },
+            cloudflare,
+        )
+        .unwrap();
     let runtime = Arc::new(ProviderRuntime::new(providers));
     {
         let mut conn = db.open().unwrap();
         let mut planner = policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
         planner.routing_mode = RoutingMode::Preferred;
         planner.targets = vec![
-            CognitiveTargetPolicy { provider_id:"cloudflare".into(), model:"@cf/zai-org/glm-4.7-flash".into(), thinking_level:None },
-            CognitiveTargetPolicy { provider_id:"groq".into(), model:"openai/gpt-oss-20b".into(), thinking_level:None },
+            CognitiveTargetPolicy {
+                provider_id: "cloudflare".into(),
+                model: "@cf/zai-org/glm-4.7-flash".into(),
+                thinking_level: None,
+            },
+            CognitiveTargetPolicy {
+                provider_id: "groq".into(),
+                model: "openai/gpt-oss-20b".into(),
+                thinking_level: None,
+            },
         ];
         planner.max_provider_calls = 2;
         planner.retry_enabled = false;
@@ -793,17 +1099,36 @@ fn production_cloudflare_is_skipped_as_structured_planner_but_remains_worker() {
     }
     let registry = Arc::new(TaskRegistry::default());
     let (channel, receiver) = channel();
-    let id = start_task(registry, db.clone(), runtime, store, "analisar vantagens e riscos de cache local".into(), channel).unwrap();
+    let id = start_task(
+        registry,
+        db.clone(),
+        runtime,
+        store,
+        "analisar vantagens e riscos de cache local".into(),
+        channel,
+    )
+    .unwrap();
     let events = collect(&receiver);
     groq_server.join().unwrap();
     cloudflare_server.join().unwrap();
     assert_eq!(terminal_count(&events), 1);
-    assert!(events.iter().filter(|e| e.contains("\"provider_selected\""))
+    assert!(events
+        .iter()
+        .filter(|e| e.contains("\"provider_selected\""))
         .all(|e| e.contains("\"provider_id\":\"groq\"")));
     assert!(!events.iter().any(|e| e.contains("\"provider_fallback\"")));
-    assert!(events.iter().any(|event| event.contains("\"task_completed\"")), "{events:?}");
-    assert!(events.iter().any(|event| event.contains("\"provider_id\":\"groq\"")));
-    assert!(events.iter().any(|event| event.contains("\"provider_id\":\"cloudflare\"")));
+    assert!(
+        events
+            .iter()
+            .any(|event| event.contains("\"task_completed\"")),
+        "{events:?}"
+    );
+    assert!(events
+        .iter()
+        .any(|event| event.contains("\"provider_id\":\"groq\"")));
+    assert!(events
+        .iter()
+        .any(|event| event.contains("\"provider_id\":\"cloudflare\"")));
     let conn = db.open().unwrap();
     let providers: Vec<String> = conn.prepare("SELECT provider_id FROM task_subtask_records WHERE root_task_id=?1 ORDER BY subtask_id").unwrap()
         .query_map([id.0], |row| row.get(0)).unwrap().map(Result::unwrap).collect();
@@ -830,8 +1155,12 @@ fn root_cancel_propagates_to_parallel_workers_and_never_completes() {
     assert!(registry.cancel(id));
     events.extend(collect(&receiver));
     assert_eq!(terminal_count(&events), 1);
-    assert!(events.iter().any(|event| event.contains("\"task_cancelled\"")));
-    assert!(!events.iter().any(|event| event.contains("\"task_completed\"")));
+    assert!(events
+        .iter()
+        .any(|event| event.contains("\"task_cancelled\"")));
+    assert!(!events
+        .iter()
+        .any(|event| event.contains("\"task_completed\"")));
     assert_eq!(active.load(Ordering::Acquire), 0);
 
     let conn = db.open().unwrap();
@@ -862,11 +1191,27 @@ fn completed_worker_is_preserved_when_sibling_is_cancelled() {
         fixture_with_worker_control("partial-cancel", 2, 0, Some(entered));
     let registry = Arc::new(TaskRegistry::default());
     let (channel, receiver) = channel();
-    let id = start_task(registry.clone(), db.clone(), runtime, store, "cancelar irmã lenta".into(), channel).unwrap();
-    let first = workers.recv_timeout(Duration::from_secs(10)).expect("first worker entered");
-    let second = workers.recv_timeout(Duration::from_secs(5)).expect("parallel sibling entered");
+    let id = start_task(
+        registry.clone(),
+        db.clone(),
+        runtime,
+        store,
+        "cancelar irmã lenta".into(),
+        channel,
+    )
+    .unwrap();
+    let first = workers
+        .recv_timeout(Duration::from_secs(10))
+        .expect("first worker entered");
+    let second = workers
+        .recv_timeout(Duration::from_secs(5))
+        .expect("parallel sibling entered");
     assert_eq!(max_active.load(Ordering::Acquire), 2);
-    let (fast, slow) = if first.0 == "groq" { (first, second) } else { (second, first) };
+    let (fast, slow) = if first.0 == "groq" {
+        (first, second)
+    } else {
+        (second, first)
+    };
     assert_eq!(slow.0, "cloudflare");
     let completed = WorkerAcknowledgement::new(fast.2);
     fast.1.send(()).unwrap();
@@ -879,21 +1224,34 @@ fn completed_worker_is_preserved_when_sibling_is_cancelled() {
     events.extend(collect(&receiver));
     drop(slow);
     assert_eq!(terminal_count(&events), 1);
-    assert!(events.iter().any(|event| event.contains("\"task_cancelled\"")));
-    assert!(events.iter().any(|event| event.contains("\"subtask_completed\"")));
+    assert!(events
+        .iter()
+        .any(|event| event.contains("\"task_cancelled\"")));
+    assert!(events
+        .iter()
+        .any(|event| event.contains("\"subtask_completed\"")));
     assert_eq!(active.load(Ordering::Acquire), 0);
 
     let conn = db.open().unwrap();
     let states: Vec<(String, String)> = conn.prepare(
         "SELECT subtask_id,state FROM task_subtask_records WHERE root_task_id=?1 ORDER BY subtask_id"
     ).unwrap().query_map([id.0], |row| Ok((row.get(0)?, row.get(1)?))).unwrap().map(Result::unwrap).collect();
-    assert_eq!(states, vec![("worker-1".into(), "completed".into()), ("worker-2".into(), "cancelled".into())]);
+    assert_eq!(
+        states,
+        vec![
+            ("worker-1".into(), "completed".into()),
+            ("worker-2".into(), "cancelled".into())
+        ]
+    );
     let (root_finished, completed_finished): (String, String) = conn.query_row(
         "SELECT r.finished_at,s.finished_at FROM task_records r JOIN task_subtask_records s ON s.root_task_id=r.task_id WHERE r.task_id=?1 AND s.subtask_id='worker-1'",
         [id.0],
         |row| Ok((row.get(0)?, row.get(1)?)),
     ).unwrap();
-    assert!(completed_finished <= root_finished, "completed unit must retain its own completion time");
+    assert!(
+        completed_finished <= root_finished,
+        "completed unit must retain its own completion time"
+    );
     drop(conn);
     fs::remove_dir_all(dir).unwrap();
 }
@@ -904,30 +1262,50 @@ fn root_cancel_requested_by_task_started_callback_is_cancelled_without_provider_
     let registry = Arc::new(TaskRegistry::default());
     let (channel, receiver) = cancel_on_task_started(registry.clone());
     let id = start_task(
-        registry.clone(), db.clone(), runtime, store, "cancelar imediatamente".into(), channel,
-    ).unwrap();
+        registry.clone(),
+        db.clone(),
+        runtime,
+        store,
+        "cancelar imediatamente".into(),
+        channel,
+    )
+    .unwrap();
     let events = collect(&receiver);
     assert_eq!(terminal_count(&events), 1);
-    assert!(events.iter().any(|event| event.contains("\"task_cancelled\"")));
-    assert!(!events.iter().any(|event| event.contains("\"subtask_started\"")));
+    assert!(events
+        .iter()
+        .any(|event| event.contains("\"task_cancelled\"")));
+    assert!(!events
+        .iter()
+        .any(|event| event.contains("\"subtask_started\"")));
     assert_eq!(active.load(Ordering::Acquire), 0);
-    assert_eq!(max_active.load(Ordering::Acquire), 0, "a provider was called before immediate cancellation took effect");
+    assert_eq!(
+        max_active.load(Ordering::Acquire),
+        0,
+        "a provider was called before immediate cancellation took effect"
+    );
     assert!(!registry.contains_for_test(id));
 
     let conn = db.open().unwrap();
-    let root: (String, Option<String>) = conn.query_row(
-        "SELECT state,error_code FROM task_records WHERE task_id=?1", [id.0],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    ).unwrap();
+    let root: (String, Option<String>) = conn
+        .query_row(
+            "SELECT state,error_code FROM task_records WHERE task_id=?1",
+            [id.0],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
     assert_eq!(root, ("cancelled".into(), None));
-    let subtasks: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1", [id.0], |row| row.get(0),
-    ).unwrap();
+    let subtasks: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1",
+            [id.0],
+            |row| row.get(0),
+        )
+        .unwrap();
     assert_eq!(subtasks, 0);
     drop(conn);
     fs::remove_dir_all(dir).unwrap();
 }
-
 
 #[test]
 fn root_worker_budget_blocks_new_wave_before_exceeding_call_limit() {
@@ -954,7 +1332,9 @@ fn root_worker_budget_blocks_new_wave_before_exceeding_call_limit() {
     let events = collect(&receiver);
     assert_eq!(terminal_count(&events), 1);
     assert!(events.iter().any(|event| event.contains("\"task_failed\"")));
-    assert!(events.iter().any(|event| event.contains("task_graph_budget_exceeded")));
+    assert!(events
+        .iter()
+        .any(|event| event.contains("task_graph_budget_exceeded")));
     assert_eq!(active.load(Ordering::Acquire), 0);
 
     let conn = db.open().unwrap();
@@ -978,7 +1358,6 @@ fn root_worker_budget_blocks_new_wave_before_exceeding_call_limit() {
     drop(conn);
     fs::remove_dir_all(dir).unwrap();
 }
-
 
 #[test]
 fn worker_channel_failure_is_failed_and_stops_parallel_sibling() {
@@ -1014,36 +1393,107 @@ fn worker_channel_failure_is_failed_and_stops_parallel_sibling() {
 
 #[test]
 fn fix5_production_structured_invalid_planner_never_starts_workers_and_terminal_is_unique() {
-    use super::{groq::{GroqConfig, GroqProvider}, policy::{CognitiveTargetPolicy, RoutingMode}};
+    use super::{
+        groq::{GroqConfig, GroqProvider},
+        policy::{CognitiveTargetPolicy, RoutingMode},
+    };
     for (output, code) in [
         ("{".to_owned(), "orchestrator_json_syntax_invalid"),
-        (serde_json::json!({"version":1,"objective":"cache","steps":[
+        (
+            serde_json::json!({"version":1,"objective":"cache","steps":[
             {"id":"a","description":"A","requiredCapabilities":["planning"],"dependsOn":["a"]}],
-            "risks":[],"needsUserInput":false,"questions":[]}).to_string(), "orchestrator_plan_semantic_invalid"),
+            "risks":[],"needsUserInput":false,"questions":[]})
+            .to_string(),
+            "orchestrator_plan_semantic_invalid",
+        ),
     ] {
         let (db, _synthetic, store, _, _, dir) = fixture("fix5-invalid", 2, 1);
         let (endpoint, server) = local_sse_server(vec![groq_completion(&output, "stop", true)]);
         let mut providers = ProviderRegistry::default();
-        providers.register(ProviderConfig { id:"groq".into(), enabled:true, priority:1, capabilities:ProviderCapabilities::with_structured_output() },
-            Arc::new(GroqProvider::new(GroqConfig { endpoint, ..Default::default() }, store.clone()).unwrap())).unwrap();
+        providers
+            .register(
+                ProviderConfig {
+                    id: "groq".into(),
+                    enabled: true,
+                    priority: 1,
+                    capabilities: ProviderCapabilities::with_structured_output(),
+                },
+                Arc::new(
+                    GroqProvider::new(
+                        GroqConfig {
+                            endpoint,
+                            ..Default::default()
+                        },
+                        store.clone(),
+                    )
+                    .unwrap(),
+                ),
+            )
+            .unwrap();
         // Workers use the production text streaming Cloudflare adapter. Neither can be called on planner failure.
-        providers.register(ProviderConfig { id:"cloudflare".into(), enabled:true, priority:2, capabilities:ProviderCapabilities::text_stream() },
-            Arc::new(super::cloudflare::CloudflareProvider::new(super::cloudflare::CloudflareConfig { endpoint:"http://127.0.0.1:1".into(), ..Default::default() }, store.clone()).unwrap())).unwrap();
+        providers
+            .register(
+                ProviderConfig {
+                    id: "cloudflare".into(),
+                    enabled: true,
+                    priority: 2,
+                    capabilities: ProviderCapabilities::text_stream(),
+                },
+                Arc::new(
+                    super::cloudflare::CloudflareProvider::new(
+                        super::cloudflare::CloudflareConfig {
+                            endpoint: "http://127.0.0.1:1".into(),
+                            ..Default::default()
+                        },
+                        store.clone(),
+                    )
+                    .unwrap(),
+                ),
+            )
+            .unwrap();
         {
-            let mut conn = db.open().unwrap(); let mut planner = policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
+            let mut conn = db.open().unwrap();
+            let mut planner = policy::load(&conn, CognitiveRole::Orchestrator).unwrap();
             planner.routing_mode = RoutingMode::Fixed;
-            planner.targets = vec![CognitiveTargetPolicy { provider_id:"groq".into(), model:super::groq::MODEL.into(), thinking_level:None }];
-            planner.retry_enabled = false; planner.max_provider_calls = 1;
+            planner.targets = vec![CognitiveTargetPolicy {
+                provider_id: "groq".into(),
+                model: super::groq::MODEL.into(),
+                thinking_level: None,
+            }];
+            planner.retry_enabled = false;
+            planner.max_provider_calls = 1;
             policy::save(&mut conn, &planner).unwrap();
         }
         let (channel, receiver) = channel();
-        let id = start_task(Arc::new(TaskRegistry::default()), db.clone(), Arc::new(ProviderRuntime::new(providers)), store, "cache desktop".into(), channel).unwrap();
-        let events = collect(&receiver); assert_eq!(server.join().unwrap().len(), 1);
+        let id = start_task(
+            Arc::new(TaskRegistry::default()),
+            db.clone(),
+            Arc::new(ProviderRuntime::new(providers)),
+            store,
+            "cache desktop".into(),
+            channel,
+        )
+        .unwrap();
+        let events = collect(&receiver);
+        assert_eq!(server.join().unwrap().len(), 1);
         assert_eq!(terminal_count(&events), 1);
-        assert!(events.iter().any(|e| e.contains("\"task_failed\"") && e.contains(code)));
-        assert!(!events.iter().any(|e| e.contains("\"subtask_started\"") || e.contains("\"task_planned\"")));
-        let count: i64 = db.open().unwrap().query_row("SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1", [id.0], |r| r.get(0)).unwrap();
-        assert_eq!(count, 0); fs::remove_dir_all(dir).unwrap();
+        assert!(events
+            .iter()
+            .any(|e| e.contains("\"task_failed\"") && e.contains(code)));
+        assert!(!events
+            .iter()
+            .any(|e| e.contains("\"subtask_started\"") || e.contains("\"task_planned\"")));
+        let count: i64 = db
+            .open()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=?1",
+                [id.0],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
+        fs::remove_dir_all(dir).unwrap();
     }
 }
 
@@ -1153,7 +1603,9 @@ fn same_provider_workers_admission(cap: usize) {
     let first = entered
         .recv_timeout(Duration::from_secs(10))
         .expect("first worker admitted");
-    assert_eq!(first.0, "worker-1");
+    // Independent units may complete durable preparation in either order.
+    // Admission capacity/overlap and final plan ordering remain the contracts.
+    assert!(matches!(first.0.as_str(), "worker-1" | "worker-2"));
     let mut events = vec![];
     let second = if cap == 1 {
         events.extend(wait_for(&receiver, "\"provider_queued\""));
@@ -1183,7 +1635,8 @@ fn same_provider_workers_admission(cap: usize) {
         first.1.send(()).unwrap();
         second
     };
-    assert_eq!(second.0, "worker-2");
+    assert!(matches!(second.0.as_str(), "worker-1" | "worker-2"));
+    assert_ne!(first.0, second.0);
     second.1.send(()).unwrap();
     events.extend(collect(&receiver));
     assert_eq!(terminal_count(&events), 1);

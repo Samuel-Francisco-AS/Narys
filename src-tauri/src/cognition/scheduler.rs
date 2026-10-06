@@ -122,8 +122,18 @@ pub(crate) struct ProviderRouteEntry {
 pub(crate) struct PinnedProviderAllocation {
     target: ProviderTarget,
     variant: crate::cognitive_resources::AllocationVariant,
+    selection: AllocationSelection,
+}
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct AllocationSelection {
+    pub mode: super::policy::RoutingMode,
+    pub score: Option<i64>,
 }
 impl PinnedProviderAllocation {
+    pub fn selection(&self) -> &AllocationSelection {
+        &self.selection
+    }
     pub fn target(&self) -> &ProviderTarget {
         &self.target
     }
@@ -136,6 +146,7 @@ impl PinnedProviderAllocation {
 enum ProviderChainPurpose {
     Execution,
     Ranking,
+    BoundaryRanking,
 }
 
 pub struct Scheduler {
@@ -337,7 +348,7 @@ impl Scheduler {
             allocation_policy,
             None,
             0,
-            ProviderChainPurpose::Ranking,
+            ProviderChainPurpose::BoundaryRanking,
         )?;
         let mut pins = Vec::new();
         for route in chain
@@ -371,7 +382,19 @@ impl Scheduler {
             {
                 return Err(SchedulerError::InvalidTargetConfig);
             }
-            pins.push(PinnedProviderAllocation { target, variant });
+            let mode = match selection {
+                ProviderSelection::Fixed(_) => super::policy::RoutingMode::Fixed,
+                ProviderSelection::Preferred => super::policy::RoutingMode::Preferred,
+                ProviderSelection::Auto => super::policy::RoutingMode::Auto,
+            };
+            pins.push(PinnedProviderAllocation {
+                target,
+                variant,
+                selection: AllocationSelection {
+                    mode,
+                    score: route.score,
+                },
+            });
         }
         if pins.is_empty() {
             Err(SchedulerError::NoProvider)
@@ -420,7 +443,7 @@ impl Scheduler {
                 .auto_allocator
                 .as_ref()
                 .map_err(|e| e.scheduler_error())?
-                .plan(
+                .plan_for_boundary(
                     &self.registry,
                     allocation_policy,
                     targets,
@@ -432,6 +455,25 @@ impl Scheduler {
                     &rate,
                 )
                 .map_err(|e| e.scheduler_error())?;
+            if plan.entries().is_empty() {
+                // Only an otherwise eligible paid candidate excluded exclusively
+                // by spend authorization proves economic continuation is possible.
+                let spend_block = plan.exclusions().iter().any(|e| {
+                    self.resilience.eligible(e.variant.resource_id.as_str())
+                        && matches!(&e.reason,
+                    crate::cognitive_resources::ProviderVariantExclusionReason::Economic { reasons }
+                    if !reasons.is_empty() && reasons.iter().all(|r| matches!(r,
+                        crate::cognitive_resources::EconomicExclusion::PaidUseDenied |
+                        crate::cognitive_resources::EconomicExclusion::PaidBudgetExceeded)))
+                });
+                return Err(
+                    if purpose == ProviderChainPurpose::BoundaryRanking && spend_block {
+                        SchedulerError::EconomicAuthorizationRequired
+                    } else {
+                        SchedulerError::NoProvider
+                    },
+                );
+            }
             return Ok(plan
                 .entries()
                 .iter()
@@ -456,12 +498,18 @@ impl Scheduler {
                 .get(&target.provider_id)
                 .ok_or(SchedulerError::NoProvider)?;
             if !entry.config.enabled {
-                if purpose == ProviderChainPurpose::Ranking {
+                if matches!(
+                    purpose,
+                    ProviderChainPurpose::Ranking | ProviderChainPurpose::BoundaryRanking
+                ) {
                     continue;
                 }
                 return Err(SchedulerError::NoProvider);
             }
-            if purpose == ProviderChainPurpose::Ranking {
+            if matches!(
+                purpose,
+                ProviderChainPurpose::Ranking | ProviderChainPurpose::BoundaryRanking
+            ) {
                 // Preserve the pre-B3 explicit ranking projection: registered
                 // enabled runtimes with the required capabilities, policy order.
                 // Exact invocation validation remains at the execution boundary.

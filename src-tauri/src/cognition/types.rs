@@ -271,7 +271,8 @@ impl ProviderError {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TaskBudget {
     pub max_provider_calls: u32,
     pub max_output_tokens: Option<u32>,
@@ -291,8 +292,8 @@ impl RetryPolicy {
         )
     }
 }
-#[derive(Clone, Debug, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SchedulerUsage {
     pub provider_calls: u32,
     pub input_tokens: u32,
@@ -330,6 +331,7 @@ pub enum SchedulerError {
     Cancelled,
     EventSinkClosed,
     NoProvider,
+    EconomicAuthorizationRequired,
     InvalidTargetConfig,
     Provider(ProviderError),
 }
@@ -348,6 +350,7 @@ impl SchedulerError {
             Self::Cancelled => "cancelled",
             Self::EventSinkClosed => "channel_closed",
             Self::NoProvider => "provider_unavailable",
+            Self::EconomicAuthorizationRequired => "handoff_economic_authorization_required",
             Self::InvalidTargetConfig => "provider_config_invalid",
             Self::Provider(e) => e.code(),
         }

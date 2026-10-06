@@ -876,14 +876,14 @@ fn c2_migration_014_upgrades_v13_preserving_history_and_b4_settings() {
     history(&conn, "completed", Some(("unit-1", "completed")));
     let routing = policy::load(&conn, CognitiveRole::Worker).unwrap();
     let allocation = allocation_policy::load(&conn, CognitiveRole::Worker).unwrap();
-    conn.execute_batch("DROP TABLE cognitive_checkpoints; DROP TABLE checkpoint_task_policies; PRAGMA user_version=13;").unwrap();
+    conn.execute_batch("DROP TABLE IF EXISTS cognitive_continuation_units; DROP TABLE IF EXISTS cognitive_continuations; DROP TABLE cognitive_checkpoints; DROP TABLE checkpoint_task_policies; PRAGMA user_version=13;").unwrap();
     drop(conn);
     let reopened = f.open();
     assert_eq!(
         reopened
             .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        14
+        15
     );
     assert_eq!(
         policy::load(&reopened, CognitiveRole::Worker).unwrap(),
@@ -910,7 +910,7 @@ fn c2_migration_014_upgrades_v13_preserving_history_and_b4_settings() {
 fn c2_migration_014_failure_is_atomic_and_retryable() {
     let f = Fixture::new();
     let conn = f.open();
-    conn.execute_batch("DROP TABLE cognitive_checkpoints; DROP TABLE checkpoint_task_policies; PRAGMA user_version=13; CREATE TABLE cognitive_checkpoints(dummy INTEGER);").unwrap();
+    conn.execute_batch("DROP TABLE IF EXISTS cognitive_continuation_units; DROP TABLE IF EXISTS cognitive_continuations; DROP TABLE cognitive_checkpoints; DROP TABLE checkpoint_task_policies; PRAGMA user_version=13; CREATE TABLE cognitive_checkpoints(dummy INTEGER);").unwrap();
     assert!(migrations::apply(&conn).is_err());
     assert!(conn.is_autocommit());
     assert_eq!(
@@ -927,7 +927,7 @@ fn c2_migration_014_failure_is_atomic_and_retryable() {
         .unwrap(),
         0
     );
-    conn.execute_batch("DROP TABLE cognitive_checkpoints;")
+    conn.execute_batch("DROP TABLE IF EXISTS cognitive_continuation_units; DROP TABLE IF EXISTS cognitive_continuations; DROP TABLE cognitive_checkpoints;")
         .unwrap();
     migrations::apply(&conn).unwrap();
     assert_eq!(counts(&conn), (0, 0));

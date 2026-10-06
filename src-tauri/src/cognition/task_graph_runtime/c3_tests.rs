@@ -20,17 +20,19 @@ use std::{
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct Call {
-    unit: String,
-    provider: String,
-    model: String,
-    effort: Option<ThinkingLevel>,
+pub(super) struct Call {
+    pub(super) unit: String,
+    pub(super) provider: String,
+    pub(super) model: String,
+    pub(super) effort: Option<ThinkingLevel>,
+    pub(super) dependencies: Option<String>,
 }
 struct Mock {
     id: &'static str,
     calls: Arc<Mutex<Vec<Call>>>,
     variants: bool,
     partial_failure: bool,
+    hold_after_output: bool,
     rendezvous: Option<Arc<tokio::sync::Barrier>>,
     entered: Arc<tokio::sync::Notify>,
 }
@@ -68,6 +70,11 @@ impl Provider for Mock {
                 provider: self.id.into(),
                 model: request.target.invocation.model.clone(),
                 effort: request.target.invocation.thinking_level,
+                dependencies: request
+                    .input
+                    .split("RESULTADOS DAS DEPENDÊNCIAS:\n")
+                    .nth(1)
+                    .map(str::to_owned),
             });
             self.entered.notify_one();
             if let Some(barrier) = &self.rendezvous {
@@ -75,6 +82,9 @@ impl Provider for Mock {
             }
             let text = format!("verified-result-{unit}");
             chunk(ProviderChunk { text: text.clone() })?;
+            if self.hold_after_output {
+                std::future::pending::<()>().await;
+            }
             if self.partial_failure {
                 return Err(ProviderError::Unavailable {
                     retry_after_ms: None,
@@ -94,18 +104,54 @@ impl Provider for Mock {
         })
     }
 }
-struct Fixture {
-    directory: PathBuf,
-    db: Database,
-    runtime: Arc<ProviderRuntime>,
-    snapshot: TaskPolicySnapshot,
-    calls: Arc<Mutex<Vec<Call>>>,
-    cancelled: Arc<AtomicBool>,
-    context: Option<ContextBundle>,
-    entered: Arc<tokio::sync::Notify>,
+pub(super) struct Fixture {
+    pub(super) directory: PathBuf,
+    pub(super) db: Database,
+    pub(super) runtime: Arc<ProviderRuntime>,
+    pub(super) snapshot: TaskPolicySnapshot,
+    pub(super) calls: Arc<Mutex<Vec<Call>>>,
+    pub(super) cancelled: Arc<AtomicBool>,
+    pub(super) context: Option<ContextBundle>,
+    pub(super) entered: Arc<tokio::sync::Notify>,
 }
 impl Fixture {
-    fn new(mode: RoutingMode, variants: bool, partial_failure: bool, parallel: bool) -> Self {
+    pub(super) fn new(
+        mode: RoutingMode,
+        variants: bool,
+        partial_failure: bool,
+        parallel: bool,
+    ) -> Self {
+        Self::new_economic(mode, variants, partial_failure, parallel, false, false)
+    }
+    pub(super) fn new_economic(
+        mode: RoutingMode,
+        variants: bool,
+        partial_failure: bool,
+        parallel: bool,
+        paid: bool,
+        allow: bool,
+    ) -> Self {
+        Self::new_recovery_fixture(
+            mode,
+            variants,
+            partial_failure,
+            parallel,
+            paid,
+            allow,
+            true,
+            false,
+        )
+    }
+    pub(super) fn new_recovery_fixture(
+        mode: RoutingMode,
+        variants: bool,
+        partial_failure: bool,
+        parallel: bool,
+        paid: bool,
+        allow: bool,
+        known_cost: bool,
+        partial_b: bool,
+    ) -> Self {
         static NEXT: AtomicUsize = AtomicUsize::new(1);
         let directory = std::env::temp_dir().join(format!(
             "c3-graph-{}-{}-{}",
@@ -138,7 +184,12 @@ impl Fixture {
                 thinking_level: None,
             });
         }
-        let dto = allocation_policy::load(&conn, CognitiveRole::Worker).unwrap();
+        let mut dto = allocation_policy::load(&conn, CognitiveRole::Worker).unwrap();
+        if allow {
+            dto.paid_use_policy = allocation_policy::PaidUseMode::AllowKnownCostWithinBudget;
+            dto.max_paid_currency = Some("USD".into());
+            dto.max_paid_micros = Some(100);
+        }
         allocation_policy::save_role_settings(&mut conn, &routing, &dto).unwrap();
         let captured =
             allocation_policy::load_role_runtime_policy(&conn, CognitiveRole::Worker).unwrap();
@@ -174,7 +225,9 @@ impl Fixture {
                         id,
                         calls: calls.clone(),
                         variants: variants && id == "runtime-a",
-                        partial_failure: partial_failure && id == "runtime-a",
+                        partial_failure: (partial_failure && id == "runtime-a")
+                            || (partial_b && id == "runtime-b"),
+                        hold_after_output: partial_b && id == "runtime-b",
                         rendezvous: rendezvous.clone(),
                         entered: entered.clone(),
                     }),
@@ -213,6 +266,15 @@ impl Fixture {
                     .collect();
                 resource.models = known(profiles);
             }
+            if paid && id == "runtime-b" {
+                resource.economics.billing_kind = known(BillingKind::MeteredBilling);
+                let mut profile = ModelProfile::unknown(ModelId::new("model-b").unwrap());
+                if known_cost {
+                    profile.facts.execution.monetary_cost =
+                        known(MonetaryAmount::new("USD", 10).unwrap());
+                }
+                resource.models = known(vec![profile]);
+            }
             catalog.register(resource).unwrap();
         }
         let scheduler =
@@ -230,7 +292,7 @@ impl Fixture {
             entered,
         }
     }
-    async fn run(
+    pub(super) async fn run(
         &mut self,
         steps: Vec<PlanStepV1>,
         action: impl Fn(&serde_json::Value) + Send + Sync + 'static,
@@ -281,7 +343,7 @@ impl Fixture {
         let events = events.lock().unwrap().clone();
         (outcome, events)
     }
-    fn receipts(&self) -> Vec<CheckpointRecord> {
+    pub(super) fn receipts(&self) -> Vec<CheckpointRecord> {
         let conn = self.db.open().unwrap();
         let bindings: Vec<(u64, String)> = conn.prepare("SELECT unit_sequence,source_key FROM main.cognitive_checkpoints WHERE root_task_id=100 ORDER BY unit_sequence").unwrap()
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().map(Result::unwrap).collect();
@@ -301,7 +363,7 @@ impl Fixture {
             })
             .collect()
     }
-    fn calls(&self) -> Vec<Call> {
+    pub(super) fn calls(&self) -> Vec<Call> {
         self.calls.lock().unwrap().clone()
     }
 }
@@ -313,7 +375,7 @@ impl Drop for Fixture {
 fn known<T>(value: T) -> CatalogFact<T> {
     CatalogFact::known(value, CatalogProvenance::IntegrationCatalog, Some(42)).unwrap()
 }
-fn step(id: &str, deps: &[&str]) -> PlanStepV1 {
+pub(super) fn step(id: &str, deps: &[&str]) -> PlanStepV1 {
     PlanStepV1 {
         id: id.into(),
         description: "deterministic cognitive work".into(),
@@ -321,7 +383,7 @@ fn step(id: &str, deps: &[&str]) -> PlanStepV1 {
         depends_on: deps.iter().map(|s| (*s).into()).collect(),
     }
 }
-fn plan(steps: Vec<PlanStepV1>) -> PlanV1 {
+pub(super) fn plan(steps: Vec<PlanStepV1>) -> PlanV1 {
     PlanV1 {
         version: 1,
         objective: "local gate".into(),
@@ -331,10 +393,10 @@ fn plan(steps: Vec<PlanStepV1>) -> PlanV1 {
         questions: vec![],
     }
 }
-fn sequential() -> Vec<PlanStepV1> {
+pub(super) fn sequential() -> Vec<PlanStepV1> {
     vec![step("a", &[]), step("b", &["a"])]
 }
-fn exhaust(s: &Scheduler, id: &str, scope: QuotaScope) {
+pub(super) fn exhaust(s: &Scheduler, id: &str, scope: QuotaScope) {
     s.telemetry.observe_quota(
         id,
         scope,

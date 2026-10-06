@@ -322,6 +322,35 @@ impl ProviderAutoAllocator {
         telemetry: &[ProviderTelemetrySnapshot],
         rate: &[RateSnapshot],
     ) -> Result<AutoRoutePlan, ProviderBridgeError> {
+        let plan = self.plan_for_boundary(
+            registry,
+            runtime_policy,
+            targets,
+            required,
+            mode,
+            affinity,
+            bytes,
+            telemetry,
+            rate,
+        )?;
+        if plan.entries.is_empty() {
+            return Err(ProviderBridgeError::NoEligibleCandidates);
+        }
+        Ok(plan)
+    }
+
+    pub(crate) fn plan_for_boundary(
+        &self,
+        registry: &ProviderRegistry,
+        runtime_policy: &AllocationRuntimePolicy,
+        targets: &[ProviderTarget],
+        required: ProviderCapabilities,
+        mode: &InvocationMode,
+        affinity: Option<&str>,
+        bytes: usize,
+        telemetry: &[ProviderTelemetrySnapshot],
+        rate: &[RateSnapshot],
+    ) -> Result<AutoRoutePlan, ProviderBridgeError> {
         if targets.is_empty() || targets.len() > MAX_TARGETS || !mode.valid() {
             return Err(ProviderBridgeError::InvalidTargets);
         }
@@ -526,9 +555,6 @@ impl ProviderAutoAllocator {
                     })
             })
             .collect::<Vec<_>>();
-        if entries.is_empty() {
-            return Err(ProviderBridgeError::NoEligibleCandidates);
-        }
         exclusions.sort_by(|a, b| a.variant.cmp(&b.variant));
         Ok(AutoRoutePlan {
             entries,

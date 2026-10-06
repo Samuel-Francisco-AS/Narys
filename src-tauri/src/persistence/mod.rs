@@ -1,4 +1,5 @@
 pub mod checkpoints;
+pub(crate) mod continuations;
 pub mod conversation;
 pub mod database;
 pub mod gemini_settings;

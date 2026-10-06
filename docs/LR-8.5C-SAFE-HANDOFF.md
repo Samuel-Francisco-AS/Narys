@@ -6,8 +6,10 @@ Estado: **C1 = PASS técnico após auditoria independente.**
 
 **C3 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
-Os PASSs são exclusivos de C1/C2. LR-8.5C permanece aberta;
-C4 não foi iniciada.
+**C4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+
+C1 PASS; C2 PASS; C3 PASS. LR-8.5C ainda **NÃO PASS**.
+Merge ainda **NÃO autorizado**.
 
 Esta subfase fecha a LR-8.5 provando continuidade segura entre decisões de alocação
 independentes. Os blocos C1–C4 são **blocos internos da LR-8.5C**, não novas subfases
@@ -1406,3 +1408,260 @@ de 30 para 27 arquivos sem novo drift.
 
 **Decisão:** C3 aprovado para servir de base ao C4. Este PASS não aprova C4,
 não encerra LR-8.5C e não autoriza merge da branch neste checkpoint.
+
+
+## C4 — implementação candidata, 06/10/2026
+
+**C4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+
+Baseline: `lr-8.5c-safe-handoff@c07e2a8398531fcd40823f22d4973a986d5706d7`,
+sincronizada com o remoto, workspace limpo antes da implementação; `main` e
+`origin/main` preservadas em `0024fec735e3f6cb2461dbdeba8fa6aa4be32d32`.
+C1, C2 e C3 continuam PASS. Esta implementação não é auditoria independente,
+não encerra LR-8.5C e não autoriza merge.
+
+### Continuação durável e ordem dos fatos
+
+Migration **015**, posterior à 014 efetivamente existente, cria somente:
+
+- `cognitive_continuations`: root indexado, manifest JSON v1, lifecycle,
+  reason estruturado de pausa e geração monotônica do claim;
+- `cognitive_continuation_units`: uma row para cada step do manifest, lifecycle
+  `not_started` / `started` / `completed`, sequência da unidade, allocation e
+  seleção reais, grant de calls/output, resultado útil e sequência do checkpoint.
+
+O manifest conserva apenas objetivo/steps validados do PlanV1, dependências,
+capabilities/instrução bounded, o `TaskPolicySnapshot` original, timeouts capturados,
+referência de versão da identidade e provenance/usage factual do planner.
+Risks/questions narrativas não participam do Worker e não são copiadas. O plano
+reconstruído no resultado de resume conserva objetivo/steps e tem essas listas
+vazias. Limites do PlanV1 e do TaskGraph continuam aplicados; dependências
+repetidas são rejeitadas antes do dispatch. Manifest: **48 KiB** de JSON;
+identidade: referência de até **128 bytes**, sem cópia do contexto da identidade.
+
+~~~text
+manifest + todas as rows not_started COMMIT
+→ seleção C3/B sob snapshot original
+→ started + allocation/selection/grant COMMIT
+→ Worker/Scheduler (sem transação SQLite durante await do provider)
+→ checkpoint C2 + resultado útil + completed COMMIT atômico
+→ evento subtask_completed
+→ C1 + cancelamento + nova seleção para sucessores
+→ lifecycle durável final
+~~~
+
+A marca `started` é um fence conservador de intenção de dispatch, anterior ao
+request. Não afirma que HTTP ocorreu; admission/accounting factual continuam
+exclusivos do Scheduler. Após crash, essa marca sem completion não volta a
+`not_started`, mesmo se o crash antecedeu HTTP. É suficiente para também impedir
+replay de qualquer unidade que produziu output parcial: não há gravação por
+chunk nem promessa de reconstruir chunks/estado privado do provider.
+
+### Resultados e integridade
+
+O resultado persistido é o `TaskGraphSubtaskResult` útil, tratado como dado não
+confiável, e seus contadores estruturados existentes. Texto não vazio: **16 KiB
+UTF-8**, tanto em streaming textual normal quanto após validação do resultado
+estruturado. JSON: **100 KiB**, permitindo escaping do texto bounded. IDs,
+provider, usage, grant, policy e receipt exatos são verificados. Não se copia
+request/prompt remoto, histórico, memórias, headers, HTTP body, credenciais,
+secrets ou campos privados de reasoning do adapter. Nenhum estado global de
+memória foi criado.
+
+`CheckpointRepository::commit_with` mantém o mesmo writer/validação C2 e a mesma
+exigência de conexão durável, incluindo proteção contra transação externa. O
+callback local participa do seu COMMIT: erro no resultado/marker faz rollback do
+checkpoint e da policy row também. O receipt somente retorna após COMMIT.
+Result retry idêntico retorna o receipt original; conteúdo conflitante falha e
+não sobrescreve. O JSON dos checkpoints C2/C3 não mudou; continuam legíveis sem
+novos campos obrigatórios.
+
+Rows ausentes, JSON/UTF-8 inválido, root/unit/receipt/source/policy divergentes,
+sequence/grant inválidos, evidência terminal contraditória e contexto necessário
+sem resultado impedem dispatch. Uma row `not_started` precisa existir explicitamente
+no manifest e no ledger, sem evidência contrária em checkpoints/task history.
+Não se infere pristine a partir de ausência.
+
+### Pause, cancelamento e resume
+
+Lifecycle raiz usa códigos distintos `running`, `paused`, `completed`,
+`cancelled`, `failed`. Pausa tem enum estável `PauseReason`:
+`EconomicAuthorization`, `RecoveryRequired`, `UncertainExecution`,
+`InsufficientDurableContext`, `InvalidRecovery`. Pausa não cria row terminal
+em `task_records`, nem evento de completed. Falha de persistência de pausa,
+claim, marker, resultado, receipt ou lifecycle falha fechado.
+
+A estratégia adotada é **A: resume com a mesma policy**. Nenhuma autorização
+extra de gasto ou edição task-scoped/global da policy foi criada. Settings novas
+não alteram o snapshot antigo. Quando a quota/fatos da alternativa autorizada
+voltam a permitir continuação, resume explícito pode continuar aquela tarefa.
+
+A pausa econômica só ocorre na seleção da próxima unidade, a partir dos
+exclusions estruturados do mesmo motor B: candidato operacionalmente compatível
+bloqueado exclusivamente por `PaidUseDenied` / `PaidBudgetExceeded`, com
+resilience elegível. Não se repete scoring para diagnosticar o bloqueio. 429,
+503, NoProvider, circuit open, capability ausente e custo UNKNOWN não viram
+mensagem de compra/pausa econômica. `PaidCostUnknown` sob Allow continua excluído;
+UNKNOWN permanece UNKNOWN. Deny nunca ganha autorização por falta de alternativas.
+Allow originalmente capturado pode selecionar paid com custo conhecido dentro do
+ceiling já definido na B; C4 não implementa billing nem ledger monetário novo.
+Fixed/Preferred preservam o contrato explícito aprovado na B/C3.
+
+A API Core real é `task_graph_runtime::resume_task_graph`: carrega/valida ledger,
+obtém claim SQLite `BEGIN IMMEDIATE` por root/generation, registra o mesmo root
+no TaskRegistry, reconstrói grafo/resultados, roda C1 antes de novos sucessores,
+reavalia facts atuais e executa apenas rows comprovadamente nunca iniciadas.
+Não chama planner outra vez nem relê Settings para policy/timeouts. Chamadas
+concorrentes retornam busy/terminal, sem duplicar a unidade. O guard do registry
+agora identifica sua própria registration por `Arc::ptr_eq`, evitando que Drop
+de um guard antigo remova a registration de um resume do mesmo root (ABA).
+
+`cancel_task` também compromete cancelamento no ledger de tarefas ativas/pausadas.
+Cancelamento antes de novo dispatch vence; mesmo entre claim e registration, o
+CAS de `started` exige root ainda running. Finalização reconhece cancelamento
+persistido. Cancelled/completed/failed não aceitam resume; receipts anteriores
+permanecem intactos. Não foi criada nova UI de autorização/resume. Tipos e
+consumidores exaustivos existentes recebem somente compatibilidade com paused.
+
+### Restart, dependências, identidade e paralelismo
+
+Startup abre/aplica migrations, calcula high-water mark e recupera metadata
+**antes de expor providers**. `task_history::max_id` considera history terminal,
+checkpoints e agora continuations, inclusive root com payload inválido.
+`recover` valida manifest/rows/receipts/results e mantém tudo paused; nunca
+executa provider. Pausas econômicas válidas conservam o reason após reopen;
+interrupções ficam RecoveryRequired/UncertainExecution e corrupção InvalidRecovery.
+
+Units completed são restauradas com resultados/receipts exatos, sem executar A
+ou recalcular retrospectivamente sua allocation. O metadata de finish restaurado
+usa o timestamp factual do COMMIT C2; started_at desconhecido permanece ausente.
+Task history do resume identifica o início factual da **sessão de resume**, sem
+inventar o instante perdido de início da task original.
+
+Uma unidade incerta bloqueia sua branch/dependentes. Unidades independentes
+comprovadamente not_started podem continuar por resume explícito, sob budget
+original: grants de calls/output das unidades iniciadas incertas são debitados
+conservadoramente pelo teto, nunca restaurados como zero. O root permanece paused
+enquanto houver incerteza. Efeito Committed permanece não replayable; efeito
+UnknownOrInFlight nunca é normalizado para NotStarted nem resolvido automaticamente.
+
+O paralelismo normal de waves foi preservado, com pins/results próprios. A ordem
+de conclusão da preparação SQLite de unidades independentes pode variar; a ordem
+de resultados consolidados continua sendo a ordem validada do plano.
+
+### Observabilidade Auto
+
+`PinnedProviderAllocation` conserva `AllocationSelection { mode, score }`:
+score inteiro já calculado pela B para Auto, None para explícitos. O metadata vem
+da mesma route entry que produziu o target/variant pinados; é emitido em
+`subtask_started` e persistido na unidade. C1 `handoff_reason`/transitions continuam
+separados dessa decisão econômica. Origem/destino/checkpoint, mudanças de
+resource/access path/model/effort e seleção unchanged são verificáveis sem prompt,
+output, secrets, preço inventado ou ScoreBreakdown completo em diagnostics.
+
+### Gates e FIXes locais
+
+Bateria final separada: `lr85c_final_*`, cobrindo A–Z do pedido. Bateria C4 local:
+`c4_*`, incluindo persistência, bounds, corrupção, rollback, grants/claims,
+cancelamento e ABA de TaskRegistry. Todos usam mocks/SQLite local; nenhum provider
+comercial real foi chamado.
+
+Durante a suíte completa, foram detectadas e corrigidas duas expectativas legadas:
+assert de versão ainda 14 em migration de policy (agora 15), e primeiro admitido
+fixo worker-1 entre independentes. O gate LR-8B agora verifica ambos os IDs únicos,
+capacidade/overlap/provenance e a mesma consolidação na ordem do plano, sem timeout
+relaxado. O teste de crash parcial foi tornado determinístico suspendendo o mock
+após output de B, antes de completion. Também foram adicionados fences de budget
+incerto e teste contra ABA de registration, sem duplicar Scheduler/accounting.
+
+| Gate executado | Resultado final |
+| --- | --- |
+| `cargo test ... c4_` | **47 PASS**, zero falhas (inclui 24 integrados e ABA) |
+| `cargo test ... lr85c_final` | **24 PASS**, cobre A–Z: A/D/T e M/X agrupados; G tem duas provas |
+| C1 `cognitive_resources::handoff_tests` | **25 PASS**; contrato puro preservado |
+| C2 `c2_` | **39 PASS**; wire/receipts legados preservados |
+| C3 `c3_` | **25 PASS** |
+| `cognitive_resources` | **246 PASS** |
+| B1/B2/B3 (módulos allocation/scoring/provider_bridge) | **46 / 96 / 41 PASS** |
+| B4 `b4_` | **57 PASS**: 54 testes B4 + 2 C2 + 1 C4; DTO/persistence policy isolado: 37 PASS |
+| TaskGraph `task_graph` / D3 `cognition::task_graph_runtime_tests` | **95 / 13 PASS** |
+| Scheduler / admission | **2 / 26 PASS** |
+| rate / resilience / telemetry / LR-8E | **69 / 77 / 40 / 14 PASS** |
+| TaskRegistry `luna::runtime::tests` | **7 PASS** |
+| `persistence::` (inclui migrations/checkpoints) | **71 PASS** |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | **952 PASS, zero falhas, 2 ignorados**, 236,52 s; main/doc-tests sem falhas |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | **Exit 0** |
+| `npm run typecheck` | **Exit 0** |
+| `cargo fmt --check --manifest-path src-tauri/Cargo.toml` | Exit 1 exclusivamente por drift legado: baseline **27 arquivos**, candidata **25**, zero novo arquivo com drift |
+| Rustfmt direto nos **24 arquivos Rust alterados** | **Exit 0**, edition 2021, `skip_children=true --check` |
+| `git diff --check` | **Exit 0** |
+
+Os filtros se sobrepõem; seus totais não devem ser somados. Filtros amplos
+`b1_`/`b2_`/`b3_` também passaram (51/99/42, incluindo referências cruzadas).
+Os dois ignorados são gates manuais legados `real_app_server_handshake` e
+`manual_final_codex_agent_bridge_gate`; não foram habilitados. Nenhuma falha foi
+classificada como flake: a primeira execução completa teve as duas expectativas
+específicas descritas acima; ambas foram corrigidas e duas suítes completas
+subsequentes passaram. A última inclui também a prova de cancelamento no caminho
+real de resume, preservando filhos nunca iniciados como cancelled sem inventar
+execução. `cargo check` conserva warnings de código não utilizado (15 na lib,
+contra 12 na baseline; novas superfícies: ranking legado, leitura de seleção
+restaurada e lookup factual do ledger); não há erro de compilação.
+
+### Arquivos alterados nesta candidata
+
+- `docs/LR-8.5C-SAFE-HANDOFF.md`
+- `src-tauri/migrations/015_cognitive_continuations.sql`
+- `src-tauri/src/cognition/allocation_policy/tests.rs`
+- `src-tauri/src/cognition/policy.rs`
+- `src-tauri/src/cognition/scheduler.rs`
+- `src-tauri/src/cognition/task_graph.rs`
+- `src-tauri/src/cognition/task_graph_handoff.rs`
+- `src-tauri/src/cognition/task_graph_runtime.rs`
+- `src-tauri/src/cognition/task_graph_runtime/c3_tests.rs`
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests.rs`
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests/storage_tests.rs`
+- `src-tauri/src/cognition/task_graph_runtime_tests.rs`
+- `src-tauri/src/cognition/task_graph_worker.rs`
+- `src-tauri/src/cognition/types.rs`
+- `src-tauri/src/cognitive_resources/provider_bridge.rs`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/luna/mod.rs`
+- `src-tauri/src/luna/runtime.rs`
+- `src-tauri/src/luna/task.rs`
+- `src-tauri/src/persistence/checkpoints.rs`
+- `src-tauri/src/persistence/checkpoints/tests.rs`
+- `src-tauri/src/persistence/continuations.rs`
+- `src-tauri/src/persistence/migrations.rs`
+- `src-tauri/src/persistence/mod.rs`
+- `src-tauri/src/persistence/task_history.rs`
+- `src-tauri/src/persistence/tests.rs`
+- `src/luna/LunaCorePanel.tsx`
+- `src/luna/taskAnimation.ts`
+- `src/luna/types.ts`
+
+### Limitações deliberadas para auditoria
+
+- Resume é API Core interna, sem novo botão/command de resume na UI; cancelamento
+  usa o command existente. Não há mudança silenciosa de policy ou aprovação paga.
+- Antes de manifest validado/committed não há resume de planner; checkpoints
+  C2/C3 legados sem manifest/result não são convertidos em planos resumíveis.
+- A referência à identidade exige que a versão original ainda seja current e
+  validável. Mudança/ausência pausa com InsufficientDurableContext; não se inventa
+  contexto e não se consulta versão histórica nesta candidata. Worker com
+  memórias/conversa adicionais não é aceito por esta ponte; o caminho normal
+  atual usa apenas identidade + dependencies.
+- Resultado acima do limite, corrupção ou contexto insuficiente não autorizam
+  refazer a unidade. Fences uncertain não possuem API de resolução/replay.
+- Grants incertos consomem teto conservador; isso pode impedir independentes
+  mesmo com chamadas reais menores. O código não inventa accounting real para
+  suprir essa lacuna e não declara o root completed com unidade incerta.
+- Retenção/cleanup automático de resultados/ledger não foi acrescentado; estados
+  terminais/receipts são preservados. Premissas locais C2/LR-8 de SQLite/OS
+  confiáveis continuam; não há autenticação criptográfica contra edição maliciosa
+  coerente do arquivo por terceiros, nem distributed lock.
+- Não há Tool Runtime, efeito externo, billing, SpecialistAgent, provider discovery,
+  handoff mid-stream ou replay de efeito incerto.
+
+**C4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+C1 PASS; C2 PASS; C3 PASS; LR-8.5C ainda NÃO PASS; merge ainda NÃO autorizado.

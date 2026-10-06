@@ -14,6 +14,15 @@ impl CheckpointRepository {
         conn: &mut Connection,
         checkpoint: &CognitiveCheckpoint,
     ) -> Result<CheckpointRecord, CheckpointError> {
+        Self::commit_with(conn, checkpoint, |_, _| Ok(()))
+    }
+
+    /// Additional local facts share the receipt COMMIT; no receipt escapes rollback.
+    pub(crate) fn commit_with(
+        conn: &mut Connection,
+        checkpoint: &CognitiveCheckpoint,
+        finish: impl FnOnce(&Connection, &CheckpointRecord) -> Result<(), CheckpointError>,
+    ) -> Result<CheckpointRecord, CheckpointError> {
         require_durable_connection(conn)?;
         let tx = conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -50,7 +59,22 @@ impl CheckpointRepository {
         };
         // A readback inside the transaction is not yet durable. Never return it
         // on a failed COMMIT; Transaction drop rolls back both writes.
+        finish(&tx, &record)?;
         tx.commit().map_err(|_| CheckpointError::Write)?;
+        Ok(record)
+    }
+
+    pub(crate) fn committed_in_transaction(
+        conn: &Connection,
+        unit: ExecutionUnitId,
+        source: &ExecutionSource,
+    ) -> Result<CheckpointRecord, CheckpointError> {
+        let record = read_one(conn, unit)?.ok_or(CheckpointError::ReferenceNotCommitted)?;
+        if &record.checkpoint.provenance.source != source {
+            return Err(CheckpointError::UnitMismatch);
+        }
+        validate_history(conn, &record.checkpoint)?;
+        verify_references(conn, &record.checkpoint)?;
         Ok(record)
     }
 
@@ -101,7 +125,7 @@ impl CheckpointRepository {
     }
 }
 
-fn require_durable_connection(conn: &Connection) -> Result<(), CheckpointError> {
+pub(crate) fn require_durable_connection(conn: &Connection) -> Result<(), CheckpointError> {
     if !conn.is_autocommit() {
         return Err(CheckpointError::TransactionActive);
     }

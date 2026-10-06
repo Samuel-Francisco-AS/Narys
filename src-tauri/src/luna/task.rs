@@ -9,6 +9,7 @@ pub struct TaskId(pub u64);
 pub enum TaskState {
     Pending,
     Running,
+    Paused,
     Completed,
     Cancelled,
     Failed,
@@ -30,6 +31,9 @@ pub enum TaskEventKind {
     },
     StepCompleted {
         step: TaskStep,
+    },
+    TaskPaused {
+        reason: crate::persistence::continuations::PauseReason,
     },
     TaskCompleted,
     TaskCancelled,
@@ -91,6 +95,7 @@ pub enum TaskEventKind {
         provider_id: String,
         unit_id: crate::cognitive_resources::ExecutionUnitId,
         allocation: crate::cognitive_resources::AllocationVariant,
+        selection: crate::cognition::scheduler::AllocationSelection,
         handoff_reason: crate::cognitive_resources::HandoffReason,
         transitions: Vec<crate::cognition::task_graph_handoff::AllocationTransition>,
     },

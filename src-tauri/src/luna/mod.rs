@@ -38,7 +38,11 @@ pub fn start_mock_task(
 }
 
 #[tauri::command]
-pub fn cancel_task(registry: State<'_, Arc<TaskRegistry>>, task_id: u64) -> Result<bool, String> {
+pub async fn cancel_task(
+    registry: State<'_, Arc<TaskRegistry>>,
+    db: State<'_, Database>,
+    task_id: u64,
+) -> Result<bool, String> {
     AuditEvent::new(Action::CommandInvoked, Outcome::Allowed)
         .with_detail("cancel_task")
         .emit();
@@ -48,7 +52,13 @@ pub fn cancel_task(registry: State<'_, Arc<TaskRegistry>>, task_id: u64) -> Resu
             .emit();
         "TaskId inválido".to_string()
     })?;
-    let accepted = registry.cancel(TaskId(id));
+    let active = registry.cancel(TaskId(id));
+    let durable = crate::persistence::continuations::with_connection(db.inner(), move |conn| {
+        crate::persistence::continuations::ContinuationRepository::cancel(conn, id)
+    })
+    .await
+    .map_err(str::to_owned)?;
+    let accepted = active || durable;
     AuditEvent::new(
         Action::TaskCancelRequested,
         if accepted {

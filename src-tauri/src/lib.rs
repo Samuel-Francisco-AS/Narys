@@ -26,11 +26,13 @@ pub fn run() {
             }
             app.manage(db.clone());
             let secrets = std::sync::Arc::new(security::secrets::SecretStore::new(directory));
-            let conn = db.open().map_err(|_| "provider_settings_unavailable")?;
+            let mut conn = db.open().map_err(|_| "provider_settings_unavailable")?;
             let max_id = persistence::task_history::max_id(&conn)
                 .map_err(|_| "task_identity_recovery_failed")?;
             app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>()
                 .seed_next_id(max_id);
+            persistence::continuations::ContinuationRepository::recover(&mut conn)
+                .map_err(|_| "task_continuation_recovery_failed")?;
             let mut providers = cognition::registry::ProviderRegistry::default();
             let gemini_adapter = std::sync::Arc::new(
                 cognition::gemini::GeminiProvider::new(

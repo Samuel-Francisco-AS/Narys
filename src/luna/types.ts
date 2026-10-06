@@ -1,6 +1,6 @@
 import type { TrafficClass } from '../settings/providerAdmission'
 export type TaskId = number
-export type TaskState = 'pending' | 'running' | 'completed' | 'cancelled' | 'failed'
+export type TaskState = 'pending' | 'running' | 'paused' | 'completed' | 'cancelled' | 'failed'
 export type TaskStep = 'prepare' | 'verify'
 export type CognitiveResult = {
   text: string
@@ -33,6 +33,7 @@ export type TaskEvent = TaskEventBase & (
   | { type: 'task_started' }
   | { type: 'step_started'; step: TaskStep }
   | { type: 'step_completed'; step: TaskStep }
+  | { type: 'task_paused'; reason: 'economic_authorization' | 'recovery_required' | 'uncertain_execution' | 'insufficient_durable_context' | 'invalid_recovery' }
   | { type: 'task_completed' }
   | { type: 'task_cancelled' }
   | { type: 'task_failed'; detail: string }
@@ -46,7 +47,7 @@ export type TaskEvent = TaskEventBase & (
   | { type: 'task_result_ready'; result: CognitiveResult }
   | { type: 'task_planned'; step_count: number }
   | { type: 'subtask_waiting'; subtask_id: string; depends_on: string[] }
-  | { type: 'subtask_started'; subtask_id: string; provider_id: string; unit_id: ExecutionUnitId; allocation: UnitAllocation; handoff_reason: BoundaryReason; transitions: AllocationTransition[] }
+  | { type: 'subtask_started'; subtask_id: string; provider_id: string; unit_id: ExecutionUnitId; allocation: UnitAllocation; selection: { mode: 'fixed' | 'preferred' | 'auto'; score: number | null }; handoff_reason: BoundaryReason; transitions: AllocationTransition[] }
   | { type: 'subtask_completed'; subtask_id: string; provider_id: string; checkpoint_id: CheckpointId }
   | { type: 'subtask_retry'; subtask_id: string; provider_id: string; reason_code: string }
   | { type: 'subtask_output_observed'; subtask_id: string; provider_id: string }

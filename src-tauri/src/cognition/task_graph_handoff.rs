@@ -41,7 +41,7 @@ pub(crate) struct AllocationTransition {
     pub change: AllocationChange,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct PreparedUnit {
     id: ExecutionUnitId,
     source: ExecutionSource,
@@ -49,8 +49,47 @@ pub(crate) struct PreparedUnit {
     dependencies: Vec<CheckpointRecord>,
     reason: HandoffReason,
     transitions: Vec<AllocationTransition>,
+    durable: Option<(
+        Database,
+        crate::persistence::continuations::ContinuationLease,
+    )>,
+}
+impl std::fmt::Debug for PreparedUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PreparedUnit")
+            .field("id", &self.id)
+            .field("pin", &self.pin)
+            .field("reason", &self.reason)
+            .finish_non_exhaustive()
+    }
 }
 impl PreparedUnit {
+    pub fn attach_durable(
+        &mut self,
+        db: Database,
+        lease: crate::persistence::continuations::ContinuationLease,
+    ) {
+        self.durable = Some((db, lease));
+    }
+    pub async fn mark_started(
+        &self,
+        step: &str,
+        budget: super::types::TaskBudget,
+    ) -> Result<(), &'static str> {
+        if let Some((db, lease)) = &self.durable {
+            let lease = *lease;
+            let id = self.id;
+            let pin = self.pin.clone();
+            let step = step.to_owned();
+            crate::persistence::continuations::with_connection(db, move |conn| {
+                crate::persistence::continuations::ContinuationRepository::mark_started(
+                    conn, lease, &step, id, &pin, budget,
+                )
+            })
+            .await?;
+        }
+        Ok(())
+    }
     pub fn id(&self) -> ExecutionUnitId {
         self.id
     }
@@ -74,6 +113,7 @@ pub(crate) struct TaskGraphHandoff {
     policy: TaskPolicySnapshot,
     allocation: Option<AllocationRuntimePolicy>,
     units: BTreeMap<String, UnitSlot>,
+    restored: BTreeMap<String, CheckpointRecord>,
 }
 impl TaskGraphHandoff {
     pub fn new(root: u64, policy: TaskPolicySnapshot) -> Result<Self, &'static str> {
@@ -88,7 +128,34 @@ impl TaskGraphHandoff {
             policy,
             allocation,
             units: BTreeMap::new(),
+            restored: BTreeMap::new(),
         })
+    }
+    pub fn advance_past(&mut self, sequence: u64) -> Result<(), &'static str> {
+        self.next_sequence = self
+            .next_sequence
+            .max(sequence.checked_add(1).ok_or("handoff_identity_invalid")?);
+        Ok(())
+    }
+    pub fn restore(
+        &mut self,
+        records: BTreeMap<String, CheckpointRecord>,
+    ) -> Result<(), &'static str> {
+        for record in records.values() {
+            let cp = record.checkpoint();
+            if cp.id().unit_id().root_task_id() != self.root || cp.policy() != &self.policy {
+                return Err("handoff_checkpoint_mismatch");
+            }
+            self.next_sequence = self.next_sequence.max(
+                cp.id()
+                    .unit_id()
+                    .sequence()
+                    .checked_add(1)
+                    .ok_or("handoff_identity_invalid")?,
+            );
+        }
+        self.restored = records;
+        Ok(())
     }
     pub async fn prepare(
         &mut self,
@@ -103,7 +170,7 @@ impl TaskGraphHandoff {
         if cancelled.load(Ordering::Acquire) {
             return Err("cancelled");
         }
-        if self.units.contains_key(subtask) {
+        if self.units.contains_key(subtask) || self.restored.contains_key(subtask) {
             return Err("handoff_unit_already_allocated");
         }
         if graph.state(subtask) != Some(SubtaskState::Pending)
@@ -134,6 +201,7 @@ impl TaskGraphHandoff {
                     .units
                     .get(key)
                     .and_then(|slot| slot.receipt.clone())
+                    .or_else(|| self.restored.get(key).cloned())
                     .ok_or("handoff_checkpoint_missing")?;
                 if record.checkpoint().provenance().source
                     != ExecutionSource::subtask(key.clone())
@@ -203,6 +271,7 @@ impl TaskGraphHandoff {
             dependencies,
             reason,
             transitions,
+            durable: None,
         };
         // Claim once, including unsuccessful/cancelled execution. Only Scheduler
         // can retry the same pinned invocation; this layer never recreates it.
@@ -215,6 +284,19 @@ impl TaskGraphHandoff {
         );
         self.next_sequence += 1;
         Ok(prepared)
+    }
+    pub fn attach_durable(
+        &mut self,
+        step: &str,
+        db: Database,
+        lease: crate::persistence::continuations::ContinuationLease,
+    ) -> Result<(), &'static str> {
+        self.units
+            .get_mut(step)
+            .ok_or("handoff_unit_unknown")?
+            .prepared
+            .attach_durable(db, lease);
+        Ok(())
     }
     pub fn auto(&self) -> bool {
         self.policy.routing().routing_mode == RoutingMode::Auto
@@ -263,11 +345,27 @@ impl TaskGraphHandoff {
             context,
         )
         .map_err(|_| "handoff_checkpoint_invalid")?;
+        let durable = unit.durable.as_ref().map(|(_, lease)| *lease);
+        let useful_result = super::task_graph::TaskGraphSubtaskResult {
+            subtask_id: subtask.into(),
+            provider_id: result.provider_id.clone(),
+            text: result.text.clone(),
+            usage: result.usage.clone(),
+        };
         let db = db.clone();
         let receipt = tauri::async_runtime::spawn_blocking(move || {
             let mut conn = db.open().map_err(|_| "handoff_checkpoint_write_failed")?;
-            CheckpointRepository::commit(&mut conn, &cp)
-                .map_err(|_| "handoff_checkpoint_write_failed")
+            if let Some(lease) = durable {
+                crate::persistence::continuations::ContinuationRepository::commit_result(
+                    &mut conn,
+                    lease,
+                    &cp,
+                    &useful_result,
+                )
+            } else {
+                CheckpointRepository::commit(&mut conn, &cp)
+                    .map_err(|_| "handoff_checkpoint_write_failed")
+            }
         })
         .await
         .map_err(|_| "handoff_checkpoint_write_failed")??;

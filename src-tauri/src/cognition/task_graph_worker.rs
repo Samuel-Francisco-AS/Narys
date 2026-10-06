@@ -244,6 +244,21 @@ pub(crate) async fn run_worker(
     if cancelled.load(Ordering::Acquire) {
         return (None, Err("cancelled"));
     }
+    if let Err(code) = unit
+        .mark_started(
+            &subtask_id,
+            TaskBudget {
+                max_provider_calls,
+                max_output_tokens,
+            },
+        )
+        .await
+    {
+        return (None, Err(code));
+    }
+    if cancelled.load(Ordering::Acquire) {
+        return (None, Err("cancelled"));
+    }
     let target = unit.pin().target().clone();
     let provider_id = target.provider_id.clone();
     if emit(
@@ -256,6 +271,7 @@ pub(crate) async fn run_worker(
             provider_id: provider_id.clone(),
             unit_id: unit.id(),
             allocation: unit.pin().variant().clone(),
+            selection: unit.pin().selection().clone(),
             handoff_reason: unit.reason(),
             transitions: unit.transitions().to_vec(),
         },
