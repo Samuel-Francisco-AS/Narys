@@ -2,7 +2,7 @@
 
 Estado: **C1 = PASS técnico após auditoria independente.**
 
-**C2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+**C2 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
 O PASS abaixo é exclusivo do C1. LR-8.5C não recebe PASS neste checkpoint;
 C3/C4 permanecem sem implementação iniciada.
@@ -946,3 +946,125 @@ rollback/retry da migration. O/P são os gates C1 e B acima.
   futura exige novo fato de cancelamento e os gates do Core/Scheduler/LR-8/B.
 - C1 continua PASS; C2 aguarda auditoria independente. C3/C4 não iniciados;
   LR-8.5C não encerrada.
+
+
+## Auditoria independente do C2 — 06/10/2026
+
+**Resultado: PASS técnico. Nenhuma FIX obrigatória no ledger C2.**
+
+A auditoria comparou o C1 auditado em
+`7407b0f8d2a530d8dcc5a13fcfd2e8faf9b357b0` com a candidata C2
+`df2f86a0a4e00dad5c599018ce62e4ac85641325`. O diff contém um único
+commit e os dez arquivos declarados. Não há mudança em Scheduler, TaskGraph
+runtime, adapters, UI ou dispatch; C3 não foi antecipado.
+
+### Achados
+
+1. **Receipt somente após COMMIT.** `CheckpointRepository::commit` valida
+   histórico/referências, abre `BEGIN IMMEDIATE`, insere snapshot/checkpoint,
+   faz read-back ainda dentro da transação e retorna `CheckpointRecord`
+   somente depois de `tx.commit()` bem-sucedido. O teste de FK deferred
+   provoca falha real no COMMIT e confirma rollback das duas tabelas.
+
+2. **Idempotência e conflito estão corretamente serializados.** A identidade
+   de unidade possui um único checkpoint final. Retry semanticamente idêntico
+   devolve o receipt original e preserva `committed_at`; conteúdo divergente
+   não sobrescreve. PK/UNIQUE + transação `Immediate` evitam check-then-insert
+   concorrente fora do SQLite. Os testes concorrentes confirmam uma única row
+   e um único vencedor em conflito.
+
+3. **Ausência nunca vira frescor.** `lookup` diferencia `Committed`,
+   `Absent`, `HistoryWithoutCheckpoint` e `Invalid`. Todos os casos não
+   comprovadamente committed continuam com replay bloqueado. Evidência terminal
+   sem checkpoint não é convertida em `NotStarted`.
+
+4. **Effect fence sobrevive ao restart.** `Committed` e
+   `UnknownOrInFlight` são persistidos e revalidados. Um ledger committed com
+   efeito incerto não produz boundary segura: `CheckpointRecord::boundary()`
+   devolve `Unknown`, e referências a esse receipt não podem liberar
+   predecessor/dependência.
+
+5. **Shared Cognitive State ficou deliberadamente mínimo.** O contexto contém
+   somente referências de checkpoints concluídos, com limite 32, ordenação
+   canônica, rejeição de duplicata e verificação transitiva bounded em 256
+   receipts. Não foi criado dump de prompt/output/reasoning nem storage
+   especulativo de Worker results.
+
+6. **Policy snapshot preserva a semântica da B4.** O ledger mantém cópia
+   imutável por `(root_task_id, role)`, valida Fixed/Preferred sem allocation
+   econômica e exige a policy B4 em Auto. Settings mutáveis posteriores não
+   reescrevem o snapshot da tarefa.
+
+7. **Provenance e allocation são persistíveis sem marcas comerciais.** O
+   runtime precisa existir entre os targets autorizados da policy; em
+   Fixed/Preferred model/effort precisam coincidir com o target. Em Auto, a
+   variante efetiva pode diferir do target-base, como exige a expansão de
+   variantes da B. A associação factual da variante ao dispatch real permanece
+   responsabilidade da futura integração C3.
+
+8. **Corrupção falha fechado.** JSON malformado/extra, IDs, lifecycle,
+   boundary, effect indexado, policy, timestamp e referências inconsistentes
+   não são promovidos. Queries críticas qualificam `main`, evitando shadowing
+   por TEMP tables.
+
+9. **Migration 014 é pequena e atomicamente aplicada.** Ela cria apenas
+   `checkpoint_task_policies` e `cognitive_checkpoints`, parte vazia sobre
+   schema 13, preserva histórico/policy B4 e mantém `user_version=13` quando a
+   migration falha antes do commit.
+
+10. **C1 continua preservado.** O C2 depende dos tipos/fences do C1, mas C1 não
+    passou a depender de SQLite. Não há replay permitido, handoff mid-stream,
+    ranking, auto-spend ou execução de sucessor.
+
+### Pré-condições obrigatórias antes do C3 real
+
+O C2 está aprovado como primitive de persistência, mas **C3 não pode conectar
+este ledger ao dispatch sem resolver estes pontos de integração**:
+
+1. **Identidade root após restart.** Hoje o startup semeia `TaskRegistry`
+   somente com `MAX(task_records.task_id)`. Como o ledger C2 pode conter
+   checkpoints de uma tarefa ainda sem row terminal em `task_records`, um
+   crash/restart poderia reutilizar esse `root_task_id`. Antes de qualquer
+   integração C3, o seed precisa considerar também o maior
+   `cognitive_checkpoints.root_task_id` (ou uma fonte canônica equivalente),
+   com teste de crash/restart. Um ID antigo jamais pode nomear uma nova tarefa.
+
+2. **Fonte da allocation.** C3 deve construir `AllocationVariant` a partir da
+   allocation efetivamente selecionada/pinada para a unidade, não de input
+   arbitrário do caller. O ledger valida formato/coerência disponível, mas não
+   prova sozinho que aquela variante foi realmente executada.
+
+3. **Captura da policy.** O `TaskPolicySnapshot` persistido deve vir do
+   snapshot imutável capturado para a tarefa, e não de uma releitura das
+   Settings no momento do checkpoint.
+
+4. **Atomicidade de cancelamento/dispatch.** Um receipt C2 não é token de
+   autorização. C3 deve fazer nova checagem de cancelamento e gates
+   Scheduler/LR-8/B imediatamente antes de despachar a próxima unidade.
+
+Esses pontos são deliberadamente externos ao C2 e não justificam acoplar o
+ledger ao lifecycle nesta rodada. Entretanto, são gates de integração, não
+dívidas opcionais.
+
+### Observação sobre continuidade após restart
+
+O C2 prova "Unit A está committed e não pode ser automaticamente repetida" após
+reopen. Ele **não prova ainda que todo o resultado cognitivo necessário para
+executar Unit B sobrevive a um crash**: os outputs textuais de Worker continuam
+fora deste ledger. Isso é coerente com o gate C2 solicitado, que não despacha B.
+C3/C4 deverão demonstrar a disponibilidade do contexto realmente necessário
+antes de prometer resume funcional após restart; ausência desse contexto deve
+pausar/falhar fechado, nunca provocar replay de A.
+
+### Gates auditados
+
+A cobertura reportada é coerente com o código e o escopo: 39 testes C2, 25 C1,
+regressões B1/B2/B3/B4, 71 testes de persistência/migrations e suíte Rust final
+com 880 aprovados, 0 falhas e 2 manuais ignorados. `cargo check` e
+`git diff --check` estão verdes. O `cargo fmt --check` global continua
+afetado pelo drift legado; todos os oito arquivos Rust alterados passam
+`rustfmt --check` direto e nenhum novo drift foi introduzido.
+
+**Decisão:** C2 aprovado para servir de base ao C3, condicionado às
+pré-condições de integração acima. Este PASS não aprova C3/C4, não encerra
+LR-8.5C e não autoriza merge da branch neste checkpoint.
