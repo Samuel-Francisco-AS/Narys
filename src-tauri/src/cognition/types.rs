@@ -143,7 +143,8 @@ pub struct ContextMetadata {
     pub recent_message_count: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProviderInvocationConfig {
     pub model: String,
     pub thinking_level: Option<ThinkingLevel>,
@@ -160,7 +161,8 @@ impl ProviderInvocationConfig {
                 .is_none_or(|t| t.request_timeout_ms > 0 && t.stream_idle_timeout_ms > 0)
     }
 }
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProviderTarget {
     pub provider_id: ProviderId,
     pub invocation: ProviderInvocationConfig,
@@ -168,6 +170,8 @@ pub struct ProviderTarget {
 
 #[derive(Debug)]
 pub struct ProviderTaskRequest {
+    /// Captured by Core preflight; required for Auto and ignored in explicit modes.
+    pub allocation_policy: Option<crate::cognitive_resources::AllocationRuntimePolicy>,
     pub traffic_class: super::admission::TrafficClass,
     pub mode: InvocationMode,
     pub input: String,

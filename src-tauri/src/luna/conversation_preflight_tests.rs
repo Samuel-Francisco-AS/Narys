@@ -360,6 +360,89 @@ impl Drop for Fixture {
 }
 
 #[test]
+fn b4_conversation_real_preflight_missing_corrupt_auto_and_explicit_independence() {
+    let f = Fixture::new(&[SecretKey::GroqApiKey, SecretKey::GeminiApiKey]);
+    let conn = f.db.open().unwrap();
+    conn.execute(
+        "DELETE FROM cognitive_role_allocation_policies WHERE role='conversation'",
+        [],
+    )
+    .unwrap();
+    f.configure(RoutingMode::Auto, &["groq", "gemini"]);
+    let (id, receiver) = f.start(f.session, "input");
+    let events = f.collect(id, receiver, "failed");
+    assert_eq!(events.len(), 2);
+    assert_eq!(events.last().unwrap()["detail"], "read_failed");
+    assert!(f.requests.lock().unwrap().is_empty());
+    f.no_exchange();
+
+    // Explicit modes execute with the missing economic row, with no fallback default.
+    for mode in [RoutingMode::Fixed, RoutingMode::Preferred] {
+        f.configure(
+            mode,
+            if mode == RoutingMode::Fixed {
+                &["groq"]
+            } else {
+                &["groq", "gemini"]
+            },
+        );
+        let (id, receiver) = f.start(f.session, "explicit");
+        let events = f.collect(id, receiver, "completed");
+        assert!(events
+            .iter()
+            .any(|event| event["type"] == "provider_selected" && event["provider_id"] == "groq"));
+    }
+    let calls = f.requests.lock().unwrap().len();
+    // Simulate corruption bypassing SQLite CHECKs. Auto cannot proceed to selection.
+    conn.execute_batch("PRAGMA ignore_check_constraints=ON; INSERT INTO cognitive_role_allocation_policies(role,allocation_profile,variant_selection_mode,paid_use_policy) VALUES('conversation','invalid','auto','deny'); PRAGMA ignore_check_constraints=OFF;").unwrap();
+    f.configure(RoutingMode::Auto, &["groq", "gemini"]);
+    let (id, receiver) = f.start(f.session, "corrupt");
+    let events = f.collect(id, receiver, "failed");
+    assert_eq!(events.len(), 2);
+    assert_eq!(events.last().unwrap()["detail"], "read_failed");
+    assert_eq!(f.requests.lock().unwrap().len(), calls);
+}
+
+#[test]
+fn b4_conversation_real_preflight_freezes_routing_and_allocation_before_save() {
+    use crate::cognition::allocation_policy::{self, PaidUseMode};
+    use crate::cognitive_resources::{AllocationProfile, VariantSelectionMode};
+    let f = Fixture::new(&[SecretKey::GroqApiKey, SecretKey::GeminiApiKey]);
+    f.configure(RoutingMode::Auto, &["groq", "gemini"]);
+    let gate = InstalledGate::new(&f.sessions, true);
+    let (id, receiver) = f.start(f.session, "old snapshot");
+    gate.gate.entered();
+    let mut conn = f.db.open().unwrap();
+    let mut routing = policy::load(&conn, CognitiveRole::Conversation).unwrap();
+    routing.targets.reverse();
+    let mut allocation = allocation_policy::load(&conn, CognitiveRole::Conversation).unwrap();
+    allocation.allocation_profile = AllocationProfile::Fast;
+    allocation.variant_selection_mode = VariantSelectionMode::Explicit;
+    allocation.minimum_cognitive_tier = Some(255); // Production tiers are Unknown.
+    allocation.paid_use_policy = PaidUseMode::AllowKnownCostWithinBudget;
+    allocation.max_paid_currency = Some("USD".into());
+    allocation.max_paid_micros = Some(7);
+    allocation.reduced_below_percent = Some(80);
+    allocation.reserve_below_percent = Some(40);
+    allocation_policy::save_role_settings(&mut conn, &routing, &allocation).unwrap();
+    gate.gate.release();
+    let events = f.collect(id, receiver, "completed");
+    assert!(events
+        .iter()
+        .any(|event| event["type"] == "provider_selected"
+            && event["provider_id"] == "groq"
+            && event["routing_reason"] == "auto_allocator"));
+    assert_eq!(f.requests.lock().unwrap().len(), 1);
+    drop(gate);
+    let (id, receiver) = f.start(f.session, "new snapshot");
+    let events = f.collect(id, receiver, "failed");
+    assert!(!events
+        .iter()
+        .any(|event| event["type"] == "provider_selected"));
+    assert_eq!(f.requests.lock().unwrap().len(), 1);
+}
+
+#[test]
 fn task_id_and_started_exist_before_preflight_and_policy_is_read_in_worker() {
     let f = Fixture::new(&[SecretKey::GroqApiKey]);
     let gate = InstalledGate::new(&f.sessions, false);
@@ -554,15 +637,15 @@ fn preferred_auto_affinity_and_session_history_use_the_same_scheduler_contract()
         .find(|e| e["type"] == "provider_selected")
         .unwrap();
     assert_eq!(selected["provider_id"], "groq");
-    assert_eq!(selected["routing_reason"], "auto_affinity");
-    assert_eq!(selected["score"], 280); // 100 + 30 + (50 + 4*25), unchanged D2 formula.
+    assert_eq!(selected["routing_reason"], "auto_allocator");
+    assert_eq!(selected["score"], 1542); // B2: 1524 + registry 2 + continuity 4*4.
     let other = conversation::create_session(&f.db.open().unwrap()).unwrap();
     f.sessions.0.lock().unwrap().insert(other);
     let (id, receiver) = f.start(other, &"y".repeat(4000));
     let events = f.collect(id, receiver, "completed");
     assert!(events.iter().any(|e| e["type"] == "provider_selected"
         && e["provider_id"] == "gemini"
-        && e["routing_reason"] == "auto_score"));
+        && e["routing_reason"] == "auto_allocator"));
     // Explicit Preferred ignores the existing affinity and starts at Gemini again.
     f.configure(RoutingMode::Preferred, &["gemini", "groq"]);
     let (id, receiver) = f.start(f.session, "explicit");

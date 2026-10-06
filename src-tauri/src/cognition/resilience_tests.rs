@@ -929,6 +929,10 @@ fn default_harness() -> (
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: TrafficClass::ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt-marker".into(),
@@ -1157,18 +1161,38 @@ async fn resilience_preferred_skips_open_preserves_authorized_order() {
     assert_eq!(factual(&s, "c"), 0);
 }
 #[tokio::test]
-async fn resilience_auto_gates_after_unchanged_score_and_ranking() {
+async fn resilience_auto_gates_after_b2_score_and_ranking() {
     let (s, _, _, mut calls) = default_harness();
     let r = request(&["a", "b", "c"], ProviderSelection::Auto);
     assert_eq!(
-        s.ranked_provider_ids(&r.selection, &r.targets, &r.required_capabilities)
-            .unwrap(),
+        s.ranked_provider_ids(
+            &r.selection,
+            &r.targets,
+            &r.required_capabilities,
+            &r.mode,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None
+            ))
+            .as_ref()
+        )
+        .unwrap(),
         vec!["a", "b", "c"]
     );
     open(&s.resilience, "a");
     assert_eq!(
-        s.ranked_provider_ids(&r.selection, &r.targets, &r.required_capabilities)
-            .unwrap(),
+        s.ranked_provider_ids(
+            &r.selection,
+            &r.targets,
+            &r.required_capabilities,
+            &r.mode,
+            Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                crate::cognitive_resources::provider_allocation_default(),
+                None
+            ))
+            .as_ref()
+        )
+        .unwrap(),
         vec!["b", "c"]
     );
     let (result, events) = succeed(s, &mut calls, r).await;
@@ -1176,7 +1200,7 @@ async fn resilience_auto_gates_after_unchanged_score_and_ranking() {
     assert!(matches!(
         &events[0],
         SchedulerEvent::Selected {
-            score: Some(230),
+            score: Some(1526),
             ..
         }
     ));
@@ -1196,7 +1220,7 @@ async fn resilience_temporary_open_does_not_erase_affinity_or_change_scores() {
     assert!(matches!(
         &events[0],
         SchedulerEvent::Selected {
-            score: Some(231),
+            score: Some(1500),
             ..
         }
     ));
@@ -1224,8 +1248,8 @@ async fn resilience_temporary_open_does_not_erase_affinity_or_change_scores() {
     assert!(matches!(
         &events[0],
         SchedulerEvent::Selected {
-            routing_reason: "auto_affinity",
-            score: Some(380),
+            routing_reason: "auto_allocator",
+            score: Some(1558),
             ..
         }
     ));

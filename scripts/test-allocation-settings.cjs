@@ -1,0 +1,45 @@
+// B4: fixed-point authorization + real economic settings DOM. No IPC or provider.
+const assert = require('node:assert/strict')
+const { execFileSync } = require('node:child_process')
+const { mkdtempSync, rmSync, symlinkSync, readFileSync } = require('node:fs')
+const { tmpdir } = require('node:os')
+const { join, resolve } = require('node:path')
+const temporary = mkdtempSync(join(tmpdir(), 'b4-settings-'))
+let checks = 0
+function check(fn) { fn(); checks++ }
+try {
+  execFileSync(process.execPath, [resolve('node_modules/typescript/bin/tsc'), '--strict', '--skipLibCheck', '--target', 'ES2022', '--module', 'commonjs', '--moduleResolution', 'node', '--jsx', 'react-jsx', '--outDir', temporary, 'src/settings/AllocationPolicyEditor.tsx'], { stdio: 'inherit' })
+  symlinkSync(resolve('node_modules'), join(temporary, 'node_modules'))
+  const { parseBudgetMicros, formatBudgetMicros, allocationDraft, validateAllocationDraft } = require(join(temporary, 'allocationPolicyDraft.js'))
+  for (const [text, micros] of [['0', 0], ['0.000001', 1], ['0.050000', 50000], ['1.234567', 1234567], ['9007199254.740991', Number.MAX_SAFE_INTEGER], ['000.000005', 5]]) check(() => assert.equal(parseBudgetMicros(text), micros))
+  for (const text of ['', '-1', '+1', '.5', '1.', '1.0000001', '1e3', 'NaN', 'Infinity', ' 1', '1 ', '1,20', '9007199254.740992', '9007199255', '9999999999999999.999999']) check(() => assert.throws(() => parseBudgetMicros(text)))
+  for (const micros of [0, 1, 5, 50000, 1234567, Number.MAX_SAFE_INTEGER]) check(() => assert.equal(parseBudgetMicros(formatBudgetMicros(micros)), micros))
+  for (const invalid of [-1, 0.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity]) check(() => assert.throws(() => formatBudgetMicros(invalid)))
+  const defaults = { role: 'conversation', allocationProfile: 'balanced', variantSelectionMode: 'auto', minimumCognitiveTier: null, paidUsePolicy: 'deny', maxPaidCurrency: null, maxPaidMicros: null, reducedBelowPercent: null, reserveBelowPercent: null }
+  const draft = allocationDraft(defaults)
+  check(() => assert.deepEqual(validateAllocationDraft('conversation', draft), defaults))
+  for (const floor of ['0', '255']) check(() => assert.equal(validateAllocationDraft('conversation', { ...draft, floor }).minimumCognitiveTier, Number(floor)))
+  for (const floor of ['-1', '256', '1.5', '1e2', 'NaN']) check(() => assert.throws(() => validateAllocationDraft('conversation', { ...draft, floor })))
+  const allow = { ...draft, paid: 'allow_known_cost_within_budget', currency: 'USD', budget: '0.050000' }
+  check(() => assert.equal(validateAllocationDraft('worker', allow).maxPaidMicros, 50000))
+  for (const currency of ['', 'US', 'USDD', 'usd', 'ÜSD', 'U S', 'USD\n']) check(() => assert.throws(() => validateAllocationDraft('worker', { ...allow, currency })))
+  for (const pair of [['', ''], ['40', ''], ['', '10'], ['40', '41'], ['101', '0'], ['40', '-1'], ['1.5', '0']]) check(() => assert.throws(() => validateAllocationDraft('summary', { ...draft, reserveEnabled: true, reduced: pair[0], reserve: pair[1] })))
+  for (const pair of [['0', '0'], ['100', '100'], ['40', '10']]) check(() => assert.equal(validateAllocationDraft('summary', { ...draft, reserveEnabled: true, reduced: pair[0], reserve: pair[1] }).reserveBelowPercent, Number(pair[1])))
+  const full = { ...defaults, allocationProfile: 'fast', variantSelectionMode: 'explicit', minimumCognitiveTier: 255, paidUsePolicy: 'allow_known_cost_within_budget', maxPaidCurrency: 'USD', maxPaidMicros: Number.MAX_SAFE_INTEGER, reducedBelowPercent: 40, reserveBelowPercent: 10 }
+  const preserved = allocationDraft(full)
+  check(() => assert.deepEqual(validateAllocationDraft('conversation', preserved), full))
+  const React = require('react'), { renderToStaticMarkup } = require('react-dom/server')
+  const { AllocationPolicyEditor } = require(join(temporary, 'AllocationPolicyEditor.js'))
+  const html = disabled => renderToStaticMarkup(React.createElement(AllocationPolicyEditor, { draft: preserved, disabled, onChange: () => {} }))
+  const active = html(false), inactive = html(true)
+  for (const label of ['Auto econômico', 'Economia', 'Balanceado', 'Rápido', 'Somente variante configurada', 'Auto entre variantes conhecidas', 'sem candidatos', 'desconhecidos', 'decisão/invocação', 'orçamento mensal', 'discovery remoto', '3 letras ASCII', '6 casas decimais', 'Reduced', 'Reserve']) check(() => assert(active.includes(label), label))
+  for (const value of ['value="USD"', 'value="9007199254.740991"', 'value="255"', 'value="40"', 'value="10"']) check(() => assert(active.includes(value) && inactive.includes(value), value))
+  check(() => assert(inactive.includes('disabled=""') && !active.includes('disabled=""')))
+  check(() => assert(!active.includes('<canvas') && !active.includes('<script') && !active.includes('ScoreBreakdown')))
+  const source = readFileSync('src/settings/AiSettingsApp.tsx', 'utf8')
+  check(() => assert(source.includes("'update_cognitive_role_settings'") && !source.includes("'update_cognitive_role_policy'")))
+  check(() => assert(source.includes('setAllocation(allocationDraft(saved.allocationPolicy))') && source.includes('setPolicy(saved.policy)')))
+  check(() => assert(source.indexOf('validateAllocationDraft(policy.role, allocation)') < source.indexOf("'update_cognitive_role_settings'")))
+  check(() => assert(source.includes('Uma resposta em andamento mantém a configuração com que começou.')))
+  console.log(`B4 settings: ${checks} checks PASS (fixed-point, bounds, preservation, real DOM and composite API).`)
+} finally { rmSync(temporary, { recursive: true, force: true }) }

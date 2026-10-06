@@ -1,3 +1,5 @@
+import { AllocationPolicyEditor } from './AllocationPolicyEditor'
+import { allocationDraft, validateAllocationDraft, type RoleAllocationPolicy } from './allocationPolicyDraft'
 import { ProviderOperationsPanel } from './ProviderOperationsPanel'
 import type { TrafficClass } from './providerAdmission'
 import { useEffect, useRef, useState } from 'react'
@@ -11,7 +13,7 @@ type Target = { providerId: string; model: string; thinkingLevel: Thinking }
 type Policy = { role: Role; routingMode: Routing; targets: Target[]; maxOutputTokens: number | null; maxProviderCalls: number; retryEnabled: boolean; maxRetries: number; retryBackoffMs: number; historyMaxMessages: number; historyMaxBytes: number; summaryInputMaxBytes: number; contextMaxBytes: number }
 type Timeouts = { requestTimeoutMs: number; streamIdleTimeoutMs: number }
 type ProviderInfo = { id: string; displayName: string; configured: boolean; enabled: boolean; capabilities: { textGeneration: boolean; streaming: boolean }; supportedThinkingLevels: Thinking[]; defaultModel: string | null }
-type Settings = { providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; credentialStoreAvailable: boolean }
+type Settings = { providerTimeouts: Record<string, Timeouts>; providers: ProviderInfo[]; roles: Policy[]; allocationPolicies: RoleAllocationPolicy[]; credentialStoreAvailable: boolean }
 type ProbeEvent = { type: 'queued'; providerId: string; trafficClass: TrafficClass; queueDepth: number } | { type: 'admitted'; providerId: string; trafficClass: TrafficClass; queueDelayMs: number } | { type: 'selected'; providerId: string; attempt: number } | { type: 'chunk'; text: string }
 type ProbeResult = { text: string; providerId: string; usage: { providerCalls: number; inputTokens: number; outputTokens: number; totalTokens: number | null; thoughtTokens: number | null; retries: number; fallbacks: number } }
 type CodexRuntimeStatus = { installed: boolean; version: string | null; authenticated: boolean; authKind: 'chatgpt' | 'api_key' | 'other' | 'unknown' | 'none'; available: boolean; diagnosticCode: 'codex_not_installed' | 'codex_not_authenticated' | 'codex_status_timeout' | 'codex_status_failed' | 'codex_status_unrecognized' | null }
@@ -41,8 +43,9 @@ const isPlannerPreflightCode = (value: unknown): value is PlannerPreflightCode =
 const labels: Record<Role, string> = { conversation: 'Conversa', summary: 'Resumo', orchestrator: 'Orchestrator', worker: 'Worker' }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
-function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers: ProviderInfo[]; onSaved: (policy: Policy) => void }) {
+function RoleForm({ initial, initialAllocation, providers, onSaved }: { initial: Policy; initialAllocation: RoleAllocationPolicy; providers: ProviderInfo[]; onSaved: (saved: { policy: Policy; allocationPolicy: RoleAllocationPolicy }) => void }) {
   const [policy, setPolicy] = useState(initial)
+  const [allocation, setAllocation] = useState(() => allocationDraft(initialAllocation))
   const usable = (provider: ProviderInfo | undefined) => Boolean(provider?.enabled && provider.configured && provider.capabilities.textGeneration && provider.capabilities.streaming)
   const targetConfigs = useRef<Record<string, Target>>(Object.fromEntries(initial.targets.map(target => [target.providerId, target])))
   const available = providers.filter(provider => !policy.targets.some(target => target.providerId === provider.id))
@@ -79,6 +82,14 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
   const [summaryBytes, setSummaryBytes] = useState(String(initial.summaryInputMaxBytes || 32768))
   const [summaryEnabled, setSummaryEnabled] = useState(initial.role !== 'summary' || initial.summaryInputMaxBytes > 0)
   const [contextBytes, setContextBytes] = useState(String(initial.contextMaxBytes))
+  useEffect(() => {
+    setPolicy(initial); setAllocation(allocationDraft(initialAllocation))
+    setCustomOutput(String(initial.maxOutputTokens ?? 4096)); setCalls(String(initial.maxProviderCalls))
+    setRetries(String(initial.maxRetries)); setBackoff(String(initial.retryBackoffMs))
+    setHistoryMessages(String(initial.historyMaxMessages)); setHistoryBytes(String(initial.historyMaxBytes))
+    setSummaryBytes(String(initial.summaryInputMaxBytes || 32768)); setSummaryEnabled(initial.role !== 'summary' || initial.summaryInputMaxBytes > 0)
+    setContextBytes(String(initial.contextMaxBytes))
+  }, [initial, initialAllocation])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -101,11 +112,14 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
     const summaryInputMaxBytes = initial.role === 'summary' && !summaryEnabled ? 0 : numberValue(summaryBytes)
     const contextMaxBytes = numberValue(contextBytes)
     if ([maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes, contextMaxBytes].some(value => !Number.isSafeInteger(value) || value < 0 || value > 4294967295) || contextMaxBytes < 1) { setError('Limites avançados devem ser inteiros não negativos até 4294967295.'); return }
+    let allocationPolicy: RoleAllocationPolicy
+    try { allocationPolicy = validateAllocationDraft(policy.role, allocation) }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Policy econômica inválida.'); return }
     setBusy(true); setError(''); setMessage('')
     try {
-      const saved = await invoke<Policy>('update_cognitive_role_policy', { policy: { ...policy, maxOutputTokens, maxProviderCalls, maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes, contextMaxBytes } })
-      setPolicy(saved); onSaved(saved); setMessage('Salvo. A próxima tarefa usará esta configuração.')
-    } catch (cause) { setError(`Não foi possível salvar: ${String(cause)}`) }
+      const saved = await invoke<{ policy: Policy; allocationPolicy: RoleAllocationPolicy }>('update_cognitive_role_settings', { allocationPolicy, policy: { ...policy, maxOutputTokens, maxProviderCalls, maxRetries, retryBackoffMs, historyMaxMessages, historyMaxBytes, summaryInputMaxBytes, contextMaxBytes } })
+      setPolicy(saved.policy); setAllocation(allocationDraft(saved.allocationPolicy)); onSaved(saved); setMessage('Salvo. A próxima tarefa usará esta configuração.')
+    } catch { setError('Não foi possível salvar as configurações do papel. Verifique os valores e a disponibilidade dos providers.') }
     finally { setBusy(false) }
   }
   return <section className="settings-card role-card" aria-label={labels[initial.role]}>
@@ -137,6 +151,7 @@ function RoleForm({ initial, providers, onSaved }: { initial: Policy; providers:
         <label>Adicionar target<select value="" disabled={policy.routingMode === 'fixed' || policy.targets.length >= 8 || available.length === 0} onChange={event => setPolicy({ ...policy, targets: [...policy.targets, newTarget(event.target.value)] })}><option value="">Selecione provider ainda não usado</option>{available.map(provider => <option key={provider.id} value={provider.id}>{provider.displayName}{!usable(provider) ? ' · indisponível' : ''}</option>)}</select></label>
         {numberValue(calls) < policy.targets.length && <p className="settings-warning">Max provider calls pode impedir percorrer todos os targets.</p>}
       </fieldset>
+      <AllocationPolicyEditor draft={allocation} disabled={policy.routingMode !== 'auto' || busy} onChange={setAllocation} />
       <fieldset><legend>Output</legend>
         <label className="radio"><input type="radio" checked={policy.maxOutputTokens === null} onChange={() => setPolicy({ ...policy, maxOutputTokens: null })} />Padrão do provider / sem limite adicional da Luna</label>
         <label className="radio"><input type="radio" checked={policy.maxOutputTokens !== null} onChange={() => setPolicy({ ...policy, maxOutputTokens: numberValue(customOutput) || 1 })} />Limite personalizado</label>
@@ -246,7 +261,7 @@ export default function AiSettingsApp() {
   async function refresh() {
     const data = await invoke<Settings>('get_ai_settings')
     // Discard legacy operational fields: only the panel owns the latest live snapshot.
-    setSettings({ providerTimeouts: data.providerTimeouts, providers: data.providers, roles: data.roles, credentialStoreAvailable: data.credentialStoreAvailable })
+    setSettings({ providerTimeouts: data.providerTimeouts, providers: data.providers, roles: data.roles, allocationPolicies: data.allocationPolicies, credentialStoreAvailable: data.credentialStoreAvailable })
   }
   async function refreshCodex() {
     setCodexBusy(true)
@@ -465,7 +480,10 @@ export default function AiSettingsApp() {
           <p><strong>Consolidação determinística do Core:</strong></p><pre>{taskGraphResult.consolidatedText}</pre>
         </div>}
       </section>
-      <div className="role-grid">{settings.roles.map(role => <RoleForm key={role.role} initial={role} providers={settings.providers} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.role ? saved : item) }))} />)}</div>
+      <div className="role-grid">{settings.roles.map(role => {
+        const allocation = settings.allocationPolicies.find(item => item.role === role.role)
+        return allocation ? <RoleForm key={role.role} initial={role} initialAllocation={allocation} providers={settings.providers} onSaved={saved => setSettings(current => current && ({ ...current, roles: current.roles.map(item => item.role === saved.policy.role ? saved.policy : item), allocationPolicies: current.allocationPolicies.map(item => item.role === saved.allocationPolicy.role ? saved.allocationPolicy : item) }))} /> : <p role="alert" key={role.role}>Policy econômica indisponível para {labels[role.role]}.</p>
+      })}</div>
       <section className="settings-card"><h2>Parâmetros avançados</h2>
         <p>Conversation/Workers: texto em streaming. Orchestrator: JSON Schema estrito sem streaming, somente em targets compatíveis. Thinking summaries: desativado — não configurável nesta versão.</p>
         <p>Timeout HTTP total e idle do stream: configuráveis por provider. Conexão: 8 s — configuração dos adapters atuais.</p>

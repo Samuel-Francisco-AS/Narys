@@ -165,6 +165,7 @@ pub async fn groq_probe(
     let handle = handles.0.get("groq").ok_or("provider_unavailable")?;
     let timeouts = *handle.read().unwrap_or_else(|poison| poison.into_inner());
     let request = ProviderTaskRequest {
+        allocation_policy: None,
         traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
         mode: crate::cognition::types::InvocationMode::default(),
         input: "Responda em uma frase curta: conexão Groq confirmada.".into(),

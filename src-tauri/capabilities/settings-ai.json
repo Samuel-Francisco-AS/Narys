@@ -14,6 +14,7 @@
     "allow-get-ai-settings",
     "allow-get-provider-operational-snapshot",
     "allow-update-cognitive-role-policy",
+    "allow-update-cognitive-role-settings",
     "allow-start-orchestrator-planning",
     "allow-start-task-graph",
     "allow-cancel-task",

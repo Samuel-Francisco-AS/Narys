@@ -276,6 +276,10 @@ fn success(text: &str) -> Result<ProviderResponse, ProviderError> {
 }
 fn request(ids: &[&str], fixed: bool, class: TrafficClass, input: &str) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: class,
         mode: InvocationMode::default(),
         input: input.into(),

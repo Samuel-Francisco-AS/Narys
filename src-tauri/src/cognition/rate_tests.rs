@@ -862,6 +862,10 @@ fn scheduler(
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: TrafficClass::ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt-marker".into(),
@@ -988,8 +992,40 @@ async fn scheduler_rate_block_is_local_before_admission_no_cooldown_retry_or_fal
         quota(&s, "a", QuotaDimension::RequestsPerMinute, 0);
         let r = request(&["a", "b"], selection.clone());
         let before = s
-            .ranked_provider_ids(&selection, &r.targets, &r.required_capabilities)
+            .ranked_provider_ids(
+                &selection,
+                &r.targets,
+                &r.required_capabilities,
+                &r.mode,
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None,
+                ))
+                .as_ref(),
+            )
             .unwrap();
+        if selection == ProviderSelection::Auto {
+            assert_eq!(before, vec!["b"]);
+            let (run, mut events) =
+                start(s.clone(), r, Arc::new(AtomicBool::new(false)), no_retry());
+            let call = bounded(calls.recv()).await.unwrap();
+            assert_eq!(call.provider, "b");
+            call.finish.send((Some(1), None)).unwrap();
+            assert_eq!(bounded(run).await.unwrap().unwrap().provider_id, "b");
+            while let Ok(event) = events.try_recv() {
+                assert!(!matches!(event, SchedulerEvent::Fallback { .. }));
+            }
+            assert_eq!(
+                s.admission_snapshot()
+                    .iter()
+                    .find(|s| s.provider_id == "a")
+                    .unwrap()
+                    .total_admissions,
+                0
+            );
+            clean(&s);
+            continue;
+        }
         let mut events = vec![];
         assert_eq!(
             s.run(r, budget(), &AtomicBool::new(false), &mut |e| {
@@ -1013,8 +1049,18 @@ async fn scheduler_rate_block_is_local_before_admission_no_cooldown_retry_or_fal
         let r = request(&["a", "b"], selection.clone());
         assert_eq!(
             before,
-            s.ranked_provider_ids(&selection, &r.targets, &r.required_capabilities)
-                .unwrap()
+            s.ranked_provider_ids(
+                &selection,
+                &r.targets,
+                &r.required_capabilities,
+                &r.mode,
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None
+                ))
+                .as_ref()
+            )
+            .unwrap()
         );
         clean(&s);
     }

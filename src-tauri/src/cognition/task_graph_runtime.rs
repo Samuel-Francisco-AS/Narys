@@ -13,10 +13,12 @@ use super::{
     catalog,
     context::{ContextBuilder, ContextRequest},
     orchestrator::{self, OrchestratorResult},
-    policy::{self, CognitiveRole},
+    policy::CognitiveRole,
     scheduler::SchedulerEvent,
     task_graph::{SubtaskState, TaskGraph, TaskGraphResult, TaskGraphSubtaskResult},
-    task_graph_worker::{add_usage, run_worker, worker_input, worker_system_instruction, WorkerTiming},
+    task_graph_worker::{
+        add_usage, run_worker, worker_input, worker_system_instruction, WorkerTiming,
+    },
     types::{ProviderCapabilities, SchedulerError, SchedulerUsage, TaskResult},
     ProviderRuntime,
 };
@@ -128,7 +130,8 @@ fn scheduler_events<'a>(
                 to_provider_id: to,
                 reason_code: reason_code.into(),
             },
-            SchedulerEvent::Chunk { provider_id, .. } | SchedulerEvent::OutputObserved { provider_id } => {
+            SchedulerEvent::Chunk { provider_id, .. }
+            | SchedulerEvent::OutputObserved { provider_id } => {
                 TaskEventKind::ProviderOutputObserved { provider_id }
             }
         };
@@ -204,14 +207,22 @@ async fn execute(
     let preflight_store = store.clone();
     let preflight = tauri::async_runtime::spawn_blocking(move || {
         let conn = preflight_db.open().map_err(|error| error.code())?;
-        let orchestrator_policy =
-            policy::load(&conn, CognitiveRole::Orchestrator).map_err(|error| error.code())?;
-        let worker_policy =
-            policy::load(&conn, CognitiveRole::Worker).map_err(|error| error.code())?;
+        let mut snapshots = super::allocation_policy::load_role_runtime_policies(
+            &conn,
+            &[CognitiveRole::Orchestrator, CognitiveRole::Worker],
+        )
+        .map_err(|error| error.code())?
+        .into_iter();
+        let orchestrator = snapshots.next().expect("two requested roles");
+        let worker = snapshots.next().expect("two requested roles");
+        let orchestrator_policy = orchestrator.routing;
+        let worker_policy = worker.routing;
         orchestrator_policy.validate()?;
         worker_policy.validate()?;
         catalog::validate_policies(
-            &[&orchestrator_policy, &worker_policy], &statuses, &preflight_store,
+            &[&orchestrator_policy, &worker_policy],
+            &statuses,
+            &preflight_store,
         )?;
         let orchestrator_timeouts = orchestrator_policy
             .load_timeouts(&conn)
@@ -236,6 +247,8 @@ async fn execute(
             worker_policy,
             worker_timeouts,
             worker_context,
+            orchestrator.allocation,
+            worker.allocation,
         ))
     })
     .await;
@@ -245,11 +258,13 @@ async fn execute(
         worker_policy,
         worker_timeouts,
         worker_context,
+        orchestrator_allocation,
+        worker_allocation,
     ) = match preflight {
-            Ok(Ok(value)) => value,
-            Ok(Err(code)) => return fail(code),
-            Err(_) => return fail("worker_failed"),
-        };
+        Ok(Ok(value)) => value,
+        Ok(Err(code)) => return fail(code),
+        Err(_) => return fail("worker_failed"),
+    };
     if cancelled.load(Ordering::Acquire) {
         return fail("cancelled");
     }
@@ -262,6 +277,7 @@ async fn execute(
         orchestrator_timeouts,
         &cancelled,
         &mut planner_events,
+        orchestrator_allocation,
     )
     .await;
     drop(planner_events);
@@ -362,10 +378,11 @@ async fn execute(
             };
         }
     };
-    let ranked = match runtime.scheduler.ranked_provider_ids(
-        &worker_policy.selection(),
+    let chain = match rank_worker_targets(
+        &runtime.scheduler,
+        &worker_policy,
         &worker_targets,
-        &ProviderCapabilities::text_stream(),
+        worker_allocation.as_ref(),
     ) {
         Ok(value) => value,
         Err(error) => {
@@ -379,8 +396,14 @@ async fn execute(
             };
         }
     };
+    // The Auto decision includes the winning variant, not only its provider ID.
+    // Pinning workers below preserves this already-made allocation decision.
+    let ranked: Vec<_> = chain
+        .iter()
+        .map(|target| target.provider_id.clone())
+        .collect();
     let worker_context = Arc::new(worker_context);
-    let targets: HashMap<_, _> = worker_targets
+    let targets: HashMap<_, _> = chain
         .into_iter()
         .map(|target| (target.provider_id.clone(), target))
         .collect();
@@ -392,7 +415,10 @@ async fn execute(
     };
     let mut provider_cursor = 0usize;
     let mut results: HashMap<String, TaskGraphSubtaskResult> = HashMap::new();
-    let mut worker_usage = SchedulerUsage { output_tokens_measured: true, ..SchedulerUsage::default() };
+    let mut worker_usage = SchedulerUsage {
+        output_tokens_measured: true,
+        ..SchedulerUsage::default()
+    };
 
     while !graph.all_completed() {
         if cancelled.load(Ordering::Acquire) {
@@ -477,32 +503,29 @@ async fn execute(
                     };
                 }
             };
-            let step = graph.step(&subtask_id).expect("validated graph step").clone();
-            let input = match worker_input(&step, &results, worker_policy.context_max_bytes as usize)
-            {
-                Ok(value) => value,
-                Err(code) => {
-                    graph.block_unfinished();
-                    return ExecutionOutcome {
-                        state: TaskState::Failed,
-                        error_code: Some(code),
-                        graph: Some(graph),
-                        meta,
-                        result: None,
-                    };
-                }
-            };
+            let step = graph
+                .step(&subtask_id)
+                .expect("validated graph step")
+                .clone();
+            let input =
+                match worker_input(&step, &results, worker_policy.context_max_bytes as usize) {
+                    Ok(value) => value,
+                    Err(code) => {
+                        graph.block_unfinished();
+                        return ExecutionOutcome {
+                            state: TaskState::Failed,
+                            error_code: Some(code),
+                            graph: Some(graph),
+                            meta,
+                            result: None,
+                        };
+                    }
+                };
             if let Some(value) = meta.get_mut(&subtask_id) {
                 value.provider_id = Some(provider_id.clone());
             }
             let internal_instruction = worker_system_instruction(&step);
-            specs.push((
-                subtask_id,
-                provider_id,
-                target,
-                input,
-                internal_instruction,
-            ));
+            specs.push((subtask_id, provider_id, target, input, internal_instruction));
         }
         provider_cursor = (provider_cursor + specs.len()) % ranked.len();
 
@@ -727,7 +750,12 @@ async fn execute(
     }
     let consolidated_text = ordered
         .iter()
-        .map(|item| format!("[{} · {}]\n{}", item.subtask_id, item.provider_id, item.text))
+        .map(|item| {
+            format!(
+                "[{} · {}]\n{}",
+                item.subtask_id, item.provider_id, item.text
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n\n");
     ExecutionOutcome {
@@ -754,7 +782,8 @@ pub fn start_task(
     objective: String,
     channel: Channel<TaskEvent>,
 ) -> Result<TaskId, String> {
-    if objective.trim().is_empty() || objective.len() > crate::agents::planner::MAX_OBJECTIVE_BYTES {
+    if objective.trim().is_empty() || objective.len() > crate::agents::planner::MAX_OBJECTIVE_BYTES
+    {
         return Err("task_graph_request_invalid".into());
     }
     let (id, cancelled) = registry.register()?;
@@ -906,4 +935,21 @@ pub fn start_task(
         }
     });
     Ok(id)
+}
+
+/// Initial Worker allocation uses the same engine as Scheduler::run. Execution
+/// later pins this chosen target as Fixed and never re-scores the unit.
+pub(crate) fn rank_worker_targets(
+    scheduler: &super::scheduler::Scheduler,
+    policy: &super::policy::CognitiveRolePolicy,
+    targets: &[super::types::ProviderTarget],
+    allocation: Option<&crate::cognitive_resources::AllocationRuntimePolicy>,
+) -> Result<Vec<super::types::ProviderTarget>, super::types::SchedulerError> {
+    scheduler.ranked_provider_targets(
+        &policy.selection(),
+        targets,
+        &ProviderCapabilities::text_stream(),
+        &super::types::InvocationMode::default(),
+        allocation,
+    )
 }

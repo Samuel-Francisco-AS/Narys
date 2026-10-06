@@ -1,10 +1,12 @@
 # LR-8.5 — Cognitive Resource Economy & Allocation
 
-Estado: **EM EXECUÇÃO — LR-8.5A integrada; LR-8.5B é a próxima subfase.**
+Estado: **EM EXECUÇÃO — LR-8.5A e LR-8.5B concluídas; LR-8.5C é a próxima subfase.**
 
 Subfase concluída: **[LR-8.5A — Resource Domains, Access Paths & Cognitive Variants](LR-8.5A-RESOURCE-DOMAINS-VARIANTS.md)** — PASS completo e integrada à `main` em 06/10/2026 pela PR #23.
 
-Próxima subfase: **LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy**.
+Subfase concluída: **[LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy](LR-8.5B-ALLOCATION-SCARCITY-POLICY.md)** — PASS técnico em 06/10/2026, aprovada para integração à `main`.
+
+Próxima subfase: **LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff**.
 
 ## Motivação
 
@@ -484,6 +486,8 @@ mesmo recurso, incluindo variantes disponíveis, indisponíveis e unknown.
 
 ### LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy
 
+**Estado: PASS técnico em 06/10/2026.**
+
 Objetivo: tornar o Auto consciente de escassez, custo de oportunidade e granularidade de capacidade cognitiva sem autorizar gasto silencioso.
 
 Entregas:
@@ -505,6 +509,8 @@ adequada, escolha de modelo/effort econômico quando suficiente e promoção par
 mais capaz quando capability, qualidade esperada ou custo de retrabalho justificarem.
 
 ### LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff
+
+**Estado: PRÓXIMA SUBFASE — planejamento/implementação ainda não iniciados neste fechamento.**
 
 Objetivo: provar continuidade entre recursos heterogêneos e entre variantes cognitivas do mesmo recurso.
 

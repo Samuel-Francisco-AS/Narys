@@ -136,6 +136,10 @@ fn scheduler(actions: &[(&str, Vec<Action>)]) -> Scheduler {
 }
 fn request(ids: &[&str], selection: ProviderSelection) -> ProviderTaskRequest {
     ProviderTaskRequest {
+        allocation_policy: Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+            crate::cognitive_resources::provider_allocation_default(),
+            None,
+        )),
         traffic_class: crate::cognition::admission::TrafficClass::ForegroundInteractive,
         mode: InvocationMode::default(),
         input: "private-prompt-marker".into(),
@@ -508,10 +512,23 @@ fn telemetry_quotas_do_not_change_ranking_but_lr8c_enforces_selected_capacity() 
         ProviderSelection::Preferred,
         ProviderSelection::Fixed("a".into()),
     ] {
-        let s = scheduler(&[("a", vec![Action::Success(measured())]), ("b", vec![])]);
+        let s = scheduler(&[
+            ("a", vec![Action::Success(measured())]),
+            ("b", vec![Action::Success(measured())]),
+        ]);
         let targets = request(&["a", "b"], mode.clone()).targets;
         let before = s
-            .ranked_provider_ids(&mode, &targets, &ProviderCapabilities::text_stream())
+            .ranked_provider_ids(
+                &mode,
+                &targets,
+                &ProviderCapabilities::text_stream(),
+                &InvocationMode::default(),
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None,
+                ))
+                .as_ref(),
+            )
             .unwrap();
         for dim in [
             QuotaDimension::RequestsPerMinute,
@@ -533,12 +550,44 @@ fn telemetry_quotas_do_not_change_ranking_but_lr8c_enforces_selected_capacity() 
         let a = s.telemetry.attempt("a");
         a.started();
         a.finished(Some(&ProviderError::Fatal));
-        assert_eq!(
-            s.ranked_provider_ids(&mode, &targets, &ProviderCapabilities::text_stream())
+        if mode == ProviderSelection::Auto {
+            assert_eq!(
+                s.ranked_provider_ids(
+                    &mode,
+                    &targets,
+                    &ProviderCapabilities::text_stream(),
+                    &InvocationMode::default(),
+                    Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                        crate::cognitive_resources::provider_allocation_default(),
+                        None
+                    ))
+                    .as_ref(),
+                )
                 .unwrap(),
+                vec!["b"]
+            );
+            assert_eq!(run(&s, &["a", "b"], mode).unwrap().provider_id, "b");
+            continue;
+        }
+        assert_eq!(
+            s.ranked_provider_ids(
+                &mode,
+                &targets,
+                &ProviderCapabilities::text_stream(),
+                &InvocationMode::default(),
+                Some(crate::cognitive_resources::AllocationRuntimePolicy::new(
+                    crate::cognitive_resources::provider_allocation_default(),
+                    None
+                ))
+                .as_ref(),
+            )
+            .unwrap(),
             before
         );
-        assert_eq!(run(&s, &["a", "b"], mode).unwrap_err(), SchedulerError::RateCapacityExceeded);
+        assert_eq!(
+            run(&s, &["a", "b"], mode).unwrap_err(),
+            SchedulerError::RateCapacityExceeded
+        );
     }
 }
 #[test]
@@ -1249,11 +1298,14 @@ fn groq_fixture_request(reader: &mut impl std::io::Read) -> Vec<u8> {
         request.extend_from_slice(&buffer[..read]);
         if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
             let header = std::str::from_utf8(&request[..end]).unwrap();
-            let length = header.lines().find_map(|line| {
-                let (name, value) = line.split_once(':')?;
-                name.eq_ignore_ascii_case("content-length")
-                    .then(|| value.trim().parse::<usize>().unwrap())
-            }).unwrap_or(0);
+            let length = header
+                .lines()
+                .find_map(|line| {
+                    let (name, value) = line.split_once(':')?;
+                    name.eq_ignore_ascii_case("content-length")
+                        .then(|| value.trim().parse::<usize>().unwrap())
+                })
+                .unwrap_or(0);
             if request.len() >= (end + 4).checked_add(length).unwrap() {
                 break;
             }
@@ -1268,25 +1320,31 @@ fn lr8c_groq_http_fixture_consumes_body_split_after_headers_before_closing() {
     struct Segmented(VecDeque<Vec<u8>>);
     impl Read for Segmented {
         fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
-            let Some(bytes) = self.0.pop_front() else { return Ok(0); };
+            let Some(bytes) = self.0.pop_front() else {
+                return Ok(0);
+            };
             assert!(bytes.len() <= buffer.len());
             buffer[..bytes.len()].copy_from_slice(&bytes);
             Ok(bytes.len())
         }
     }
     let header = b"POST / HTTP/1.1\r\nContent-Length: 5\r\n\r\n".to_vec();
-    let mut reader = Segmented(VecDeque::from([header.clone(), b"ab".to_vec(), b"cde".to_vec()]));
+    let mut reader = Segmented(VecDeque::from([
+        header.clone(),
+        b"ab".to_vec(),
+        b"cde".to_vec(),
+    ]));
     let request = groq_fixture_request(&mut reader);
     assert_eq!(request, [header, b"abcde".to_vec()].concat());
-    assert!(reader.0.is_empty(), "fixture must not close with an unread body");
+    assert!(
+        reader.0.is_empty(),
+        "fixture must not close with an unread body"
+    );
 }
 
 // Two real HTTP responses on one endpoint exercise one Scheduler/store and two targets.
 fn groq_two_models_server() -> (String, std::thread::JoinHandle<()>) {
-    use std::{
-        io::Write,
-        net::TcpListener,
-    };
+    use std::{io::Write, net::TcpListener};
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let server = std::thread::spawn(move || {

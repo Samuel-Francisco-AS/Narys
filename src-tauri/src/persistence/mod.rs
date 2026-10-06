@@ -1,5 +1,5 @@
 pub mod database;
-mod migrations;
+pub(crate) mod migrations;
 pub mod identity;
 pub mod memory;
 pub mod conversation;

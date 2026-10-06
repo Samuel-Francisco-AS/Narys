@@ -1,3 +1,4 @@
+pub mod allocation_policy;
 pub mod admission;
 pub mod rate;
 pub mod resilience;
