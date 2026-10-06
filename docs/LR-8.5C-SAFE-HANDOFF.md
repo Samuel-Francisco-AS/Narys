@@ -1,9 +1,9 @@
 # LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff
 
-Estado: **C1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+Estado: **C1 = PASS técnico após auditoria independente; C2 é o próximo bloco interno.**
 
-Candidata exclusivamente C1. LR-8.5C não recebe PASS neste checkpoint;
-C2/C3/C4 permanecem planejadas, sem implementação iniciada.
+O PASS abaixo é exclusivo do C1. LR-8.5C não recebe PASS neste checkpoint;
+C2/C3/C4 permanecem sem implementação iniciada.
 
 Esta subfase fecha a LR-8.5 provando continuidade segura entre decisões de alocação
 independentes. Os blocos C1–C4 são **blocos internos da LR-8.5C**, não novas subfases
@@ -467,7 +467,7 @@ continuidade já provado para Specialist Agents reais.
 
 ## C1 — Implementação candidata (06/10/2026)
 
-**C1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+**C1 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
 ### Baseline e escopo verificados
 
@@ -633,3 +633,81 @@ Esta revisão local não é auditoria independente.
   O resultado puro não é um token de autorização durável.
 - Nenhuma auditoria independente foi executada nesta rodada. Esta candidata não
   aprova C1 nem encerra LR-8.5C e não libera implementação de C2/C3/C4.
+
+
+## Auditoria independente do C1 — 06/10/2026
+
+**Resultado: PASS técnico. Nenhuma FIX obrigatória antes do C2.**
+
+A auditoria comparou `main@0024fec735e3f6cb2461dbdeba8fa6aa4be32d32`
+com a candidata `ed5f65a90618a93f30582ced343400ee2761e296`. A branch está
+exatamente um commit à frente da baseline e altera somente os quatro arquivos
+declarados: `handoff.rs`, `handoff_tests.rs`, o export de
+`cognitive_resources/mod.rs` e este documento. Scheduler, TaskGraph,
+persistência, migrations, adapters e UI não foram tocados.
+
+### Achados
+
+1. **Fronteira arquitetural preservada.** `can_handoff` é puro, síncrono,
+   clock-free e não recebe ResourceAllocator, Scheduler, provider, database,
+   rede ou policy econômica. C1 não criou um segundo sistema de fallback.
+
+2. **Allocation de unidade iniciada permanece congelada por contrato.**
+   `Running`, `PartialOutputObserved` e todos os estados terminais da unidade
+   solicitada são bloqueados como nova unidade. Não existe caminho que converta
+   output parcial em unidade fresca.
+
+3. **Handoff e replay estão corretamente separados.** Um predecessor
+   `Completed + Committed` pode liberar um sucessor distinto, enquanto o replay
+   do predecessor continua explicitamente `Forbidden(EffectCommitted)`. Isso
+   evita bloquear progresso legítimo sem enfraquecer anti-duplicação.
+
+4. **Estado incerto falha fechado.** `UnknownOrInFlight` bloqueia continuidade
+   automática a partir do predecessor e nunca concede replay. Reutilização do
+   mesmo `ExecutionUnitId` preserva o fence mais conservador nas duas visões.
+
+5. **Vínculo de boundary é explícito.** `ConfirmedBeforeStart` precisa apontar
+   para a unidade solicitada e não aceita predecessor; `ConfirmedCompletion`
+   exige predecessor e checkpoint ligado ao ID exato desse predecessor.
+   Cross-task e sequence não crescente são rejeitados.
+
+6. **Cancelamento tem precedência.** Um cancelamento observado bloqueia a próxima
+   unidade mesmo quando os demais fatos seriam elegíveis. O próprio documento
+   corretamente registra que uma nova checagem atômica/fresca antes do dispatch
+   pertence à integração futura, não ao evaluator puro.
+
+7. **Determinismo e privacidade estão adequados ao C1.** A decisão usa apenas
+   tipos numéricos/enums, sem rationale textual livre, prompt, output, secret,
+   header ou payload genérico. O teste de ordenação auxiliar não revela
+   dependência de HashMap.
+
+8. **Cobertura é suficiente para o contrato atual.** Além dos casos A–K, a matriz
+   exaustiva percorre lifecycle, effect state, boundary, predecessor e
+   cancellation; os testes específicos cobrem same-ID, cross-task, sequence,
+   checkpoint mismatch, limits e reason precedence.
+
+### Limitação aceita e transferida ao C2
+
+`CheckpointId` e `ConfirmedCompletion` são, no C1, **fatos recebidos em
+memória**, não prova de commit durável, freshness, unicidade histórica ou
+atomicidade com dispatch. Isso é coerente com o escopo do C1 e está claramente
+documentado. O C2 deverá transformar essa afirmação em checkpoint/provenance
+persistível e verificável sem tratar o resultado puro do C1 como capability
+token ou autorização durável.
+
+O fence de efeitos também permanece agregado por unidade. C1 prova anti-replay da
+unidade/estado recebido; identificação persistente de efeitos, resume/restart e
+proteção contra repetição após crash pertencem ao C2/C4.
+
+### Gates
+
+Os resultados reportados são coerentes com o diff auditado: 25 testes focados,
+246 em `cognitive_resources`, regressões B1/B2/B3/B4 verdes, suíte Rust com
+841 aprovados / 0 falhas / 2 manuais ignorados, `cargo check` e
+`git diff --check` aprovados. O `cargo fmt --check` global permanece
+vermelho por drift preexistente em 32 arquivos; o módulo
+`cognitive_resources` alterado passa `rustfmt --check`, portanto o drift
+global não bloqueia este C1.
+
+**Decisão:** C1 aprovado para servir de base ao C2. Este PASS não aprova C2/C3/C4,
+não encerra LR-8.5C e não autoriza merge da branch neste checkpoint.
