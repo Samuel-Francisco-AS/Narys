@@ -4,7 +4,7 @@ Estado: **C1 = PASS técnico após auditoria independente.**
 
 **C2 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
-**C3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+**C3 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
 Os PASSs são exclusivos de C1/C2. LR-8.5C permanece aberta;
 C4 não foi iniciada.
@@ -1299,3 +1299,110 @@ interpretação de eventos como intenção e distribuição Auto por wave/parale
 C1/C2 permanecem PASS; C4 não iniciada; LR-8.5C não encerrada.
 
 **C3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+
+
+## Auditoria independente do C3 — 06/10/2026
+
+**Resultado: PASS técnico. Nenhuma FIX obrigatória antes do C4.**
+
+A auditoria comparou o C2 auditado em
+`8af97050712bd0b13679b3dfa2625185375ebe7b` com a candidata C3
+`c02f7df28b318f548c3c97d91828bfb1ad4326c6`. O diff contém um único
+commit e os 17 arquivos declarados. O schema permanece 14 e C4 não foi
+antecipado.
+
+### Achados
+
+1. **Recovery de identidade root está correto.** `task_history::max_id` agora
+   usa o high-water mark de `main.task_records` e
+   `main.cognitive_checkpoints`. O composition root executa essa leitura
+   obrigatoriamente antes de construir o ProviderRuntime/Summary worker e antes
+   de qualquer dispatch acessível. `TaskRegistry::seed_next_id` usa
+   `fetch_max`, portanto seed atrasado não regride a sequência. IDs fora do
+   teto falham fechado.
+
+2. **Binding allocation → execução → checkpoint está forte.**
+   `PinnedProviderAllocation` possui campos privados e é criado pelo Scheduler.
+   O Worker clona exatamente o target desse pin e executa a unidade como
+   `ProviderSelection::Fixed` com um único target, impedindo re-score durante
+   a unidade. O checkpoint usa a `AllocationVariant` do mesmo pin e ainda
+   valida o `result.provider_id` e `providers_used`. Não há reconstrução
+   retrospectiva da variante após a resposta.
+
+3. **Policy snapshot está realmente congelada por tarefa.**
+   Routing e DTO econômico Worker são capturados na mesma transação de leitura
+   B4 antes do Planner/Workers. O `TaskPolicySnapshot` é construído uma vez e
+   carregado pela bridge durante toda a execução. Mudanças posteriores em
+   Settings não expandem o universo da tarefa.
+
+4. **Auto reavalia somente novas unidades.** Cada `prepare` chama novamente a
+   engine compartilhada do Scheduler/B para fatos atuais. Depois do
+   `PreparedUnit`, target/model/effort ficam imutáveis. Fixed continua Fixed;
+   Preferred conserva ordem/cursor D3; Auto pode mudar resource/model/effort em
+   boundary posterior.
+
+5. **C1 e C2 são usados como gates reais, não decorativos.** Dependências são
+   resolvidas por receipt exato, reconsultadas no SQLite e comparadas com o
+   receipt em memória. Depois disso `can_handoff` valida cada predecessor.
+   Receipt ausente, alterado, corrompido ou com `UnknownOrInFlight` não libera
+   sucessor.
+
+6. **Checkpoint precede conclusão visível da unidade.** O TaskGraph só executa
+   `mark_completed`, insere o resultado em memória e emite
+   `SubtaskCompleted` depois de `CheckpointRepository::commit` retornar
+   receipt. Falha de checkpoint marca a unidade como falha e dependentes não
+   são despachados.
+
+7. **Cancelamento preserva precedência.** Há checks antes/depois de preparação,
+   no Worker e no Scheduler. O gate que cancela dentro de
+   `SubtaskStarted` demonstra zero request para a nova unidade; cancelar após
+   `SubtaskCompleted` preserva o checkpoint anterior e bloqueia a sucessora.
+   O receipt continua não sendo capability token de dispatch.
+
+8. **Partial output não vira handoff.** A unidade preparada é claimed uma única
+   vez. Falha depois de output não cria checkpoint e a camada C3 não recria a
+   mesma unit em outro provider. Retry continua interno ao Scheduler e ao pin
+   atual.
+
+9. **Paralelismo D3 foi preservado.** Até duas unidades independentes continuam
+   em `tokio::join!`, cada uma com pin/receipt próprios. Nenhuma conexão SQLite
+   ou lock global atravessa transporte/await. Reallocation de uma unidade ainda
+   não iniciada não altera o pin de uma irmã já em execução.
+
+10. **A persistência terminal continua coerente com C2.** Um root pode falhar ou
+    ser cancelado mantendo subtarefas já committed; C2 já aceita essa
+    combinação. Falha do write terminal não permite reutilização posterior do
+    root porque os checkpoints agora entram no high-water mark.
+
+### Observação não bloqueante — explicabilidade do Auto
+
+A segurança/provenance necessária ao handoff está presente: allocation de origem,
+allocation de destino, receipts, boundary C1 e flags estruturadas de mudança podem
+ser reconstruídos. Contudo, `PinnedProviderAllocation` conserva apenas
+`target + variant`; o `score` existente em `ProviderRouteEntry` é
+descartado. Além disso, o Worker suprime o evento `SchedulerEvent::Selected`
+porque a execução já está corretamente pinada como Fixed.
+
+Consequência: o C3 permite provar **qual allocation foi escolhida e qual boundary
+permitiu a troca**, mas não preserva integralmente **por que o Auto ranqueou aquela
+allocation** (por exemplo, seu score econômico no momento da escolha).
+
+Isso não viola o contrato de safe handoff e não justifica reabrir C3. Fica como
+item do **C4/final gate de observabilidade**: decidir se a provenance final deve
+carregar um código/score sanitizado da seleção Auto, sem persistir
+`ScoreBreakdown` excessivo nem confundir `HandoffReason` com rationale
+econômico.
+
+### Gates
+
+Os gates reportados são compatíveis com o diff e com os invariantes auditados:
+25 C3; 25 C1; 39 C2; B1/B2/B3 46/96/41; B4 56; 246
+`cognitive_resources`; 71 persistence; 49 TaskGraph; 13 regressões D3; 6
+TaskRegistry; regressões LR-8 admission/rate/resilience/telemetry/LR-8E e
+Scheduler verdes. Suíte Rust final: 905 aprovados, 0 falhas e 2 manuais
+ignorados. `cargo check`, typecheck, rustfmt dos 15 arquivos alterados e
+`git diff --check` passaram. O drift global de rustfmt permanece legado e caiu
+de 30 para 27 arquivos sem novo drift.
+
+**Decisão:** C3 aprovado para servir de base ao C4. Este PASS não aprova C4,
+não encerra LR-8.5C e não autoriza merge da branch neste checkpoint.
