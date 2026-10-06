@@ -1,5 +1,6 @@
 mod agents;
 mod cognition;
+pub mod cognitive_resources;
 mod luna;
 mod persistence;
 mod security;
