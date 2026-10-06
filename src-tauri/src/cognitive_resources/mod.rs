@@ -1,4 +1,5 @@
 //! LR-8.5A descriptions + LR-8.5B pure B1 eligibility and B2 economic decision.
+//! LR-8.5C C1 adds pure safe-boundary eligibility and replay fences.
 //! No execution, live admission, reservation or spend/debit authority.
 //! Callers supply public local identities; never credentials or remote account IDs.
 mod allocation;
@@ -7,6 +8,7 @@ mod catalog;
 mod economic_context;
 mod economics;
 mod facts;
+mod handoff;
 mod ids;
 mod lr8;
 mod provider_bridge;
@@ -21,6 +23,7 @@ pub use catalog::*;
 pub use economic_context::*;
 pub use economics::*;
 pub use facts::*;
+pub use handoff::*;
 pub use ids::*;
 pub use lr8::*;
 pub use provider_bridge::*;
@@ -46,3 +49,6 @@ mod allocation_tests;
 
 #[cfg(test)]
 mod scoring_tests;
+
+#[cfg(test)]
+mod handoff_tests;
