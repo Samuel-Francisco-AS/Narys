@@ -397,6 +397,11 @@ A reauditoria deve procurar especialmente:
 
 ## Implementação candidata — 05/10/2026
 
+Registro histórico da candidata `35b601daeb82d4697c3328c99a086f4b6f1c966a`.
+As decisões de identidade econômica e fatos de modelo/effort abaixo foram
+refinadas pelo FIX-1 ao final deste documento. A seção FIX-1 registra o contrato
+vigente depois da correção incremental.
+
 Pré-condições verificadas antes de qualquer edição: branch obrigatória
 `lr-8.5a-resource-domains-variants`, fetch + fast-forward sem divergência,
 workspace limpo e HEAD remoto/local
@@ -596,3 +601,170 @@ Essa limitação de PATH foi resolvida e não impediu os gates do código novo.
 comportamento alterado.** O diff de produção existente é somente a declaração
 aditiva do módulo em lib.rs. A candidata aguarda auditoria independente e gate;
 esta auto-revisão e os testes não substituem esse fechamento.
+
+## FIX-1 — Contratos cognitivos/econômicos e allowance genérico
+
+Estado mantido: **IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente e gate.**
+Correção incremental sobre `35b601daeb82d4697c3328c99a086f4b6f1c966a`,
+exclusivamente em `lr-8.5a-resource-domains-variants`.
+
+### Problemas identificados pela auditoria
+
+1. `EffortProfile` descrevia ID/disponibilidade, mas não capacidade/economia.
+   `QualityLabel` opaco e fatos somente no modelo não permitiam avaliações
+   futuras sem interpretar nomes comerciais ou low/medium/high/xhigh.
+2. Saldo monetário e fatos operacionais LR-8 não representavam allowance
+   não monetário genérico de Agents/Local, com limit/remaining/reset independentes.
+3. `BillingDomain` incluía kind/balance dentro de `ResourceIdentity`; o registro
+   exigia igualdade de observações para compartilhar o domínio. Capturas
+   diferentes podiam impedir a reutilização de uma identidade estável.
+
+### Contrato de modelo/effort adotado
+
+`ModelFacts` mantém `quality: CatalogFact<QualityLabel>` e
+`context_tokens: CatalogFact<u64>`, e compõe `execution: ExecutionFacts`.
+`EffortProfile` mantém ID/disponibilidade e recebe `facts: ExecutionFacts`.
+A composição compartilhada contém:
+
+| Campo | Representação |
+|---|---|
+| `cognitive_tier` | `CatalogFact<CognitiveTier>` |
+| `relative_cost` | `CatalogFact<RelativeCostTier>` |
+| `latency_ms` | `CatalogFact<u64>` |
+| `monetary_cost` | `CatalogFact<MonetaryAmount>` |
+| `allowance_cost` | `CatalogFact<AllowanceConsumption>` com unidade e quantidade explícitas |
+
+Todos os campos começam Unknown. Cada Known preserva provenance/timestamp
+próprios. Latência/custos descrevem uma invocação segundo a fonte explícita;
+não se calculam preço por token ou consumo a partir do nome do effort.
+O antigo `quota_cost` sem unidade foi refinado para `allowance_cost` tipado.
+
+`CognitiveTier` é uma escala ordinal normalizada 0..=255, provider-agnostic;
+valores maiores representam capacidade maior segundo a avaliação explicitamente
+configurada/catalogada. `RelativeCostTier` é uma escala ordinal 0..=255 de
+consumo relativo crescente. Ambas são ordenáveis, bounded e validadas inclusive
+na desserialização; não representam razões, ranking automático ou garantia de
+qualidade. Tier relativo zero não afirma custo monetário/allowance zero.
+Nenhum modelo ou effort recebe tier por padrão. A atribuição e a comparabilidade
+das avaliações dependem da fonte, que fica preservada no fato.
+
+`ExecutionVariant` agora preserva `model_facts` e `effort_facts` separadamente.
+Não há herança, soma, override ou resolução de conflitos entre os dois perfis;
+effort Unknown continua Unknown mesmo com modelo conhecido. Effort=None mantém
+`effort_facts=None`, sem inventar semântica para o default do backend.
+EffortId continua aberto e sem ordenação por capacidade/custo. `ThinkingLevel`
+permanece Low/Medium/High; a bridge existente continua recusando xhigh e valores
+não representáveis, sem aproximação. Não há algoritmo de quality floor.
+
+### Allowance econômico genérico
+
+`EconomicFacts`, associado ao descriptor do recurso fora de sua identidade,
+contém `billing_kind: CatalogFact<BillingKind>`,
+`monetary_balance: CatalogFact<MonetaryAmount>` e `allowances: Vec<AllowanceState>`.
+Cada `AllowanceState` declara:
+
+- `unit: AllowanceUnit`: Requests, Tokens, Credits, Percent ou Custom com
+  `AllowanceUnitId` validado/bounded;
+- `limit` e `remaining`: `CatalogFact<u64>` independentes;
+- `reset`: `CatalogFact<Timing>` independente, reutilizando somente o DTO LR-8
+  DelayMs/UnixMs, sem manager, QuotaScope ou instrução de refill.
+
+Não há inferência de percentual, denominação monetária de credits ou conversão
+entre unidades. Percent, quando explicitamente declarado, usa pontos percentuais
+inteiros 0..=100; limit Unknown não vira 100. Unidades restantes usam o bound
+JSON-safe `MAX_FACT_VALUE`, assim como valores temporais/timestamps. Quando
+limit e remaining são conhecidos, remaining acima de limit falha na validação.
+São aceitas até 16 dimensões por descriptor, uma observação por unidade;
+duplicatas e excesso de cardinalidade falham antes de alterar o catálogo.
+Lista ausente/vazia significa dimensões não reportadas, sem saldo implícito.
+
+O contrato serve às três classes. Um SpecialistAgent pode preencher credits,
+limit 100, remaining 5 e reset conhecido diretamente no descriptor, sem
+ProviderRegistry, provider HTTP, RateLimitManager ou migration. O catálogo não
+classifica exhausted/unlimited, não bloqueia invocação nem autoriza gasto.
+Fatos LR-8 continuam separados na projeção existente, sem conversão automática
+para allowance genérico e sem herança provider → model. Nenhuma integração real
+Codex/Copilot ou fonte de quota/preço de produção foi adicionada.
+
+### Estabilidade do BillingDomain
+
+`BillingDomain` contém somente `BillingDomainId`. Kind/saldo/allowances são
+observações em `CognitiveResource.economics`, fora de `ResourceIdentity`.
+Dois descriptors explicitamente vinculados ao mesmo ID podem ser registrados
+mesmo com valores, timestamps ou provenances diferentes; snapshots conservam
+essas evidências separadas por recurso. IDs distintos continuam independentes.
+
+A consulta estreita `ResourceCatalog::domain_economics` retorna fatos apenas
+quando todas as observações daquele domínio são idênticas, incluindo provenance
+e timestamps. Divergência retorna `ConflictingEconomicFacts`; domínio ausente
+retorna `BillingDomainNotFound`. Não há merge, latest-wins, soma ou escolha
+silenciosa de fonte. A identidade não depende do sucesso dessa consulta.
+O catálogo continua sendo uma descrição capturada, sem ledger vivo ou API de
+mutação de fatos registrados. Uma nova captura pode construir outro catálogo.
+
+### Arquivos e regressões
+
+- Novos: `src-tauri/src/cognitive_resources/economics.rs` e `fix1_tests.rs`.
+- Alterados no módulo: `catalog.rs`, `ids.rs`, `mod.rs`, `types.rs`, `tests.rs`.
+- Documentação: `docs/LR-8.5A-RESOURCE-DOMAINS-VARIANTS.md`.
+
+Os 16 testes anteriores foram preservados, adaptando apenas localização de
+kind/saldo, composição de ModelFacts e inclusão de facts no EffortProfile.
+A antiga rejeição de registro por fatos do mesmo domínio foi substituída pelo
+gate de identidade estável e consulta econômica fail-closed.
+Nove testes novos cobrem:
+
+1. Medium/high/xhigh do mesmo modelo com tiers 2/3/4 e consumo 1/2/4,
+   distintos no snapshot/variante, com provenance preservada.
+2. Mesmo ID high com capacidade/custo/latência diferentes em recursos distintos.
+3. Modelos do mesmo recurso com tiers explícitos e provenances diferentes.
+4. Fatos Unknown do effort sem herança do modelo; xhigh sem bridge aproximada.
+5. Allowance credits de SpecialistAgent, 100/5/reset conhecido, sem autoridades LR-8.
+6. Limit/remaining/reset Unknown em todas as classes e campos parcialmente
+   conhecidos sem derivação de percentual ou disponibilidade.
+7. Identidade compartilhada com capturas divergentes, consulta fail-closed e
+   independência de outro billing domain.
+8. Evidência idêntica compartilhada e coexistência de dinheiro/unidades
+   não monetárias sem conversão.
+9. Bounds de tiers/fatos/timing/cardinalidade, unidades duplicadas e atomicidade.
+
+Nenhum teste escolhe um candidato ou interpreta semanticamente nomes.
+
+### Validação do FIX-1
+
+| Gate | Resultado |
+|---|---|
+| `/home/sam/.cargo/bin/rustfmt --edition 2021 --check src-tauri/src/cognitive_resources/*.rs` | Exit 0; módulo inteiro, incluindo arquivos tocados/novos |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources` | Exit 0; 25 aprovados, 0 falhas: 16 regressões anteriores e 9 testes FIX-1 |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | Exit 0; 567 aprovados, 0 falhas, 2 ignorados; 254,50 s de testes; main e doc-tests sem falhas |
+| cognition / agents na suíte completa | 370 / 110 aprovados; agents com 2 manuais ignorados |
+| Gates LR-8 na suíte completa | rate_tests 69, telemetry_tests 33, admission_tests 18, resilience_tests 76, operational_tests 8 e LR-8E 14; todos aprovados |
+| TaskGraph runtime na suíte completa | 13 aprovados, 0 falhas |
+| `git diff --check` no diff incremental | Exit 0 |
+| Typecheck/frontend | Não aplicável; nenhum contrato exposto ao frontend alterado |
+
+Os dois ignorados continuam sendo os gates manuais Codex
+`real_app_server_handshake` e `manual_final_codex_agent_bridge_gate`.
+Foram mantidos os 15 warnings de biblioteca e dois de testes preexistentes;
+nenhum warning novo do FIX-1 e nenhuma falha. O check de rustfmt foi limitado ao
+módulo: o check global tem as diferenças preexistentes em 44 arquivos registradas
+na candidata original; esses arquivos não foram reformatados. Os gates LR-8 e
+as suítes de cognition/agents foram executados pela suíte completa, sem rodada
+redundante ou alteração de testes desses runtimes.
+
+### Limitações e fronteiras preservadas
+
+As escalas ordinais não possuem calibração de produção fornecida pelo Core.
+Allowance usa quantidades inteiras e uma dimensão por unidade; múltiplas janelas
+da mesma unidade podem usar IDs custom explicitamente distintos. Não há seleção
+de fonte, freshness policy, refresh remoto ou persistência nova. Sem migration.
+ProviderCapabilities/AgentCapabilities, ProviderRegistry/AgentRegistry e os
+backends continuam independentes; o FIX-1 não altera seus arquivos ou execução.
+LR-8 permanece autoridade operacional de Providers.
+
+Quality-floor selection, ResourceAllocator, scarcity scoring, reserve policy,
+spend authorization e routing econômico permanecem em LR-8.5B; handoff e
+continuidade em LR-8.5C. Scheduler, Auto/auto_score, fallback, retry, ordering,
+affinity, admission, resilience e TaskGraph permanecem behavior-neutral:
+nenhum arquivo desses runtimes foi alterado pelo FIX-1. Não houve merge para main
+nem declaração de PASS ou conclusão da LR-8.5.

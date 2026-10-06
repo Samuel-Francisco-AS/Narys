@@ -19,11 +19,6 @@ impl ResourceCatalog {
             return Err(CatalogError::CapacityExceeded);
         }
         for existing in self.resources.values() {
-            if existing.identity.billing_domain.id == resource.identity.billing_domain.id
-                && existing.identity.billing_domain != resource.identity.billing_domain
-            {
-                return Err(CatalogError::InconsistentBillingDomain);
-            }
             // One registered runtime ID is one credential/quota context. Different
             // access paths require independent bindings, never family inference.
             if !matches!(resource.origin, ResourceOrigin::Local)
@@ -35,6 +30,23 @@ impl ResourceCatalog {
         self.resources
             .insert(resource.identity.id.clone(), resource);
         Ok(())
+    }
+    /// Domain-level reads fail closed unless all associated observations agree,
+    /// including provenance/timestamps. Registration and identity never depend on
+    /// observations matching; snapshots preserve each resource's evidence separately.
+    pub fn domain_economics(&self, id: &BillingDomainId) -> Result<&EconomicFacts, CatalogError> {
+        let mut observations = self
+            .resources
+            .values()
+            .filter(|resource| &resource.identity.billing_domain.id == id)
+            .map(|resource| &resource.economics);
+        let first = observations
+            .next()
+            .ok_or(CatalogError::BillingDomainNotFound)?;
+        if observations.any(|other| other != first) {
+            return Err(CatalogError::ConflictingEconomicFacts);
+        }
+        Ok(first)
     }
     pub fn resource(&self, id: &ResourceId) -> Option<&CognitiveResource> {
         self.resources.get(id)
@@ -53,10 +65,9 @@ impl ResourceCatalog {
             .resource(resource)
             .ok_or(CatalogError::ResourceNotFound)?;
         let model = resource.model(model)?;
-        let effort_availability = match effort {
-            Some(id) => model.effort(id)?.availability.clone(),
-            None => CatalogFact::Unknown, // backend default, no invented effort
-        };
+        let effort_profile = effort.map(|id| model.effort(id)).transpose()?;
+        let effort_availability =
+            effort_profile.map_or(CatalogFact::Unknown, |profile| profile.availability.clone());
         Ok(ExecutionVariant {
             resource_id: resource.identity.id.clone(),
             access_path: resource.identity.access_path.clone(),
@@ -66,6 +77,8 @@ impl ResourceCatalog {
             resource_availability: resource.availability.clone(),
             model_availability: model.availability.clone(),
             effort_availability,
+            model_facts: model.facts.clone(),
+            effort_facts: effort_profile.map(|profile| profile.facts.clone()),
         })
     }
     /// Snapshots are already captured by LR-8. This method cannot refresh/reset

@@ -31,8 +31,6 @@ pub enum BillingKind {
 pub struct BillingDomain {
     /// Public local label, independent of family and remote billing/account IDs.
     pub id: BillingDomainId,
-    pub kind: CatalogFact<BillingKind>,
-    pub balance: CatalogFact<MonetaryAmount>,
 }
 /// Amount in millionths of an explicitly supplied three-letter currency code.
 /// No exchange rate, billing schedule or price inference exists in the Core.
@@ -75,17 +73,14 @@ pub struct ModelFacts {
     /// A supplied label, with no built-in quality ordering.
     pub quality: CatalogFact<QualityLabel>,
     pub context_tokens: CatalogFact<u64>,
-    pub latency_ms: CatalogFact<u64>,
-    /// Cost per invocation as explicitly described by the source.
-    pub monetary_cost: CatalogFact<MonetaryAmount>,
-    /// Consumption per invocation in the integration's declared allowance units.
-    pub quota_cost: CatalogFact<u64>,
+    pub execution: ExecutionFacts,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EffortProfile {
     pub id: EffortId,
     pub availability: CatalogFact<Availability>,
+    pub facts: ExecutionFacts,
 }
 impl EffortId {
     /// Exact vocabulary bridge only; this makes no claim of model/backend support.
@@ -145,20 +140,12 @@ impl ModelProfile {
                     return Err(CatalogError::DuplicateEffort);
                 }
                 effort.availability.validate()?;
+                effort.facts.validate()?;
             }
         }
         self.facts.quality.validate()?;
-        self.facts.monetary_cost.validate()?;
-        for fact in [
-            &self.facts.context_tokens,
-            &self.facts.latency_ms,
-            &self.facts.quota_cost,
-        ] {
-            fact.validate()?;
-            if fact.value().is_some_and(|n| *n > MAX_FACT_VALUE) {
-                return Err(CatalogError::InvalidFact);
-            }
-        }
+        super::economics::validate_number(&self.facts.context_tokens)?;
+        self.facts.execution.validate()?;
         Ok(())
     }
 }
@@ -183,6 +170,8 @@ pub struct ResourceIdentity {
 pub struct CognitiveResource {
     pub identity: ResourceIdentity,
     pub origin: ResourceOrigin,
+    /// Dynamic economic observations are separate from stable resource identity.
+    pub economics: EconomicFacts,
     pub enabled: CatalogFact<bool>,
     /// Descriptive availability; never an LR-8 operational authorization.
     pub availability: CatalogFact<Availability>,
@@ -229,6 +218,7 @@ impl CognitiveResource {
         Self {
             identity,
             origin,
+            economics: EconomicFacts::default(),
             enabled: CatalogFact::Known {
                 value: enabled,
                 provenance,
@@ -266,8 +256,7 @@ impl CognitiveResource {
         ) {
             return Err(CatalogError::InvalidOrigin);
         }
-        self.identity.billing_domain.kind.validate()?;
-        self.identity.billing_domain.balance.validate()?;
+        self.economics.validate()?;
         self.enabled.validate()?;
         self.availability.validate()?;
         self.capabilities.validate()?;
@@ -300,4 +289,7 @@ pub struct ExecutionVariant {
     pub resource_availability: CatalogFact<Availability>,
     pub model_availability: CatalogFact<Availability>,
     pub effort_availability: CatalogFact<Availability>,
+    /// Kept separate: effort Unknown never falls back to model metadata.
+    pub model_facts: ModelFacts,
+    pub effort_facts: Option<ExecutionFacts>,
 }

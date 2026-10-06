@@ -7,7 +7,9 @@ pub enum CatalogError {
     DuplicateResource,
     DuplicateModel,
     DuplicateEffort,
-    InconsistentBillingDomain,
+    ConflictingEconomicFacts,
+    BillingDomainNotFound,
+    DuplicateAllowanceUnit,
     InvalidOrigin,
     DuplicateRuntimeBinding,
     ResourceNotFound,
@@ -76,3 +78,5 @@ id!(RuntimeId, 64, false);
 id!(ModelId, 128, true);
 id!(EffortId, 64, false);
 id!(QualityLabel, 64, false);
+
+id!(AllowanceUnitId, 64, false);

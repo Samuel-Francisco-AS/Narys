@@ -39,7 +39,6 @@ fn identity(
     family: &str,
     path: &str,
     domain: &str,
-    kind: BillingKind,
 ) -> ResourceIdentity {
     ResourceIdentity {
         id: ResourceId::new(id).unwrap(),
@@ -48,8 +47,6 @@ fn identity(
         access_path: AccessPath::new(path).unwrap(),
         billing_domain: BillingDomain {
             id: BillingDomainId::new(domain).unwrap(),
-            kind: configured(kind),
-            balance: CatalogFact::Unknown,
         },
     }
 }
@@ -74,6 +71,7 @@ fn model(id: &str, efforts: &[&str], available: bool, vision: bool) -> ModelProf
             .map(|id| EffortProfile {
                 id: EffortId::new(*id).unwrap(),
                 availability: known(Availability::Available),
+                facts: ExecutionFacts::default(),
             })
             .collect(),
     );
@@ -95,21 +93,24 @@ fn included() -> CognitiveResource {
             "family-a",
             "included",
             "allowance-A",
-            BillingKind::IncludedAllowance,
         ),
         &provider("runtime-included"),
     )
     .unwrap();
+    resource.economics.billing_kind = configured(BillingKind::IncludedAllowance);
     resource.availability = known(Availability::Available);
     let mut cheap = model("Cheap", &["low", "medium"], true, false);
     cheap.facts.context_tokens = known(4096);
-    cheap.facts.latency_ms = CatalogFact::from(&Fact::Known {
+    cheap.facts.execution.latency_ms = CatalogFact::from(&Fact::Known {
         value: 15,
         provenance: Provenance::LocalRuntime,
         observed_at_unix_ms: Some(43),
     });
-    cheap.facts.monetary_cost = known(MonetaryAmount::new("USD", 0).unwrap());
-    cheap.facts.quota_cost = configured(1);
+    cheap.facts.execution.monetary_cost = known(MonetaryAmount::new("USD", 0).unwrap());
+    cheap.facts.execution.allowance_cost = configured(AllowanceConsumption {
+        unit: AllowanceUnit::Requests,
+        amount: 1,
+    });
     cheap.facts.quality = configured(QualityLabel::new("task-qualified").unwrap());
     resource.models = known(vec![
         cheap,
@@ -140,17 +141,11 @@ fn fixture() -> ResourceCatalog {
         ),
     ] {
         let mut resource = CognitiveResource::from_provider_config(
-            identity(
-                id,
-                ResourceClass::CognitiveProvider,
-                family,
-                path,
-                domain,
-                kind,
-            ),
+            identity(id, ResourceClass::CognitiveProvider, family, path, domain),
             &provider(&format!("runtime-{id}")),
         )
         .unwrap();
+        resource.economics.billing_kind = configured(kind);
         resource.models = known(vec![ModelProfile::unknown(ModelId::new(name).unwrap())]);
         catalog.register(resource).unwrap();
     }
@@ -173,7 +168,6 @@ fn fixture() -> ResourceCatalog {
                     "family-a",
                     "agent-bridge",
                     "agent-domain",
-                    BillingKind::Unknown,
                 ),
                 &agent,
             )
@@ -188,9 +182,9 @@ fn fixture() -> ResourceCatalog {
                 "local-family",
                 "local-process",
                 "local-domain",
-                BillingKind::Unknown,
             ),
             origin: ResourceOrigin::Local,
+            economics: EconomicFacts::default(),
             enabled: configured(true),
             availability: CatalogFact::Unknown,
             capabilities: CapabilitySet::default(),
@@ -216,15 +210,15 @@ fn synthetic_heterogeneous_resources_access_paths_and_billing_domains_are_indepe
         direct.identity.billing_domain.id
     );
     assert_eq!(
-        included.identity.billing_domain.kind,
+        included.economics.billing_kind,
         configured(BillingKind::IncludedAllowance)
     );
     assert_eq!(
-        direct.identity.billing_domain.kind,
+        direct.economics.billing_kind,
         configured(BillingKind::PrepaidCredits)
     );
     assert_eq!(
-        resource(&catalog, "free").identity.billing_domain.kind,
+        resource(&catalog, "free").economics.billing_kind,
         configured(BillingKind::FreeTier)
     );
     assert_ne!(
@@ -326,11 +320,20 @@ fn synthetic_unavailable_unknown_and_model_capability_divergence_survive_snapsho
         known(true)
     );
     assert_eq!(unavailable.availability, known(Availability::Unavailable));
-    assert_eq!(cheap.facts.monetary_cost.value().unwrap().micros(), 0);
-    assert_eq!(strong.facts.monetary_cost, CatalogFact::Unknown);
+    assert_eq!(
+        cheap
+            .facts
+            .execution
+            .monetary_cost
+            .value()
+            .unwrap()
+            .micros(),
+        0
+    );
+    assert_eq!(strong.facts.execution.monetary_cost, CatalogFact::Unknown);
     assert_eq!(cheap.facts.context_tokens, known(4096));
     assert_eq!(
-        cheap.facts.latency_ms,
+        cheap.facts.execution.latency_ms,
         CatalogFact::known(
             15,
             CatalogProvenance::Operational(Provenance::LocalRuntime),
@@ -350,10 +353,7 @@ fn synthetic_unavailable_unknown_and_model_capability_divergence_survive_snapsho
             .unwrap()
             .descriptor;
         assert_eq!(resource.availability, CatalogFact::Unknown);
-        assert_eq!(
-            resource.identity.billing_domain.balance,
-            CatalogFact::Unknown
-        );
+        assert_eq!(resource.economics.monetary_balance, CatalogFact::Unknown);
     }
     let json = serde_json::to_value(snapshot).unwrap();
     assert!(json.to_string().contains("integration_catalog"));
@@ -370,7 +370,6 @@ fn missing_model_catalog_and_efforts_are_unknown_even_for_legacy_named_models() 
             "new-family",
             "new-path",
             "new-domain",
-            BillingKind::Unknown,
         ),
         &provider("new-runtime"),
     )
@@ -747,7 +746,7 @@ fn typed_identifiers_validate_bounds_and_deserialization_without_silent_normaliz
 }
 
 #[test]
-fn catalog_registration_rejects_duplicates_invalid_origins_and_conflicting_domains_atomically() {
+fn catalog_registration_rejects_duplicates_and_invalid_origins_atomically() {
     let mut catalog = fixture();
     let before = serde_json::to_value(catalog.snapshot(&[], &[]).unwrap()).unwrap();
     assert_eq!(
@@ -760,14 +759,6 @@ fn catalog_registration_rejects_duplicates_invalid_origins_and_conflicting_domai
     assert_eq!(
         catalog.register(resource),
         Err(CatalogError::DuplicateRuntimeBinding)
-    );
-    let mut resource = included();
-    resource.identity.id = ResourceId::new("conflict").unwrap();
-    resource.origin = ResourceOrigin::Provider(RuntimeId::new("other-runtime").unwrap());
-    resource.identity.billing_domain.kind = configured(BillingKind::MeteredBilling);
-    assert_eq!(
-        catalog.register(resource),
-        Err(CatalogError::InconsistentBillingDomain)
     );
     let mut resource = included();
     resource.identity.class = ResourceClass::SpecialistAgent;
@@ -815,7 +806,7 @@ fn numeric_facts_and_cardinality_are_bounded() {
     let mut bad = included();
     bad.models = known(vec![model("bad", &[], true, false)]);
     if let CatalogFact::Known { value, .. } = &mut bad.models {
-        value[0].facts.latency_ms = known(MAX_FACT_VALUE + 1);
+        value[0].facts.execution.latency_ms = known(MAX_FACT_VALUE + 1);
     }
     assert_eq!(catalog.register(bad), Err(CatalogError::InvalidFact));
     let mut bad = included();
@@ -970,7 +961,6 @@ fn independent_registries_and_safe_config_bridges_exclude_all_private_material()
                     "generic-family",
                     "generic-path",
                     "provider-domain",
-                    BillingKind::Unknown,
                 ),
                 provider_config,
             )
@@ -986,7 +976,6 @@ fn independent_registries_and_safe_config_bridges_exclude_all_private_material()
                     "generic-family",
                     "generic-path",
                     "agent-domain",
-                    BillingKind::Unknown,
                 ),
                 agent_config,
             )
@@ -1156,7 +1145,6 @@ fn config_enabled_never_proves_remote_availability_and_disabled_is_explicit() {
         "family",
         "path",
         "domain",
-        BillingKind::Unknown,
     );
     let enabled = CognitiveResource::from_provider_config(identity.clone(), &config).unwrap();
     assert_eq!(
