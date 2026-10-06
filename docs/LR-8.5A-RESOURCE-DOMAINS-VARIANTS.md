@@ -1,6 +1,6 @@
 # LR-8.5A — Resource Domains, Access Paths & Cognitive Variants
 
-Estado: **IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente e gate.**
+Estado: **PASS TÉCNICO — auditoria independente concluída; pronto para integração.**
 
 Branch de trabalho: `lr-8.5a-resource-domains-variants`  
 Base: `main@3829acca06c8a3a97090b7c921e31a0baf9a8970`
@@ -929,3 +929,75 @@ affinity, admission, resilience, TaskGraph, registries e RateLimitManager não
 foram tocados. Sem selection, scarcity, quality floor, spend authorization ou
 migration. Esta correção é validação estrutural descritiva, sem declaração de
 PASS, conclusão da LR-8.5 ou merge para main.
+
+
+## Fechamento — PASS técnico
+
+Data: **06/10/2026**  
+HEAD auditado: `7f4cd4b674626f5330a4eff62ccf6587392a7259`
+
+A auditoria independente encerra a LR-8.5A em **PASS técnico**.
+
+### Resultado da auditoria
+
+A implementação final satisfaz o boundary definido para a subfase:
+
+- `ResourceCatalog` permanece exclusivamente descritivo;
+- Cognitive Providers, Specialist Agents e LocalSupport coexistem sem unificação dos runtimes;
+- `ProviderRegistry` e `AgentRegistry` permanecem independentes;
+- `BillingDomain` possui identidade estável separada de observações econômicas;
+- `CatalogFact` preserva Known/Unknown e provenance sem inferir free, paid, zero ou unavailable;
+- ModelProfile e EffortProfile possuem fatos próprios de capacidade e economia;
+- `ThinkingLevel` legado não foi ampliado para acomodar xhigh;
+- allowances não monetários podem ser publicados por qualquer classe de recurso;
+- múltiplas dimensões da mesma unidade coexistem por `AllowanceDimensionId`;
+- consumos multidimensionais são representáveis sem soma/conversão implícita;
+- dentro de um resource, uma dimensão conhecida conserva unidade factual única;
+- fatos LR-8 são consumidos somente por bridge read-only e escopo exato;
+- nenhum segredo, handle de backend ou material de autenticação entra nos snapshots;
+- não houve migration, persistência nova ou integração comercial real;
+- Scheduler, Auto/auto_score, fallback, retry, affinity, admission, resilience,
+  TaskGraph, ProviderRegistry, AgentRegistry e RateLimitManager permanecem
+  behavior-neutral.
+
+### Correções de auditoria
+
+A candidata passou por três correções incrementais antes do PASS:
+
+1. **FIX-1 — Variant Economics & Generic Allowances**  
+   adicionou `ExecutionFacts`, tiers cognitivos/custo relativo, fatos próprios por
+   effort e allowances genéricos para recursos fora da LR-8.
+
+2. **FIX-2 — Multi-dimensional Allowances**  
+   separou `AllowanceDimensionId` de `AllowanceUnit` e permitiu múltiplas janelas
+   da mesma unidade e múltiplos consumos por execução.
+
+3. **FIX-3 — Allowance Dimension Unit Consistency**  
+   tornou fail-closed a contradição de unidade para a mesma dimensão dentro de um
+   CognitiveResource, mantendo válidos consumos cuja dimensão ainda não tenha state
+   econômico conhecido.
+
+### Gate final
+
+Relatório da execução candidata no Fedora:
+
+- `cognitive_resources`: **38 aprovados, 0 falhas**;
+- suíte Rust completa: **580 aprovados, 0 falhas, 2 ignorados**;
+- regressões cognition, agents, LR-8 e TaskGraph: aprovadas;
+- rustfmt do módulo e diff incremental: aprovados;
+- warnings preexistentes preservados, sem warning novo.
+
+Os dois testes ignorados continuam sendo gates manuais Codex preexistentes. A
+auditoria independente revisou o código e o diff remoto; não representa uma segunda
+execução local da suíte.
+
+### Decisão
+
+**LR-8.5A = PASS TÉCNICO.**
+
+A subfase está pronta para integração em `main`. A próxima subfase da trilha é
+**LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy**.
+
+A 8.5B poderá consumir os contratos criados aqui para realizar capability/quality
+gates, scarcity/reserve policy e seleção conjunta de resource + access path + model
++ effort. Nenhum desses comportamentos foi antecipado na 8.5A.
