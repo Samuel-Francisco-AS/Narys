@@ -1,7 +1,7 @@
 # LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy
 
-Estado: **B4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
-B1/B2/B3 permanecem em PASS técnico; a LR-8.5B ainda não está encerrada.
+Estado: **PASS TÉCNICO — B1/B2/B3/B4 encerradas após auditoria independente em 06/10/2026.**
+A LR-8.5B está aprovada para integração à `main`; a próxima subfase é LR-8.5C.
 
 Branch de trabalho: `lr-8.5b-allocation-scarcity-policy`  
 Base: `main@a6eec1b63655d860279f606bc55766255903f1fe`
@@ -2068,3 +2068,49 @@ price discovery/web fetch, compras/refill, balance polling, invoices, ledger
 monetário e FX permanecem fora do escopo.
 
 **B4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+
+
+## Fechamento LR-8.5B
+
+Data: **06/10/2026**  
+HEAD final auditado antes do fechamento: `20153cc0879b13294c5c1b3cabbd93507cd2e039`
+
+A auditoria independente encerra **LR-8.5B — Allocation, Model/Effort Selection &
+Scarcity Policy** em **PASS técnico**.
+
+Estado consolidado:
+
+- B1 — Allocation Contracts & Hard Gates: **PASS**;
+- B2 — Scarcity, Spend Guard & Deterministic Scoring: **PASS**;
+- B3 — Variant Expansion & Provider Auto Bridge: **PASS**;
+- B4 — Policy Persistence, Settings Surface & Final Gate: **PASS**.
+
+A trilha entrega um Auto provider-agnostic que exige hard eligibility antes do score,
+preserva Unknown sem interpretação otimista, considera scarcity/custo de oportunidade,
+aplica spend guard fail-closed, compara variantes conhecidas, congela uma cadeia
+autorizada para execução e mantém Fixed/Preferred semanticamente explícitos.
+
+A B4 torna a policy econômica persistente por papel sem mover SQLite para o Scheduler.
+Conversation, Summary, Orchestrator e Worker recebem snapshots imutáveis por tarefa;
+alterações de Settings valem somente para novas tarefas. O save composto de routing +
+allocation é transacional, e a migration 013 preserva exatamente os defaults aprovados
+na B3.
+
+O gate final reportado passou com **816 testes Rust, 0 falhas e 2 ignorados**, além
+dos gates frontend/typecheck. O gate integrado comprovou SQLite → snapshot → B3/B1/B2
+→ AutoRoutePlan → Scheduler → provider sintético, incluindo Paid Deny com zero HTTP /
+reservation / admission para o recurso excluído, nova tarefa com Paid Allow e cadeia
+congelada preservando fallback 429 → 503 → próximo provider.
+
+Limitações deliberadamente preservadas para fases posteriores:
+
+- catálogo de produção ainda pode permanecer Unknown;
+- facts econômicos reais não são inventados por configuração;
+- race entre planejamento LR-8 e reservation operacional não dispara replan econômico;
+- não existe fallback para segunda variante do mesmo provider;
+- não existe handoff/replay depois de output parcial;
+- SpecialistAgent allocation e execução Codex/Copilot permanecem fora da LR-8.5B.
+
+Nenhuma parte da LR-8.5C foi antecipada.
+
+**Próxima subfase liberada: LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff.**
