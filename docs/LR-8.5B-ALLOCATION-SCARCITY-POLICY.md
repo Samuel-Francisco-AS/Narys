@@ -979,3 +979,356 @@ a auditoria independente revisou o código e diff remoto.
 B2 pode consumir apenas candidatos B1 Eligible para seleção automática. Unresolved
 continua sem equivaler a autorização; sua resolução operacional permanece responsabilidade
 do builder/bridge da B3 quando houver evidência técnica externa apropriada.
+
+## B2 — Implementação candidata
+
+**B2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+Esta seção registra somente o motor puro B2; não declara B2 PASS nem LR-8.5B
+PASS e não inicia B3/B4/C.
+
+### Pré-condições e arquivos
+
+Branch exclusiva `lr-8.5b-allocation-scarcity-policy`, HEAD inicial local/remoto
+`ef575db50ef4d0fcbe1ec57ea05c0ef220048f97`, fetch + fast-forward já atualizado,
+workspace limpo e ancestral/base original
+`main@a6eec1b63655d860279f606bc55766255903f1fe` confirmados antes de editar.
+Os cinco documentos exigidos foram lidos integralmente; allocation, economics,
+lr8, catalog, rate, telemetry e Scheduler foram revisados.
+
+| Arquivo em `src-tauri/src/cognitive_resources/` | Responsabilidade B2 |
+|---|---|
+| `economic_context.rs` (novo) | Captura read-only com identidade, validação de DTOs e ScoringError |
+| `scarcity.rs` (novo) | ResolvedExecutionFacts, resolução model/effort, allowances e OperationalPressure |
+| `spend.rs` (novo) | SpendAssessment, EconomicEligibility e EconomicExclusion |
+| `scoring.rs` (novo) | Request B2, CandidateSignals, pesos, ScoreBreakdown, ranking e AllocationDecision |
+| `scoring_tests.rs` (novo) | Gate sintético B2 e auditabilidade |
+| `allocation.rs` | Somente getters imutáveis de candidates/requirements/policy; gates B1 intactos |
+| `mod.rs` | Declarações, exports e inclusão dos testes B2 |
+
+Este documento é a única alteração fora do módulo. Nenhum arquivo de cognition,
+Scheduler, agents, registries, providers, rate/admission/resilience, TaskGraph,
+frontend, migration ou persistência foi alterado.
+
+### Contratos e pipeline
+
+`AllocationScoringRequest::new(&b1, selected, contexts)` recebe uma request B1
+validada e um subconjunto explicitamente selecionado por `AllocationVariant`,
+com `CandidateSignals`. Não expande variantes nem descobre recursos. Executa
+`b1.evaluate()` e associa cada resultado por identidade completa, nunca posição
+em Vec. Relatório destacado não pode ser injetado com outro descriptor.
+
+Pipeline:
+
+~~~text
+universo autorizado B1 imutável
+→ seleção explícita de variantes + B1 Eligible obrigatório
+→ validação do join e da coerência de BillingDomain
+→ resolução descritiva model/effort
+→ allowance/LR-8 guards + spend guard
+→ somente EconomicEligibility::Eligible recebe ScoreBreakdown
+→ rank determinístico + winner em memória
+~~~
+
+Unresolved retorna `ScoringError::B1Unresolved`; Ineligible retorna
+`B1Ineligible`. Variante externa retorna `CandidateNotInB1Universe`; duplicatas
+ou excesso de cardinalidade também invalidam a request. B2 não converte status,
+não refaz quality gate e não dá bônus a CognitiveTier excedente. O resultado B1
+exato e a resolução de tier são preservados na evidence de cada candidato.
+
+`AllocationDecision` expõe winner opcional, ranked/excluded candidates, policy
+(incluindo profile), requirements, pesos, tie-break e evidências por candidato.
+`RankedCandidate` contém `ScoreBreakdown` e `order_over_next` tipado;
+`ExcludedCandidate` conserva evidências e razões econômicas, sem score. Universo
+vazio ou totalmente excluído resulta em winner None. Não existe rationale livre,
+prompt, LLM, backend handle, provider call ou autoridade de execução nessa API.
+
+### Join econômico e LR-8 seguro
+
+Os fatos econômicos vêm do próprio `CognitiveResource` emprestado pela B1.
+`EconomicContext` tem campos privados e é construído somente por
+`capture(descriptor, telemetry_dto, rate_dto)`. A captura recebe DTOs já obtidos,
+sem referência a managers, refresh, relógio, HTTP ou IO. Reutiliza a projeção
+read-only `project_lr8` da A depois de validar identidade, bounds e duplicatas.
+
+Ambos os DTOs, quando presentes, devem identificar exatamente o RuntimeId
+Provider do descriptor; DTO de outro provider, Agent ou Local falha com
+`Lr8ResourceMismatch`. Gerações divergentes falham com `Lr8ContextMismatch`.
+Fatos detached `Lr8Facts`/`ResourceSnapshot` não são entrada pública dessa bridge:
+a projeção A remove provider_id, portanto aceitar uma reassociação arbitrária
+não permitiria provar seu binding original. B3 pode reutilizar os DTOs capturados
+para montar esse contexto estreito, sem segunda leitura da autoridade.
+
+A request associa contextos por ResourceId e exige igualdade estrutural de todo
+CognitiveResource contra B1, incluindo identidade/origin, modelo/effort,
+economics, provenances e timestamps. Clones iguais são aceitos. Descriptor
+alterado falha com `ConflictingResourceSnapshot`; contexto duplicado ou fora do
+subconjunto selecionado falha com `DuplicateEconomicContext` ou
+`UnexpectedEconomicContext`. Ausência de contexto não fabrica fatos LR-8.
+
+Resources selecionados com o mesmo BillingDomainId devem possuir EconomicFacts
+estruturalmente idênticos, inclusive ordem das listas, provenance e timestamps,
+como em `domain_economics()`. Divergência retorna
+`ConflictingBillingDomainFacts` antes de qualquer ranking. Sem latest-wins,
+merge, soma, timestamp vencedor ou média. B1 FIX-1 e ResourceCatalog permanecem
+inalterados. Canonização de saída não reconcilia descriptors contraditórios.
+
+### Resolução model/effort e allowances multidimensionais
+
+Para cognitive_tier, relative_cost, latency_ms e monetary_cost, `ResolvedFact`
+conserva CatalogFact/provenance/timestamp e a camada da observação:
+
+- effort selecionado Known → Effort;
+- effort ausente/Unknown e modelo Known → Model;
+- sem observação Known → Unknown, layer None.
+
+Não há soma, média ou mutação de ExecutionFacts. A resolução de tier coincide
+com a B1; tier suficiente é evidence, não componente de score.
+
+Allowances são resolvidas por AllowanceDimensionId em BTreeMap: começa com as
+dimensões do modelo; effort substitui a mesma dimensão e acrescenta suas
+exclusivas. Amount Unknown do effort também substitui Known do modelo:
+relevância específica permanece, sem recuperar magnitude artificialmente.
+Unidades diferentes para o mesmo ID em modelo/effort selecionados geram
+`EconomicEvidenceConflict`, inclusive quando não existe state que teria feito
+A/B1 recusar a inconsistência. Sem conversão. União máxima: 32 dimensões
+(16 por ExecutionFacts). Descriptor original continua com as listas separadas.
+
+`AllowanceScarcity` expõe consumo resolvido/camada, state factual opcional,
+consumed, state derivado, remaining_percent e ScarcityReason. Só dimensões
+explicitamente referenciadas pela variante entram na avaliação. Known amount=0
+fica visível como `ExplicitZeroConsumption`, consumed=false, sem percentual,
+sem estado confortável inventado e sem influência no agregado. Amount Unknown
+conserva relevância; não representa consumo zero.
+
+Algoritmo exato para cada dimensão efetivamente consumida:
+
+1. remaining Known(0) → Exhausted, independentemente de limit/amount Unknown;
+2. amount Known > 0 e remaining Known < amount → Exhausted;
+3. remaining/limit Known e limit > 0:
+   `p = min(100, floor(u128(remaining) * 100 / u128(limit)))`;
+4. com ReservePolicy, `p < reserve_below_percent` → Reserve;
+   senão `p < reduced_below_percent` → Reduced; senão Comfortable;
+5. evidência insuficiente ou ausência de ReservePolicy → Unknown.
+
+A multiplicação ocorre em u128 antes da divisão; saída 0..=100. Thresholds
+continuam privados/validados pela B1, `0 <= reserve <= reduced <= 100`.
+Igualdade ao threshold não é “below”. Percentual arredondado para zero com
+remaining positivo não é Exhausted por si só. Limit Unknown não permite deduzir
+percentual de remaining=30. Não há janela, reset, refill ou unlimited inventado.
+
+`ScarcityAssessment` mantém avaliação individual de todas as dimensões e
+`ScarcitySummary { known_worst, has_unknown }`. Exhausted domina; depois Reserve,
+Reduced e Comfortable. Unknown mantém flag separada e não apaga pior Known nem
+acrescenta penalidade. Lista ausente/vazia não afirma execução gratuita/quota
+infinita. Requests, tokens, credits, percent e custom units nunca são somados.
+Reserve é custo de oportunidade e pode vencer como único candidato suficiente;
+Exhausted exclui economicamente do ranking Auto B2.
+
+### Pressão operacional LR-8 e precedência
+
+`OperationalPressure` mantém constraints separadas de AllowanceState. Usa somente
+provider constraints e constraints do model_id exato selecionado; nunca sibling
+model, family, global RateFacts.saturated, usage acumulado ou retry hint.
+Constraint aplicável saturated=true ou effective_remaining=Known(0) → Exhausted
+operacional e `Lr8ConstraintSaturated`. É indisponibilidade conservadora nesse
+snapshot B2; não é execução, reserva ou substituição da admission LR-8.
+
+RateFacts usam `floor(effective_remaining * 100 / capacity)` quando o par é
+Known e capacity > 0, com os mesmos thresholds. É fração do teto conservador
+interno da constraint, não percentual de allowance comercial. Capacity isolada
+ou remaining Unknown mantém Unknown; não se deduz crédito de consumed/reserved
+nem de external.remaining retido. Fontes ExternalFact/LocalPolicy/DailyBudget,
+provenance, resets factuais, uncertainty e timestamps/gerações separados ficam
+na evidence, sem reavaliar deadlines ou declarar atomicidade entre capturas.
+
+Qualquer constraint RateFacts no mesmo scope exato + dimensão tem precedência
+sobre telemetry, inclusive quando effective_remaining está Unknown. Isso evita
+ressuscitar headroom conservador pelo último header. Telemetry é fallback só
+quando não existe constraint correspondente. Seu limit/remaining factual usa os
+mesmos thresholds; remaining zero pode provar saturação. Timing histórico fica
+no QuotaSnapshot da evidence; não vira countdown/deadline operacional atual.
+
+Constraints são canonizadas por scope/dimension/source. Não se duplica quota
+RateFacts+telemetry. O score usa a maior severidade Known entre allowances e
+pressão operacional, sem somar unidades/constraints; todas as evidências ficam
+visíveis. Falta de facts continua sem proof de disponibilidade. B3/Scheduler/
+RateLimitManager obrigatoriamente revalidarão antes da chamada real.
+
+### Spend guard
+
+`SpendAssessment` separa path pago explícito de custo monetário positivo.
+BillingKind MeteredBilling/PrepaidCredits ou monetary_cost efetivo Known > 0
+constitui evidência positiva de spend. BillingKind Unknown com custo Unknown
+permanece neutro, sem ser classificado como free ou paid.
+
+- Deny → `PaidUseDenied` quando há evidência paga, inclusive custo factual zero
+  em path Metered/Prepaid.
+- AllowKnownCostWithinBudget → exige custo efetivo Known, currency idêntica ao
+  budget e cost <= budget. Ausência → `PaidCostUnknown`; moeda diferente →
+  `CurrencyMismatch`; excedente → `PaidBudgetExceeded`. Sem FX.
+- PrepaidCredits com unidade monetária requer também monetary_balance Known,
+  mesma currency do custo e balance >= cost, inclusive quando cost=0. Ausência,
+  moeda diferente ou saldo insuficiente geram razões próprias.
+- MeteredBilling não exige saldo pré-pago; saldo Unknown/zero/outra moeda não é
+  guard obrigatório desse path.
+
+Budget é teto autorizado para essa decisão/invocação, não saldo de ledger. B2
+não debita, acumula spend, compra/refilla créditos nem reserva dinheiro/quota.
+Créditos não monetários continuam allowances sem equivalência em dinheiro.
+
+EconomicExclusion é separado de EligibilityReason:
+`AllowanceExhausted`, `Lr8ConstraintSaturated`, `PaidUseDenied`, `PaidCostUnknown`,
+`CurrencyMismatch`, `PaidBudgetExceeded`, `PrepaidBalanceUnknown`,
+`PrepaidBalanceCurrencyMismatch`, `PrepaidBalanceInsufficient`,
+`EconomicEvidenceConflict`. Razões múltiplas ficam preservadas em ordem fixa:
+conflito/allowance, pressão LR-8, spend. Não existe score de candidato excluído.
+
+429/ProviderError não é input do scorer. RetryHint e last_outcome não entram no
+score/guard; nenhuma pressão ou scarcity pode modificar PaidUsePolicy::Deny.
+O gate sintético usa last_outcome rate_limited + retry hint e várias pressões
+com Deny e confirma exclusão paga em todos os casos.
+
+### CandidateSignals, score e perfis
+
+CandidateSignals possui campos privados/constructor validado e ausência possível:
+preference_ordinal 0..=255, registry_priority 0..=32, continuity 0..=100 e
+switching_cost 0..=100. Valores são passados explicitamente, sem leitura global,
+Scheduler ou registry. Ordinal representa preferência autorizada; priority é
+secundária; continuidade não prova qualidade/capability; switching é escala
+relativa de reconstrução, nunca dinheiro. B3 mapeará sinais reais e fará clamp
+explícito de priority quando apropriado; B2 recusa valores fora dos bounds.
+
+Constantes de policy local do Core (não facts comerciais):
+
+| Peso/componente | Economy | Balanced | Fast |
+|---|---:|---:|---:|
+| policy_preference | 4 | 6 | 6 |
+| registry_preference | 1 | 1 | 1 |
+| continuity | 2 | 4 | 12 |
+| switching | 2 | 4 | 12 |
+| relative_cost | 12 | 6 | 2 |
+| Reduced (penalidade) | 600 | 300 | 100 |
+| Reserve (penalidade) | 1800 | 900 | 300 |
+| monetary_cost | 10 | 5 | 1 |
+| latency | 2 | 6 | 15 |
+
+Constantes auxiliares nomeadas: REGISTRY_PRIORITY_CAP=32,
+REGISTRY_UTILITY_CAP=3, LATENCY_BUCKET_MS=100, MAX_LATENCY_BUCKET=100 e
+MONETARY_NORMALIZATION=100. Para fatos/sinais conhecidos:
+
+~~~text
+preference = -ordinal * policy_weight
+registry   = floor((32 - priority) * 3 / 32) * registry_weight
+continuity = continuity_signal * continuity_weight
+switching  = -switching_cost * switching_weight
+relative   = -relative_cost_tier * relative_weight
+scarcity   = 0 (Comfortable/sem Known), -Reduced_weight ou -Reserve_weight
+monetary   = -floor(cost_micros * 100 / budget_micros) * monetary_weight
+latency    = (100 - 2 * min(floor(latency_ms / 100), 100)) * latency_weight
+total      = preference + registry + continuity + switching
+             + relative + scarcity + monetary + latency
+~~~
+
+Unknown/None sempre produz componente 0, sem valor médio/default comercial.
+Known(0) RelativeCostTier não afirma dinheiro zero. Não existe cognitive-tier
+bonus nem overprovision penalty. Registry tem utilidade máxima 3, inferior a
+um passo de ordinal em todos os profiles. Economy enfatiza reserva e custo;
+Balanced mantém Reserve mais forte que pequena continuidade; Fast permite
+vantagem factual grande de latência/continuidade superar Reserve.
+
+Monetary só é comparável depois do guard, com custo Known na currency autorizada
+e <= budget. Sem base comparável, componente neutro. Budget zero + cost zero
+produz percentual 0, sem divisão por zero. Ratios usam u128. Latency é utility
+centrada [-100,100], permitindo Unknown neutro entre observações rápidas e
+lentas, sem afirmar que Unknown é a mais rápida/lenta. Clamp impede valores
+numéricos extremos de dominar/overflow; não é latência comercial default.
+
+Componentes usam i64 e operações saturating explícitas. Bounds e pesos impedem
+saturação para inputs válidos: totais possíveis dentro de Economy [-7280,403],
+Balanced [-5460,1003], Fast [-5140,2703]. `component_sum()` usa saturating_add;
+os testes também somam com checked_add e verificam igualdade exata nos limites.
+ScoreBreakdown preserva evidence de cada influência, incluindo monetary
+comparability/fração, scarcity/Unknown e camada de cada fato resolvido.
+
+Cenário sintético documentado: pequena continuity=5 não supera Reserve em
+Economy/Balanced. Em Fast, A Reserve + latency=100ms + continuity=100 + switching=0
+obtém 2370; B Comfortable + latency=10000ms + continuity=0 + switching=100 obtém
+-2700. A vence. Exhausted nunca chega ao score, mesmo com essas vantagens.
+
+### Determinismo e desempate
+
+Maior total primeiro; empate usa menor preference_ordinal explícito (None após
+ordinais conhecidos), depois identidade canônica AllocationVariant, na ordem
+resource_id/access_path/billing_domain_id/model_id/effort. A ordem lexical é
+somente identidade estável, não hierarquia de modelos/efforts por nome.
+
+TieBreakReason distingue NoEconomicCandidate, OnlyEconomicCandidate, HigherTotal,
+PolicyOrdinal e CanonicalVariant; cada posição também informa order_over_next.
+Inputs/exclusions são canonizados por identidade. Contextos e dimensões usam
+BTreeMap; maps, ordem de registro/Vec, ponteiros ou HashMap iteration não decidem
+winner. Mudar o ordinal explícito pode mudar a decisão legitimamente.
+
+### Gate sintético e resultados técnicos
+
+89 testes B2 cobrem os requisitos A–AC e ScoreBreakdown: least sufficient/floor
+B1, ausência de bônus por tier, Reserve/Comfortable, candidato único suficiente,
+Exhausted/consumo por chamada, Unknown, múltiplas dimensões, esforço/substituição/
+unidade/zero, paid deny/allow/Unknown/currency/budget, saldo Prepaid e independência
+Metered, Billing Unknown, domínio compartilhado e provenances, affinity/perfis,
+latência Unknown/extrema, escopo LR-8 exato/provider/global saturation, precedência
+sem dupla contagem, ausência de autorização por 429, rejeição B1 Unresolved/
+Ineligible, igualdade dos inputs sem debit/IO, determinismo por repetição e ordens
+incidentais, bounds de request/signals/constraints, 256 candidatos e união de
+32 dimensões, serialização sanitizada e soma checked nos máximos.
+
+Resultados finais no código do commit
+`3793898c4a96f328cd855ad8488178f332bda751` (06/10/2026):
+
+| Gate | Resultado |
+|---|---|
+| `/home/sam/.cargo/bin/rustfmt --edition 2021 --check src-tauri/src/cognitive_resources/*.rs` | Exit 0; módulo inteiro, sem reformatação de legado |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | Exit 0; 15 warnings preexistentes |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources::scoring_tests` | Exit 0; 89 aprovados, 0 falhas, 0 ignorados; 0,01 s |
+| `cargo test --manifest-path src-tauri/Cargo.toml cognitive_resources` | Exit 0; 173 aprovados, 0 falhas; 0,11 s |
+| Regressões B1 / LR-8.5A no módulo e na global | 46 / 38 aprovados; todos os testes anteriores preservados |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | Exit 0; 715 aprovados, 0 falhas, 2 ignorados; 252,89 s; main/doc-tests sem falhas |
+| cognition / agents na suíte global | 370 / 110 aprovados; dois manuais agents ignorados |
+| smart routing / TaskGraph runtime na global | 10 / 13 aprovados |
+| LR-8 na global | rate 69, telemetry 33, admission 18, resilience 76, operational 8 e LR-8E 14; todos aprovados |
+| `git diff --check`, diff desde HEAD inicial e `git diff --cached --check` | Exit 0 |
+
+Os dois ignorados são os gates Codex manuais preexistentes
+`real_app_server_handshake` e `manual_final_codex_agent_bridge_gate`. Nenhum
+provider/credencial comercial real foi usado. As regressões operacionais foram
+executadas na suíte global, sem rodadas redundantes ou mudança de timeout/fixture.
+Warnings: 15 da biblioteca e dois de fixtures de teste (identity/memory), todos
+preexistentes; nenhum warning novo, nenhum suprimido. Os warnings da biblioteca
+continuam unused/dead-code em agents, cognition, persistence e security, fora
+do módulo B2. Não se aplicou rustfmt global nem se alterou frontend.
+
+A primeira compilação dirigida encontrou um nome inválido de capability somente
+na fixture nova (`TextStream` em vez de `Streaming`); corrigido antes dos gates
+finais. A rodada inicial de 85 testes passou; após os refinamentos documentados
+(Timing histórico, bounds de thresholds e registry secundário) a rodada final
+de 89 passou. Nenhuma falha foi dispensada. A comparação literal com o HEAD
+inicial confirmou allocation.rs byte a byte idêntico após remover apenas os
+três getters novos. Todos os boundaries de runtime ficaram fora do diff.
+
+### Limitações e dívidas para B3/B4
+
+- B3: builder real autorizado, variant expansion, obtenção/prova operacional,
+  reconstrução explícita de eligibility quando legítima, mapeamento dos sinais
+  reais e bridge Auto. Fixed/Preferred e Auto real permanecem inalterados.
+- B3/Scheduler/LR-8: revalidar contexto, freshness e gates antes de transporte;
+  snapshot B2 não reserva, admite, autoriza transporte ou garante execução.
+- B4: persistência/desserialização agregada, configuração/UI, defaults duráveis,
+  migration quando aprovada e gate integrado. Pesos locais requerem calibração
+  futura; não existe tabela por marca/preço nem source selection/reconciliação.
+- Nenhum ledger monetário, reserva de dinheiro/quota, provider/SpecialistAgent
+  real ou integração Codex/Copilot foi antecipado. Política de freshness/refresh
+  não foi criada. Pressão B2 não interpreta todos os gates de health/persistence
+  do runtime e não substitui seu enforcement.
+- Handoff, partial output, fallback seguro e reexecução permanecem nas fronteiras
+  B3/C. B2 não recebe estado de output parcial nem altera a proteção existente.
+
+**B2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
