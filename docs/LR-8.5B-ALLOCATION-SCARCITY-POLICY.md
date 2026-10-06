@@ -1,6 +1,6 @@
 # LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy
 
-Estado: **IMPLEMENTAÇÃO EM ANDAMENTO — B1/B2 = PASS técnico; B3 é o checkpoint corrente.**
+Estado: **IMPLEMENTAÇÃO EM ANDAMENTO — B1/B2/B3 = PASS técnico; B4 é o checkpoint corrente.**
 
 Branch de trabalho: `lr-8.5b-allocation-scarcity-policy`  
 Base: `main@a6eec1b63655d860279f606bc55766255903f1fe`
@@ -1748,3 +1748,41 @@ mutações e pressuposto de uma instância ativa. Prova operacional não garante
 availability remota nem substitui qualquer autoridade operacional.
 
 **B3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+
+
+## B3 — Fechamento técnico
+
+Data: **06/10/2026**  
+HEAD auditado: `cb5c3262c9c716f3a1bcfd87532ab9c96b219bb0`
+
+A auditoria independente encerra o checkpoint **B3 — Variant Expansion & Provider Auto Bridge**
+em **PASS técnico**.
+
+Foram confirmados:
+
+- universo Auto derivado exclusivamente dos targets autorizados;
+- OperationalVariantProof limitado à invocação exata e sem fabricação de facts;
+- catálogo Unknown preservado como Unknown;
+- contradições Known continuam invioláveis;
+- expansão de modelos/efforts bounded e representável pelo contract atual;
+- no máximo uma variante por provider entregue ao Scheduler;
+- Fixed e Preferred fora do allocator econômico;
+- Auto real passa por B1+B2;
+- score legado do Scheduler retirado da autoridade do Auto;
+- `ranked_provider_ids`, TaskGraph e `run` compartilham a mesma engine;
+- AutoRoutePlan congelado como cadeia autorizada completa, não winner único;
+- retries/fallback consomem apenas a cadeia congelada;
+- 429/503/timeout podem avançar para o próximo provider seguro;
+- recurso pago previamente excluído não pode ser introduzido por falha no meio da execução;
+- partial output continua impedindo retry/fallback inseguro;
+- LR-8 continua autoridade operacional no momento da chamada;
+- eventos Auto usam `auto_allocator` e score B2 `i64`.
+
+Gate reportado: B3 41 aprovados; `cognitive_resources` 221 aprovados;
+suíte Rust completa 762 aprovados, 0 falhas, 2 ignorados. A execução ocorreu no
+ambiente local; a auditoria independente revisou código, testes e diffs remotos.
+
+**Próximo checkpoint: B4 — Policy Persistence, Settings Surface & Final Gate.**
+
+B4 deve tornar a policy econômica durável/configurável sem alterar as fronteiras
+B1/B2/B3, sem introduzir pricing remoto e sem antecipar LR-8.5C.
