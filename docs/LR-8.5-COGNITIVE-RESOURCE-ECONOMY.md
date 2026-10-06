@@ -4,7 +4,7 @@ Estado: **EM EXECUÇÃO — LR-8.5A e LR-8.5B concluídas; LR-8.5C é a próxima
 
 Subfase concluída: **[LR-8.5A — Resource Domains, Access Paths & Cognitive Variants](LR-8.5A-RESOURCE-DOMAINS-VARIANTS.md)** — PASS completo e integrada à `main` em 06/10/2026 pela PR #23.
 
-Subfase concluída: **[LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy](LR-8.5B-ALLOCATION-SCARCITY-POLICY.md)** — PASS técnico em 06/10/2026, aprovada para integração à `main`.
+Subfase concluída: **[LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy](LR-8.5B-ALLOCATION-SCARCITY-POLICY.md)** — PASS técnico e integrada à `main` em 06/10/2026 pela PR #24 (`a6109f8932cd75f7e9fe315af2dae7e19d7ef4d1`).
 
 Próxima subfase: **LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff**.
 
