@@ -1,6 +1,6 @@
 # LR-8.5A — Resource Domains, Access Paths & Cognitive Variants
 
-Estado: **PASS TÉCNICO — auditoria independente concluída; pronto para integração.**
+Estado: **PASS COMPLETO — integrada à `main` em 06/10/2026.**
 
 Branch de trabalho: `lr-8.5a-resource-domains-variants`  
 Base: `main@3829acca06c8a3a97090b7c921e31a0baf9a8970`
@@ -993,9 +993,9 @@ execução local da suíte.
 
 ### Decisão
 
-**LR-8.5A = PASS TÉCNICO.**
+**LR-8.5A = PASS COMPLETO.**
 
-A subfase está pronta para integração em `main`. A próxima subfase da trilha é
+A subfase foi integrada em `main` pela PR #23, via squash commit `26b5c0b27d3b24a73e2b2d311c21118e178ade88`. A próxima subfase da trilha é
 **LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy**.
 
 A 8.5B poderá consumir os contratos criados aqui para realizar capability/quality
