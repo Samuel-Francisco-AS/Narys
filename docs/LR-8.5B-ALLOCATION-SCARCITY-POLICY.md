@@ -1,7 +1,7 @@
 # LR-8.5B — Allocation, Model/Effort Selection & Scarcity Policy
 
 Estado: **PASS TÉCNICO — B1/B2/B3/B4 encerradas após auditoria independente em 06/10/2026.**
-A LR-8.5B está aprovada para integração à `main`; a próxima subfase é LR-8.5C.
+A LR-8.5B foi integrada à `main` pela PR #24 em 06/10/2026 (`a6109f8932cd75f7e9fe315af2dae7e19d7ef4d1`); a próxima subfase é LR-8.5C.
 
 Branch de trabalho: `lr-8.5b-allocation-scarcity-policy`  
 Base: `main@a6eec1b63655d860279f606bc55766255903f1fe`
@@ -2112,5 +2112,7 @@ Limitações deliberadamente preservadas para fases posteriores:
 - SpecialistAgent allocation e execução Codex/Copilot permanecem fora da LR-8.5B.
 
 Nenhuma parte da LR-8.5C foi antecipada.
+
+**Integração final:** PR #24, squash commit `a6109f8932cd75f7e9fe315af2dae7e19d7ef4d1`.
 
 **Próxima subfase liberada: LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff.**
