@@ -6,7 +6,7 @@ Estado: **C1 = PASS técnico após auditoria independente.**
 
 **C3 = PASS TÉCNICO após auditoria independente em 06/10/2026.**
 
-**C4 FIX-1 corrige terminalização normal, mas auditoria detectou FIX-2 obrigatória no cancelamento durável.**
+**C4 FIX-2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
 
 C4 continua **NÃO PASS**.
 
@@ -2063,3 +2063,185 @@ Adicionar testes para:
 **Decisão:** FIX-1 não deve ser revertida; ela resolve o finding original.
 Entretanto C4 e LR-8.5C permanecem NÃO PASS até a FIX-2 eliminar a via de
 terminalização isolada em `ContinuationRepository::cancel`.
+
+
+## C4 FIX-2 — Durable Cancellation Atomicity — candidata de 06/10/2026
+
+Baseline: branch `lr-8.5c-safe-handoff`, HEAD local/remoto
+`bee611faeafb269720420a669714daa25f3289c4`; workspace limpo;
+`main`/`origin/main` preservadas em `0024fec735e3f6cb2461dbdeba8fa6aa4be32d32`.
+A finding da auditoria FIX-1 acima orienta exclusivamente esta correção.
+
+### Intenção versus fato terminal
+
+Migration **016**, após confirmar a versão **015** atual, adiciona somente
+`cognitive_continuations.cancel_requested`: INTEGER, NOT NULL, DEFAULT 0,
+CHECK de tipo/valores 0–1. O valor 1 só pode coexistir com `running`/`paused`.
+O manifest, os checkpoints C2/C3, o result envelope e a policy não mudam.
+O upgrade 15 → 16 usa `BEGIN IMMEDIATE`, ALTER e `user_version` dentro da
+mesma transaction RAII; falha mantém a versão anterior e permite retry.
+
+- **Running:** `cancel` valida a continuation/ledger sob `BEGIN IMMEDIATE` e
+  grava apenas `cancel_requested=1`. Não cria history nem estado terminal.
+  Repetir a intenção é idempotente. O command continua sinalizando o AtomicBool
+  do TaskRegistry, mas só retorna sucesso depois da operação SQLite necessária.
+  Erro durável é retornado mesmo que a flag em memória já tenha sido sinalizada.
+- **Paused:** não há worker ativo que finalize depois. `cancel` usa a primitive
+  compartilhada `finish_terminal_in_transaction`, derivada da FIX-1, na mesma
+  transaction que carregou o manifest/ledger. Escreve root history, todas as
+  subtasks e continuation cancelled em **um único COMMIT**. Units com receipt e
+  result committed ficam completed; demais ficam cancelled. Receipts anteriores,
+  resultados, allocation e policy são preservados. Um effect fence incerto não
+  é normalizado: a unidade cognitivamente concluída conserva seu receipt/fence,
+  sem autorização para replay ou continuação.
+- **Terminal existente:** cancel de cancelled válido retorna true sem novos
+  INSERTs; completed/failed retornam false e não são reescritos. O load verifica
+  root history e todas as subtasks antes de aceitar essa idempotência.
+
+A única primitive que materializa novo estado terminal é
+`finish_terminal_in_transaction`, usada tanto por `finish_terminal` dos caminhos
+normal/resume quanto pelo cancel paused. Não existe mais UPDATE autônomo de
+`state='cancelled'`. O marcador é limpo dentro do COMMIT terminal; o próprio
+estado cancelled + history passa a ser a autoridade durável.
+
+### Corridas, crash e resultado tardio
+
+A ordem factual é a aquisição/COMMIT da transaction SQLite:
+
+- cancel request committed antes do writer terminal → o writer observa o marcador
+  e materializa **cancelled**, inclusive se todas as units terminaram;
+- completed terminal já committed antes do cancel → permanece completed;
+- dois cancels concorrentes são serializados por `BEGIN IMMEDIATE`, sem history
+  duplicado e sem depender de mutex de processo.
+
+`mark_started` valida lease, generation, estado running e ausência de intenção.
+Um cancel request observado nessa boundary retorna `cancelled`, antes de provider
+request. `finish` de pausa devolve a precedência do pedido durável ao finalizador
+compartilhado, evitando economic pause que perca a intenção. Scheduler/retry/
+fallback/admission não mudam; não há polling por token/chunk.
+
+`commit_result` valida também estado da continuation, generation e intenção na
+mesma transaction C2 que grava receipt/result. Uma nova conclusão exige running
+sem cancel request. Depois de cancelled/failed/paused ela é recusada, revertendo
+inclusive qualquer INSERT provisório do checkpoint. A repetição exatamente
+idêntica de resultado já committed de uma task completed continua idempotente;
+ela não cria novo receipt. Resultado tardio não promove cancelled para completed.
+
+Recovery mantém o pedido como **paused + cancel_requested=1**, preservando markers
+started/uncertain e o high-water mark. Não executa providers e não resolve trabalho
+restante. `claim`/resume retorna `continuation_cancel_requested`; o caminho Core
+real de cancel fecha esse estado pausado atomicamente, sem provider calls. Se o
+ledger estiver inválido, permanece fail-closed com root e intenção protegidos.
+Não há auto-finalização em startup nem auto-resume. Essa retenção explícita é a
+alternativa conservadora permitida pelo contrato da FIX.
+
+Falha em root/subtask INSERT ou COMMIT do cancel paused reverte **todo** o novo
+fato terminal. O command retorna erro. A tarefa continua não terminal, com ledger
+anterior intacto, e o cancel pode ser tentado novamente. A recuperação/retry da
+terminalização normal da FIX-1 continua usando os resultados já committed, sem
+replay. SQLite transaction nunca atravessa provider await.
+
+### Gates novos
+
+Bateria local em `c4_tests/cancellation_fix2_tests.rs`, com mocks do Worker/
+Scheduler real e SQLite em arquivo:
+
+| Gate | Prova |
+| --- | --- |
+| A/G/H | cancel pelo Core usado no command, sem task ativa no registry: history/continuation cancelled imediatamente; A completed/B cancelled; reopen/resume terminal, zero novas calls |
+| B/C | triggers em root/subtask history fazem o command retornar erro; rollback dos dois históricos e terminal continuation; retry conclui |
+| D | trigger com FK deferred falha no COMMIT cancelled; rollback também da row auxiliar; retry atômico |
+| E | B iniciou/emitiu output, pedido durável, crash: restart preserva pedido e started fence, recusa resume; cancel explícito fecha history sem replay |
+| F | conclusão tardia de B é recusada antes e depois do terminal cancelled; nenhum receipt/result novo ou successor |
+| I | dois cancels simultâneos em paused e running: idempotência, um único root history e duas subtasks |
+| J | cancel request antes do writer completed termina cancelled; completed COMMIT antes do cancel permanece completed |
+| Command | running sinaliza AtomicBool e persiste intenção; falha no write retorna erro, sem falso sucesso durável |
+| Fence | cancel conserva receipt UnknownOrInFlight e history de unit já completed; nenhum replay/normalização |
+| Migration | upgrade v15 com ledger/policy/history/rate preservados; conflito de ALTER mantém user_version=15/autocommit, correção/retry chega a 16 |
+
+O gate final A–Z de cancel paused agora exige explicitamente agreement de root e
+subtask history **antes** do reopen, além da recusa de resume.
+A primeira compilação da bateria nova detectou a ausência de `#[path]` explícito
+no módulo de testes; corrigida sem mudança de runtime. A rodada seguinte teve
+9 PASS e uma falha da fixture de migration: a assertion reabria via Database uma
+base ainda sob conflito intencional de ALTER. A assertion passou a usar a conexão
+existente para verificar rollback. A rodada ampliada teve 12 PASS e uma falha
+na fixture da corrida: a interrupção por Notify após o último result podia ocorrer
+quando o writer terminal já havia sido agendado. O gate agora grava o cancel request
+sincronamente no callback SubtaskCompleted de B, antes de o controle retornar ao
+writer, provando a ordem factual pretendida no caminho real. Nenhuma falha foi
+atribuída a flakiness. A primeira passagem pelas regressões C2 teve 38 PASS e
+uma falha: a assertion de upgrade v13 esperava a versão final 15, embora o schema
+atual já fosse 16. Atualizada somente a expectativa de versão, sem alteração dos
+contratos de checkpoint. A primeira suíte integral teve **972 PASS, uma falha e
+dois ignorados**: a assertion final do upgrade de policy v8 também esperava 15.
+Atualizada somente essa expectativa para 16; revisadas as demais assertions de
+schema. O gate v15 → v16 foi ainda fortalecido com history/rate **não vazios** e
+comparação integral das rows de history, além de manifest, receipts e policy.
+Repetida a validação final; os erros de versão não foram tratados como flakiness.
+
+### Arquivos da FIX
+
+- `src-tauri/migrations/016_cognitive_cancel_request.sql`
+- `src-tauri/src/persistence/migrations.rs`
+- `src-tauri/src/persistence/continuations.rs`
+- `src-tauri/src/persistence/tests.rs` (assertions da versão atual)
+- `src-tauri/src/persistence/checkpoints/tests.rs` (somente versão final do upgrade)
+- `src-tauri/src/luna/mod.rs` (command e caminho Core compartilhado/testado)
+- `src-tauri/src/cognition/allocation_policy/tests.rs` (versão atual/futura)
+- `src-tauri/src/cognition/policy.rs` (somente versão final em teste de upgrade)
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests.rs`
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests/storage_tests.rs` (upgrade)
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests/terminal_fix1_tests.rs`
+  (helpers compartilhados; gates FIX-1 preservados)
+- `src-tauri/src/cognition/task_graph_runtime/c4_tests/cancellation_fix2_tests.rs`
+- `docs/LR-8.5C-SAFE-HANDOFF.md`
+
+### Validação final da FIX-2
+
+| Gate / comando | Resultado final |
+| --- | --- |
+| `c4_fix2_` | **13 PASS**, A–J, fences, command e migration |
+| `c4_fix1_` | **8 PASS**, atomic completion/failed, rollback, recovery retry sem replay |
+| `c4_` / `lr85c_final` A–Z | **68 / 24 PASS** |
+| C1 `cognitive_resources::handoff_tests` / C2 `c2_` / C3 `c3_` | **25 / 39 / 25 PASS** |
+| B1/B2/B3/B4, filtros `b1_`/`b2_`/`b3_`/`b4_` | **51 / 99 / 42 / 57 PASS** |
+| TaskGraph `task_graph` | **116 PASS**, incluindo D3 e gates C3/C4 |
+| `persistence::` / `migration` / TaskRegistry `luna::runtime::tests` | **71 / 14 / 7 PASS** |
+| Scheduler `scheduler::tests` / admission | **2 / 26 PASS** |
+| rate (filtro amplo) / resilience / telemetry / LR-8E | **103 / 77 / 40 / 14 PASS** |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=4` | **973 PASS, zero falhas, 2 ignorados**, 322,10 s; main/doc-tests sem falhas |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | **Exit 0** |
+| `npm run typecheck` | **Exit 0** |
+| Rustfmt direto nos **11 arquivos Rust alterados** | **Exit 0**, edition 2021, `skip_children=true --check` |
+| `cargo fmt --check --manifest-path src-tauri/Cargo.toml` | Exit 1 pelo drift legado: **25 arquivos antes/depois**, log byte a byte idêntico à baseline |
+| `git diff --check` | **Exit 0** |
+
+Os filtros se sobrepõem e não devem ser somados. O filtro amplo `rate` inclui
+referências cruzadas, além do Rate Limit Manager. A suíte integral final foi
+repetida depois das correções descritas, sobre os arquivos Rust finais.
+Os dois ignorados são `real_app_server_handshake` e
+`manual_final_codex_agent_bridge_gate`; não foram habilitados. Nenhum gate usou
+API/quota comercial real. Permanecem os warnings legados de código não utilizado
+(15 na lib / 1 na lib test); não há erro de compilação.
+
+### Limitações para auditoria
+
+- Startup retém cancel request não terminal até cancel explícito; resume é
+  recusado deterministicamente. Não se executa trabalho para resolver o pedido.
+- A migration não repara terminais parciais previamente criados pela candidata
+  antiga ou alterações externas. O load rejeita terminal sem history completo;
+  o root continua protegido pelo high-water mark. Esta FIX impede novas janelas.
+- O manifest legado não conserva o horário original de início da root. No cancel
+  paused, os campos obrigatórios de timestamp da root history usam o horário
+  factual da finalização; finished_at de units completed usa o receipt original.
+  Não se inventa um horário de dispatch ausente.
+- Antes de existir continuation (planner/preflight, mock e demais runtimes),
+  mantém-se o cancel pelo TaskRegistry existente; não se expande esta FIX para
+  um novo ledger desses caminhos.
+- Eventos continuam sem transaction distribuída com SQLite. Não há nova UI,
+  migration de checkpoints, alteração de C1/C2/C3/policy/Scheduler ou nova feature.
+
+**C4 FIX-2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
+C1 PASS; C2 PASS; C3 PASS; C4 ainda NÃO PASS; LR-8.5C ainda NÃO PASS;
+merge ainda NÃO autorizado.

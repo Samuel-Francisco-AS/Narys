@@ -13,7 +13,7 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(|_| PersistenceError::Migration)?;
-    if version > 15 {
+    if version > 16 {
         return Err(PersistenceError::Migration);
     }
     if version == 0 {
@@ -129,6 +129,18 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
         ))
         .map_err(|_| PersistenceError::Migration)?;
         tx.pragma_update(None, "user_version", 15)
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.commit().map_err(|_| PersistenceError::Migration)?;
+    }
+    if version < 16 {
+        let tx =
+            rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+                .map_err(|_| PersistenceError::Migration)?;
+        tx.execute_batch(include_str!(
+            "../../migrations/016_cognitive_cancel_request.sql"
+        ))
+        .map_err(|_| PersistenceError::Migration)?;
+        tx.pragma_update(None, "user_version", 16)
             .map_err(|_| PersistenceError::Migration)?;
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }

@@ -129,6 +129,7 @@ pub(crate) struct RestoredUnit {
 pub(crate) struct ContinuationLoad {
     pub manifest: ContinuationManifest,
     pub state: String,
+    pub cancel_requested: bool,
     pub completed: BTreeMap<String, RestoredUnit>,
     pub uncertain: BTreeSet<String>,
     pub generation: u64,
@@ -183,6 +184,9 @@ impl ContinuationRepository {
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| "continuation_claim_failed")?;
         let loaded = load_in_transaction(&tx, root)?;
+        if loaded.cancel_requested {
+            return Err("continuation_cancel_requested");
+        }
         if loaded.state != "paused" {
             return Err(if loaded.state == "running" {
                 "continuation_resume_busy"
@@ -280,11 +284,11 @@ impl ContinuationRepository {
             return Err("continuation_result_bounds");
         }
         CheckpointRepository::commit_with(conn, cp, |tx, receipt| {
-            let (generation, manifest_json): (u64,String) = tx.query_row("SELECT generation,manifest_json FROM main.cognitive_continuations WHERE root_task_id=?1", [lease.root], |r| Ok((r.get(0)?,r.get(1)?))).map_err(|_| CheckpointError::Write)?;
+            let (generation, manifest_json, root_state, cancel_requested): (u64,String,String,bool) = tx.query_row("SELECT generation,manifest_json,state,cancel_requested FROM main.cognitive_continuations WHERE root_task_id=?1", [lease.root], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).map_err(|_| CheckpointError::Write)?;
             let manifest: ContinuationManifest = serde_json::from_str(&manifest_json).map_err(|_| CheckpointError::InvalidRecord)?;
             manifest.validate(lease.root).map_err(|_| CheckpointError::InvalidRecord)?;
             if cp.policy() != &manifest.policy { return Err(CheckpointError::InvalidPolicy); }
-            if generation != lease.generation { return Err(CheckpointError::Conflict); }
+            if generation != lease.generation || cancel_requested || !matches!(root_state.as_str(), "running" | "completed") { return Err(CheckpointError::Conflict); }
             let (state, allocation, prior, sequence, budget_json): (String,String,Option<String>,u64,String) = tx.query_row("SELECT state,allocation_json,result_json,unit_sequence,budget_json FROM main.cognitive_continuation_units WHERE root_task_id=?1 AND subtask_id=?2",params![lease.root,result.subtask_id], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).map_err(|_| CheckpointError::Write)?;
             let budget: TaskBudget = serde_json::from_str(&budget_json).map_err(|_| CheckpointError::InvalidRecord)?;
             validate_budget(budget, &manifest.policy).map_err(|_| CheckpointError::InvalidRecord)?;
@@ -292,7 +296,7 @@ impl ContinuationRepository {
             if sequence != cp.id().unit_id().sequence() || allocation != encode(cp.allocation()).map_err(|_| CheckpointError::InvalidRecord)? { return Err(CheckpointError::Conflict); }
             if state == "completed" {
                 if prior.as_deref() != Some(json.as_str()) { return Err(CheckpointError::Conflict); }
-            } else if state == "started" {
+            } else if state == "started" && root_state == "running" {
                 let changed = tx.execute("UPDATE main.cognitive_continuation_units SET state='completed',result_json=?3,checkpoint_sequence=?4 WHERE root_task_id=?1 AND subtask_id=?2 AND state='started'",params![lease.root,result.subtask_id,json,receipt.checkpoint().id().sequence()]).map_err(|_| CheckpointError::Write)?;
                 if changed != 1 { return Err(CheckpointError::Conflict); }
             } else { return Err(CheckpointError::Conflict); }
@@ -313,17 +317,17 @@ impl ContinuationRepository {
         }
         let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
             .map_err(|_| "continuation_write_failed")?;
-        let (stored, generation): (String, u64) = tx
+        let (stored, generation, requested): (String, u64, bool) = tx
             .query_row(
-                "SELECT state,generation FROM main.cognitive_continuations WHERE root_task_id=?1",
+                "SELECT state,generation,cancel_requested FROM main.cognitive_continuations WHERE root_task_id=?1",
                 [lease.root],
-                |r| Ok((r.get(0)?, r.get(1)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
             )
             .map_err(|_| "continuation_read_failed")?;
         if generation != lease.generation {
             return Err("continuation_claim_lost");
         }
-        if stored == "cancelled" {
+        if stored == "cancelled" || requested {
             tx.commit().map_err(|_| "continuation_write_failed")?;
             return Ok(true);
         }
@@ -340,8 +344,8 @@ impl ContinuationRepository {
     pub fn finish_terminal(
         conn: &mut Connection,
         lease: ContinuationLease,
-        mut record: TaskRecord,
-        mut subtasks: Vec<SubtaskRecord>,
+        record: TaskRecord,
+        subtasks: Vec<SubtaskRecord>,
     ) -> Result<bool, &'static str> {
         durable(conn)?;
         if record.task_id != lease.root
@@ -353,103 +357,66 @@ impl ContinuationRepository {
         let tx = conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
             .map_err(|_| "continuation_write_failed")?;
-        let loaded = load_in_transaction(&tx, lease.root)?;
-        if loaded.generation != lease.generation
-            || !matches!(loaded.state.as_str(), "running" | "cancelled")
-        {
-            return Err("continuation_claim_lost");
-        }
-        let cancelled = loaded.state == "cancelled" || record.state == "cancelled";
-        if cancelled {
-            record.state = "cancelled".into();
-            record.error_code = Some("cancelled".into());
-            for item in &mut subtasks {
-                if item.state != "completed" {
-                    item.state = "cancelled".into();
-                    item.error_code = Some("cancelled".into());
-                }
-            }
-        }
-        if record.state == "completed"
-            && (loaded.completed.len() != loaded.manifest.steps.len()
-                || !loaded.uncertain.is_empty())
-        {
-            return Err("continuation_state_invalid");
-        }
-        // Early cancellation/failure can precede construction of the in-memory
-        // graph. Its ledger still supplies all IDs and confirmed completions.
-        if subtasks.is_empty() && record.state != "completed" {
-            subtasks = loaded
-                .manifest
-                .steps
-                .iter()
-                .map(|step| {
-                    let done = loaded
-                        .completed
-                        .get(&step.id)
-                        .filter(|_| !loaded.uncertain.contains(&step.id));
-                    SubtaskRecord {
-                        root_task_id: lease.root,
-                        subtask_id: step.id.clone(),
-                        provider_id: done.map(|u| u.result.provider_id.clone()),
-                        state: if done.is_some() {
-                            "completed"
-                        } else if cancelled {
-                            "cancelled"
-                        } else {
-                            "blocked"
-                        }
-                        .into(),
-                        started_at: None,
-                        finished_at: done
-                            .map(|u| u.receipt.committed_at().to_owned())
-                            .unwrap_or_else(|| record.finished_at.clone()),
-                        error_code: done.is_none().then(|| record.error_code.clone()).flatten(),
-                    }
-                })
-                .collect();
-        }
-        let ids: BTreeSet<_> = subtasks.iter().map(|s| s.subtask_id.as_str()).collect();
-        if subtasks.len() != loaded.manifest.steps.len()
-            || ids.len() != subtasks.len()
-            || loaded
-                .manifest
-                .steps
-                .iter()
-                .any(|s| !ids.contains(s.id.as_str()))
-            || subtasks.iter().any(|s| {
-                s.root_task_id != lease.root
-                    || (record.state == "completed" && s.state != "completed")
-                    || (s.state == "completed"
-                        && (loaded.uncertain.contains(&s.subtask_id)
-                            || loaded.completed.get(&s.subtask_id).is_none_or(|u| {
-                                s.provider_id.as_deref() != Some(u.result.provider_id.as_str())
-                            })))
-                    || (loaded.completed.contains_key(&s.subtask_id)
-                        && !loaded.uncertain.contains(&s.subtask_id)
-                        && s.state != "completed")
-            })
-        {
-            return Err("continuation_history_invalid");
-        }
-        task_history::insert_with_subtasks_in_transaction(&tx, &record, &subtasks)
-            .map_err(|_| "task_history_write_failed")?;
-        let changed = tx.execute("UPDATE main.cognitive_continuations SET state=?3,pause_reason=NULL WHERE root_task_id=?1 AND generation=?2 AND state IN ('running','cancelled')",params![lease.root,lease.generation,record.state])
-            .map_err(|_| "continuation_write_failed")?;
-        if changed != 1 {
-            return Err("continuation_claim_lost");
-        }
+        let cancelled = finish_terminal_in_transaction(&tx, lease, record, subtasks)?;
         tx.commit().map_err(|_| "continuation_write_failed")?;
         Ok(cancelled)
     }
 
+    /// Running cancellation is intent only. A paused task has no owner left to
+    /// close its lifecycle, so this transaction also writes its terminal history.
     pub fn cancel(conn: &Connection, root: u64) -> Result<bool, &'static str> {
         durable(conn)?;
-        conn.execute("UPDATE main.cognitive_continuations SET state='cancelled',pause_reason=NULL WHERE root_task_id=?1 AND state IN ('paused','running')", [root]).map(|n| n == 1).map_err(|_| "continuation_write_failed")
+        let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+            .map_err(|_| "continuation_write_failed")?;
+        let exists: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM main.cognitive_continuations WHERE root_task_id=?1)",
+                [root],
+                |r| r.get(0),
+            )
+            .map_err(|_| "continuation_read_failed")?;
+        if !exists {
+            return Ok(false);
+        }
+        let loaded = load_in_transaction(&tx, root)?;
+        let accepted = match loaded.state.as_str() {
+            "running" => {
+                tx.execute("UPDATE main.cognitive_continuations SET cancel_requested=1 WHERE root_task_id=?1 AND state='running'", [root]).map_err(|_| "continuation_write_failed")?;
+                true
+            }
+            "paused" => {
+                let timestamp = chrono::Utc::now().to_rfc3339();
+                finish_terminal_in_transaction(
+                    &tx,
+                    ContinuationLease {
+                        root,
+                        generation: loaded.generation,
+                    },
+                    TaskRecord {
+                        task_id: root,
+                        kind: "task_graph".into(),
+                        state: "cancelled".into(),
+                        started_at: timestamp.clone(),
+                        finished_at: timestamp,
+                        summary: None,
+                        error_code: Some("cancelled".into()),
+                    },
+                    vec![],
+                )?;
+                true
+            }
+            "cancelled" => true,
+            "completed" | "failed" => false,
+            _ => return Err("continuation_state_invalid"),
+        };
+        tx.commit().map_err(|_| "continuation_write_failed")?;
+        Ok(accepted)
     }
 
     /// Called once during startup, before providers are exposed. Interrupted
     /// claims become paused, never dispatchable merely because SQLite reopened.
+    /// Cancel intent survives this change and forbids claim; explicit cancel
+    /// then closes history without executing any remaining work.
     pub fn recover(conn: &mut Connection) -> Result<Vec<(u64, PauseReason)>, &'static str> {
         durable(conn)?;
         let tx = conn
@@ -478,6 +445,108 @@ impl ContinuationRepository {
         Ok(recovered)
     }
 }
+fn finish_terminal_in_transaction(
+    tx: &rusqlite::Transaction<'_>,
+    lease: ContinuationLease,
+    mut record: TaskRecord,
+    mut subtasks: Vec<SubtaskRecord>,
+) -> Result<bool, &'static str> {
+    let loaded = load_in_transaction(tx, lease.root)?;
+    if loaded.generation != lease.generation {
+        return Err("continuation_claim_lost");
+    }
+    if matches!(loaded.state.as_str(), "completed" | "cancelled" | "failed") {
+        return if loaded.state == record.state || loaded.state == "cancelled" {
+            Ok(loaded.state == "cancelled")
+        } else {
+            Err("continuation_terminal")
+        };
+    }
+    let cancelled = loaded.cancel_requested || record.state == "cancelled";
+    if loaded.state != "running" && !(loaded.state == "paused" && cancelled) {
+        return Err("continuation_claim_lost");
+    }
+    if cancelled {
+        record.state = "cancelled".into();
+        record.error_code = Some("cancelled".into());
+        for item in &mut subtasks {
+            if item.state != "completed" {
+                item.state = "cancelled".into();
+                item.error_code = Some("cancelled".into());
+            }
+        }
+    }
+    if record.state == "completed"
+        && (loaded.completed.len() != loaded.manifest.steps.len() || !loaded.uncertain.is_empty())
+    {
+        return Err("continuation_state_invalid");
+    }
+    // Early cancellation/failure can precede construction of the in-memory
+    // graph. Its ledger still supplies all IDs and confirmed completions.
+    if subtasks.is_empty() && record.state != "completed" {
+        subtasks = loaded
+            .manifest
+            .steps
+            .iter()
+            .map(|step| {
+                let done = loaded
+                    .completed
+                    .get(&step.id)
+                    .filter(|_| cancelled || !loaded.uncertain.contains(&step.id));
+                SubtaskRecord {
+                    root_task_id: lease.root,
+                    subtask_id: step.id.clone(),
+                    provider_id: done.map(|u| u.result.provider_id.clone()),
+                    state: if done.is_some() {
+                        "completed"
+                    } else if cancelled {
+                        "cancelled"
+                    } else {
+                        "blocked"
+                    }
+                    .into(),
+                    started_at: None,
+                    finished_at: done
+                        .map(|u| u.receipt.committed_at().to_owned())
+                        .unwrap_or_else(|| record.finished_at.clone()),
+                    error_code: done.is_none().then(|| record.error_code.clone()).flatten(),
+                }
+            })
+            .collect();
+    }
+    let ids: BTreeSet<_> = subtasks.iter().map(|s| s.subtask_id.as_str()).collect();
+    if subtasks.len() != loaded.manifest.steps.len()
+        || ids.len() != subtasks.len()
+        || loaded
+            .manifest
+            .steps
+            .iter()
+            .any(|s| !ids.contains(s.id.as_str()))
+        || subtasks.iter().any(|s| {
+            s.root_task_id != lease.root
+                || (record.state == "completed" && s.state != "completed")
+                || (s.state == "completed"
+                    && ((!cancelled && loaded.uncertain.contains(&s.subtask_id))
+                        || loaded.completed.get(&s.subtask_id).is_none_or(|u| {
+                            s.provider_id.as_deref() != Some(u.result.provider_id.as_str())
+                        })))
+                || (loaded.completed.contains_key(&s.subtask_id)
+                    && (cancelled || !loaded.uncertain.contains(&s.subtask_id))
+                    && s.state != "completed")
+        })
+    {
+        return Err("continuation_history_invalid");
+    }
+    task_history::insert_with_subtasks_in_transaction(tx, &record, &subtasks)
+        .map_err(|_| "task_history_write_failed")?;
+    let changed = tx.execute("UPDATE main.cognitive_continuations SET state=?3,pause_reason=NULL,cancel_requested=0 WHERE root_task_id=?1 AND generation=?2 AND state IN ('running','paused')",params![lease.root,lease.generation,record.state])
+            .map_err(|_| "continuation_write_failed")?;
+    if changed != 1 {
+        return Err("continuation_claim_lost");
+    }
+    Ok(cancelled)
+}
+
 fn durable(conn: &Connection) -> Result<(), &'static str> {
     super::checkpoints::require_durable_connection(conn)
         .map_err(|_| "continuation_durability_unavailable")
@@ -486,9 +555,15 @@ fn encode<T: Serialize>(value: &T) -> Result<String, &'static str> {
     serde_json::to_string(value).map_err(|_| "continuation_record_invalid")
 }
 fn require_lease(conn: &Connection, lease: ContinuationLease) -> Result<(), &'static str> {
-    let valid: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM main.cognitive_continuations WHERE root_task_id=?1 AND generation=?2 AND state='running')",params![lease.root,lease.generation], |r| r.get(0)).map_err(|_| "continuation_read_failed")?;
-    if !valid {
+    let (state, generation, requested): (String, u64, bool) = conn.query_row(
+        "SELECT state,generation,cancel_requested FROM main.cognitive_continuations WHERE root_task_id=?1",
+        [lease.root], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?)),
+    ).map_err(|_| "continuation_read_failed")?;
+    if generation != lease.generation || state != "running" {
         return Err("continuation_claim_lost");
+    }
+    if requested {
+        return Err("cancelled");
     }
     Ok(())
 }
@@ -579,7 +654,7 @@ fn validate_budget(budget: TaskBudget, policy: &TaskPolicySnapshot) -> Result<()
     Ok(())
 }
 fn load_in_transaction(conn: &Connection, root: u64) -> Result<ContinuationLoad, &'static str> {
-    let (json,state,generation,reason): (String,String,u64,Option<String>) = conn.query_row("SELECT CASE WHEN typeof(manifest_json)='text' AND length(CAST(manifest_json AS BLOB)) BETWEEN 1 AND 49152 THEN manifest_json ELSE NULL END,state,generation,pause_reason FROM main.cognitive_continuations WHERE root_task_id=?1",[root], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional().map_err(|_| "continuation_record_invalid")?.ok_or("continuation_absent")?;
+    let (json,state,generation,reason,cancel_requested): (String,String,u64,Option<String>,bool) = conn.query_row("SELECT CASE WHEN typeof(manifest_json)='text' AND length(CAST(manifest_json AS BLOB)) BETWEEN 1 AND 49152 THEN manifest_json ELSE NULL END,state,generation,pause_reason,cancel_requested FROM main.cognitive_continuations WHERE root_task_id=?1",[root], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).optional().map_err(|_| "continuation_record_invalid")?.ok_or("continuation_absent")?;
     let manifest: ContinuationManifest =
         serde_json::from_str(&json).map_err(|_| "continuation_manifest_invalid")?;
     manifest.validate(root)?;
@@ -604,9 +679,14 @@ fn load_in_transaction(conn: &Connection, root: u64) -> Result<ContinuationLoad,
         )
         .optional()
         .map_err(|_| "continuation_read_failed")?;
-    if history.as_ref().is_some_and(|(kind, terminal)| {
-        kind != "task_graph" || terminal != &state || matches!(state.as_str(), "running" | "paused")
-    }) {
+    if (matches!(state.as_str(), "completed" | "cancelled" | "failed")
+        && (history.is_none() || cancel_requested))
+        || history.as_ref().is_some_and(|(kind, terminal)| {
+            kind != "task_graph"
+                || terminal != &state
+                || matches!(state.as_str(), "running" | "paused")
+        })
+    {
         return Err("continuation_history_contradiction");
     }
     let mut statement = conn.prepare("SELECT subtask_id,state,unit_sequence,CASE WHEN typeof(allocation_json)='text' AND length(CAST(allocation_json AS BLOB)) BETWEEN 1 AND 4096 THEN allocation_json ELSE NULL END,CASE WHEN typeof(selection_json)='text' AND length(CAST(selection_json AS BLOB)) BETWEEN 1 AND 512 THEN selection_json ELSE NULL END,CASE WHEN typeof(result_json)='text' AND length(CAST(result_json AS BLOB)) BETWEEN 1 AND 102400 THEN result_json ELSE NULL END,checkpoint_sequence,CASE WHEN typeof(budget_json)='text' AND length(CAST(budget_json AS BLOB)) BETWEEN 1 AND 256 THEN budget_json ELSE NULL END FROM main.cognitive_continuation_units WHERE root_task_id=?1 ORDER BY subtask_id").map_err(|_| "continuation_read_failed")?;
@@ -787,9 +867,44 @@ fn load_in_transaction(conn: &Connection, root: u64) -> Result<ContinuationLoad,
     if state == "completed" && (completed.len() != manifest.steps.len() || !uncertain.is_empty()) {
         return Err("continuation_state_invalid");
     }
+    if matches!(state.as_str(), "completed" | "cancelled" | "failed") {
+        let mut stmt = conn.prepare("SELECT subtask_id,state,provider_id FROM main.task_subtask_records WHERE root_task_id=?1").map_err(|_| "continuation_read_failed")?;
+        let rows = stmt
+            .query_map([root], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .map_err(|_| "continuation_read_failed")?;
+        let mut ids = BTreeSet::new();
+        for row in rows {
+            let (id, unit_state, provider) = row.map_err(|_| "continuation_read_failed")?;
+            let done = completed
+                .get(&id)
+                .filter(|_| state == "cancelled" || !uncertain.contains(&id));
+            if !found.contains(&id)
+                || !ids.insert(id.clone())
+                || done.is_some_and(|u| {
+                    unit_state != "completed"
+                        || provider.as_deref() != Some(u.result.provider_id.as_str())
+                })
+                || (done.is_none()
+                    && (unit_state == "completed"
+                        || (state == "cancelled" && unit_state != "cancelled")))
+            {
+                return Err("continuation_history_contradiction");
+            }
+        }
+        if ids != found {
+            return Err("continuation_history_contradiction");
+        }
+    }
     Ok(ContinuationLoad {
         manifest,
         state,
+        cancel_requested,
         completed,
         uncertain,
         generation,

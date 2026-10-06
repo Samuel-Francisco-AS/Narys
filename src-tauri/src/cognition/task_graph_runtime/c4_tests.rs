@@ -273,6 +273,7 @@ async fn lr85c_final_i_cancel_paused_survives_restart_and_resume_is_terminal() {
     let mut f = Fixture::new_economic(RoutingMode::Auto, false, false, false, true, false);
     economic_pause(&mut f).await;
     assert!(ContinuationRepository::cancel(&f.db.open().unwrap(), 100).unwrap());
+    terminal_fix1_tests::agreement(&f, "cancelled", &[("a", "completed"), ("b", "cancelled")]);
     let registry = recover(&mut f);
     assert_eq!(resume(&f, registry).await.0, Err("continuation_terminal"));
     assert_eq!(f.calls().len(), 1);
@@ -716,7 +717,7 @@ async fn lr85c_final_z_v14_upgrade_preserves_b4_checkpoints_history_and_rate_sch
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        15
+        16
     );
 }
 
@@ -725,3 +726,6 @@ mod storage_tests;
 
 #[path = "c4_tests/terminal_fix1_tests.rs"]
 mod terminal_fix1_tests;
+
+#[path = "c4_tests/cancellation_fix2_tests.rs"]
+mod cancellation_fix2_tests;

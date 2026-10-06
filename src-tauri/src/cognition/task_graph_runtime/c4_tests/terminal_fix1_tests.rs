@@ -1,13 +1,13 @@
 //! C4 FIX-1: terminal continuation and history form one durable SQLite fact.
 use super::*;
 
-fn history_counts(f: &Fixture) -> (u32, u32) {
+pub(super) fn history_counts(f: &Fixture) -> (u32, u32) {
     f.db.open().unwrap().query_row(
         "SELECT (SELECT COUNT(*) FROM task_records WHERE task_id=100), (SELECT COUNT(*) FROM task_subtask_records WHERE root_task_id=100)",
         [], |r| Ok((r.get(0)?, r.get(1)?)),
     ).unwrap()
 }
-fn agreement(f: &Fixture, expected: &str, units: &[(&str, &str)]) {
+pub(super) fn agreement(f: &Fixture, expected: &str, units: &[(&str, &str)]) {
     let conn = f.db.open().unwrap();
     let states: (String, String) = conn.query_row(
         "SELECT c.state,t.state FROM cognitive_continuations c JOIN task_records t ON t.task_id=c.root_task_id WHERE c.root_task_id=100",

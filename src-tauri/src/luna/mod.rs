@@ -52,13 +52,9 @@ pub async fn cancel_task(
             .emit();
         "TaskId inválido".to_string()
     })?;
-    let active = registry.cancel(TaskId(id));
-    let durable = crate::persistence::continuations::with_connection(db.inner(), move |conn| {
-        crate::persistence::continuations::ContinuationRepository::cancel(conn, id)
-    })
-    .await
-    .map_err(str::to_owned)?;
-    let accepted = active || durable;
+    let accepted = cancel_task_core(registry.inner(), db.inner(), TaskId(id))
+        .await
+        .map_err(str::to_owned)?;
     AuditEvent::new(
         Action::TaskCancelRequested,
         if accepted {
@@ -70,6 +66,20 @@ pub async fn cancel_task(
     .with_task_id(id)
     .emit();
     Ok(accepted)
+}
+
+pub(crate) async fn cancel_task_core(
+    registry: &TaskRegistry,
+    db: &Database,
+    root: TaskId,
+) -> Result<bool, &'static str> {
+    validation::task_id(root.0)?;
+    let active = registry.cancel(root);
+    let durable = crate::persistence::continuations::with_connection(db, move |conn| {
+        crate::persistence::continuations::ContinuationRepository::cancel(conn, root.0)
+    })
+    .await?;
+    Ok(active || durable)
 }
 
 #[tauri::command]
