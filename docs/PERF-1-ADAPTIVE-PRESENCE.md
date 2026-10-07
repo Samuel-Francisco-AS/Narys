@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **EM EXECUÇÃO — PERF-1A ativa na branch `perf-1a-baseline-lifecycle`; LR-8 e LR-8.5 permanecem PASS.**
+Estado: **EM EXECUÇÃO — PERF-1A = PASS e integrada à main; PERF-1B — Economy Shell liberada para início.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -202,7 +202,7 @@ Plano executável, limites, evidências e gate:
 
 ## PERF-1B — Economy Shell
 
-**Estado:** PRÓXIMO CHECKPOINT — iniciar somente após integração/fechamento da branch PERF-1A.
+**Estado:** LIBERADA — próximo checkpoint formal da PERF-1.
 
 **Objetivo:** entregar a interface 2D padrão da Narys, interativa e de baixo custo, sem avatar.
 
