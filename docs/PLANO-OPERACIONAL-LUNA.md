@@ -801,6 +801,30 @@ Objetivos:
 O plano detalhado, riscos e gates estão em
 [NARYS-NORMALIZATION-TRACK.md](NARYS-NORMALIZATION-TRACK.md).
 
+## 23.6. NARYS-TERM — Terminal Runtime & Interactive Shell Surface
+
+**Estado:** trilha futura registrada em 07/10/2026, sem posição definitiva.
+
+Objetivo: permitir que o workspace central da Narys hospede um **terminal Linux
+real via PTY**, utilizável por humano e, futuramente, por Luna/SpecialistAgents
+com ownership, auditoria e autorização explícitos.
+
+Princípios:
+
+- frontend é emulador/superfície, não autoridade de processo;
+- backend Rust possui PTY/process lifecycle;
+- ações carregam origem `human | luna | specialist_agent | automation`;
+- sessões agentivas são identificáveis e separáveis da sessão humana;
+- comandos privilegiados/destrutivos exigem policy/approval;
+- APIs estruturadas continuam preferíveis quando houver primitive específica;
+- a trilha não deve atrasar PERF-1.
+
+A atual view `Shell / Home` permanece uma home/launcher até essa capability
+existir; ela não deve fingir executar shell.
+
+Plano detalhado:
+[NARYS-TERMINAL-RUNTIME-TRACK.md](NARYS-TERMINAL-RUNTIME-TRACK.md).
+
 ## 24. Próxima ação recomendada
 
 Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 = PASS funcional**, **LR-7 = PASS
