@@ -529,8 +529,7 @@ Com **UIP-0 → UIP-6 = PASS funcional/fechadas**, **UIP-7 é CANDIDATA ao gate 
 
 ## 20. PERF-1 — Adaptive Presence & Economy Mode
 
-**Estado: EM EXECUÇÃO em 07/10/2026. PERF-1A PASS; PERF-1B IMPLEMENTAÇÃO CANDIDATA na branch
-`perf-1b-economy-shell`, aguardando auditoria independente.**
+**Estado: EM EXECUÇÃO em 07/10/2026. PERF-1A PASS; PERF-1B PASS com dívidas não bloqueantes; PERF-1C é o próximo checkpoint.**
 
 Esta é a segunda trilha de performance, posterior à UIP e posicionada após
 LR-8/LR-8.5 e antes da LR-9.
@@ -572,4 +571,4 @@ verdes.
 
 Plano mestre: [PERF-1 — Adaptive Presence & Economy Mode](PERF-1-ADAPTIVE-PRESENCE.md).  
 Baseline aprovada: [PERF-1A](PERF-1A-BASELINE-LIFECYCLE.md).
-Entrega ativa: [PERF-1B — Economy Shell](PERF-1B-ECONOMY-SHELL.md).
+Economy aprovada: [PERF-1B — Economy Shell](PERF-1B-ECONOMY-SHELL.md). Próximo: PERF-1C — Headless Runtime.
