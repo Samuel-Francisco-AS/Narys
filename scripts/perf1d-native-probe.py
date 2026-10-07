@@ -25,6 +25,7 @@ parser.add_argument('--binary', default='src-tauri/target/release/assistente-3d'
 parser.add_argument('--output', default='/tmp/narys-perf1d-native.json')
 parser.add_argument('--seconds', type=int, default=5)
 parser.add_argument('--smoke', action='store_true', help='Functional scenario with controlled deadlines and no endurance cycles; not performance evidence')
+parser.add_argument('--attention-priority', action='store_true', help='Short FIX-1 gate: pending attention wins over Presence activation; no endurance cycles or real 30-second delay')
 args = parser.parse_args()
 binary = Path(args.binary).resolve()
 requests = []
@@ -49,7 +50,7 @@ server = http.server.ThreadingHTTPServer(('127.0.0.1',0), Handler)
 threading.Thread(target=server.serve_forever,daemon=True).start()
 spec = importlib.util.spec_from_file_location('sampler', Path(__file__).with_name('perf1a-process-baseline.py'))
 sampler = importlib.util.module_from_spec(spec); spec.loader.exec_module(sampler)
-evidence = {'binarySha256':hashlib.sha256(binary.read_bytes()).hexdigest(), 'realWebViews':True, 'functionalOnly':args.smoke, 'softwareRendering':True, 'provider':'local HTTP Groq SSE fixture; not commercial', 'focus':'native focus handler controlled by probe; physical compositor focus not attested','snapshots':[], 'measurements':[], 'reopens':[], 'lifecycleTrees':[]}
+evidence = {'binarySha256':hashlib.sha256(binary.read_bytes()).hexdigest(), 'realWebViews':True, 'functionalOnly':args.smoke or args.attention_priority, 'scenario':'attention_priority_fix_1' if args.attention_priority else 'adaptive', 'softwareRendering':True, 'provider':'local HTTP Groq SSE fixture; not commercial', 'focus':'native focus handler controlled by probe; physical compositor focus not attested','snapshots':[], 'measurements':[], 'reopens':[], 'lifecycleTrees':[]}
 with tempfile.TemporaryDirectory(prefix='narys-perf1d-') as temporary:
     directory = Path(temporary)
     shutil.copyfile(Path(__file__).with_name('fixtures')/'perf1c-identity.json', directory/'identity.json')
@@ -140,79 +141,61 @@ with tempfile.TemporaryDirectory(prefix='narys-perf1d-') as temporary:
         return snap
     def no_3d_since(index):
         assert not any('Luna.glb' in e['data']['path'] or 'AvatarViewport' in e['data']['path'] for e in events()[index:] if e['event']=='asset')
-    try:
+    def attention_priority_gate():
         initial=until(lambda: command('snapshot'),timeout=90); safe_economy()
-        assert initial['adaptive']['policy']=='economy'
-        command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
-        command('auto'); safe_economy(); no_3d_since(0)
-        # Real React draft: only empty/nonempty state crosses IPC; retained when auto is blocked.
-        command('draft'); until(lambda: command('snapshot')['adaptive']['uiGuard'])
-        command('focused'); command('background'); command('expire'); time.sleep(.3)
-        assert command('snapshot')['mainPresent']
-        assert 'Unsent local draft' not in json.dumps(command('snapshot')['adaptive'])
-        command('clear_draft'); safe_economy()
-        command('settings'); until(lambda: len(command('snapshot')['windows'])==2)
-        command('focused'); command('background'); command('expire'); time.sleep(.3)
-        assert command('snapshot')['mainPresent']; command('close_settings'); until(lambda: len(command('snapshot')['windows'])==1)
-        until(lambda: sum(r['name'].startswith('WebKitWeb') for r in sampler.read_tree(app.pid))==1)
-        evidence['afterSettingsCloseTree']=sampler.read_tree(app.pid)
-        command('ui_bound_on'); command('focused'); command('background'); command('expire'); time.sleep(.3)
-        assert command('snapshot')['mainPresent']; command('ui_bound_off')
-        # Focus and preference changes invalidate stale delayed decisions.
-        command('focused'); command('background'); token=command('snapshot')['adaptive']['pendingToken']
-        command('focused'); assert command('snapshot')['adaptive']['pendingToken'] is None
-        command('background'); command('economy'); assert command('snapshot')['adaptive']['pendingToken'] is None
-        command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
-        command('auto'); safe_economy()
         command('send'); until(lambda: len(requests)==1)
         active=task_state('running'); task_id=active['task']['taskId']; session_id=active['sessionId']
-        # First cycle uses the actual 30-second timer; following cycles control its deadline.
-        absent=auto_close(args.smoke); assert absent['task']['taskId']==task_id and absent['task']['state']=='running'
-        if not args.smoke: assert 29 <= evidence['autoCloses'][-1]['elapsedMs']/1000 < 38
-        restored=attention_reopen('approval_attention')
-        assert restored['registryAddress']==initial['registryAddress'] and restored['providerRuntimeAddress']==initial['providerRuntimeAddress']
-        until(lambda: any(e['event']=='ui_attach' and e['data']['taskId']==task_id for e in events()))
-        assert len(requests)==1
-        auto_close(); restored=reopened(); safe_economy(); assert restored['task']['taskId']==task_id
-        assert len(requests)==1; no_3d_since(0)
-        # Explicit Presence remains stable on background. Attention/reopen in Auto never chooses it.
+        database=next((directory/'data').rglob('luna.sqlite3'))
+        def task_ids():
+            with sqlite3.connect(database) as conn:
+                return [row[0] for row in conn.execute('SELECT task_id FROM task_records ORDER BY task_id')]
+        assert task_ids()==[] # This table stores terminal history, not currently running work.
+        def continuity():
+            snapshot=command('snapshot')
+            assert snapshot['task']['taskId']==task_id and snapshot['task']['state']=='running'
+            assert snapshot['sessionId']==session_id and len(requests)==1
+            assert snapshot['activeCount']==1 and task_ids()==[]
+            assert snapshot['registryAddress']==initial['registryAddress'] and snapshot['providerRuntimeAddress']==initial['providerRuntimeAddress']
+            assert snapshot['adaptive']['policy']=='presence' and len(snapshot['adaptive']['history'])<=64
+            return snapshot
+        def activate_existing():
+            before=command('snapshot')['adaptive']['revision']
+            second=subprocess.run([str(binary)],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=20)
+            assert second.returncode==0
+            until(lambda: command('snapshot')['adaptive']['revision']>before)
         command('presence'); until(lambda: (r:=frontend())['mode']=='presence' and r['phase']=='ready' and r['canvases']==1)
-        evidence['explicitPresence']={'frontend':{k:v for k,v in frontend().items() if k!='body'},'assets':[e['data'] for e in events() if e['event']=='asset' and ('Luna.glb' in e['data']['path'] or 'AvatarViewport' in e['data']['path'])]}
-        command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
-        closed(True); reopened(); until(lambda: (r:=frontend())['mode']=='presence' and r['phase']=='ready')
-        command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
-        command('auto'); safe_economy(); assert frontend()['canvases']==0
-        absent=auto_close(); gates[0].set(); assert task_state('completed')['task']['taskId']==task_id
-        # Cycle RSS compares warmed Economy and Headless separately, same persistent Core.
-        baseline_headless=sampler.read_tree(app.pid)
-        attention_reopen(); safe_economy(); time.sleep(2)
-        baseline_economy=sampler.read_tree(app.pid)
-        cycle_asset_start=len(events())
-        for index in range(0 if args.smoke else 15):
-            absent=auto_close()
-            tree=sampler.read_tree(app.pid)
-            evidence.setdefault('cycles',[]).append({'cycle':index+1,'headlessTree':tree,'adaptive':absent['adaptive']})
-            if index % 2: reopened(); safe_economy()
-            else: attention_reopen()
-            snap=command('snapshot')
-            assert len(snap['windows'])==1 and snap['registryAddress']==initial['registryAddress'] and snap['providerRuntimeAddress']==initial['providerRuntimeAddress']
-            assert snap['adaptive']['pendingToken'] is None
-            assert len(snap['adaptive']['history'])<=64 and len(requests)==1
-            evidence['cycles'][-1]['economyTree']=sampler.read_tree(app.pid)
-        no_3d_since(cycle_asset_start)
-        time.sleep(2); final_economy=sampler.read_tree(app.pid)
-        absent=auto_close(); final_headless=sampler.read_tree(app.pid)
-        evidence['cycleMemory']={'beforeEconomy':baseline_economy,'afterEconomy':final_economy,'beforeHeadless':baseline_headless,'afterHeadless':final_headless}
-        evidence['transitionRing']=absent['adaptive']['history']; assert len(evidence['transitionRing'])<=64
-        # Manual Headless is a persisted preference, explicit activation only opens temporary Economy.
-        command('headless'); reopened(); safe_economy(); snap=command('snapshot')
-        assert snap['adaptive']['policy']=='headless'; command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
-        assert frontend()['canvases']==0
-        closed(True); assert command('snapshot')['adaptive']['policy']=='headless'
-        reopened(); safe_economy(); command('auto'); safe_economy()
-        command('send'); until(lambda: len(requests)==2); task_state('running'); auto_close()
+        command('background'); assert continuity()['adaptive']['pendingToken'] is None
+        closed(True); continuity()
+        assets_start=len(events()); command('approval_attention'); safe_economy()
+        pending=continuity()
+        assert pending['adaptive']['attention']=='approval_required' and pending['adaptive']['state']=='economy'
+        activate_existing(); safe_economy(); activated=continuity(); report=frontend()
+        assert activated['adaptive']['attention']=='approval_required' and activated['adaptive']['state']=='economy'
+        assert len(activated['windows'])==1 and report['canvases']==0 and report['glb']==0
+        assert 'Atenção requerida' in report['body']; no_3d_since(assets_start)
+        # Fresh explicit recovery also reads the latch, rather than only the latest reason.
+        closed(True); assert continuity()['adaptive']['attention']=='approval_required'
+        reopened(); safe_economy(); recovered=continuity()
+        assert recovered['adaptive']['attention']=='approval_required' and recovered['adaptive']['state']=='economy'
+        no_3d_since(assets_start)
+        command('ack_attention'); until(lambda: command('snapshot')['adaptive']['attention'] is None)
+        acknowledged=continuity()
+        assert acknowledged['adaptive']['state']=='economy' and acknowledged['adaptive']['epoch']==recovered['adaptive']['epoch'] and acknowledged['adaptive']['revision']==recovered['adaptive']['revision']
+        after_ack_asset_start=len(events())
+        activate_existing(); until(lambda: (r:=frontend())['mode']=='presence' and r['phase']=='ready' and r['canvases']==1)
+        restored=continuity(); assert restored['adaptive']['attention'] is None and restored['adaptive']['state']=='presence'
+        # WebKit ResourceTiming may omit custom-protocol fetches; use the real native request callback.
+        after_ack_glb_assets=until(lambda: [e['data'] for e in events()[after_ack_asset_start:] if e['event']=='asset' and 'Luna.glb' in e['data']['path'] and e['data']['status']==200])
+        after_ack_report=frontend()
+        evidence['attentionPriority']={'taskId':task_id,'providerCallsBefore':1,'providerCallsAfter':len(requests),'pendingActivationSurface':activated['adaptive']['state'],'pendingRecoverySurface':recovered['adaptive']['state'],'attentionAfterActivation':activated['adaptive']['attention'],'attentionAfterRecovery':recovered['adaptive']['attention'],'acknowledgedSurface':acknowledged['adaptive']['state'],'activationAfterAckSurface':restored['adaptive']['state'],'pendingFrontend':{k:report[k] for k in ['mode','phase','canvases','glb']},'activationAfterAckFrontend':{k:after_ack_report[k] for k in ['mode','phase','canvases','glb']},'activationAfterAckGlbAssets':after_ack_glb_assets,'sameCore':True,'sameTaskId':True,'raceCoverage':'deterministic Rust state/target test; native close callback is not paused'}
+        closed(True); continuity() # Close is still transient and does not cancel HeadlessSafe.
         before_quit=sampler.read_tree(app.pid); command('quit'); app.wait(timeout=12); assert app.returncode==0
-        time.sleep(1)
+        assert task_ids()==[task_id]
+        with sqlite3.connect(database) as conn:
+            quit_state=conn.execute('SELECT state FROM task_records WHERE task_id=?',(task_id,)).fetchone()[0]
+        assert quit_state=='cancelled'
+        evidence.update({'persistedTaskIds':task_ids(),'quitTaskState':quit_state})
+        time.sleep(.3)
         live=[]
         for row in before_quit:
             path=Path(f'/proc/{row["pid"]}/stat')
@@ -220,20 +203,104 @@ with tempfile.TemporaryDirectory(prefix='narys-perf1d-') as temporary:
                 tail=path.read_text().rsplit(')',1)[1].split()
                 if int(tail[19])==row['startTicks'] and tail[0]!='Z': live.append(row['pid'])
         assert not live,live
-        evidence['orphanHelpers']=live; evidence['quitExitCode']=app.returncode
-        evidence['providerCalls']=len(requests); evidence['autoNeverPresence']=True; evidence['pass']=True
-        # Isolated cold start Headless: Core initializes without ever constructing a WebView.
-        cold=directory/'cold'; cold.mkdir(); shutil.copyfile(directory/'identity.json',cold/'identity.json')
-        env={**env,'XDG_DATA_HOME':str(cold/'data'),'NARYS_PERF1C_PROBE':str(cold),'NARYS_PERF1D_INITIAL_POLICY':'headless'}
-        directory=cold; sequence=0; app=subprocess.Popen([str(binary)],env=env,stdout=log,stderr=log)
-        cold_snap=until(lambda: command('snapshot'),timeout=90)
-        assert cold_snap['windows']==[] and cold_snap['adaptive']['policy']=='headless'
-        assert not any(r['name'].startswith('WebKitWeb') for r in sampler.read_tree(app.pid))
-        evidence['coldHeadless']=cold_snap
-        reopened(); safe_economy(); assert command('snapshot')['adaptive']['policy']=='headless'
-        command('auto'); safe_economy(); command('focused'); command('background'); assert command('snapshot')['adaptive']['timerActive']
-        quitting=command('quit'); assert quitting['adaptive']['pendingToken'] is None and not quitting['adaptive']['timerActive']
-        app.wait(timeout=12); assert app.returncode==0
+        evidence.update({'providerCalls':len(requests),'quitExitCode':app.returncode,'orphanHelpers':live,'pass':True})
+    try:
+        if args.attention_priority:
+            attention_priority_gate()
+        else:
+            initial=until(lambda: command('snapshot'),timeout=90); safe_economy()
+            assert initial['adaptive']['policy']=='economy'
+            command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
+            command('auto'); safe_economy(); no_3d_since(0)
+            # Real React draft: only empty/nonempty state crosses IPC; retained when auto is blocked.
+            command('draft'); until(lambda: command('snapshot')['adaptive']['uiGuard'])
+            command('focused'); command('background'); command('expire'); time.sleep(.3)
+            assert command('snapshot')['mainPresent']
+            assert 'Unsent local draft' not in json.dumps(command('snapshot')['adaptive'])
+            command('clear_draft'); safe_economy()
+            command('settings'); until(lambda: len(command('snapshot')['windows'])==2)
+            command('focused'); command('background'); command('expire'); time.sleep(.3)
+            assert command('snapshot')['mainPresent']; command('close_settings'); until(lambda: len(command('snapshot')['windows'])==1)
+            until(lambda: sum(r['name'].startswith('WebKitWeb') for r in sampler.read_tree(app.pid))==1)
+            evidence['afterSettingsCloseTree']=sampler.read_tree(app.pid)
+            command('ui_bound_on'); command('focused'); command('background'); command('expire'); time.sleep(.3)
+            assert command('snapshot')['mainPresent']; command('ui_bound_off')
+            # Focus and preference changes invalidate stale delayed decisions.
+            command('focused'); command('background'); token=command('snapshot')['adaptive']['pendingToken']
+            command('focused'); assert command('snapshot')['adaptive']['pendingToken'] is None
+            command('background'); command('economy'); assert command('snapshot')['adaptive']['pendingToken'] is None
+            command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
+            command('auto'); safe_economy()
+            command('send'); until(lambda: len(requests)==1)
+            active=task_state('running'); task_id=active['task']['taskId']; session_id=active['sessionId']
+            # First cycle uses the actual 30-second timer; following cycles control its deadline.
+            absent=auto_close(args.smoke); assert absent['task']['taskId']==task_id and absent['task']['state']=='running'
+            if not args.smoke: assert 29 <= evidence['autoCloses'][-1]['elapsedMs']/1000 < 38
+            restored=attention_reopen('approval_attention')
+            assert restored['registryAddress']==initial['registryAddress'] and restored['providerRuntimeAddress']==initial['providerRuntimeAddress']
+            until(lambda: any(e['event']=='ui_attach' and e['data']['taskId']==task_id for e in events()))
+            assert len(requests)==1
+            auto_close(); restored=reopened(); safe_economy(); assert restored['task']['taskId']==task_id
+            assert len(requests)==1; no_3d_since(0)
+            # Explicit Presence remains stable on background. Attention/reopen in Auto never chooses it.
+            command('presence'); until(lambda: (r:=frontend())['mode']=='presence' and r['phase']=='ready' and r['canvases']==1)
+            evidence['explicitPresence']={'frontend':{k:v for k,v in frontend().items() if k!='body'},'assets':[e['data'] for e in events() if e['event']=='asset' and ('Luna.glb' in e['data']['path'] or 'AvatarViewport' in e['data']['path'])]}
+            command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
+            closed(True); reopened(); until(lambda: (r:=frontend())['mode']=='presence' and r['phase']=='ready')
+            command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
+            command('auto'); safe_economy(); assert frontend()['canvases']==0
+            absent=auto_close(); gates[0].set(); assert task_state('completed')['task']['taskId']==task_id
+            # Cycle RSS compares warmed Economy and Headless separately, same persistent Core.
+            baseline_headless=sampler.read_tree(app.pid)
+            attention_reopen(); safe_economy(); time.sleep(2)
+            baseline_economy=sampler.read_tree(app.pid)
+            cycle_asset_start=len(events())
+            for index in range(0 if args.smoke else 15):
+                absent=auto_close()
+                tree=sampler.read_tree(app.pid)
+                evidence.setdefault('cycles',[]).append({'cycle':index+1,'headlessTree':tree,'adaptive':absent['adaptive']})
+                if index % 2: reopened(); safe_economy()
+                else: attention_reopen()
+                snap=command('snapshot')
+                assert len(snap['windows'])==1 and snap['registryAddress']==initial['registryAddress'] and snap['providerRuntimeAddress']==initial['providerRuntimeAddress']
+                assert snap['adaptive']['pendingToken'] is None
+                assert len(snap['adaptive']['history'])<=64 and len(requests)==1
+                evidence['cycles'][-1]['economyTree']=sampler.read_tree(app.pid)
+            no_3d_since(cycle_asset_start)
+            time.sleep(2); final_economy=sampler.read_tree(app.pid)
+            absent=auto_close(); final_headless=sampler.read_tree(app.pid)
+            evidence['cycleMemory']={'beforeEconomy':baseline_economy,'afterEconomy':final_economy,'beforeHeadless':baseline_headless,'afterHeadless':final_headless}
+            evidence['transitionRing']=absent['adaptive']['history']; assert len(evidence['transitionRing'])<=64
+            # Manual Headless is a persisted preference, explicit activation only opens temporary Economy.
+            command('headless'); reopened(); safe_economy(); snap=command('snapshot')
+            assert snap['adaptive']['policy']=='headless'; command('background'); assert command('snapshot')['adaptive']['pendingToken'] is None
+            assert frontend()['canvases']==0
+            closed(True); assert command('snapshot')['adaptive']['policy']=='headless'
+            reopened(); safe_economy(); command('auto'); safe_economy()
+            command('send'); until(lambda: len(requests)==2); task_state('running'); auto_close()
+            before_quit=sampler.read_tree(app.pid); command('quit'); app.wait(timeout=12); assert app.returncode==0
+            time.sleep(1)
+            live=[]
+            for row in before_quit:
+                path=Path(f'/proc/{row["pid"]}/stat')
+                if path.exists():
+                    tail=path.read_text().rsplit(')',1)[1].split()
+                    if int(tail[19])==row['startTicks'] and tail[0]!='Z': live.append(row['pid'])
+            assert not live,live
+            evidence['orphanHelpers']=live; evidence['quitExitCode']=app.returncode
+            evidence['providerCalls']=len(requests); evidence['autoNeverPresence']=True; evidence['pass']=True
+            # Isolated cold start Headless: Core initializes without ever constructing a WebView.
+            cold=directory/'cold'; cold.mkdir(); shutil.copyfile(directory/'identity.json',cold/'identity.json')
+            env={**env,'XDG_DATA_HOME':str(cold/'data'),'NARYS_PERF1C_PROBE':str(cold),'NARYS_PERF1D_INITIAL_POLICY':'headless'}
+            directory=cold; sequence=0; app=subprocess.Popen([str(binary)],env=env,stdout=log,stderr=log)
+            cold_snap=until(lambda: command('snapshot'),timeout=90)
+            assert cold_snap['windows']==[] and cold_snap['adaptive']['policy']=='headless'
+            assert not any(r['name'].startswith('WebKitWeb') for r in sampler.read_tree(app.pid))
+            evidence['coldHeadless']=cold_snap
+            reopened(); safe_economy(); assert command('snapshot')['adaptive']['policy']=='headless'
+            command('auto'); safe_economy(); command('focused'); command('background'); assert command('snapshot')['adaptive']['timerActive']
+            quitting=command('quit'); assert quitting['adaptive']['pendingToken'] is None and not quitting['adaptive']['timerActive']
+            app.wait(timeout=12); assert app.returncode==0
     except BaseException:
         log.flush(); log.seek(0); print(log.read()[-12000:],file=sys.stderr)
         evidence['pass']=False

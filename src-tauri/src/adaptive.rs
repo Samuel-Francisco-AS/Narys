@@ -63,6 +63,12 @@ impl Machine {
     fn new(policy: PresentationPolicy) -> Self {
         Self { snapshot: Snapshot { policy, state: RuntimeState::Headless, epoch: 0, revision: 0, focused: true, ui_guard: true, pending_token: None, timer_active: false, transitioning: false, quitting: false, attention: None, history: VecDeque::new() }, pending: None, sequence: 0, closing: None, recovery: None, timer: None }
     }
+    fn reopen_target(&self, reason: Reason) -> RuntimeState {
+        // Attention remains authoritative even if a later activation replaces the recovery reason.
+        if self.snapshot.attention.is_some() || reason == Reason::AttentionRequired {
+            RuntimeState::Economy
+        } else { self.snapshot.policy.control_surface() }
+    }
     fn invalidate(&mut self) {
         self.sequence += 1;
         self.pending = None;
@@ -122,7 +128,7 @@ pub fn reopen(app: &AppHandle, reason: Reason) -> Result<(), String> {
         if m.snapshot.quitting { return Err("runtime_shutting_down".into()); }
         m.invalidate();
         if m.closing.is_some() { m.recovery = Some(reason); return Ok(()); }
-        let target = if reason == Reason::AttentionRequired { RuntimeState::Economy } else { m.snapshot.policy.control_surface() };
+        let target = m.reopen_target(reason);
         let creating = app.get_webview_window("main").is_none();
         m.snapshot.transitioning = true;
         m.snapshot.focused = true; // A fresh full blur is required after every recovery.

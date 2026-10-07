@@ -1,6 +1,6 @@
 # PERF-1D — Adaptive Presence
 
-**Estado:** AUDITORIA INDEPENDENTE — FIX-1 OBRIGATÓRIA antes do gate humano
+**Estado:** PERF-1D FIX-1 IMPLEMENTADA — aguardando segunda auditoria independente
 
 Branch: `perf-1d-adaptive-presence`. Base: `main@e998bcee7f586effad1d8c8245d14f3fa4c020ef`.
 Workspace inicialmente limpo e HEAD conferido antes de editar. A/B/C permanecem
@@ -26,7 +26,7 @@ Core permanece autoridade de tarefas, sessões, providers e cancelamento.
 | Policy persistida | Cold start | Segunda ativação explícita | Background |
 | --- | --- | --- | --- |
 | Economy (default) | Economy | Economy | Nunca fecha automaticamente |
-| Presence | Presence, lazy após opt-in persistido | Presence | Nunca desmonta automaticamente |
+| Presence | Presence, lazy após opt-in persistido | Presence; Economy se attention pendente | Nunca desmonta automaticamente |
 | Headless | Core, **zero WebViews** | Economy temporária, sem alterar policy | Controle temporário permanece até Close manual |
 | Auto (opt-in) | Economy | Economy | Pode destruir Presentation após blur seguro e delay |
 
@@ -34,7 +34,9 @@ Close Presentation é transitório e não grava policy. Economy/Presence retorna
 à preferência na segunda ativação. Headless manual reabre Economy temporária;
 não existe leitura da preferência que feche imediatamente a janela de controle.
 Attention usa Economy como recuperação. Uma Presence manual já aberta não é
-substituída por heurística. A ativação explícita posterior usa a preferência.
+substituída por heurística. Reopen/recovery com attention latched mantém Economy,
+inclusive sob policy Presence. Após acknowledgment, uma nova ativação explícita
+pode voltar a usar Presence; o acknowledgment sozinho não muda a superfície.
 
 **Auto NUNCA seleciona Presence**, nem por foco, resposta de provider, atenção,
 atividade ou reopen. Escolher Auto enquanto Presence está montada publica
@@ -343,8 +345,9 @@ Depois da auditoria independente, o gate humano é curto:
 - B: escolher Presence, mudar de janela/esperar; Presence permanece.
 - C: escolher Auto de novo; Economy aparece e nenhuma Luna 3D surge sozinha.
 
-Não repetir benchmarks extensos sem finding concreto. Auditoria independente e
-esse gate ainda não foram executados. PERF-1 não está concluída; 1D não é PASS.
+Não repetir benchmarks extensos sem finding concreto. A primeira auditoria
+independente está registrada abaixo; segunda auditoria focada e gate humano
+permanecem pendentes. PERF-1 não está concluída; 1D não é PASS.
 
 
 ## Auditoria independente técnica — 07/10/2026
@@ -467,3 +470,150 @@ Não promovidas a FIX nesta auditoria:
 `PERF-1D = FIX-1 REQUIRED`.
 
 Não executar gate humano nem fechar PERF-1 antes da correção e de uma segunda auditoria focada.
+
+
+## PERF-1D FIX-1 — Attention priority
+
+**Estado de execução:** PERF-1D FIX-1 IMPLEMENTADA — aguardando segunda auditoria independente
+
+Base sincronizada por fast-forward na mesma branch:
+`95ca734d131e8df914f494b059511d8914b4296c`. Workspace limpo e HEAD conferidos
+antes da alteração. Não há nova branch, subfase ou expansão de arquitetura.
+
+### Causa e correção
+
+A decisão antiga usava somente o reason da chamada. Uma attention ainda latched
+podia perder sua superfície Economy quando uma ativação explícita posterior
+usava policy Presence, inclusive quando substituía o reason de recovery durante
+close. O latch permanecia, mas o único banner/acknowledgment disponível ficava
+oculto pela superfície Presence.
+
+`Machine::reopen_target(reason)` é uma consulta pequena e sem efeitos colaterais,
+chamada pelo mesmo `adaptive::reopen()` após o guard de close em andamento:
+
+```text
+attention.is_some() OU reason == AttentionRequired → Economy
+caso contrário → policy.control_surface()
+```
+
+Recovery continua podendo guardar o último reason. Após Destroyed, o reopen
+consulta o latch atual, portanto `ExplicitActivation` não supera attention
+pendente. Nenhuma fila, prioridade genérica, state machine ou timer foi criado.
+Policy Presence permanece persistida; somente a superfície de recuperação fica
+Economy enquanto houver attention pendente.
+
+`acknowledge_presentation_attention` permanece inalterado: limpa somente o latch
+e publica o snapshot. Não escolhe Presence, não cria tarefa e não aprova execução
+ou ferramenta. Uma **nova** ExplicitActivation depois do acknowledgment pode
+selecionar Presence. Auto segue restrito a Economy/Headless; Economy, Headless,
+Close != Quit, guards e todas as policies cognitivas permanecem inalterados.
+
+### Cobertura determinística
+
+Três testes em `adaptive_tests.rs` acrescentam:
+
+- Presence + Headless + AttentionRequired → Economy, com as três razões
+  allowlisted; novo ExplicitActivation/UserPolicy continua Economy e conserva
+  o latch e a policy Presence;
+- close marcado em andamento, recovery AttentionRequired, sobrescrita por
+  ExplicitActivation e conclusão de Destroyed: o target de recovery continua
+  Economy e a attention permanece latched;
+- latch limpo: a superfície atual não muda pelo acknowledgment modelado, mas
+  novo ExplicitActivation pode selecionar Presence; AttentionRequired continua
+  selecionando Economy mesmo sem latch;
+- Auto, Economy e controle temporário Headless sempre escolhem Economy em
+  reopen, com/sem attention, sem efeitos colaterais na preferência ou no estado.
+
+A corrida é provada deterministicamente na Machine e na função de target usada
+em produção. O probe existente não pausa o callback nativo de Destroyed; não foi
+introduzido um hook de teardown apenas para controlar essa ordem. O gate real
+abaixo cobre ativação sobre Economy já aberta e novo reopen explícito depois de
+Close com attention ainda latched. Não se apresenta essa segunda sequência como
+uma injeção da corrida antes de Destroyed.
+
+### Gate nativo curto
+
+```bash
+cargo build --release --features perf1d-probe --manifest-path src-tauri/Cargo.toml
+python3 scripts/perf1d-native-probe.py --attention-priority --output /tmp/narys-perf1d-fix1.json
+```
+
+O novo modo reaproveita Tauri/Wry, WebViews, single-instance, Core e o fixture
+HTTP/SSE local reais. Uma única Conversation começa em Economy; com ela ativa,
+Presence é escolhida e carregada explicitamente, depois fechada. Attention
+ApprovalRequired reabre Economy; segunda ativação com latch pendente mantém
+Economy, zero canvas/GLB e banner visível. Outro Close/reopen explícito preserva
+Economy e o latch. O acknowledgment real via IPC limpa attention sem mudar a
+superfície/revisão; só a ativação posterior permite carregar Presence novamente.
+
+Durante todas essas transições, o driver verifica mesmo TaskId/session,
+TaskRegistry/ProviderRuntime, uma única tarefa ativa e uma única provider call.
+O histórico terminal permanece vazio até Quit, que persiste somente o TaskId
+original cancelado. Close final mantém a tarefa HeadlessSafe ativa; Quit
+cancela/encerra o runtime. O cenário antigo do
+probe foi preservado no branch default. Não há 15 ciclos nem delay real de 30 s
+nesse gate, que é funcional e não uma nova medição de performance.
+
+### Resultados e findings
+
+O gate curto passou com uma única provider call, TaskId 1 preservado,
+`approval_required` latched durante ativação/recovery Economy, acknowledgment
+sem mudança de superfície/revisão e ativação posterior Presence ready com um
+canvas e `/models/Luna.glb` HTTP 200. Quit exit 0, somente TaskId 1 cancelado no
+histórico terminal e nenhum helper órfão.
+
+A regressão nativa `--smoke` também passou: Auto Economy ↔ Headless sem Presence,
+guards de draft/UiBound/settings, Presence manual estável, Headless manual,
+single-instance, continuidade de Core/TaskId e Quit. As duas provider calls
+nesse cenário pertencem às duas Conversations previstas pelo gate antigo;
+no cenário FIX-1 houve somente uma. Zero ciclos de endurance e todos os
+deadlines de Auto foram controlados, sem esperar 30 s reais.
+
+Validações concluídas: `npm run typecheck`, `npm run build`, os cinco scripts
+obrigatórios de presentation/economy/headless/adaptive/hydration e os três
+scripts oficiais de provider operations, provider DOM e allocation settings.
+Build release com `perf1d-probe`, `cargo check` e `cargo check --release` também
+passaram. `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=2`
+concluiu com **991 passed, 0 failed, 2 ignored preexistentes**, em 397,76 s nos
+testes unitários; binário e doc-tests também passaram. Os ignores existentes
+exigem app-server Codex local/autenticado e gate manual; nenhum ignore foi
+adicionado e nenhum teste foi removido. O build frontend e os checks Rust sem
+features de probe passaram; os hooks continuam isolados na feature existente.
+
+Os scripts Node executados foram:
+
+- `test-presentation-lifecycle.cjs`;
+- `test-economy-shell.cjs`;
+- `test-headless-interaction.cjs`;
+- `test-adaptive-presentation.cjs`;
+- `test-adaptive-policy-hydration.cjs`;
+- `test-provider-operations.cjs`;
+- `test-provider-operations-dom.cjs`;
+- `test-allocation-settings.cjs`.
+
+Não houve repetição da bateria longa de performance: a alteração é somente
+prioridade do target, comprovada pelos testes determinísticos e WebViews reais.
+Nenhum novo finding de produto foi observado nesses gates. A auditoria original
+permanece registrada como evidência histórica; este resultado não declara PASS
+nem encerra PERF-1.
+
+Evidências estruturadas, sem conteúdo de conversa, em
+[PERF-1D-FIX-1-OBSERVED-EVIDENCE.json](PERF-1D-FIX-1-OBSERVED-EVIDENCE.json).
+
+Dois findings foram restritos ao novo harness, sem alterar o produto:
+
+- A primeira coleta foi interrompida porque a assertion esperava a tarefa
+  running em `task_records`, que guarda somente histórico terminal. O gate
+  passou a exigir tabela vazia enquanto running, uma única tarefa ativa e
+  somente o TaskId original cancelado depois de Quit.
+- A segunda coleta já percorreu corretamente as superfícies, mas esperava uma
+  entrada GLB em ResourceTiming. WebKit omitiu esse fetch do protocolo nativo,
+  mesmo com Presence ready e canvas. O gate exige agora o callback nativo de
+  recurso `/models/Luna.glb` status 200 após acknowledgment/ativação, além de
+  ready/canvas. Enquanto attention pendente, continua exigindo zero requests
+  AvatarViewport/GLB pelo mesmo callback. As coletas interrompidas foram
+  rejeitadas como evidência do gate concluído.
+
+As dívidas da auditoria (ui_suspended manual/transient, partial native failures,
+MSRV, approvals, Home/DEV, packaging/endurance/cross-platform e TERM/NORM/LR-9)
+não foram tratadas. O gate humano continua aguardando segunda auditoria focada.

@@ -17,6 +17,62 @@ fn manual_preferences_never_schedule_and_auto_never_selects_presence() {
     assert_eq!(PresentationPolicy::Presence.control_surface(), RuntimeState::Presence);
 }
 #[test]
+fn latched_attention_has_surface_priority_until_acknowledgment() {
+    for attention in [AttentionReason::ApprovalRequired, AttentionReason::UserInputRequired, AttentionReason::TaskFailed] {
+        let mut m = Machine::new(PresentationPolicy::Presence);
+        m.snapshot.attention = Some(attention);
+        assert_eq!(m.snapshot.state, RuntimeState::Headless);
+        for reason in [Reason::AttentionRequired, Reason::ExplicitActivation, Reason::UserPolicy] {
+            let target = m.reopen_target(reason);
+            assert_eq!(target, RuntimeState::Economy);
+            m.record(target, reason);
+            assert_eq!(m.snapshot.attention, Some(attention));
+            assert_eq!(m.snapshot.policy, PresentationPolicy::Presence);
+        }
+        // The command clears only this latch; the native gate exercises the actual IPC acknowledgment.
+        m.snapshot.attention = None;
+        assert_eq!(m.snapshot.state, RuntimeState::Economy);
+        assert_eq!(m.reopen_target(Reason::ExplicitActivation), RuntimeState::Presence);
+        assert_eq!(m.reopen_target(Reason::AttentionRequired), RuntimeState::Economy);
+    }
+}
+#[test]
+fn attention_survives_last_reason_recovery_overwrite_before_destroyed() {
+    let mut m = economy(PresentationPolicy::Presence);
+    m.closing = Some(Reason::ManualClose);
+    m.snapshot.transitioning = true;
+    m.snapshot.attention = Some(AttentionReason::ApprovalRequired);
+    m.recovery = Some(Reason::AttentionRequired);
+    assert_eq!(m.reopen_target(m.recovery.unwrap()), RuntimeState::Economy);
+    m.recovery = Some(Reason::ExplicitActivation); // Last reason wins, but cannot override the latch.
+    assert_eq!(m.snapshot.attention, Some(AttentionReason::ApprovalRequired));
+    let close_reason = m.closing.take().unwrap();
+    m.record(RuntimeState::Headless, close_reason);
+    m.snapshot.transitioning = false;
+    let recovery = m.recovery.take().unwrap();
+    assert_eq!(recovery, Reason::ExplicitActivation);
+    let target = m.reopen_target(recovery);
+    assert_eq!(target, RuntimeState::Economy);
+    m.record(target, recovery);
+    assert_eq!(m.snapshot.attention, Some(AttentionReason::ApprovalRequired));
+    assert_eq!(m.snapshot.policy, PresentationPolicy::Presence);
+}
+#[test]
+fn reopen_priority_preserves_auto_economy_and_manual_headless_control() {
+    for policy in [PresentationPolicy::Auto, PresentationPolicy::Economy, PresentationPolicy::Headless] {
+        let mut m = Machine::new(policy);
+        for attention in [None, Some(AttentionReason::ApprovalRequired), Some(AttentionReason::TaskFailed), Some(AttentionReason::UserInputRequired)] {
+            m.snapshot.attention = attention;
+            for reason in [Reason::Startup, Reason::UserPolicy, Reason::ExplicitActivation, Reason::AttentionRequired] {
+                assert_eq!(m.reopen_target(reason), RuntimeState::Economy);
+                assert_eq!(m.snapshot.attention, attention); // Selection has no side effects.
+                assert_eq!(m.snapshot.state, RuntimeState::Headless);
+                assert_eq!(m.snapshot.policy, policy);
+            }
+        }
+    }
+}
+#[test]
 fn full_hysteresis_focus_cancellation_stale_epoch_and_policy_tokens() {
     let now = Instant::now();
     let mut m = economy(PresentationPolicy::Auto);

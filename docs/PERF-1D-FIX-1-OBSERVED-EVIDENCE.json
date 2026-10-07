@@ -1,0 +1,693 @@
+{
+  "checkpoint": "PERF-1D FIX-1",
+  "baseHead": "95ca734d131e8df914f494b059511d8914b4296c",
+  "status": "PERF-1D FIX-1 IMPLEMENTADA — aguardando segunda auditoria independente",
+  "nativeGate": {
+    "binarySha256": "b510070a807744b6aba992aae73dc3636c5f3240941279184c03eaac5326d30a",
+    "realWebViews": true,
+    "functionalOnly": true,
+    "scenario": "attention_priority_fix_1",
+    "softwareRendering": true,
+    "provider": "local HTTP Groq SSE fixture; not commercial",
+    "attentionPriority": {
+      "taskId": 1,
+      "providerCallsBefore": 1,
+      "providerCallsAfter": 1,
+      "pendingActivationSurface": "economy",
+      "pendingRecoverySurface": "economy",
+      "attentionAfterActivation": "approval_required",
+      "attentionAfterRecovery": "approval_required",
+      "acknowledgedSurface": "economy",
+      "activationAfterAckSurface": "presence",
+      "pendingFrontend": {
+        "mode": "economy",
+        "phase": "detached",
+        "canvases": 0,
+        "glb": 0
+      },
+      "activationAfterAckFrontend": {
+        "mode": "presence",
+        "phase": "ready",
+        "canvases": 1,
+        "glb": 0
+      },
+      "activationAfterAckGlbAssets": [
+        {
+          "path": "/models/Luna.glb",
+          "status": 200
+        }
+      ],
+      "sameCore": true,
+      "sameTaskId": true,
+      "raceCoverage": "deterministic Rust state/target test; native close callback is not paused"
+    },
+    "providerCalls": 1,
+    "persistedTaskIds": [
+      1
+    ],
+    "quitTaskState": "cancelled",
+    "quitExitCode": 0,
+    "orphanHelpers": [],
+    "pass": true
+  },
+  "nativeStates": [
+    {
+      "actions": [
+        "snapshot",
+        "frontend"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": null,
+      "taskId": null,
+      "taskState": null,
+      "historyCount": 1,
+      "adaptive": {
+        "attention": null,
+        "epoch": 1,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "economy",
+        "quitting": false,
+        "revision": 1,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": true
+      }
+    },
+    {
+      "actions": [
+        "snapshot",
+        "send"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": null,
+      "taskId": null,
+      "taskState": null,
+      "historyCount": 1,
+      "adaptive": {
+        "attention": null,
+        "epoch": 1,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "economy",
+        "quitting": false,
+        "revision": 1,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "snapshot"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 1,
+      "adaptive": {
+        "attention": null,
+        "epoch": 1,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "economy",
+        "quitting": false,
+        "revision": 1,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "presence"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 2,
+      "adaptive": {
+        "attention": null,
+        "epoch": 1,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 2,
+        "state": "presence",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": true
+      }
+    },
+    {
+      "actions": [
+        "frontend"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 2,
+      "adaptive": {
+        "attention": null,
+        "epoch": 1,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 2,
+        "state": "presence",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "background",
+        "snapshot"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 2,
+      "adaptive": {
+        "attention": null,
+        "epoch": 1,
+        "focused": false,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 2,
+        "state": "presence",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "close"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 2,
+      "adaptive": {
+        "attention": null,
+        "epoch": 1,
+        "focused": false,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 2,
+        "state": "presence",
+        "timerActive": false,
+        "transitioning": true,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "snapshot"
+      ],
+      "windows": [],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 3,
+      "adaptive": {
+        "attention": null,
+        "epoch": 1,
+        "focused": false,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 2,
+        "state": "headless",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": true
+      }
+    },
+    {
+      "actions": [
+        "approval_attention",
+        "frontend"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 4,
+      "adaptive": {
+        "attention": "approval_required",
+        "epoch": 2,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 3,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": true
+      }
+    },
+    {
+      "actions": [
+        "snapshot"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 4,
+      "adaptive": {
+        "attention": "approval_required",
+        "epoch": 2,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 3,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "snapshot",
+        "frontend"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 5,
+      "adaptive": {
+        "attention": "approval_required",
+        "epoch": 2,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 4,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "close"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 5,
+      "adaptive": {
+        "attention": "approval_required",
+        "epoch": 2,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 4,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": true,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "snapshot"
+      ],
+      "windows": [],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 6,
+      "adaptive": {
+        "attention": "approval_required",
+        "epoch": 2,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 4,
+        "state": "headless",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": true
+      }
+    },
+    {
+      "actions": [
+        "snapshot",
+        "frontend"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 7,
+      "adaptive": {
+        "attention": "approval_required",
+        "epoch": 3,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 5,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": true
+      }
+    },
+    {
+      "actions": [
+        "frontend",
+        "snapshot",
+        "ack_attention"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 7,
+      "adaptive": {
+        "attention": "approval_required",
+        "epoch": 3,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 5,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "snapshot"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 7,
+      "adaptive": {
+        "attention": null,
+        "epoch": 3,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 5,
+        "state": "economy",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "snapshot",
+        "frontend"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 8,
+      "adaptive": {
+        "attention": null,
+        "epoch": 3,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 6,
+        "state": "presence",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "close"
+      ],
+      "windows": [
+        "main"
+      ],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 8,
+      "adaptive": {
+        "attention": null,
+        "epoch": 3,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 6,
+        "state": "presence",
+        "timerActive": false,
+        "transitioning": true,
+        "uiGuard": false
+      }
+    },
+    {
+      "actions": [
+        "snapshot"
+      ],
+      "windows": [],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 9,
+      "adaptive": {
+        "attention": null,
+        "epoch": 3,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": false,
+        "revision": 6,
+        "state": "headless",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": true
+      }
+    },
+    {
+      "actions": [
+        "quit"
+      ],
+      "windows": [],
+      "registryAddress": 94341595497136,
+      "providerRuntimeAddress": 94341597311856,
+      "sessionId": 1,
+      "taskId": 1,
+      "taskState": "running",
+      "historyCount": 10,
+      "adaptive": {
+        "attention": null,
+        "epoch": 3,
+        "focused": true,
+        "pendingToken": null,
+        "policy": "presence",
+        "quitting": true,
+        "revision": 6,
+        "state": "headless",
+        "timerActive": false,
+        "transitioning": false,
+        "uiGuard": true
+      }
+    }
+  ],
+  "rawNativeEvidenceSha256": "4fd93e4be9e7513d3b56a62be57b18e6e2f1ab2f254267d23fa5b1e8ca56ea00",
+  "compaction": "Repeated equivalent native states grouped with observed actions; synthetic conversation payloads omitted.",
+  "validation": [
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/test-presentation-lifecycle.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/test-economy-shell.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/test-headless-interaction.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/test-adaptive-presentation.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/test-adaptive-policy-hydration.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/test-provider-operations.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/test-provider-operations-dom.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/test-allocation-settings.cjs",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo check --manifest-path src-tauri/Cargo.toml",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo check --release --manifest-path src-tauri/Cargo.toml",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=2",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo build --release --features perf1d-probe --manifest-path src-tauri/Cargo.toml",
+      "exitCode": 0
+    },
+    {
+      "command": "python3 scripts/perf1d-native-probe.py --attention-priority",
+      "exitCode": 0
+    },
+    {
+      "command": "python3 scripts/perf1d-native-probe.py --smoke",
+      "exitCode": 0
+    }
+  ],
+  "shortRegression": {
+    "binarySha256": "b510070a807744b6aba992aae73dc3636c5f3240941279184c03eaac5326d30a",
+    "realWebViews": true,
+    "functionalOnly": true,
+    "scenario": "adaptive",
+    "providerCalls": 2,
+    "autoNeverPresence": true,
+    "quitExitCode": 0,
+    "orphanHelpers": [],
+    "pass": true,
+    "enduranceCycles": 0,
+    "real30sDelayUsed": false,
+    "rawEvidenceSha256": "75a9627ead890584de8d067c98c6ce96365dda9e9851f7c194e5ec8adb1d23a2"
+  },
+  "rustSuite": {
+    "passed": 991,
+    "failed": 0,
+    "ignored": 2,
+    "unitDurationSeconds": 397.76,
+    "binaryTestsPassed": true,
+    "docTestsPassed": true,
+    "newIgnores": 0,
+    "existingIgnores": [
+      "agents::codex::app_server::tests::real_app_server_handshake",
+      "agents::codex::backend::lifecycle_tests::manual_final_codex_agent_bridge_gate"
+    ]
+  },
+  "secondIndependentAuditCompleted": false,
+  "humanGateCompleted": false
+}
