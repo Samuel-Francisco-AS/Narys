@@ -1,6 +1,6 @@
 # PERF-1B — Economy Shell
 
-**Estado: PERF-1B IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**
+**Estado: AUDITORIA INDEPENDENTE TÉCNICA = PASS — aguardando gate humano final da PERF-1B**
 
 Branch: `perf-1b-economy-shell`
 Base: `main@c883119a8fdbcc1009964fb5e43d30860c635c3f`
@@ -323,3 +323,136 @@ não deve ser confundida com devolução instantânea de todo RSS após uso de 3
 isolados em `cognition/settings.rs`, handlers/build manifest/capabilities;
 configuração da janela Tauri; scripts e fixtures PERF-1B e adaptação dos probes
 1A para Presence explícita. Core/3D/assets/identificadores persistentes preservados.
+
+
+## Auditoria independente técnica — 07/10/2026
+
+**Resultado:** **PASS técnico. Nenhuma FIX é exigida antes do gate humano.**
+
+A revisão independente do commit
+`e30e4d9d0eaa26cbb33353504c914e114e4b319d` confirmou os seguintes pontos.
+
+### Default Economy e fronteira 3D
+
+- `PresentationController` inicia em `economy`;
+- `App` inicia com Economy antes da hidratação e só seleciona Presence após
+  preferência persistida explícita;
+- falha de leitura das preferências permanece fail-safe em Economy;
+- `PresenceSurface` continua como boundary lazy do `AvatarViewport`;
+- o grafo inicial não depende de Three.js/GLB/WebGL;
+- o probe de produção observa zero canvas, contextos WebGL, draw/frames 3D e
+  requests do asset/chunk Presence antes do opt-in;
+- retornar Presence → Economy reutiliza o teardown auditado na PERF-1A.
+
+A auditoria aceita que módulos ES já carregados após um opt-in não sejam
+"descarregados" do cache da mesma WebView. O requisito da 1B é que o caminho
+inicial/default Economy não os carregue e que os recursos ativos da Presence
+sejam desmontados.
+
+### Persistência e isolamento do Core
+
+A migration 017 adiciona somente `shell_settings` e defaults para `economy`.
+Modo de Presentation e layout usam writes próprios, sem regravar policies
+cognitivas ou general settings.
+
+Os contratos persistidos de produto aceitam somente `economy|presence`; Auto e
+Headless permanecem fora da superfície de produto.
+
+A leitura do painel operacional usa o snapshot em memória do Scheduler e não
+executa providers nem lê credenciais/DB. A main recebeu apenas a permissão
+read-only correspondente; mutations de policy continuam fora da shell.
+
+Não foi encontrada mudança intencional em provider/model/thinking/context,
+output, admission, rate, allocation, handoff ou prioridade de Scheduler.
+
+### Economy Shell
+
+A estrutura implementada corresponde ao escopo aprovado:
+
+- topbar Narys e controles de janela;
+- navegação esquerda recolhível;
+- workspace central;
+- painel operacional direito recolhível;
+- splitters com clamp e persistência somente no commit do gesto;
+- layout estreito com rail e painel operacional on-demand;
+- conversa permanece acima do lifecycle da Presence;
+- CPU/RAM/uptime não são exibidos como fatos sem fonte nativa apropriada.
+
+O `OperationalSummary` usa o poller já existente, no máximo ~1 Hz, pausa em
+`document.hidden` e é desmontado ao recolher o painel. Não foi introduzido RAF
+2D ou loop decorativo contínuo.
+
+### Janela
+
+A configuração passa a 1120×720, mínimo 640×480 e resize habilitado para
+Economy. Presence continua com os layouts UIP compactos e resize desabilitado
+nesse modo.
+
+A criação nativa ainda mantém `transparent:true` para compatibilidade com
+Presence, enquanto Economy aplica backgrounds opacos DOM/nativo. Isso está
+corretamente documentado como limitação da janela única; a auditoria não exige
+recriar WebView/janela dentro da 1B.
+
+### Evidência de performance
+
+A evidência é suficiente para gate humano:
+
+- comparação Tauri **release** em duas ordens, com processo novo por cenário;
+- mesma metodologia de warmup + janela útil;
+- nenhuma compilação/dev server incluída na árvore medida;
+- Economy: média 570.924 KiB / 8,984% de um core lógico;
+- Presence: média 664.902 KiB / 131,749% de um core lógico;
+- diferença média de RSS ~91,78 MiB;
+- faixas de RSS nativas não se sobrepõem nas duas amostras;
+- comparação WebKit adicional usa a mesma janela 1120×720 e também mostra
+  diferença ampla de CPU/RSS, Presence ~30 FPS e Economy com 0 frames 3D.
+
+A auditoria **não interpreta** esses números como benchmark universal. O host
+usa Mesa software, RSS agregado pode contar páginas compartilhadas e são
+amostras curtas. O resultado sustenta somente a conclusão necessária à fase:
+neste ambiente, Economy reduz de forma mensurável o custo de Presentation sem
+mudar a política cognitiva.
+
+### Testes
+
+A alteração das expectativas de schema/permissões observada no diff corresponde
+à migration 017 e à nova leitura operacional da main. Não foi identificada
+remoção de assert importante, novo ignore ou relaxamento de policy para fabricar
+PASS.
+
+A evidência registrada reporta:
+
+- frontend/typecheck/build verdes;
+- bateria de lifecycle da 1A preservada;
+- testes específicos da Economy Shell;
+- probes WebKit DEV/produção;
+- cargo check debug/release;
+- cargo build release;
+- suíte Rust integral com 976 PASS / 2 ignored preexistentes;
+- baseline cognitiva isolada sem mudança de contrato.
+
+Não há GitHub Actions associados ao commit; os resultados continuam sendo
+evidência do executor local e o gate humano permanece obrigatório.
+
+### Riscos a observar no gate humano
+
+Dois pontos não justificam FIX preventiva, mas devem ser observados no ambiente
+real:
+
+1. `WindowController.setPresentation()` executa várias operações nativas
+   sequenciais. Se uma API de janela falhar no meio da transição, o erro é
+   exibido e a próxima troca pode recuperar, porém a sequência não implementa
+   rollback completo de tamanho/min-size/resizable/background. O gate deve
+   confirmar transições reais sem erro no Fedora/Wayland.
+2. maximizar/restaurar Economy antes de entrar em Presence deve ser testado
+   fisicamente, pois compositor e unidades Logical/Physical podem variar entre
+   plataformas.
+
+Esses itens viram FIX somente se houver falha reproduzível no gate.
+
+### Decisão
+
+`PERF-1B = PASS TÉCNICO / AGUARDANDO GATE HUMANO FINAL`.
+
+Não abrir PR, não fazer merge e não avançar para PERF-1C antes do gate e do
+fechamento documental.
