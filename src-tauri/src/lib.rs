@@ -4,6 +4,9 @@ pub mod cognitive_resources;
 mod luna;
 mod persistence;
 mod presentation;
+mod adaptive;
+#[cfg(feature = "perf1d-probe")]
+mod perf1d_probe;
 #[cfg(feature = "perf1c-probe")]
 mod perf1c_probe;
 mod security;
@@ -15,7 +18,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             let handle = app.clone();
             let _ = app.run_on_main_thread(move || {
-                if let Err(error) = presentation::reopen(&handle) { eprintln!("[Presentation] reopen failed: {error}"); }
+                if let Err(error) = adaptive::reopen(&handle, adaptive::Reason::ExplicitActivation) { eprintln!("[Presentation] reopen failed: {error}"); }
             });
         }))
         .manage(presentation::PresentationHost::default())
@@ -179,7 +182,9 @@ pub fn run() {
                 ]),
             )));
             app.manage(worker);
-            presentation::reopen(app.handle())?;
+            #[cfg(feature = "perf1d-probe")]
+            perf1d_probe::prepare(app.handle())?;
+            adaptive::startup(app.handle())?;
             #[cfg(feature = "perf1c-probe")]
             perf1c_probe::start(app.handle());
             Ok(())
@@ -194,6 +199,11 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         #[cfg(feature = "perf1c-probe")]
         perf1c_probe::perf1c_ui_report,
+        adaptive::get_presentation_snapshot,
+        adaptive::update_presentation_policy,
+        adaptive::report_presentation_ui,
+        adaptive::confirm_auto_close,
+        adaptive::acknowledge_presentation_attention,
         presentation::close_presentation,
         presentation::quit_narys,
         luna::get_current_interaction,
@@ -255,6 +265,11 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         #[cfg(feature = "perf1c-probe")]
         perf1c_probe::perf1c_ui_report,
+        adaptive::get_presentation_snapshot,
+        adaptive::update_presentation_policy,
+        adaptive::report_presentation_ui,
+        adaptive::confirm_auto_close,
+        adaptive::acknowledge_presentation_attention,
         presentation::close_presentation,
         presentation::quit_narys,
         luna::get_current_interaction,
@@ -311,7 +326,13 @@ pub fn run() {
             }
             tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::CloseRequested { api, .. }, .. } if label == "main" => {
                 api.prevent_close();
-                if let Err(error) = presentation::close(app) { eprintln!("[Presentation] close failed: {error}"); }
+                if let Err(error) = adaptive::close(app, adaptive::Reason::ManualClose) { eprintln!("[Presentation] close failed: {error}"); }
+            }
+            tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::CloseRequested { api, .. }, .. } if label == "settings-general" || label == "settings-ai" => {
+                api.prevent_close();
+                if let Some(window) = app.get_webview_window(&label) {
+                    if let Err(error) = presentation::destroy_window(&window) { eprintln!("[Presentation] auxiliary close failed: {error}"); }
+                }
             }
             tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::Destroyed, .. } if label == "main" => {
                 app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().events.detach_main();

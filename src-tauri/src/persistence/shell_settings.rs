@@ -25,27 +25,35 @@ impl ShellLayout {
 #[serde(rename_all = "camelCase")]
 pub struct ShellSettings {
     pub presentation_mode: PresentationMode,
+    pub presentation_policy: crate::adaptive::PresentationPolicy,
     pub layout: ShellLayout,
 }
 pub fn load(conn: &Connection) -> Result<ShellSettings, PersistenceError> {
-    conn.query_row("SELECT presentation_mode,left_open,left_width,right_open,right_width FROM shell_settings WHERE id=1", [], |r| {
+    conn.query_row("SELECT presentation_mode,left_open,left_width,right_open,right_width,presentation_policy FROM shell_settings WHERE id=1", [], |r| {
         let mode: String = r.get(0)?;
         let presentation_mode = match mode.as_str() {
             "economy" => PresentationMode::Economy,
             "presence" => PresentationMode::Presence,
             _ => return Err(rusqlite::Error::InvalidQuery),
         };
-        Ok(ShellSettings { presentation_mode, layout: ShellLayout {
+        let policy: String = r.get(5)?;
+        let presentation_policy = serde_json::from_value(serde_json::Value::String(policy)).map_err(|_| rusqlite::Error::InvalidQuery)?;
+        Ok(ShellSettings { presentation_mode, presentation_policy, layout: ShellLayout {
             left_open: r.get(1)?, left_width: r.get(2)?, right_open: r.get(3)?, right_width: r.get(4)?,
         }.clamped() })
     }).map_err(|_| PersistenceError::Read)
 }
 pub fn save_mode(conn: &Connection, mode: PresentationMode) -> Result<(), PersistenceError> {
-    let value = match mode { PresentationMode::Economy => "economy", PresentationMode::Presence => "presence" };
-    let changed = conn.execute("UPDATE shell_settings SET presentation_mode=?1 WHERE id=1", [value]).map_err(|_| PersistenceError::Write)?;
+    save_policy(conn, match mode { PresentationMode::Economy => crate::adaptive::PresentationPolicy::Economy, PresentationMode::Presence => crate::adaptive::PresentationPolicy::Presence })
+}
+pub fn save_policy(conn: &Connection, policy: crate::adaptive::PresentationPolicy) -> Result<(), PersistenceError> {
+    let value = serde_json::to_value(policy).map_err(|_| PersistenceError::Write)?;
+    let mode = if policy == crate::adaptive::PresentationPolicy::Presence { "presence" } else { "economy" };
+    let changed = conn.execute("UPDATE shell_settings SET presentation_policy=?1,presentation_mode=?2 WHERE id=1", params![value.as_str(), mode]).map_err(|_| PersistenceError::Write)?;
     if changed != 1 { return Err(PersistenceError::Write); }
     Ok(())
 }
+
 pub fn save_layout(conn: &Connection, layout: ShellLayout) -> Result<(), PersistenceError> {
     let l = layout.clamped();
     let changed = conn.execute("UPDATE shell_settings SET left_open=?1,left_width=?2,right_open=?3,right_width=?4 WHERE id=1", params![l.left_open,l.left_width,l.right_open,l.right_width]).map_err(|_| PersistenceError::Write)?;

@@ -185,5 +185,5 @@ export function useConversationController() {
       return true
     } finally { busy.current = false }
   }
-  return { state, setDraft: (draft: string) => change({ draft }), send, cancel, newConversation, resumeConversation }
+  return { state, hasLocalWork: () => current.current.draft.length > 0 || (hydrated.current && busy.current && current.current.activeTaskId === null), setDraft: (draft: string) => change({ draft }), send, cancel, newConversation, resumeConversation }
 }

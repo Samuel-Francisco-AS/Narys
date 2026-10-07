@@ -46,6 +46,7 @@ struct TaskControl {
 pub struct TaskRegistry {
     pub events: TaskEventBroker,
     shutting_down: AtomicBool,
+    ui_suspended: AtomicBool,
     workers: AtomicUsize,
     next_id: AtomicU64,
     active: Mutex<HashMap<TaskId, TaskControl>>,
@@ -54,6 +55,17 @@ pub struct TaskRegistry {
 }
 
 impl TaskRegistry {
+    /// Reserve teardown atomically with UiBound admission; no lock crosses a host operation.
+    pub fn suspend_ui_if_safe(&self) -> bool {
+        let active = self.active.lock().unwrap_or_else(|p| p.into_inner());
+        if active.values().any(|task| task.attachment == TaskAttachmentPolicy::UiBound) { return false; }
+        self.ui_suspended.store(true, Ordering::Release);
+        true
+    }
+    pub fn resume_ui(&self) { self.ui_suspended.store(false, Ordering::Release); }
+    pub fn has_ui_bound_work(&self) -> bool {
+        self.active.lock().unwrap_or_else(|p| p.into_inner()).values().any(|task| task.attachment == TaskAttachmentPolicy::UiBound)
+    }
     pub fn detach_ui_bound(&self) {
         for task in self.active.lock().unwrap_or_else(|p| p.into_inner()).values() {
             if task.attachment == TaskAttachmentPolicy::UiBound { task.cancelled.store(true, Ordering::Release); }
@@ -132,6 +144,7 @@ impl TaskRegistry {
     fn register_with_policy(&self, attachment: TaskAttachmentPolicy) -> Result<(TaskId, Arc<AtomicBool>), String> {
         let mut active = self.active.lock().unwrap_or_else(|p| p.into_inner());
         if self.shutting_down.load(Ordering::Acquire) { return Err("runtime_shutting_down".into()); }
+        if attachment == TaskAttachmentPolicy::UiBound && self.ui_suspended.load(Ordering::Acquire) { return Err("presentation_unavailable".into()); }
         // JavaScript numbers represent integers exactly only through 2^53 - 1.
         let id = self
             .next_id
@@ -158,6 +171,7 @@ impl TaskRegistry {
         }
         let mut active = self.active.lock().unwrap_or_else(|p| p.into_inner());
         if self.shutting_down.load(Ordering::Acquire) { return Err("runtime_shutting_down"); }
+        if self.ui_suspended.load(Ordering::Acquire) { return Err("presentation_unavailable"); }
         if active.contains_key(&id) {
             return Err("task_already_active");
         }
@@ -1528,11 +1542,19 @@ mod headless_registry_tests {
         let registry = TaskRegistry::default();
         let (ui, ui_cancelled) = registry.register().unwrap();
         let (safe, safe_cancelled) = registry.register_with_policy(TaskAttachmentPolicy::HeadlessSafe).unwrap();
+        assert!(registry.has_ui_bound_work());
+        assert!(!registry.suspend_ui_if_safe());
         registry.detach_ui_bound();
         assert!(ui_cancelled.load(Ordering::Acquire));
         assert!(!safe_cancelled.load(Ordering::Acquire));
         assert!(registry.contains_for_test(ui) && registry.contains_for_test(safe));
         assert!(registry.cancel(safe)); assert!(safe_cancelled.load(Ordering::Acquire));
+        registry.finish(ui, TaskState::Cancelled);
+        assert!(!registry.has_ui_bound_work());
+        assert!(registry.suspend_ui_if_safe());
+        assert!(registry.register().is_err());
+        assert!(registry.register_with_policy(TaskAttachmentPolicy::HeadlessSafe).is_ok());
+        registry.resume_ui(); assert!(registry.register().is_ok());
         registry.shutdown(); assert!(registry.register().is_err());
         assert!(registry.register_existing(TaskId(100)).is_err());
     }

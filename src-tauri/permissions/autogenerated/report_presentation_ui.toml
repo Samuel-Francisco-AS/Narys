@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-report-presentation-ui"
+description = "Enables the report_presentation_ui command without any pre-configured scope."
+commands.allow = ["report_presentation_ui"]
+
+[[permission]]
+identifier = "deny-report-presentation-ui"
+description = "Denies the report_presentation_ui command without any pre-configured scope."
+commands.deny = ["report_presentation_ui"]

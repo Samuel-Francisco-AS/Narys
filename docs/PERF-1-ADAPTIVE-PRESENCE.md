@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **EM EXECUÇÃO — PERF-1A = PASS; PERF-1B = PASS; PERF-1C = PASS e integrada à main; PERF-1D — Adaptive Presence liberada para início.**
+Estado: **EM EXECUÇÃO — PERF-1A = PASS; PERF-1B = PASS; PERF-1C = PASS e integrada à main; PERF-1D IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -113,26 +113,18 @@ Headless não significa daemon irrestrito: permissões, approvals, cancelamento,
 Política opcional que escolhe a apresentação conforme contexto:
 
 ~~~text
-usuário chama a Luna
-→ Presence ou Economy conforme preferência
-
-janela permanece sem uso / é recolhida
-→ Economy
-
-tarefa autônoma longa sem necessidade visual
-→ Headless
-
-aprovação ou atenção do usuário necessária
-→ notificação + Economy/Presence sob demanda
-
-interação termina
-→ liberar novamente recursos visuais
+policy Economy → Economy estável
+policy Presence → Presence por escolha explícita, estável
+policy Headless → cold start sem WebView; ativação explícita abre Economy temporária
+policy Auto → Economy → background seguro por 30 s → Headless
+Headless + attention → Economy; ativação explícita respeita a policy manual
 ~~~
 
-A política deve ser configurável. Nenhuma transição automática pode destruir
-contexto ou esconder uma solicitação de aprovação importante. Como Presence 3D
-é opt-in, uma política Auto só pode selecioná-la depois que o usuário tiver
-autorizado/configurado explicitamente esse comportamento.
+Auto é opt-in e **NUNCA seleciona Presence**. Não há autorização implícita ou
+heurística capaz de carregar 3D. Mudar Presence → Auto desmonta Presence e
+converge para Economy. Preferência manual tem precedência sobre Adaptive;
+Close Presentation transitório não muda policy. Approval real permanece uma
+capability futura; a 1D fornece contrato nativo de attention, sem fabricá-lo.
 
 ## Arquitetura-alvo
 
@@ -202,7 +194,7 @@ Plano executável, limites, evidências e gate:
 
 ## PERF-1B — Economy Shell
 
-**Estado:** IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.
+**Estado:** PASS — concluída e integrada, com dívidas registradas.
 
 Entrega e evidências: [PERF-1B — Economy Shell](PERF-1B-ECONOMY-SHELL.md).
 
@@ -232,7 +224,7 @@ Não fixar antecipadamente um percentual obrigatório de RAM/CPU: o ganho precis
 
 ## PERF-1C — Headless Runtime
 
-**Estado:** PERF-1C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.
+**Estado:** PASS — concluída e integrada, com dívidas registradas.
 
 Plano executável e contratos implementados: [PERF-1C — Headless Runtime](PERF-1C-HEADLESS-RUNTIME.md).
 
@@ -258,9 +250,13 @@ Plano executável e contratos implementados: [PERF-1C — Headless Runtime](PERF
 
 ## PERF-1D — Adaptive Presence
 
-**Estado:** LIBERADA — próximo e último checkpoint formal da PERF-1.
+**Estado:** PERF-1D IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.
+Último checkpoint formal da PERF-1, que permanece aberta.
 
-**Objetivo:** tornar Presence uma capacidade alocada sob demanda.
+Contratos, evidências e gates: [PERF-1D — Adaptive Presence](PERF-1D-ADAPTIVE-PRESENCE.md).
+
+**Objetivo:** orquestrar a policy de Presentation sobre os runtimes comprovados,
+mantendo Presence exclusivamente opt-in manual.
 
 ### Trabalho
 
@@ -277,17 +273,12 @@ Plano executável e contratos implementados: [PERF-1C — Headless Runtime](PERF
 Cenário mínimo:
 
 ~~~text
-Presence
-→ usuário inicia tarefa longa
-→ UI é recolhida
-→ Economy/Headless
-→ tarefa continua
-→ runtime solicita aprovação
-→ usuário é avisado
-→ interface reaparece
-→ aprovação é tratada
-→ tarefa conclui
-→ sistema retorna ao modo econômico configurado
+Auto → Economy → background seguro/delay → Headless
+→ Conversation HeadlessSafe continua → atenção estruturada → Economy
+→ mesmo TaskId/Core e nenhuma chamada duplicada
+→ background/delay → Headless → ativação explícita → Economy
+Presence manual → background → Presence permanece
+Presence → escolha explícita Auto → teardown 3D → Economy
 ~~~
 
 Sem perda de estado, execução duplicada ou aumento artificial da latência cognitiva.

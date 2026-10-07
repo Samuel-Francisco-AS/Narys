@@ -51,7 +51,10 @@ try {
   assert(config.app.windows[0].resizable && config.app.windows[0].minWidth===640 && config.app.windows[0].minHeight===480)
   const settings = fs.readFileSync('src/settings/GeneralSettingsApp.tsx','utf8')
   assert(settings.includes('value="economy"') && settings.includes('value="presence"'))
-  assert(!/value="(auto|headless)"/.test(settings))
+  // PERF-1D adds policies without expanding the concrete React mode contract.
+  assert(settings.includes('value="auto"') && settings.includes('value="headless"'))
+  assert.throws(() => new PresentationController().setMode('auto'))
+  assert.throws(() => new PresentationController().setMode('headless'))
   console.log(`PERF-1B: defaults, restored layout clamp, native sizing, manual options, static production graph (${visited.size} chunks), DEV stripping PASS.`)
 } finally { Module._load=oldLoad; require.extensions['.ts']=oldTs }
 

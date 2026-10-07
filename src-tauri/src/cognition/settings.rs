@@ -19,22 +19,23 @@ use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder
 
 // Independent writes prevent an open settings window from overwriting layout changes.
 #[tauri::command]
-pub async fn get_shell_settings(db: State<'_, Database>) -> Result<crate::persistence::shell_settings::ShellSettings, String> {
+pub async fn get_shell_settings(db: State<'_, Database>, app: AppHandle) -> Result<crate::persistence::shell_settings::ShellSettings, String> {
     let db = db.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
+    let mut settings = tauri::async_runtime::spawn_blocking(move || {
         let conn = db.open().map_err(|e| e.code().to_owned())?;
         crate::persistence::shell_settings::load(&conn).map_err(|e| e.code().to_owned())
-    }).await.map_err(|_| "worker_failed".to_owned())?
+    }).await.map_err(|_| "worker_failed".to_owned())??;
+    // Temporary control surface (Headless/attention) must hydrate from runtime, not legacy opt-in.
+    let runtime = app.state::<crate::adaptive::AdaptivePresentationManager>().snapshot();
+    settings.presentation_mode = if runtime.state == crate::adaptive::RuntimeState::Presence { crate::persistence::shell_settings::PresentationMode::Presence } else { crate::persistence::shell_settings::PresentationMode::Economy };
+    Ok(settings)
 }
 
 #[tauri::command]
 pub async fn update_presentation_mode(db: State<'_, Database>, app: AppHandle, mode: crate::persistence::shell_settings::PresentationMode) -> Result<(), String> {
-    let db = db.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let conn = db.open().map_err(|e| e.code().to_owned())?;
-        crate::persistence::shell_settings::save_mode(&conn, mode).map_err(|e| e.code().to_owned())
-    }).await.map_err(|_| "worker_failed".to_owned())??;
-    app.emit_to("main", "presentation-mode-changed", mode).map_err(|_| "settings_event_failed".to_owned())
+    let _ = db;
+    let policy = if mode == crate::persistence::shell_settings::PresentationMode::Presence { crate::adaptive::PresentationPolicy::Presence } else { crate::adaptive::PresentationPolicy::Economy };
+    crate::adaptive::on_main(app, move |app| crate::adaptive::set_policy(app, policy)).await
 }
 
 #[tauri::command]

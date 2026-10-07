@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-presentation-snapshot"
+description = "Enables the get_presentation_snapshot command without any pre-configured scope."
+commands.allow = ["get_presentation_snapshot"]
+
+[[permission]]
+identifier = "deny-get-presentation-snapshot"
+description = "Denies the get_presentation_snapshot command without any pre-configured scope."
+commands.deny = ["get_presentation_snapshot"]

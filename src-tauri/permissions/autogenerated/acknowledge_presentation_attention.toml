@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-acknowledge-presentation-attention"
+description = "Enables the acknowledge_presentation_attention command without any pre-configured scope."
+commands.allow = ["acknowledge_presentation_attention"]
+
+[[permission]]
+identifier = "deny-acknowledge-presentation-attention"
+description = "Denies the acknowledge_presentation_attention command without any pre-configured scope."
+commands.deny = ["acknowledge_presentation_attention"]

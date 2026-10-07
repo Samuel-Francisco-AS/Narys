@@ -395,7 +395,7 @@ async fn c4_fix2_v15_upgrade_preserves_ledger_policy_history_and_rate_state() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        17
+        18
     );
     assert_eq!(
         conn.query_row(
@@ -461,7 +461,7 @@ async fn c4_fix2_v16_migration_failure_does_not_advance_version_and_retry_succee
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        17
+        18
     );
     assert_eq!(f.receipts(), before);
     assert!(!requested(&f));

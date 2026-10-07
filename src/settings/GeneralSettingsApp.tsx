@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import type { ManualPresentationMode, ShellSettings } from '../shell/shellPreferences'
+import type { PresentationPolicy, ShellSettings } from '../shell/shellPreferences'
 import './settings.css'
 
 type GeneralSettings = { alwaysOnTop: boolean; activeFps: number; backgroundFps: number }
@@ -8,7 +8,7 @@ type Update = { settings: GeneralSettings; alwaysOnTopRequested: boolean }
 const numberValue = (value: string) => value === '' ? NaN : Number(value)
 
 export default function GeneralSettingsApp() {
-  const [presentationMode, setPresentationMode] = useState<ManualPresentationMode | null>(null)
+  const [presentationMode, setPresentationMode] = useState<PresentationPolicy | null>(null)
   const [settings, setSettings] = useState<GeneralSettings | null>(null)
   const [active, setActive] = useState('30')
   const [background, setBackground] = useState('24')
@@ -18,11 +18,11 @@ export default function GeneralSettingsApp() {
   useEffect(() => { void invoke<GeneralSettings>('get_general_settings').then(value => {
     setSettings(value); setActive(String(value.activeFps)); setBackground(String(value.backgroundFps))
   }).catch(() => setError('Não foi possível carregar as configurações gerais.')) }, [])
-  useEffect(() => { void invoke<ShellSettings>('get_shell_settings').then(value => setPresentationMode(value.presentationMode)).catch(() => setError('Não foi possível carregar Presentation.')) }, [])
-  async function savePresentation(mode: ManualPresentationMode) {
+  useEffect(() => { void invoke<ShellSettings>('get_shell_settings').then(value => setPresentationMode(value.presentationPolicy)).catch(() => setError('Não foi possível carregar Presentation.')) }, [])
+  async function savePresentation(mode: PresentationPolicy) {
     setBusy(true); setError('')
-    try { await invoke('update_presentation_mode', { mode }); setPresentationMode(mode); setNotice('Presentation salva e aplicada à janela principal.') }
-    catch { setError('Não foi possível salvar Presentation.') }
+    try { await invoke('update_presentation_policy', { policy: mode }); setPresentationMode(mode); setNotice('Presentation salva e aplicada à janela principal.') }
+    catch { setError('Não foi possível aplicar Presentation; recarregando a preferência salva.'); void invoke<ShellSettings>('get_shell_settings').then(value => setPresentationMode(value.presentationPolicy)) }
     finally { setBusy(false) }
   }
   async function save() {
@@ -43,8 +43,10 @@ export default function GeneralSettingsApp() {
     <header><p className="settings-kicker">LUNA · CONFIGURAÇÕES</p><h1>Configurações da Luna</h1><p>Preferências do aplicativo em janelas independentes.</p></header>
     {settings ? <>
       <section className="settings-card"><h2>Presentation</h2>
-        <p>Economy é o padrão 2D. Presence carrega Luna 3D por escolha explícita. A cognição permanece igual.</p>
-        <label>Modo de apresentação <select aria-label="Modo de apresentação" disabled={busy || presentationMode === null} value={presentationMode ?? 'economy'} onChange={event => void savePresentation(event.target.value as ManualPresentationMode)}><option value="economy">Economy — padrão</option><option value="presence">Presence — opcional</option></select></label>
+        <p>Economy mantém a interface 2D e é o padrão. Presence carrega a interface 3D por escolha explícita.</p>
+        <p>Headless mantém Core sem interface; abrir Narys novamente restaura uma superfície de controle temporária.</p>
+        <p>Auto usa Economy enquanto a interface é necessária e pode entrar em Headless após 30 segundos sem foco. Auto nunca ativa Presence. A cognição permanece igual.</p>
+        <label>Modo de apresentação <select aria-label="Modo de apresentação" disabled={busy || presentationMode === null} value={presentationMode ?? 'economy'} onChange={event => void savePresentation(event.target.value as PresentationPolicy)}><option value="economy">Economy — padrão</option><option value="presence">Presence — opcional</option><option value="headless">Headless</option><option value="auto">Auto — opt-in</option></select></label>
       </section>
       <section className="settings-card"><h2>Janela</h2>
         <label className="radio"><input type="checkbox" checked={settings.alwaysOnTop} onChange={event => setSettings({ ...settings, alwaysOnTop: event.target.checked })} />Sempre visível sobre outras janelas</label>

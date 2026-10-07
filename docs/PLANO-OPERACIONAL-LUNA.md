@@ -833,8 +833,8 @@ completo**, **LR-8 = PASS completo**, **LR-8.5A/B/C = PASS técnico** e
 & Economy Mode**.
 
 Em 07/10/2026, **PERF-1C — Headless Runtime** foi encerrada em PASS e integrada
-à `main` por fast-forward. O próximo e último checkpoint formal da fase é
-**PERF-1D — Adaptive Presence**.
+à `main` por fast-forward. Estado do último checkpoint formal da fase:
+**PERF-1D IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
 
 A 1D deve partir da `main` já integrada e usar os contratos comprovados pelas
 etapas anteriores:
@@ -923,6 +923,17 @@ passa a usar broker nativo e policy explícita HeadlessSafe; tarefas UiBound
 conservam fail-closed. Presentation pode ser destruída e recriada por segunda
 ativação, sem recriar Core ou iniciar outra tarefa. Quit é ação distinta.
 
-Estado: **PERF-1C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
-[Arquitetura, testes, medições e gates restantes](PERF-1C-HEADLESS-RUNTIME.md).
-PERF-1D e as trilhas TERM/NORM permanecem adiadas.
+Estado: **PERF-1C PASS — concluída e integrada à main**.
+[Arquitetura, testes, medições e dívidas](PERF-1C-HEADLESS-RUNTIME.md).
+
+## Atualização PERF-1D — 07/10/2026
+
+A quarta e última implementação formal da PERF-1 cria autoridade nativa de policy
+separada da superfície React. Economy permanece default; Presence exige escolha
+manual; Headless persistido admite Economy temporária por ativação explícita;
+Auto opera somente Economy/Headless com 30 s de hysteresis, guards e attention
+estruturada. Nenhuma policy cognitiva ou capability LR-9/10/11 foi antecipada.
+[Implementação, evidências e gates](PERF-1D-ADAPTIVE-PRESENCE.md).
+Estado: **PERF-1D IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+Auditoria independente e gate humano ainda são necessários. PERF-1 permanece
+em execução. TERM/NORM continuam trilhas futuras separadas.

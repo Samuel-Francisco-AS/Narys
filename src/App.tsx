@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event'
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from 'react'
 import { EconomyShell } from './shell/EconomyShell'
 import { useShellPreferences } from './shell/shellPreferences'
+import { useAdaptiveGuard } from './presentation/useAdaptiveGuard'
 import { PresenceSurface } from './presentation/PresenceSurface'
 import { PresentationController, type PresentationMode } from './presentation/PresentationController'
 import { defaultRenderBudgetConfig, type RenderBudgetConfig } from './presentation/renderConfig'
@@ -57,6 +58,7 @@ export default function App() {
   const [windowState, setWindowState] = useState(initialWindowErgonomicsState)
   const windowController = useRef<WindowController | null>(null)
   const conversation = useConversationController()
+  useAdaptiveGuard(shellPreferences.adaptive, presentation.mode, conversation.hasLocalWork)
   const conversationSnapshot = useRef(conversation.state)
   conversationSnapshot.current = conversation.state
   useEffect(() => {
@@ -182,9 +184,9 @@ export default function App() {
   }
 
   return (
-    <main data-presentation-mode={presentation.mode} data-presentation-phase={presentation.phase} className={presentation.mode === 'economy' ? 'economy-host' : 'presence-shell'} onPointerDownCapture={onShellPointerDownCapture}>
+    <main data-presentation-policy={shellPreferences.adaptive?.policy ?? 'economy'} data-presentation-mode={presentation.mode} data-presentation-phase={presentation.phase} className={presentation.mode === 'economy' ? 'economy-host' : 'presence-shell'} onPointerDownCapture={onShellPointerDownCapture}>
       {presentation.mode === 'economy' ? <EconomyShell conversation={conversation} layout={shellPreferences.layout} loaded={shellPreferences.loaded} error={shellPreferences.error || windowState.error || ''}
-        onLayout={shellPreferences.saveLayout} onPresence={() => void shellPreferences.chooseMode('presence')} onDrag={() => void windowController.current?.startDragging()} /> : <>
+        adaptive={shellPreferences.adaptive} onLayout={shellPreferences.saveLayout} onPresence={() => void shellPreferences.chooseMode('presence')} onDrag={() => void windowController.current?.startDragging()} /> : <>
       {shellPreferences.error && <p role="alert">{shellPreferences.error}</p>}
       {presentation.mode === 'presence' && <button type="button" className="presence-economy-return" onClick={() => void shellPreferences.chooseMode('economy')}>Economy</button>}
       {presentation.mode === 'presence' && <div className="presence-runtime-actions"><button title="Core continua; abra Narys novamente para voltar" onClick={() => void invoke('close_presentation')}>Fechar interface</button><button onClick={() => void invoke('quit_narys')}>Sair da Narys</button></div>}

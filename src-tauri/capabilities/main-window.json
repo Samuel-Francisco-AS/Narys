@@ -54,6 +54,11 @@
     "allow-close-presentation",
     "allow-quit-narys",
     "allow-get-current-interaction",
-    "allow-attach-conversation-events"
+    "allow-attach-conversation-events",
+    "allow-get-presentation-snapshot",
+    "allow-update-presentation-policy",
+    "allow-report-presentation-ui",
+    "allow-confirm-auto-close",
+    "allow-acknowledge-presentation-attention"
   ]
 }

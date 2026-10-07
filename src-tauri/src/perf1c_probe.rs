@@ -68,20 +68,24 @@ pub fn start(app: &AppHandle) {
             if sequence <= handled { continue; } handled = sequence;
             let handle = app.clone(); let output = dir.join("response.json");
             let _ = app.run_on_main_thread(move || {
-                let result = match request["action"].as_str().unwrap_or("") {
-                    "close" => crate::presentation::close(&handle),
+                #[cfg(feature = "perf1d-probe")]
+                let adaptive_action = crate::perf1d_probe::action(&handle, &request);
+                #[cfg(not(feature = "perf1d-probe"))]
+                let adaptive_action: Option<Result<(), String>> = None;
+                let result = adaptive_action.unwrap_or_else(|| match request["action"].as_str().unwrap_or("") {
+                    "close" => crate::adaptive::close(&handle, crate::adaptive::Reason::ManualClose),
                     "send" => handle.get_webview_window("main").ok_or("no main".to_owned()).and_then(|w| w.eval("const t=document.querySelector('textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Native headless fixture'); t.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Enviar').click()},100)").map_err(|e| e.to_string())),
                     "new" => handle.get_webview_window("main").ok_or("no main".to_owned()).and_then(|w| w.eval("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Nova conversa').click()").map_err(|e| e.to_string())),
                     "cancel" => { let session = handle.state::<crate::cognition::gemini_commands::CurrentRunSessions>().selected().unwrap().unwrap(); let task = handle.state::<Arc<TaskRegistry>>().events.snapshot(session).unwrap(); handle.state::<Arc<TaskRegistry>>().cancel(TaskId(task.task_id.0)); Ok(()) },
-                    "presence" | "economy" => { let conn = handle.state::<Database>().open().unwrap(); let mode = request["action"].as_str().unwrap(); crate::persistence::shell_settings::save_mode(&conn, if mode == "presence" { crate::persistence::shell_settings::PresentationMode::Presence } else { crate::persistence::shell_settings::PresentationMode::Economy }).map_err(|e| e.code().into()) },
+                    "presence" | "economy" => { crate::adaptive::set_policy(&handle, if request["action"] == "presence" { crate::adaptive::PresentationPolicy::Presence } else { crate::adaptive::PresentationPolicy::Economy }) },
                     "quit" => { crate::presentation::request_quit(&handle); Ok(()) },
                     "frontend" => handle.get_webview_window("main").ok_or("no main".to_owned()).and_then(|w| w.eval("window.__TAURI_INTERNALS__.invoke('perf1c_ui_report',{report:{mode:document.querySelector('[data-presentation-mode]')?.dataset.presentationMode,phase:document.querySelector('[data-presentation-mode]')?.dataset.presentationPhase,canvases:document.querySelectorAll('canvas').length,glb:performance.getEntriesByType('resource').filter(r=>r.name.includes('Luna.glb')).length,body:document.body.innerText,bootstrapMs:performance.now()}})").map_err(|e| e.to_string())),
                     "snapshot" => Ok(()),
                     _ => Err("unknown probe action".into()),
-                };
+                });
                 let registry = handle.state::<Arc<TaskRegistry>>();
                 let session = handle.state::<crate::cognition::gemini_commands::CurrentRunSessions>().selected().unwrap();
-                let response = json!({"sequence":sequence,"error":result.err(),"pid":std::process::id(),"windows":handle.webview_windows().keys().collect::<Vec<_>>(),"mainPresent":handle.get_webview_window("main").is_some(),"registryAddress":Arc::as_ptr(registry.inner()) as usize,"providerRuntimeAddress":Arc::as_ptr(handle.state::<Arc<ProviderRuntime>>().inner()) as usize,"sessionId":session,"task":session.and_then(|id| registry.events.snapshot(id)),"activeCount":registry.active_count(),"scheduler":handle.state::<Arc<ProviderRuntime>>().scheduler.operational_snapshot()});
+                let response = json!({"sequence":sequence,"error":result.err(),"pid":std::process::id(),"windows":handle.webview_windows().keys().collect::<Vec<_>>(),"mainPresent":handle.get_webview_window("main").is_some(),"registryAddress":Arc::as_ptr(registry.inner()) as usize,"providerRuntimeAddress":Arc::as_ptr(handle.state::<Arc<ProviderRuntime>>().inner()) as usize,"sessionId":session,"task":session.and_then(|id| registry.events.snapshot(id)),"activeCount":registry.active_count(),"adaptive":handle.state::<crate::adaptive::AdaptivePresentationManager>().snapshot(),"scheduler":handle.state::<Arc<ProviderRuntime>>().scheduler.operational_snapshot()});
                 std::fs::write(output, serde_json::to_vec(&response).unwrap()).unwrap();
             });
         }

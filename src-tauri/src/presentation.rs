@@ -35,26 +35,29 @@ pub fn close(app: &AppHandle) -> Result<(), String> {
     app.state::<Arc<TaskRegistry>>().detach_ui_bound();
     // Auxiliary settings hosts are also disposable. They cannot sustain a fake headless state.
     for window in app.webview_windows().values() {
-        // WebKitGTK can retain a WebProcess after widget destruction. Terminate the
-        // associated renderer via its public API, then destroy the actual window.
-        // with_webview runs on the UI thread; its message precedes destroy's message.
-        #[cfg(target_os = "linux")]
-        window.with_webview(|webview| {
-            use webkit2gtk::WebViewExt;
-            webview.inner().terminate_web_process();
-        }).map_err(|e| e.to_string())?;
-        window.destroy().map_err(|e| e.to_string())?;
+        destroy_window(window)?;
     }
     Ok(())
 }
+/// Also used when an auxiliary host closes independently, before Auto can run.
+/// A destroyed settings WebView must not leave a renderer that main teardown cannot reach.
+pub fn destroy_window(window: &tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    window.with_webview(|webview| {
+        use webkit2gtk::WebViewExt;
+        webview.inner().terminate_web_process();
+    }).map_err(|e| e.to_string())?;
+    window.destroy().map_err(|e| e.to_string())
+}
 #[tauri::command]
-pub async fn close_presentation(app: AppHandle) -> Result<(), String> { close(&app) }
+pub async fn close_presentation(app: AppHandle) -> Result<(), String> { crate::adaptive::on_main(app, |app| crate::adaptive::close(app, crate::adaptive::Reason::ManualClose)).await }
 #[tauri::command]
 pub fn quit_narys(app: AppHandle) { request_quit(&app); }
 
 pub fn request_quit(app: &AppHandle) {
     let host = app.state::<PresentationHost>();
     if host.quitting.swap(true, Ordering::AcqRel) { return; }
+    crate::adaptive::quit(app);
     app.state::<Arc<TaskRegistry>>().shutdown();
     app.state::<Arc<SummaryWorker>>().shutdown();
     let handle = app.clone();

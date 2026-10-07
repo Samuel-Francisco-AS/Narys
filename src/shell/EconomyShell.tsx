@@ -5,7 +5,7 @@ import { Composer } from '../conversation/Composer'
 import { ConversationPanel } from '../conversation/ConversationPanel'
 import type { useConversationController } from '../conversation/ConversationController'
 import type { ConversationMode } from '../conversation/types'
-import { clampLayout, type ShellLayout } from './shellPreferences'
+import { clampLayout, type ShellLayout, type AdaptiveSnapshot } from './shellPreferences'
 import './economy.css'
 const OperationalSummary = lazy(() => import('./OperationalSummary'))
 type View = 'home' | 'conversation' | 'relays' | 'tasks' | 'system' | 'settings'
@@ -17,8 +17,8 @@ const views: { id: View; label: string; path: string }[] = [
   { id: 'system', label: 'System', path: 'M3 4h18v13H3ZM8 21h8M12 17v4' },
   { id: 'settings', label: 'Settings', path: 'M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M8 15v6' },
 ]
-type Props = { conversation: ReturnType<typeof useConversationController>; layout: ShellLayout; loaded: boolean; error: string; onLayout: (layout: ShellLayout) => void; onPresence: () => void; onDrag: () => void }
-export function EconomyShell({ conversation, layout, loaded, error, onLayout, onPresence, onDrag }: Props) {
+type Props = { adaptive?: AdaptiveSnapshot | null; conversation: ReturnType<typeof useConversationController>; layout: ShellLayout; loaded: boolean; error: string; onLayout: (layout: ShellLayout) => void; onPresence: () => void; onDrag: () => void }
+export function EconomyShell({ adaptive, conversation, layout, loaded, error, onLayout, onPresence, onDrag }: Props) {
   const [view, setView] = useState<View>('conversation')
   const [width, setWidth] = useState(window.innerWidth)
   const [draftLayout, setDraftLayout] = useState<ShellLayout | null>(null)
@@ -67,6 +67,7 @@ export function EconomyShell({ conversation, layout, loaded, error, onLayout, on
       </aside>
       {expanded && splitter('left')}
       <section className="shell-workspace" aria-label="Workspace central">
+        {adaptive && <p role="status">Presentation: {adaptive.policy}{adaptive.attention && <> · Atenção requerida <button onClick={() => void invoke('acknowledge_presentation_attention')}>Reconhecer atenção</button></>}</p>}
         {(error || actionError) && <p role="alert" className="shell-error">{error || actionError}</p>}
         {view === 'conversation' ? <div className="shell-conversation">
           <ConversationPanel state={conversation.state} mode={mode} historyId={historyId} onMode={setMode} onHistoryId={setHistoryId} visible onExited={() => {}} onClose={() => setView('home')} onNew={() => { void conversation.newConversation().then(closed => { if (closed) { setMode('CURRENT'); setHistoryId(null) } }) }} onResume={conversation.resumeConversation} />
