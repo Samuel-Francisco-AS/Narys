@@ -809,8 +809,8 @@ ativa passa a ser **PERF-1 — Adaptive Presence & Economy Mode**.
 
 Em 07/10/2026 foi criada a branch
 `perf-1a-baseline-lifecycle` a partir de
-`main@639e02b16395acf6147133c09b1f7a4bf17f19b9`. O checkpoint ativo é
-**PERF-1A — Baseline & Presentation Lifecycle**.
+`main@639e02b16395acf6147133c09b1f7a4bf17f19b9`. O checkpoint **PERF-1A — Baseline & Presentation Lifecycle** foi concluído em
+**PASS em 07/10/2026**. O próximo checkpoint formal é **PERF-1B — Economy Shell**.
 
 A direção já aprovada para PERF-1 é tornar a **Economy Shell 2D a interface
 padrão**, com janela redimensionável, navegação esquerda e painel operacional
