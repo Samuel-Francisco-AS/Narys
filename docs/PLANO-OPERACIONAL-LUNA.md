@@ -847,8 +847,7 @@ PERF-1 terá somente **1A, 1B, 1C e 1D** como checkpoints formais; correções u
 `FIX-N` dentro do checkpoint correspondente. O plano mestre está em
 [PERF-1-ADAPTIVE-PRESENCE.md](PERF-1-ADAPTIVE-PRESENCE.md) e o plano executável
 da etapa corrente em
-[PERF-1B-ECONOMY-SHELL.md](PERF-1B-ECONOMY-SHELL.md). Após integração da 1B,
-a 1C deve partir da `main` atualizada em branch própria.
+[PERF-1B-ECONOMY-SHELL.md](PERF-1B-ECONOMY-SHELL.md). A 1C partiu da `main` integrada e possui plano em [PERF-1C-HEADLESS-RUNTIME.md](PERF-1C-HEADLESS-RUNTIME.md).
 
 A dívida de estabilidade espacial da UIP-4 no Wayland continua não bloqueante e
 o trabalho de Blender permanece independente. NARYS-NORM também permanece
