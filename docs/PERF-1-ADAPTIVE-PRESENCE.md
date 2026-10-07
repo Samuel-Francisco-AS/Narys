@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **EM EXECUÇÃO — PERF-1A = PASS; PERF-1B = PASS; PERF-1C = PASS; próximo checkpoint formal: PERF-1D — Adaptive Presence.**
+Estado: **EM EXECUÇÃO — PERF-1A = PASS; PERF-1B = PASS; PERF-1C = PASS e integrada à main; PERF-1D — Adaptive Presence liberada para início.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -258,7 +258,7 @@ Plano executável e contratos implementados: [PERF-1C — Headless Runtime](PERF
 
 ## PERF-1D — Adaptive Presence
 
-**Estado:** PRÓXIMO CHECKPOINT — iniciar após integração da PERF-1C.
+**Estado:** LIBERADA — próximo e último checkpoint formal da PERF-1.
 
 **Objetivo:** tornar Presence uma capacidade alocada sob demanda.
 
