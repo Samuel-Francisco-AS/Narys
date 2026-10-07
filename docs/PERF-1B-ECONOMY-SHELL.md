@@ -1,6 +1,6 @@
 # PERF-1B — Economy Shell
 
-**Estado: AUDITORIA INDEPENDENTE TÉCNICA = PASS — aguardando gate humano final da PERF-1B**
+**Estado: PASS — concluída em 07/10/2026 com dívidas não bloqueantes registradas**
 
 Branch: `perf-1b-economy-shell`
 Base: `main@c883119a8fdbcc1009964fb5e43d30860c635c3f`
@@ -475,3 +475,62 @@ Nenhum terminal fictício, output sintético ou shell via campo de texto será
 introduzido nesta fase apenas para preencher o workspace.
 
 Esse registro não altera o gate da PERF-1B nem cria nova subfase.
+
+
+## Fechamento com dívidas não bloqueantes — 07/10/2026
+
+**Decisão:** encerrar **PERF-1B = PASS** e converter os gates humanos/refinamentos
+restantes em dívida explícita, sem abrir FIX e sem criar nova subfase.
+
+A decisão se apoia no fato de que o objetivo estrutural da etapa já foi provado:
+
+- Economy é o default de produto;
+- Presence é opt-in e lazy;
+- o caminho inicial Economy não carrega Three.js/GLB/WebGL;
+- a Shell 2D é utilizável;
+- conversa, histórico, streaming, cancelamento e settings permanecem funcionais;
+- janela Economy é redimensionável;
+- laterais são recolhíveis/redimensionáveis e persistidas;
+- telemetria exposta é factual;
+- comparação release mostrou redução mensurável de CPU/RSS;
+- suíte automatizada e auditoria independente técnica passaram;
+- 1C/1D não foram antecipadas.
+
+### Dívidas transferidas
+
+As seguintes verificações/refinamentos permanecem registradas, mas **não
+bloqueiam PERF-1C**:
+
+1. confirmar fisicamente em mais cenários Fedora/Wayland a transição
+   Economy maximizada → Presence compacta → Economy, incluindo falhas parciais
+   de APIs nativas de janela;
+2. confirmar persistência visual completa após restart em Presence e Economy,
+   incluindo ausência de flash 3D perceptível no boot Economy;
+3. repetir conversa/provider real durante transições e cancelamento após troca
+   caso surjam regressões futuras;
+4. endurance humano prolongado adicional da Economy além das medições
+   automatizadas/release já preservadas;
+5. ergonomia fina da Shell em tamanhos extremos;
+6. refinamento visual e informacional de `Shell / Home`;
+7. possibilidade de rollback transacional mais forte em
+   `WindowController.setPresentation()` se uma falha nativa intermediária for
+   reproduzida;
+8. comportamento cross-platform de unidades Logical/Physical e maximize/restore;
+9. criação de janela nativamente opaca específica para Economy, caso medições
+   futuras justifiquem abandonar a janela única `transparent:true`.
+
+### Dívida funcional futura separada
+
+A possibilidade de transformar o workspace em terminal Linux real foi
+registrada fora da PERF em
+[NARYS-TERM — Terminal Runtime & Interactive Shell Surface](NARYS-TERMINAL-RUNTIME-TRACK.md).
+
+Nenhuma das dívidas acima redefine o gate já comprovado da 1B. Elas só retornam
+como blocker se houver regressão ou evidência concreta de risco ao Core,
+Interaction ou integridade de dados.
+
+**PERF-1B encerrada em PASS.**
+
+Próximo checkpoint formal:
+
+> **PERF-1C — Headless Runtime**
