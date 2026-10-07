@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **EM EXECUÇÃO — PERF-1A/B/C = PASS; PERF-1D em auditoria independente com FIX-1 obrigatória (attention-priority).**
+Estado: **EM EXECUÇÃO — PERF-1A/B/C = PASS; PERF-1D = PASS técnico após FIX-1, aguardando gate humano final.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -250,7 +250,7 @@ Plano executável e contratos implementados: [PERF-1C — Headless Runtime](PERF
 
 ## PERF-1D — Adaptive Presence
 
-**Estado:** AUDITORIA INDEPENDENTE — FIX-1 OBRIGATÓRIA antes do gate humano.
+**Estado:** PASS TÉCNICO após FIX-1 — aguardando gate humano final.
 Último checkpoint formal da PERF-1, que permanece aberta.
 
 Contratos, evidências e gates: [PERF-1D — Adaptive Presence](PERF-1D-ADAPTIVE-PRESENCE.md).
