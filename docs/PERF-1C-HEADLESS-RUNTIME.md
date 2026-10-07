@@ -928,3 +928,23 @@ sem recriar o Core.
 Próximo checkpoint formal:
 
 > **PERF-1D — Adaptive Presence**
+
+
+## Integração na main — 07/10/2026
+
+A branch `perf-1c-headless-runtime` foi integrada à `main` por **fast-forward**
+após auditoria independente técnica, gate humano Headless com provider real e
+fechamento em PASS.
+
+- base anterior da `main`: `cc5bc8a50dcfc66f9c0b178b75df2cb7da05663d`;
+- HEAD integrado da PERF-1C:
+  `0661085ce23608c1e77c0039d9c8c47c9eb49670`;
+- relação no momento da integração: **10 commits à frente / 0 atrás**;
+- nenhum squash, rebase, force-push ou perda de histórico;
+- nenhum PR foi necessário porque a integração era fast-forward direta.
+
+A branch remota é mantida temporariamente para permitir sincronização/local
+cleanup seguro pelo mantenedor.
+
+A PERF-1C permanece encerrada em **PASS com dívidas não bloqueantes registradas**
+e libera formalmente **PERF-1D — Adaptive Presence**.
