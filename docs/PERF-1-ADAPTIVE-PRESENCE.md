@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **PLANEJADA — executar após LR-8 = PASS completo e LR-8.5, antes da próxima grande expansão operacional (LR-9 em diante).**
+Estado: **PRÓXIMA FASE — pré-condições LR-8 e LR-8.5 concluídas em PASS; executar antes da LR-9.**
 
 ## Motivação
 
