@@ -1,6 +1,6 @@
 # PERF-1D — Adaptive Presence
 
-**Estado:** PERF-1D IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente
+**Estado:** AUDITORIA INDEPENDENTE — FIX-1 OBRIGATÓRIA antes do gate humano
 
 Branch: `perf-1d-adaptive-presence`. Base: `main@e998bcee7f586effad1d8c8245d14f3fa4c020ef`.
 Workspace inicialmente limpo e HEAD conferido antes de editar. A/B/C permanecem
@@ -345,3 +345,125 @@ Depois da auditoria independente, o gate humano é curto:
 
 Não repetir benchmarks extensos sem finding concreto. Auditoria independente e
 esse gate ainda não foram executados. PERF-1 não está concluída; 1D não é PASS.
+
+
+## Auditoria independente técnica — 07/10/2026
+
+**Resultado:** arquitetura geral aprovada, porém **PERF-1D-F1 é blocker** antes do gate humano. Não foi identificada necessidade de reabrir o desenho da fase.
+
+### Pontos aprovados
+
+A revisão independente do commit `7b2aa1bc20cc988c21d61d65575fadccb16f38de` confirmou:
+
+- `PresentationController` continua restrito a `economy|presence|detached`;
+- policy nativa é separada do estado visual concreto;
+- default/migration preservam Economy e Presence existentes;
+- Auto trabalha somente Economy ↔ Headless no caminho normal;
+- Presence só entra por policy explícita;
+- timer Auto é event-driven e único, sem polling adaptativo;
+- stale focus/timer/policy tokens são invalidados;
+- draft/local work é guard booleano, sem conteúdo;
+- reserva de UiBound fecha a corrida de admission do auto-close;
+- janelas auxiliares bloqueiam Auto;
+- Conversation HeadlessSafe continua independente;
+- telemetria é bounded e allowlisted;
+- cold Headless cria zero WebViews;
+- ciclos nativos preservam Core/TaskId e não duplicam provider call;
+- regressões 1A/1B/1C reportadas como verdes;
+- probe/harness não entra no binário normal;
+- não houve expansão para LR-9, NARYS-TERM ou NARYS-NORM.
+
+As medições e os 15 ciclos são suficientes para a candidata e não exigem nova baseline integral neste momento.
+
+### PERF-1D-F1 — Attention pode perder prioridade de superfície
+
+**Severidade:** blocker de invariável Adaptive/safety.  
+**Escopo esperado:** correção pequena e localizada.
+
+`adaptive::reopen()` calcula o alvo aproximadamente por:
+
+~~~text
+reason == AttentionRequired
+    ? Economy
+    : policy.control_surface()
+~~~
+
+Isso garante Economy quando a chamada atual possui reason `AttentionRequired`, mas **não garante Economy enquanto uma attention continua latched**.
+
+Cenário reproduzível conceitualmente:
+
+~~~text
+policy = Presence
+→ usuário fecha Presentation
+→ estado Headless
+→ request_attention(ApprovalRequired)
+→ Economy é reaberta corretamente
+→ attention continua pendente
+→ segunda ativação explícita do executável
+→ reopen(reason = ExplicitActivation)
+→ policy.control_surface() = Presence
+→ Presence pode substituir Economy com attention ainda pendente
+~~~
+
+Há uma variante de corrida durante teardown:
+
+~~~text
+close em andamento
+→ AttentionRequired grava recovery = AttentionRequired
+→ ExplicitActivation chega antes de Destroyed
+→ recovery é sobrescrito por ExplicitActivation
+→ após destroy, reopen usa Presence se policy = Presence
+~~~
+
+O latch `snapshot.attention` permanece, portanto a reabertura deveria continuar em Economy independentemente do último reason não destrutivo.
+
+Isso é relevante porque o banner/acknowledgment de atenção atual está na Economy Shell. Uma Presence aberta com attention latched pode ocultar a única superfície de tratamento visível disponível nesta fase.
+
+### Correção exigida
+
+Enquanto `snapshot.attention.is_some()`, qualquer **reopen/recovery** deve escolher Economy, exceto se existir futuramente uma ação explícita distinta que também trate/acknowledge a attention de forma segura.
+
+Para a PERF-1D atual, a regra deve ser simples:
+
+~~~text
+if attention pending:
+    target = Economy
+else if reason == AttentionRequired:
+    target = Economy
+else:
+    target = policy.control_surface()
+~~~
+
+Ou formulação equivalente que preserve a mesma invariável.
+
+Não é necessário criar prioridade genérica complexa nem framework de events.
+
+### Testes obrigatórios da FIX-1
+
+Adicionar pelo menos:
+
+1. policy Presence + Headless + Attention → Economy;
+2. enquanto Attention permanece pendente, ExplicitActivation → continua Economy;
+3. close/recovery com AttentionRequired seguido por ExplicitActivation antes de Destroyed → recovery final Economy;
+4. acknowledgment limpa attention;
+5. após acknowledgment, nova ExplicitActivation sob policy Presence pode selecionar Presence normalmente;
+6. Auto continua incapaz de selecionar Presence;
+7. nenhuma nova provider call/TaskId;
+8. baterias 1A/1B/1C/1D permanecem verdes.
+
+O probe nativo pode reutilizar o fluxo atual; não é necessário repetir 15 ciclos ou 30 s reais se a alteração ficar estritamente nessa prioridade e os testes determinísticos + um gate nativo curto cobrirem o caminho.
+
+### Dívidas não bloqueantes observadas
+
+Não promovidas a FIX nesta auditoria:
+
+- manual/transient Headless não reserva `ui_suspended` como o auto-close faz; hoje não existe caminho de produto sem WebView que admita nova task UiBound, mas a invariável deve ser revisitada quando surgirem callers nativos/agents;
+- attention ainda não possui caller de produto nem approval framework;
+- partial native window failures continuam dívida herdada;
+- MSRV/DBus/packaging/endurance/cross-platform permanecem as dívidas já registradas.
+
+### Decisão
+
+`PERF-1D = FIX-1 REQUIRED`.
+
+Não executar gate humano nem fechar PERF-1 antes da correção e de uma segunda auditoria focada.
