@@ -913,3 +913,14 @@ Naquele checkpoint, a próxima ação era auditoria independente e gate humano
 Gemini/Groq descritos em [LR-7D2-SMART-ROUTING.md](LR-7D2-SMART-ROUTING.md).
 A D2 foi posteriormente fechada, seguida por D2.5 e D3. Blender,
 identidade/memória e fronteira Codex permaneceram independentes.
+
+## Atualização PERF-1C — 07/10/2026
+
+**PERF-1A/1B continuam PASS**, com as dívidas da 1B preservadas. A Conversation
+passa a usar broker nativo e policy explícita HeadlessSafe; tarefas UiBound
+conservam fail-closed. Presentation pode ser destruída e recriada por segunda
+ativação, sem recriar Core ou iniciar outra tarefa. Quit é ação distinta.
+
+Estado: **PERF-1C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+[Arquitetura, testes, medições e gates restantes](PERF-1C-HEADLESS-RUNTIME.md).
+PERF-1D e as trilhas TERM/NORM permanecem adiadas.

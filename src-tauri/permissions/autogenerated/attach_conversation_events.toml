@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-attach-conversation-events"
+description = "Enables the attach_conversation_events command without any pre-configured scope."
+commands.allow = ["attach_conversation_events"]
+
+[[permission]]
+identifier = "deny-attach-conversation-events"
+description = "Denies the attach_conversation_events command without any pre-configured scope."
+commands.deny = ["attach_conversation_events"]

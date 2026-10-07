@@ -3,7 +3,7 @@ use crate::cognition::policy;
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc, Mutex, Weak,
     },
     time::Duration,
@@ -34,13 +34,19 @@ use tauri::ipc::Channel;
 
 use super::task::{TaskEvent, TaskEventKind, TaskId, TaskState, TaskStep};
 
+use super::events::{TaskAttachmentPolicy, TaskEventBroker, TaskEventSink};
+
 struct TaskControl {
     state: TaskState,
+    attachment: TaskAttachmentPolicy,
     cancelled: Arc<AtomicBool>,
 }
 
 #[derive(Default)]
 pub struct TaskRegistry {
+    pub events: TaskEventBroker,
+    shutting_down: AtomicBool,
+    workers: AtomicUsize,
     next_id: AtomicU64,
     active: Mutex<HashMap<TaskId, TaskControl>>,
     foreground_provider_tasks: Mutex<HashMap<i64, usize>>,
@@ -48,6 +54,18 @@ pub struct TaskRegistry {
 }
 
 impl TaskRegistry {
+    pub fn detach_ui_bound(&self) {
+        for task in self.active.lock().unwrap_or_else(|p| p.into_inner()).values() {
+            if task.attachment == TaskAttachmentPolicy::UiBound { task.cancelled.store(true, Ordering::Release); }
+        }
+    }
+    pub fn shutdown(&self) {
+        self.shutting_down.store(true, Ordering::Release);
+        for task in self.active.lock().unwrap_or_else(|p| p.into_inner()).values() { task.cancelled.store(true, Ordering::Release); }
+    }
+    pub fn worker_count(&self) -> usize { self.workers.load(Ordering::Acquire) }
+    pub fn active_count(&self) -> usize { self.active.lock().unwrap_or_else(|p| p.into_inner()).len() }
+
     pub fn has_foreground_provider_work_for_session(&self, session_id: i64) -> bool {
         self.foreground_provider_tasks
             .lock()
@@ -90,12 +108,7 @@ impl TaskRegistry {
             .unwrap()
             .entry(session_id)
             .or_default() += 1;
-        ActiveTask {
-            registry: self.clone(),
-            id,
-            session_id: Some(session_id),
-            control: Some(cancelled),
-        }
+        ActiveTask::with_control(self.clone(), id, Some(session_id), Some(cancelled))
     }
     pub fn seed_next_id(&self, last: u64) {
         self.next_id.fetch_max(
@@ -114,6 +127,11 @@ impl TaskRegistry {
         Ok(TaskId(last + 1))
     }
     pub fn register(&self) -> Result<(TaskId, Arc<AtomicBool>), String> {
+        self.register_with_policy(TaskAttachmentPolicy::UiBound)
+    }
+    fn register_with_policy(&self, attachment: TaskAttachmentPolicy) -> Result<(TaskId, Arc<AtomicBool>), String> {
+        let mut active = self.active.lock().unwrap_or_else(|p| p.into_inner());
+        if self.shutting_down.load(Ordering::Acquire) { return Err("runtime_shutting_down".into()); }
         // JavaScript numbers represent integers exactly only through 2^53 - 1.
         let id = self
             .next_id
@@ -123,13 +141,11 @@ impl TaskRegistry {
             .map_err(|_| "Limite de identificadores de tarefa atingido".to_string())?;
         let id = TaskId(id + 1);
         let cancelled = Arc::new(AtomicBool::new(false));
-        self.active
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner())
-            .insert(
+        active.insert(
                 id,
                 TaskControl {
                     state: TaskState::Pending,
+                    attachment,
                     cancelled: cancelled.clone(),
                 },
             );
@@ -141,6 +157,7 @@ impl TaskRegistry {
             return Err("task_id_invalid");
         }
         let mut active = self.active.lock().unwrap_or_else(|p| p.into_inner());
+        if self.shutting_down.load(Ordering::Acquire) { return Err("runtime_shutting_down"); }
         if active.contains_key(&id) {
             return Err("task_already_active");
         }
@@ -149,6 +166,7 @@ impl TaskRegistry {
             id,
             TaskControl {
                 state: TaskState::Pending,
+                attachment: TaskAttachmentPolicy::UiBound,
                 cancelled: cancelled.clone(),
             },
         );
@@ -226,12 +244,11 @@ impl ActiveTask {
             .unwrap_or_else(|p| p.into_inner())
             .get(&id)
             .map(|task| task.cancelled.clone());
-        Self {
-            registry,
-            id,
-            session_id: None,
-            control,
-        }
+        Self::with_control(registry, id, None, control)
+    }
+    fn with_control(registry: Arc<TaskRegistry>, id: TaskId, session_id: Option<i64>, control: Option<Arc<AtomicBool>>) -> Self {
+        registry.workers.fetch_add(1, Ordering::AcqRel);
+        Self { registry, id, session_id, control }
     }
 }
 
@@ -286,11 +303,16 @@ impl Drop for ActiveTask {
                 }
             }
         }
+        self.registry.workers.fetch_sub(1, Ordering::AcqRel);
     }
 }
 
+trait EventSender: Sync { fn send(&self, event: TaskEvent) -> Result<(), String>; }
+impl EventSender for Channel<TaskEvent> { fn send(&self, event: TaskEvent) -> Result<(), String> { self.send(event).map_err(|_| "channel_closed".into()) } }
+impl EventSender for TaskEventSink { fn send(&self, event: TaskEvent) -> Result<(), String> { self.send(event) } }
+
 fn emit(
-    channel: &Channel<TaskEvent>,
+    channel: &impl EventSender,
     id: TaskId,
     sequence: &mut u32,
     state: TaskState,
@@ -308,7 +330,7 @@ fn emit(
 }
 
 fn emit_cognitive(
-    channel: &Channel<TaskEvent>,
+    channel: &impl EventSender,
     id: TaskId,
     sequence: &mut u32,
     kind: TaskEventKind,
@@ -374,6 +396,7 @@ fn preflight_stage<T>(_stage: &'static str, operation: impl FnOnce() -> T) -> T 
     result
 }
 
+#[cfg(test)]
 pub fn start_conversation(
     registry: Arc<TaskRegistry>,
     db: Database,
@@ -384,6 +407,20 @@ pub fn start_conversation(
     message: String,
     channel: Channel<TaskEvent>,
 ) -> Result<TaskId, String> {
+    start_conversation_with_policy(registry, db, runtime, store, sessions, session_id, message, channel, TaskAttachmentPolicy::UiBound)
+}
+
+pub fn start_conversation_with_policy(
+    registry: Arc<TaskRegistry>,
+    db: Database,
+    runtime: Arc<ProviderRuntime>,
+    store: Arc<SecretStore>,
+    sessions: CurrentRunSessions,
+    session_id: i64,
+    message: String,
+    channel: Channel<TaskEvent>,
+    attachment: TaskAttachmentPolicy,
+) -> Result<TaskId, String> {
     // This is the entire synchronous IPC path: structural checks and registration.
     // Session/SQLite/Stronghold validation belongs to the blocking preflight worker.
     if message.trim().is_empty() || message.len() > 4096 {
@@ -392,7 +429,15 @@ pub fn start_conversation(
     if session_id <= 0 {
         return Err("session_invalid".into());
     }
-    let (id, cancelled) = registry.register()?;
+    if attachment == TaskAttachmentPolicy::HeadlessSafe && sessions.selected()? != Some(session_id) { return Err("session_invalid".into()); }
+    let (id, cancelled) = registry.register_with_policy(attachment)?;
+    let channel = match attachment {
+        TaskAttachmentPolicy::UiBound => TaskEventSink::UiBound(channel),
+        TaskAttachmentPolicy::HeadlessSafe => match registry.events.start(id, session_id, channel) {
+            Ok(sink) => sink,
+            Err(error) => { registry.remove(id); return Err(error); }
+        },
+    };
     *registry
         .foreground_provider_tasks
         .lock()
@@ -401,12 +446,7 @@ pub fn start_conversation(
         .or_default() += 1;
     let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     tauri::async_runtime::spawn(async move {
-        let _active = ActiveTask {
-            registry: registry.clone(),
-            id,
-            session_id: Some(session_id),
-            control: Some(cancelled.clone()),
-        };
+        let _active = ActiveTask::with_control(registry.clone(), id, Some(session_id), Some(cancelled.clone()));
         let mut sequence = 0;
         registry.mark_running(id);
         let result = async {
@@ -734,7 +774,7 @@ async fn run_mock_task(
     registry: &TaskRegistry,
     id: TaskId,
     cancelled: &AtomicBool,
-    channel: &Channel<TaskEvent>,
+    channel: &impl EventSender,
     sequence: &mut u32,
 ) -> Result<TaskState, String> {
     if cancelled.load(Ordering::Acquire) {
@@ -777,7 +817,7 @@ async fn run_mock_task(
 
 fn finish_and_emit(
     registry: &TaskRegistry,
-    channel: &Channel<TaskEvent>,
+    channel: &impl EventSender,
     id: TaskId,
     sequence: &mut u32,
     outcome: TaskState,
@@ -800,12 +840,7 @@ pub fn start(
     let (id, cancelled) = registry.register()?;
     let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     tauri::async_runtime::spawn(async move {
-        let _active = ActiveTask {
-            registry: registry.clone(),
-            id,
-            session_id: None,
-            control: Some(cancelled.clone()),
-        };
+        let _active = ActiveTask::with_control(registry.clone(), id, None, Some(cancelled.clone()));
         let mut sequence = 0;
         let outcome = match run_mock_task(&registry, id, &cancelled, &channel, &mut sequence).await
         {
@@ -871,12 +906,7 @@ pub fn start_cognition(
     let (id, cancelled) = registry.register()?;
     let started_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     tauri::async_runtime::spawn(async move {
-        let _active = ActiveTask {
-            registry: registry.clone(),
-            id,
-            session_id: None,
-            control: Some(cancelled.clone()),
-        };
+        let _active = ActiveTask::with_control(registry.clone(), id, None, Some(cancelled.clone()));
         let mut sequence = 0;
         registry.mark_running(id);
         let started = emit_cognitive(
@@ -1398,12 +1428,7 @@ mod tests {
             registry.active.lock().unwrap().get(&first).unwrap().state,
             TaskState::Running
         );
-        drop(ActiveTask {
-            registry: registry.clone(),
-            id: first,
-            session_id: None,
-            control: Some(first_control),
-        });
+        drop(ActiveTask::with_control(registry.clone(), first, None, Some(first_control)));
         assert!(!registry.cancel(first));
         assert!(registry.cancel(second));
     }
@@ -1494,3 +1519,21 @@ mod tests {
 #[cfg(test)]
 #[path = "conversation_preflight_tests.rs"]
 mod conversation_preflight_tests;
+
+#[cfg(test)]
+mod headless_registry_tests {
+    use super::*;
+    #[test]
+    fn detach_policy_and_quit_are_explicit_and_keep_the_same_cancel_controls() {
+        let registry = TaskRegistry::default();
+        let (ui, ui_cancelled) = registry.register().unwrap();
+        let (safe, safe_cancelled) = registry.register_with_policy(TaskAttachmentPolicy::HeadlessSafe).unwrap();
+        registry.detach_ui_bound();
+        assert!(ui_cancelled.load(Ordering::Acquire));
+        assert!(!safe_cancelled.load(Ordering::Acquire));
+        assert!(registry.contains_for_test(ui) && registry.contains_for_test(safe));
+        assert!(registry.cancel(safe)); assert!(safe_cancelled.load(Ordering::Acquire));
+        registry.shutdown(); assert!(registry.register().is_err());
+        assert!(registry.register_existing(TaskId(100)).is_err());
+    }
+}

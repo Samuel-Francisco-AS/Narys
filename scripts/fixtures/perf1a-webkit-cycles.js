@@ -17,7 +17,7 @@
   await send()
   const running = harness.snapshot().conversation, samples = []
   for (let cycle = 0; cycle < 20; cycle++) {
-    harness.setMode(cycle % 2 ? 'headless' : 'economy')
+    harness.setMode(cycle % 2 ? 'detached' : 'economy')
     await until(() => harness.snapshot().canvases === 0, 'canvas survives detach')
     await wait(50)
     const metrics = window.__fixture.metrics(), state = harness.snapshot().conversation

@@ -22,7 +22,7 @@ pub enum TaskStep {
     Verify,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TaskEventKind {
     TaskStarted,
@@ -123,7 +123,7 @@ pub enum TaskEventKind {
     },
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskEvent {
     pub task_id: TaskId,

@@ -50,6 +50,10 @@
     "core:window:allow-set-background-color",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
-    "core:window:allow-close"
+    "core:window:allow-close",
+    "allow-close-presentation",
+    "allow-quit-narys",
+    "allow-get-current-interaction",
+    "allow-attach-conversation-events"
   ]
 }

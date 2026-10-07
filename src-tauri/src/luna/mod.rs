@@ -1,4 +1,5 @@
 pub mod runtime;
+pub(crate) mod events;
 pub(crate) mod task;
 
 use std::sync::Arc;
@@ -237,7 +238,7 @@ pub fn start_conversation_task(
     message: String,
     channel: Channel<TaskEvent>,
 ) -> Result<TaskId, String> {
-    runtime::start_conversation(
+    runtime::start_conversation_with_policy(
         registry.inner().clone(),
         db.inner().clone(),
         runtime.inner().clone(),
@@ -246,5 +247,40 @@ pub fn start_conversation_task(
         session_id,
         message,
         channel,
+        events::TaskAttachmentPolicy::HeadlessSafe,
     )
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InteractionSnapshot {
+    session_id: Option<i64>,
+    task: Option<events::TaskObservation>,
+}
+
+#[tauri::command]
+pub fn get_current_interaction(
+    sessions: State<'_, CurrentRunSessions>,
+    registry: State<'_, Arc<TaskRegistry>>,
+) -> Result<InteractionSnapshot, String> {
+    let session_id = sessions.selected()?;
+    #[cfg(feature = "perf1c-probe")]
+    crate::perf1c_probe::record("ui_get_current_interaction", serde_json::json!({"sessionId":session_id}));
+    Ok(InteractionSnapshot { session_id, task: session_id.and_then(|id| registry.events.snapshot(id)) })
+}
+
+#[tauri::command]
+pub fn attach_conversation_events(
+    sessions: State<'_, CurrentRunSessions>,
+    registry: State<'_, Arc<TaskRegistry>>,
+    task_id: u64,
+    session_id: i64,
+    after_sequence: u32,
+    channel: Channel<TaskEvent>,
+) -> Result<events::TaskObservation, String> {
+    if sessions.selected()? != Some(session_id) { return Err("session_invalid".into()); }
+    let id = validation::task_id(task_id).map_err(str::to_owned)?;
+    #[cfg(feature = "perf1c-probe")]
+    crate::perf1c_probe::record("ui_attach", serde_json::json!({"taskId":id,"sessionId":session_id}));
+    registry.events.attach(TaskId(id), session_id, after_sequence, channel)
 }

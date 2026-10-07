@@ -16,6 +16,14 @@ use tauri::State;
 
 #[derive(Clone, Default)]
 pub struct CurrentRunSessions(pub Arc<Mutex<HashSet<i64>>>);
+impl CurrentRunSessions {
+    pub fn selected(&self) -> Result<Option<i64>, String> {
+        let sessions = self.0.lock().map_err(|_| "session_registry_failed")?;
+        if sessions.len() > 1 { return Err("ambiguous_product_session".into()); }
+        Ok(sessions.iter().next().copied())
+    }
+}
+
 
 pub fn resume_registered_session(
     db: &Database,
@@ -30,6 +38,7 @@ pub fn resume_registered_session(
         return Err("session_invalid".into());
     }
     let mut current_run = sessions.0.lock().map_err(|_| "session_registry_failed")?;
+    if current_run.len() > 1 { return Err("ambiguous_product_session".into()); }
     if current_session_id.is_none() && !current_run.is_empty() {
         return Err("session_invalid".into());
     }
@@ -111,18 +120,17 @@ pub async fn create_conversation_session(
     sessions: State<'_, CurrentRunSessions>,
 ) -> Result<i64, String> {
     let db = db.inner().clone();
+    let sessions = sessions.inner().clone();
     let id = tauri::async_runtime::spawn_blocking(move || {
+        // Product contract: one selected Conversation per native process.
+        // Lock covers creation/registration, so concurrent bootstrap cannot orphan a session.
+        let mut selected = sessions.0.lock().map_err(|_| "session_registry_failed")?;
+        if !selected.is_empty() { return Err("conversation_already_selected"); }
         let conn = db.open().map_err(|e| e.code())?;
-        conversation::create_session(&conn).map_err(|e| e.code())
-    })
-    .await
-    .map_err(|_| "worker_failed")?
-    .map_err(str::to_owned)?;
-    sessions
-        .0
-        .lock()
-        .map_err(|_| "session_registry_failed")?
-        .insert(id);
+        let id = conversation::create_session(&conn).map_err(|e| e.code())?;
+        selected.insert(id);
+        Ok::<_, &'static str>(id)
+    }).await.map_err(|_| "worker_failed")?.map_err(str::to_owned)?;
     Ok(id)
 }
 
@@ -158,6 +166,7 @@ pub async fn close_conversation_session(
     db: State<'_, Database>,
     sessions: State<'_, CurrentRunSessions>,
     worker: State<'_, Arc<SummaryWorker>>,
+    registry: State<'_, Arc<TaskRegistry>>,
     session_id: i64,
 ) -> Result<(), String> {
     if session_id <= 0
@@ -169,6 +178,7 @@ pub async fn close_conversation_session(
     {
         return Err("session_invalid".into());
     }
+    if registry.has_foreground_provider_work_for_session(session_id) { return Err("session_busy".into()); }
     let db = db.inner().clone();
     let closed = tauri::async_runtime::spawn_blocking(move || {
         let conn = db.open().map_err(|e| e.code())?;

@@ -20,7 +20,7 @@ read_tree = sampler.read_tree
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--lifecycle', action='store_true')
-parser.add_argument('--boot-contract', action='store_true', help='Assert fresh DEV Economy/Headless startup has no 3D resources')
+parser.add_argument('--boot-contract', action='store_true', help='Assert fresh DEV Economy/Detached startup has no 3D resources')
 parser.add_argument('--url', default='http://127.0.0.1:5173/')
 args = parser.parse_args()
 if args.lifecycle and args.url == 'http://127.0.0.1:5173/':

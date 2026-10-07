@@ -232,9 +232,9 @@ Não fixar antecipadamente um percentual obrigatório de RAM/CPU: o ganho precis
 
 ## PERF-1C — Headless Runtime
 
-**Estado:** EM EXECUÇÃO.
+**Estado:** PERF-1C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.
 
-Plano executável: [PERF-1C — Headless Runtime](PERF-1C-HEADLESS-RUNTIME.md).
+Plano executável e contratos implementados: [PERF-1C — Headless Runtime](PERF-1C-HEADLESS-RUNTIME.md).
 
 **Objetivo:** permitir que o Luna Core continue operando sem janela WebView persistente.
 

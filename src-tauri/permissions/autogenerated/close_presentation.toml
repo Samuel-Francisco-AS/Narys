@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-presentation"
+description = "Enables the close_presentation command without any pre-configured scope."
+commands.allow = ["close_presentation"]
+
+[[permission]]
+identifier = "deny-close-presentation"
+description = "Denies the close_presentation command without any pre-configured scope."
+commands.deny = ["close_presentation"]

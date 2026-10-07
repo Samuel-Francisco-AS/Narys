@@ -572,3 +572,9 @@ verdes.
 Plano mestre: [PERF-1 — Adaptive Presence & Economy Mode](PERF-1-ADAPTIVE-PRESENCE.md).  
 Baseline aprovada: [PERF-1A](PERF-1A-BASELINE-LIFECYCLE.md).
 Economy aprovada: [PERF-1B — Economy Shell](PERF-1B-ECONOMY-SHELL.md). Ativa: [PERF-1C — Headless Runtime](PERF-1C-HEADLESS-RUNTIME.md).
+
+PERF-1C agora separa a tarefa Conversation da assinatura visual, permite destruir
+a main e reabri-la por segunda ativação do executável, conservando Core/sessão/TaskId.
+Estado: **PERF-1C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+Contratos, evidência nativa e gates restantes estão no documento da 1C; Auto/1D
+permanecem fora desta entrega.

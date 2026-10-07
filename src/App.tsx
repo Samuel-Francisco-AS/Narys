@@ -32,7 +32,7 @@ export default function App() {
   // Economy is safe before settings hydration; Presence requires persisted opt-in.
   const [presentationController] = useState(() => {
     const requested = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('presentation') : null
-    return new PresentationController(requested === 'presence' || requested === 'headless' ? requested : 'economy')
+    return new PresentationController(requested === 'presence' || requested === 'detached' ? requested : 'economy')
   })
   const shellPreferences = useShellPreferences(presentationController)
   const presentation = useSyncExternalStore(presentationController.subscribe, presentationController.getSnapshot)
@@ -187,6 +187,7 @@ export default function App() {
         onLayout={shellPreferences.saveLayout} onPresence={() => void shellPreferences.chooseMode('presence')} onDrag={() => void windowController.current?.startDragging()} /> : <>
       {shellPreferences.error && <p role="alert">{shellPreferences.error}</p>}
       {presentation.mode === 'presence' && <button type="button" className="presence-economy-return" onClick={() => void shellPreferences.chooseMode('economy')}>Economy</button>}
+      {presentation.mode === 'presence' && <div className="presence-runtime-actions"><button title="Core continua; abra Narys novamente para voltar" onClick={() => void invoke('close_presentation')}>Fechar interface</button><button onClick={() => void invoke('quit_narys')}>Sair da Narys</button></div>}
       <section className="character-stage" aria-label="Personagem 3D Luna">
         {presentation.mode === 'presence' && <PresenceSurface
           key={presentation.generation}
@@ -223,8 +224,8 @@ export default function App() {
               <p className="debug-scene-status" role="status">{ready && presentation.phase === 'ready' ? 'WebGL ativo' : 'WebGL não pronto'} · {presentation.mode === 'presence' ? sceneStatus : 'Superfície 3D desmontada'}</p>
               <section aria-label="Lifecycle de Presentation DEV">
                 <p>Presentation: {presentation.mode} · {presentation.phase} · geração {presentation.generation}</p>
-                <p>Economy/Headless aqui somente desmontam o 3D; a janela e Interaction continuam.</p>
-                {(['presence', 'economy', 'headless'] as const).map(mode => <button type="button" key={mode} aria-pressed={presentation.mode === mode} onClick={() => presentationController.setMode(mode)}>{mode}</button>)}
+                <p>Harness visual legado da 1A: detached simula somente teardown 3D. Use Fechar interface para Headless nativo real.</p>
+                {(['presence', 'economy', 'detached'] as const).map(mode => <button type="button" key={mode} aria-pressed={presentation.mode === mode} onClick={() => presentationController.setMode(mode)}>{mode}</button>)}
                 <button type="button" disabled={presentation.mode !== 'presence'} onClick={() => presentationController.recreatePresence()}>Recriar Presence</button>
               </section>
               <section className="debug-window-ergonomics" aria-label="Ergonomia da janela">

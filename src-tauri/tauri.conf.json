@@ -21,7 +21,9 @@
         "shadow": false,
         "fullscreen": false,
         "minWidth": 640,
-        "minHeight": 480
+        "minHeight": 480,
+        "label": "main",
+        "create": false
       }
     ],
     "security": {

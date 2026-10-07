@@ -42,6 +42,8 @@ pub struct SummaryWorker {
     notify: Notify,
     kicks: AtomicU64,
     role: CognitiveRole,
+    shutdown: AtomicBool,
+    stopped: AtomicBool,
 }
 impl SummaryWorker {
     pub fn start(
@@ -58,6 +60,8 @@ impl SummaryWorker {
             notify: Notify::new(),
             kicks: AtomicU64::new(0),
             role: CognitiveRole::Summary,
+            shutdown: AtomicBool::new(false),
+            stopped: AtomicBool::new(false),
         });
         worker.registry.attach_summary_worker(&worker);
         let running = worker.clone();
@@ -65,6 +69,7 @@ impl SummaryWorker {
             let mut ignored_through = 0;
             loop {
                 running.notify.notified().await;
+                if running.shutdown.load(Ordering::Acquire) { break; }
                 if running.kicks.load(Ordering::Acquire) <= ignored_through {
                     continue;
                 }
@@ -74,10 +79,13 @@ impl SummaryWorker {
                     ignored_through = running.kicks.load(Ordering::Acquire);
                 }
             }
+            running.stopped.store(true, Ordering::Release);
         });
         worker.kick();
         worker
     }
+    pub fn shutdown(&self) { self.shutdown.store(true, Ordering::Release); self.notify.notify_one(); }
+    pub fn stopped(&self) -> bool { self.stopped.load(Ordering::Acquire) }
     pub fn kick(&self) {
         self.kicks.fetch_add(1, Ordering::Release);
         self.notify.notify_one();
@@ -95,6 +103,7 @@ impl SummaryWorker {
     /// Returns true when a transient provider error deferred the queue.
     async fn drain(&self) -> bool {
         loop {
+            if self.shutdown.load(Ordering::Acquire) { return false; }
             // Conversation is interactive; leave summary pending until the final
             // foreground task drops its RAII guard and kicks us again.
             if self.registry.has_foreground_provider_work() {
@@ -198,7 +207,7 @@ impl SummaryWorker {
             timeouts,
             allocation,
         );
-        let cancelled = AtomicBool::new(false);
+
         let budget = TaskBudget {
             max_provider_calls: policy.max_provider_calls,
             max_output_tokens: policy.max_output_tokens,
@@ -213,10 +222,14 @@ impl SummaryWorker {
                 request,
                 budget,
                 policy.retry_policy(),
-                &cancelled,
+                &self.shutdown,
                 &mut |_| Ok(()),
             )
             .await;
+        if self.shutdown.load(Ordering::Acquire) {
+            self.defer_claim(claimed.id);
+            return ProcessOutcome::Transient;
+        }
         let (metadata, error_code, transient) = match result {
             Ok(result) => match parse_output(&result.text) {
                 Ok(metadata) => (Some(metadata), None, false),
@@ -612,6 +625,24 @@ mod tests {
             assert_eq!((&a.role, &a.content), (&b.role, &b.content));
         }
     }
+    #[tokio::test]
+    async fn headless_summary_runs_without_presentation_and_shutdown_stops_waiter() {
+        let (db, fake, scheduler, registry) = fixture();
+        let id = add_session(&db, "HEADLESS-SUMMARY");
+        fake.responses.lock().unwrap().push_back(Ok("{\"title\":\"Headless\",\"summary\":\"Native worker without WebView.\"}".into()));
+        let worker = SummaryWorker::start(db.clone(), scheduler, registry, Arc::new(|_| true));
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            loop {
+                if conversation::history_session(&db.open().unwrap(), id).unwrap().unwrap().summary_status == "completed" { break; }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        }).await.unwrap();
+        assert_eq!(fake.requests.lock().unwrap().len(), 1);
+        worker.shutdown();
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while !worker.stopped() { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
+        }).await.unwrap();
+    }
     fn worker(
         db: Database,
         scheduler: Arc<Scheduler>,
@@ -625,6 +656,8 @@ mod tests {
             notify: Notify::new(),
             kicks: AtomicU64::new(0),
             role: CognitiveRole::Summary,
+            shutdown: AtomicBool::new(false),
+            stopped: AtomicBool::new(false),
         }
     }
     #[test]

@@ -852,3 +852,49 @@ fn perf1a_core_baseline_conversation_fixture() {
         "samples": samples,
     }));
 }
+
+#[test]
+fn headless_conversation_survives_detach_rehydrates_same_id_without_another_provider_call() {
+    let fixture = Fixture::new(&[SecretKey::GroqApiKey]);
+    let gate = InstalledGate::new(&fixture.sessions, true);
+    let channel = Channel::new(|_| Err(std::io::Error::other("WebView destroyed").into()));
+    let id = start_conversation_with_policy(fixture.registry.clone(), fixture.db.clone(), fixture.runtime.clone(), fixture.store.clone(), fixture.sessions.clone(), fixture.session, "headless fixture".into(), channel, TaskAttachmentPolicy::HeadlessSafe).unwrap();
+    gate.gate.entered();
+    fixture.registry.events.detach_main();
+    assert_eq!(fixture.sessions.selected().unwrap(), Some(fixture.session));
+    assert!(fixture.registry.contains_for_test(id));
+    let channel = Channel::new(|_| Ok(()));
+    let recovered = fixture.registry.events.attach(id, fixture.session, 0, channel).unwrap();
+    assert_eq!(recovered.task_id, id); assert_eq!(recovered.session_id, fixture.session);
+    assert!(fixture.requests.lock().unwrap().is_empty());
+    gate.gate.release();
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        if fixture.registry.events.snapshot(fixture.session).unwrap().state == TaskState::Completed { break; }
+        assert!(std::time::Instant::now() < deadline); std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(fixture.requests.lock().unwrap().len(), 1);
+    let snapshot = fixture.registry.events.snapshot(fixture.session).unwrap();
+    assert_eq!(snapshot.task_id, id); assert!(snapshot.terminal.is_some());
+    let conn = fixture.db.open().unwrap();
+    assert_eq!(conversation::session(&conn, fixture.session).unwrap().unwrap().messages.len(), 2);
+    fixture.registry.events.attach(id, fixture.session, snapshot.sequence, Channel::new(|_| Ok(()))).unwrap();
+    assert_eq!(fixture.requests.lock().unwrap().len(), 1);
+}
+
+#[test]
+fn headless_same_task_id_is_cancelable_and_shutdown_blocks_new_work() {
+    let fixture = Fixture::new(&[SecretKey::GroqApiKey]);
+    let gate = InstalledGate::new(&fixture.sessions, false);
+    let id = start_conversation_with_policy(fixture.registry.clone(), fixture.db.clone(), fixture.runtime.clone(), fixture.store.clone(), fixture.sessions.clone(), fixture.session, "cancel fixture".into(), Channel::new(|_| Ok(())), TaskAttachmentPolicy::HeadlessSafe).unwrap();
+    gate.gate.entered(); fixture.registry.events.detach_main();
+    assert!(fixture.registry.cancel(id)); gate.gate.release();
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while fixture.registry.events.snapshot(fixture.session).unwrap().state != TaskState::Cancelled {
+        assert!(std::time::Instant::now() < deadline); std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(fixture.requests.lock().unwrap().is_empty());
+    fixture.registry.shutdown(); assert!(fixture.registry.register().is_err());
+    fixture.sessions.0.lock().unwrap().insert(fixture.session + 1);
+    assert_eq!(fixture.sessions.selected().unwrap_err(), "ambiguous_product_session");
+}

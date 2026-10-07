@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-quit-narys"
+description = "Enables the quit_narys command without any pre-configured scope."
+commands.allow = ["quit_narys"]
+
+[[permission]]
+identifier = "deny-quit-narys"
+description = "Denies the quit_narys command without any pre-configured scope."
+commands.deny = ["quit_narys"]

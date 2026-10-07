@@ -1,4 +1,4 @@
-export type PresentationMode = 'economy' | 'presence' | 'headless'
+export type PresentationMode = 'economy' | 'presence' | 'detached'
 export type PresentationPhase = 'detached' | 'loading' | 'ready' | 'error'
 export type PresentationState = {
   mode: PresentationMode
@@ -22,7 +22,7 @@ export class PresentationController {
   }
 
   setMode(mode: PresentationMode): void {
-    if (mode !== 'presence' && mode !== 'economy' && mode !== 'headless') throw new Error('presentation_mode_invalid')
+    if (mode !== 'presence' && mode !== 'economy' && mode !== 'detached') throw new Error('presentation_mode_invalid')
     if (mode === this.state.mode) return
     this.publish({ mode, phase: mode === 'presence' ? 'loading' : 'detached', generation: this.state.generation + 1 })
   }

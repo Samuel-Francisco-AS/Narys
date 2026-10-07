@@ -74,7 +74,7 @@ try {
   controller.setMode('economy'); assert.equal(states.length, 2)
   controller.setMode('presence'); controller.report(1, 'error'); assert.equal(controller.getSnapshot().phase, 'loading')
   controller.report(3, 'error'); controller.recreatePresence(); assert.equal(controller.getSnapshot().generation, 4)
-  controller.setMode('headless'); assert.equal(controller.getSnapshot().phase, 'detached')
+  controller.setMode('detached'); assert.equal(controller.getSnapshot().phase, 'detached')
   assert.throws(() => controller.setMode('auto'), /invalid/); unsubscribe()
   const Viewport = require('../src/avatar/AvatarViewport.tsx').default
   for (let cycle = 0; cycle < 20; cycle++) {

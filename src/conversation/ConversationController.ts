@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { cancelTask, lunaCoreAvailable } from '../luna/taskClient'
-import { startConversationTask } from '../luna/conversationTaskClient'
+import { attachConversationEvents, getCurrentInteraction, startConversationTask } from '../luna/conversationTaskClient'
 import { closeSession, conversationRoutingStatus, createSession, getSession, resumeConversationSession } from './conversationClient'
+import type { TaskEvent } from '../luna/types'
 import type { ConversationSession, ConversationState } from './types'
 
 const taskFailure = (detail: string, cooldownMs = 0) => {
@@ -23,19 +24,66 @@ export function useConversationController() {
   const [state, setState] = useState<ConversationState>(initial)
   const current = useRef(initial)
   const busy = useRef(false)
+  const hydrated = useRef(!lunaCoreAvailable)
   const generation = useRef(0)
   const change = (patch: Partial<ConversationState>) => {
     current.current = { ...current.current, ...patch }
     setState(current.current)
   }
-  useEffect(() => () => { generation.current += 1; if (current.current.activeTaskId !== null) void cancelTask(current.current.activeTaskId) }, [])
+  useEffect(() => {
+    if (!lunaCoreAvailable) return
+    const run = ++generation.current
+    busy.current = true
+    const recover = async () => {
+      const interaction = await getCurrentInteraction()
+      if (run !== generation.current || interaction.sessionId === null) return
+      const sessionId = interaction.sessionId
+      const session = await getSession(sessionId)
+      if (run !== generation.current) return
+      change({ sessionId, messages: session.messages })
+      if (!interaction.task) return
+      let cursor = 0
+      let attached = false
+      const pending: TaskEvent[] = []
+      const observe = (event: TaskEvent) => {
+        if (run !== generation.current || event.taskId !== interaction.task?.taskId || event.sequence <= cursor) return
+        cursor = event.sequence
+        if (event.type === 'provider_chunk') change({ preview: current.current.preview + event.chunk })
+        if (event.type === 'provider_selected') change({ providerRoute: `Provider ativo: ${event.provider_id} · ${event.routing_reason}` })
+        if (event.type === 'task_completed' || event.type === 'task_failed' || event.type === 'task_cancelled') {
+          busy.current = false
+          change({ activeTaskId: null, assistantStreaming: false, preview: '', error: event.type === 'task_failed' ? taskFailure(event.detail) : event.type === 'task_cancelled' ? 'Resposta cancelada.' : null })
+          void refresh(sessionId, run).catch(() => { if (run === generation.current) change({ error: 'Não foi possível atualizar a conversa local.' }) })
+        }
+      }
+      const snapshot = await attachConversationEvents(interaction.task.taskId, sessionId, 0, event => {
+        if (!attached) pending.push(event); else observe(event)
+      })
+      if (run !== generation.current) return
+      // Historical streaming may be truncated. Show only factual running state,
+      // then future chunks; the complete answer is loaded from SQLite on terminal.
+      cursor = snapshot.sequence
+      const running = snapshot.state === 'pending' || snapshot.state === 'running'
+      busy.current = running
+      change({ activeTaskId: running ? snapshot.taskId : null, assistantStreaming: running, preview: '',
+        providerRoute: running ? `Resposta em andamento… · tarefa #${snapshot.taskId}` : null,
+        error: snapshot.terminal?.type === 'task_failed' ? taskFailure(snapshot.terminal.detail) : snapshot.state === 'cancelled' ? 'Resposta cancelada.' : null })
+      if (!running) await refresh(sessionId, run)
+      attached = true
+      pending.forEach(observe)
+    }
+    void recover().then(() => { if (run === generation.current) hydrated.current = true }).catch(() => { if (run === generation.current) change({ error: 'Não foi possível recuperar a Interaction. Reabra a interface antes de enviar.' }) })
+      .finally(() => { if (run === generation.current && !current.current.assistantStreaming) busy.current = false })
+    // Unmount releases only the visual subscriber; backend owns HeadlessSafe execution.
+    return () => { generation.current += 1 }
+  }, [])
   const refresh = async (id: number, run: number) => {
     const session = await getSession(id)
     if (run === generation.current) change({ messages: session.messages, preview: '' })
   }
   const send = async () => {
     const message = current.current.draft.trim()
-    if (busy.current || !message) return false
+    if (!hydrated.current || busy.current || !message) return false
     if (!lunaCoreAvailable) { change({ error: 'Conversa disponível somente no aplicativo desktop.' }); return false }
     if (new TextEncoder().encode(message).length > 4096) { change({ error: 'Mensagem longa demais (máximo de 4096 bytes).' }); return false }
     busy.current = true
@@ -100,7 +148,7 @@ export function useConversationController() {
           }
         }
       })
-      if (run !== generation.current) { await cancelTask(taskId); return false }
+      if (run !== generation.current) return false
       if (!terminal) change({ activeTaskId: taskId })
       return true
     } catch (error) {

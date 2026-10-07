@@ -38,7 +38,7 @@ export function EconomyShell({ conversation, layout, loaded, error, onLayout, on
   const expanded = current.leftOpen && width >= 1000
   const rightVisible = current.rightOpen && (width >= 900 || rightOnDemand)
   const windowAction = async (action: 'minimize' | 'toggleMaximize' | 'close') => {
-    try { await getCurrentWindow()[action]() } catch { setActionError('Controle de janela disponível somente no aplicativo desktop.') }
+    try { if (action === 'close') await invoke('close_presentation'); else await getCurrentWindow()[action]() } catch { setActionError('Controle de janela disponível somente no aplicativo desktop.') }
   }
   const openSettings = async (command: string) => {
     try { await invoke(command) } catch { setActionError('Não foi possível abrir as configurações.') }
@@ -58,7 +58,7 @@ export function EconomyShell({ conversation, layout, loaded, error, onLayout, on
   return <div className="economy-shell" data-view={view}>
     <header className="shell-topbar"><div className="shell-brand" onPointerDown={event => { if (event.button === 0) onDrag() }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4l16 16V4M4 12h16" /></svg><strong>NARYS</strong></div>
       <button type="button" disabled={!loaded} aria-expanded={rightVisible} onClick={() => { if (width < 900 && !rightVisible) { setRightOnDemand(true); if (!layout.rightOpen) onLayout({ ...layout, rightOpen: true }) } else { setRightOnDemand(false); onLayout({ ...layout, rightOpen: !rightVisible }) } }}>Operação</button>
-      <div className="shell-window-controls"><button aria-label="Minimizar janela" onClick={() => void windowAction('minimize')}>—</button><button aria-label="Maximizar ou restaurar janela" onClick={() => void windowAction('toggleMaximize')}>□</button><button aria-label="Fechar janela" onClick={() => void windowAction('close')}>×</button></div>
+      <div className="shell-window-controls"><button title="Encerrar Core e tarefas" onClick={() => void invoke('quit_narys').catch(() => setActionError('Não foi possível encerrar a Narys.'))}>Sair da Narys</button><button aria-label="Minimizar janela" onClick={() => void windowAction('minimize')}>—</button><button aria-label="Maximizar ou restaurar janela" onClick={() => void windowAction('toggleMaximize')}>□</button><button title="Fechar interface; Core continua. Abra Narys novamente para voltar." aria-label="Fechar interface; manter Core ativo" onClick={() => void windowAction('close')}>×</button></div>
     </header>
     <div className={`shell-layout ${expanded ? 'left-expanded' : 'left-compact'} ${rightVisible ? 'right-open' : ''} ${width < 900 ? 'narrow' : ''}`} style={{ '--left-width': `${current.leftWidth}px`, '--right-width': `${current.rightWidth}px` } as CSSProperties}>
       <aside className="shell-nav"><button type="button" className="nav-collapse" aria-label={layout.leftOpen ? 'Recolher navegação' : 'Expandir navegação'} aria-expanded={layout.leftOpen} disabled={!loaded} onClick={() => onLayout({ ...layout, leftOpen: !layout.leftOpen })}>{expanded ? '‹ Recolher' : '☰'}</button>

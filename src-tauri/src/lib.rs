@@ -3,12 +3,22 @@ mod cognition;
 pub mod cognitive_resources;
 mod luna;
 mod persistence;
+mod presentation;
+#[cfg(feature = "perf1c-probe")]
+mod perf1c_probe;
 mod security;
 
 use tauri::Manager;
 
 pub fn run() {
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                if let Err(error) = presentation::reopen(&handle) { eprintln!("[Presentation] reopen failed: {error}"); }
+            });
+        }))
+        .manage(presentation::PresentationHost::default())
         .setup(|app| {
             let directory = app.path().app_local_data_dir()?;
             let db = persistence::database::Database::new(directory.clone());
@@ -25,7 +35,12 @@ pub fn run() {
                     .map_err(|_| "summary_recovery_failed")?;
             }
             app.manage(db.clone());
+            #[cfg(not(feature = "perf1c-probe"))]
             let secrets = std::sync::Arc::new(security::secrets::SecretStore::new(directory));
+            #[cfg(feature = "perf1c-probe")]
+            let secrets = std::sync::Arc::new(perf1c_probe::secrets(directory));
+            #[cfg(feature = "perf1c-probe")]
+            perf1c_probe::prepare(&db, &secrets)?;
             let mut conn = db.open().map_err(|_| "provider_settings_unavailable")?;
             let max_id = persistence::task_history::max_id(&conn)
                 .map_err(|_| "task_identity_recovery_failed")?;
@@ -58,7 +73,12 @@ pub fn run() {
                 .expect("unique Gemini ID");
             let groq_adapter = std::sync::Arc::new(
                 cognition::groq::GroqProvider::new(
-                    cognition::groq::GroqConfig::default(),
+                    {
+                        #[cfg(feature = "perf1c-probe")]
+                        { perf1c_probe::groq_config() }
+                        #[cfg(not(feature = "perf1c-probe"))]
+                        { cognition::groq::GroqConfig::default() }
+                    },
                     secrets.clone(),
                 )
                 .map_err(|_| "groq_http_client_unavailable")?,
@@ -159,6 +179,9 @@ pub fn run() {
                 ]),
             )));
             app.manage(worker);
+            presentation::reopen(app.handle())?;
+            #[cfg(feature = "perf1c-probe")]
+            perf1c_probe::start(app.handle());
             Ok(())
         })
         .manage(std::sync::Arc::new(luna::runtime::TaskRegistry::default()));
@@ -169,6 +192,12 @@ pub fn run() {
     let builder = builder.manage(cognition::gemini_commands::CurrentRunSessions::default());
     #[cfg(debug_assertions)]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        #[cfg(feature = "perf1c-probe")]
+        perf1c_probe::perf1c_ui_report,
+        presentation::close_presentation,
+        presentation::quit_narys,
+        luna::get_current_interaction,
+        luna::attach_conversation_events,
         luna::start_mock_task,
         luna::cancel_task,
         security::security_status,
@@ -224,6 +253,12 @@ pub fn run() {
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
+        #[cfg(feature = "perf1c-probe")]
+        perf1c_probe::perf1c_ui_report,
+        presentation::close_presentation,
+        presentation::quit_narys,
+        luna::get_current_interaction,
+        luna::attach_conversation_events,
         luna::start_mock_task,
         luna::cancel_task,
         security::security_status,
@@ -269,7 +304,22 @@ pub fn run() {
         luna::start_orchestrator_planning,
         luna::start_task_graph,
     ]);
-    builder
-        .run(tauri::generate_context!())
-        .expect("erro ao executar a janela Tauri");
+    builder.build(tauri::generate_context!()).expect("erro ao iniciar Tauri")
+        .run(|app, event| match event {
+            tauri::RunEvent::ExitRequested { code, api, .. } => {
+                if presentation::should_keep_alive(app, code) { api.prevent_exit(); }
+            }
+            tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::CloseRequested { api, .. }, .. } if label == "main" => {
+                api.prevent_close();
+                if let Err(error) = presentation::close(app) { eprintln!("[Presentation] close failed: {error}"); }
+            }
+            tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::Destroyed, .. } if label == "main" => {
+                app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().events.detach_main();
+            }
+            tauri::RunEvent::Exit => {
+                app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().shutdown();
+                app.state::<std::sync::Arc<cognition::summary::SummaryWorker>>().shutdown();
+            }
+            _ => {}
+        });
 }

@@ -15,6 +15,7 @@ window.__TAURI_INTERNALS__ = {
     if (cmd === 'update_presentation_mode') { shellSettings.presentationMode = args.mode; return null }
     if (cmd === 'update_shell_layout') { layoutWrites++; shellSettings.layout = args.layout; return null }
     if (cmd === 'get_provider_operational_snapshot') { operationalReads++; return { capturedAtUnixMs: Date.now(), admission: [], telemetry: [], rate: [], resilience: [] } }
+    if (cmd === 'get_current_interaction') return { sessionId: null, task: null }
     if (cmd === 'get_general_settings') return { activeFps: 30, backgroundFps: 24, alwaysOnTop: false }
     if (cmd === 'conversation_routing_status') return { routingMode: 'fixed', targets: [{ providerId: 'fixture', displayName: 'Fixture', configured: true, cooldownMs: 0 }] }
     if (cmd === 'list_conversation_history') return []

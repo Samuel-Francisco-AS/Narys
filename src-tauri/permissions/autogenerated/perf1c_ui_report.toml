@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-perf1c-ui-report"
+description = "Enables the perf1c_ui_report command without any pre-configured scope."
+commands.allow = ["perf1c_ui_report"]
+
+[[permission]]
+identifier = "deny-perf1c-ui-report"
+description = "Denies the perf1c_ui_report command without any pre-configured scope."
+commands.deny = ["perf1c_ui_report"]
