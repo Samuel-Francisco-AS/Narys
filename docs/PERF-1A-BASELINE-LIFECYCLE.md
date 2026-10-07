@@ -820,3 +820,154 @@ Não abrir PR, não fazer merge e não avançar para PERF-1B até:
 2. testes completos verdes;
 3. gates humanos aplicáveis registrados;
 4. auditoria final autorizar PASS.
+
+
+## 13. PERF-1A FIX-1 — implementação candidata — 07/10/2026
+
+**Estado:** PERF-1A FIX-1 IMPLEMENTAÇÃO CANDIDATA — aguardando nova auditoria independente.
+
+A candidata trata o finding bloqueante **PERF-1A-F1** da seção 12, mantida
+integralmente. Base local/remota conferida antes da edição:
+`408d30fa2be6154135027469e795dd03d97f1670`, na branch existente
+`perf-1a-baseline-lifecycle`. Commit da implementação/testes da FIX:
+`58de4f11c9e2c2c4e022c6d0551dffc6bc15232d`; este registro e a evidência acompanham um commit de
+documentação posterior na mesma branch. Não houve PR ou merge.
+
+### Implementação e ownership do rollback
+
+`SceneRuntime` agora mantém uma pilha de releases para os recursos adquiridos.
+A inicialização registra a limpeza antes da próxima operação que pode lançar:
+listeners próprios do canvas, renderer e encerramento de loop, RenderBudget,
+SceneDiagnostics e ResizeObserver. Remoção do canvas e limpeza da cena também
+estão registradas. Tanto `new ResizeObserver(...)` quanto `observe(...)` ficam
+no mesmo `try` que o restante da aquisição.
+
+Uma exceção chama `releaseResources()`, que invalida a instância (`disposed`),
+drena a pilha em ordem inversa e tenta **todos** os releases, acumulando erros
+secundários. O `catch` relança o **mesmo objeto de erro original**. Até uma falha
+no logging dos erros secundários é isolada para preservar essa identidade.
+O `dispose()` normal usa a mesma pilha; uma segunda chamada não repete releases.
+Se houver erro de descarte normal, ele é exposto como `AggregateError` somente
+depois de tentar as demais limpezas.
+
+Callbacks de resize, contexto e animation loop ignoram uma instância descartada;
+`start()` também não reinicia uma instância morta. Em `SceneDiagnostics`, o report
+inicial (que pode lançar) ocorre **antes** de adquirir o interval; dessa forma,
+uma falha dentro de seu próprio constructor não perde um timer sem devolver a
+instância. Seu descarte é idempotente e um callback de timer já enfileirado não
+emite outro report após o descarte.
+
+Não foram alterados FPS, policy de RenderBudget, Presence default,
+PresentationController, Interaction, Core, providers ou contratos persistentes.
+Nenhuma mudança de PERF-1B/1C/1D entrou. Não há `forceContextLoss()` ou workaround
+de driver.
+
+### Provas determinísticas
+
+`scripts/test-presentation-lifecycle.cjs` mantém os **20 ciclos existentes**, com
+10 cargas normais e 10 late-loads. Continuam passando os asserts de mixer/actions,
+Skeleton/texture/ImageBitmap, loops, listeners, observers, canvas e refs, além da
+boundary de bundle e stripping DEV.
+
+Foram acrescentados **seis casos** com código real de SceneRuntime/RenderBudget/
+SceneDiagnostics e fakes de DOM/renderer/observer, sem framework novo:
+
+| Falha injetada | Recursos efetivamente adquiridos antes da falha |
+| --- | --- |
+| `renderer.setPixelRatio()` | Renderer e listeners próprios; canvas ainda não anexado |
+| `gl.getParameter()` | Renderer, canvas anexado e listeners próprios |
+| Report inicial de diagnostics (`getBoundingClientRect`) | Renderer/canvas e RenderBudget com listeners globais; timer ainda não adquirido |
+| Constructor de ResizeObserver | Renderer/canvas, RenderBudget e timer DEV |
+| `ResizeObserver.observe()` após observar e entregar resize | Todos os anteriores e observer conectado |
+| Mesmo `observe()`, com exceções secundárias de disconnect/stop/dispose/logging | Mesmas aquisições; todos os releases restantes precisam ser tentados |
+
+Cada caso compara a identidade do erro relançado, exige renderer disposed uma vez,
+loop nulo, zero canvas/listeners/timers e nenhum observer conectado quando criado.
+Os casos de observer comprovam também que o timer e os três listeners globais
+**estavam adquiridos** no ponto da falha. Callbacks antigos de observer e timer são
+invocados explicitamente após rollback e com a nova instância já iniciada;
+eventos de contexto/focus/blur/visibility
+são entregues e não alteram status, resize ou diagnostics. Cada falha é seguida de
+uma nova instância que renderiza, é descartada duas vezes e não reage a callbacks
+retidos nem reinicia com `start()` após descarte.
+
+O mesmo harness exercita o catch real de `AvatarViewport`: falha parcial de
+`observe()` → phase `error`, nenhum GLB load/ref de runtime adquirido → nova geração
+via `recreatePresence()` → GLB carregado → phase `ready`. O controle visual de
+retry é coberto pelo probe WebKit abaixo.
+
+### Probe WebKit/React real
+
+Com o Vite DEV iniciado por `npm run dev -- --host 127.0.0.1`, foram executados:
+
+```bash
+/usr/bin/python3 scripts/perf1a-webkit-probe.py --lifecycle
+/usr/bin/python3 scripts/perf1a-webkit-probe.py --boot-contract --url 'http://127.0.0.1:5173/?presentation=economy'
+/usr/bin/python3 scripts/perf1a-webkit-probe.py --boot-contract --url 'http://127.0.0.1:5173/?presentation=headless'
+```
+
+Os três retornaram exit 0. Ambiente observado: WebKitGTK **2.54.0**, sessão
+**Wayland**, `LIBGL_ALWAYS_SOFTWARE=1`; React/Three/WebGL reais, IPC sintético
+isolado. O lifecycle preserva os **20 ciclos WebKit existentes**, completion,
+cancelamento e o teste anterior de erro no início do WebGL.
+
+A nova injeção chama `super.observe(...)` real e então lança, depois de renderer,
+RenderBudget, diagnostics e observer existirem. A geração **46** ficou em `error`
+com **0 canvas, 0 observers, 0 RAFs, 0 intervals diagnósticos e 0 listeners globais
+visuais**. Eventos posteriores não alteraram essa fase. O botão real **“Tentar
+novamente”** criou a geração **47**, `ready`, com **1 canvas, 1 observer, 1 RAF,
+1 interval diagnóstico e 3 listeners globais visuais**. O interval adicional
+observado é do Vite, contado separadamente e não atribuído à Presence.
+
+A sessão **41**, suas **3 mensagens** e routing sintético continuaram iguais;
+contadores permaneceram em **2 starts / 1 cancel**, sem chamada duplicada. Durante
+os 20 ciclos, TaskId **81** continuou em streaming; a segunda tarefa **82** foi
+cancelada pelo controle real após reentry. Os boots DEV economy/headless
+continuam `detached`, sem canvas, registros visuais ou requests 3D; isso valida
+contratos já existentes, sem implementar UI Economy ou runtime Headless.
+
+A evidência nova está apenas no campo `fix1` de
+`docs/PERF-1A-OBSERVED-EVIDENCE.json`, incluindo os resultados emitidos pelos
+probes. A baseline histórica de CPU/RAM não foi refeita ou alterada.
+
+### Validação e arquivos
+
+| Comando | Resultado nesta FIX |
+| --- | --- |
+| `npm run typecheck` | Exit 0 |
+| `npm run build` | Exit 0; Presence continua em chunk próprio |
+| `node scripts/test-presentation-lifecycle.cjs` | Exit 0; 20 ciclos + 6 falhas parciais + retry |
+| `cargo check --manifest-path src-tauri/Cargo.toml` | Exit 0 |
+| `cargo check --release --manifest-path src-tauri/Cargo.toml` | Exit 0 |
+| `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=2` | Exit 0; 974 passed, 0 failed, 2 ignored; demais targets/doc-tests com 0 testes |
+| Três probes WebKit acima | Exit 0; 20 ciclos/retry e dois boots DEV |
+| `git diff --check` | Sem erros |
+
+O build conserva o warning preexistente do chunk Presence acima de 500 kB
+(634,27 kB minificado nesta execução). Os checks Rust continuam com os warnings
+preexistentes: 15 no debug e 38 no release, sem alterações em Rust.
+
+Arquivos alterados: `src/avatar/runtime/SceneRuntime.ts`,
+`src/avatar/runtime/SceneDiagnostics.ts`,
+`scripts/test-presentation-lifecycle.cjs`,
+`scripts/fixtures/perf1a-webkit-interaction.js`,
+`scripts/fixtures/perf1a-webkit-cycles.js`, este documento e a evidência JSON.
+
+### Limites e gates preservados
+
+A injeção do ponto exato após renderer e a identidade do erro são provadas no
+harness determinístico; o WebKit comprova a falha após observe e retry real.
+O probe não instrumenta o `renderer.dispose()` nativo individualmente nem prova
+liberação absoluta de memória de GPU. A contagem de dispose e dos listeners
+próprios do canvas está no harness determinístico. As exceções secundárias
+simuladas ocorrem após o efeito de limpeza: provam continuação do rollback e
+preservação da causa, sem prometer que uma API nativa que recuse o descarte consiga
+liberar seus próprios recursos. Não se reivindica ausência absoluta de leaks
+com esta amostra curta.
+
+Permanecem **PENDENTES DE GATE HUMANO** os cenários da seção 12: foco/desfoco/
+minimização em Tauri real sem carga concorrente, amostra nativa longa de memória,
+atividade cognitiva/provider real e confirmação de TaskId/cancelamento/continuidade
+nesses cenários. Nenhum dado de CPU/RAM ou aprovação humana foi presumido.
+A confirmação do tratamento de PERF-1A-F1 e o fechamento da PERF-1A dependem de
+**nova auditoria independente**; este registro não declara PASS.

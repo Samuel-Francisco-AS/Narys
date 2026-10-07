@@ -746,5 +746,1038 @@
     "webkitReactLifecycleCycles": 20,
     "existingFrontendScripts": "provider-operations helpers/DOM and allocation-settings passed (85 allocation checks)",
     "status": "PERF-1A IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente"
+  },
+  "fix1": {
+    "date": "2026-10-07",
+    "referenceSha": "408d30fa2be6154135027469e795dd03d97f1670",
+    "implementationCommit": "58de4f11c9e2c2c4e022c6d0551dffc6bc15232d",
+    "state": "PERF-1A FIX-1 IMPLEMENTAÇÃO CANDIDATA — aguardando nova auditoria independente",
+    "scope": "Fail-atomic SceneRuntime initialization; historical CPU/RAM baseline and human gates unchanged",
+    "deterministic": {
+      "command": "node scripts/test-presentation-lifecycle.cjs",
+      "exitCode": 0,
+      "normalCycles": 20,
+      "partialInitCases": 6,
+      "summary": "PERF-1A FIX-1: 6 partial-init cases PASS (including cleanup/logging failures), original error, stale callbacks, fresh retries and Presentation error/retry/ready; 20 cycles PASS; real resource disposal incl. late loads, mixer, listener/observer/loop/canvas/ref cleanup; stale lifecycle reports; production chunk boundary and DEV stripping."
+    },
+    "validation": {
+      "typecheck": {
+        "command": "npm run typecheck",
+        "exitCode": 0
+      },
+      "build": {
+        "command": "npm run build",
+        "exitCode": 0,
+        "warning": "Existing Presence chunk >500kB warning retained"
+      },
+      "rust": [
+        {
+          "command": "cargo check --manifest-path src-tauri/Cargo.toml",
+          "exitCode": 0,
+          "elapsedSeconds": 1.32
+        },
+        {
+          "command": "cargo check --release --manifest-path src-tauri/Cargo.toml",
+          "exitCode": 0,
+          "elapsedSeconds": 0.54
+        },
+        {
+          "command": "cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=2",
+          "exitCode": 0,
+          "elapsedSeconds": 400.63
+        }
+      ],
+      "rustTestSummaries": [
+        "test result: ok. 974 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 394.37s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ]
+    },
+    "webkitLifecycle": {
+      "command": "/usr/bin/python3 scripts/perf1a-webkit-probe.py --lifecycle",
+      "exitCode": 0,
+      "environment": {
+        "type": "environment",
+        "pid": 17235,
+        "url": "http://127.0.0.1:5173/",
+        "softwareRendering": "1",
+        "session": "wayland",
+        "webkit": [
+          2,
+          54,
+          0
+        ]
+      },
+      "result": {
+        "type": "lifecycle-result",
+        "pass": true,
+        "before": {
+          "presentation": {
+            "mode": "presence",
+            "phase": "ready",
+            "generation": 1
+          },
+          "conversation": {
+            "sessionId": null,
+            "activeTaskId": null,
+            "assistantStreaming": false,
+            "messageCount": 0,
+            "providerRoute": null
+          },
+          "canvases": 1
+        },
+        "running": {
+          "sessionId": 41,
+          "activeTaskId": 81,
+          "assistantStreaming": true,
+          "messageCount": 1,
+          "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+        },
+        "cancelling": 82,
+        "final": {
+          "presentation": {
+            "mode": "presence",
+            "phase": "ready",
+            "generation": 47
+          },
+          "conversation": {
+            "sessionId": 41,
+            "activeTaskId": null,
+            "assistantStreaming": false,
+            "messageCount": 3,
+            "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+          },
+          "canvases": 1
+        },
+        "metrics": {
+          "starts": 2,
+          "cancels": 1,
+          "tasks": 0,
+          "observers": 1,
+          "rafs": 1,
+          "intervals": 1,
+          "otherIntervals": 1,
+          "listeners": 3
+        },
+        "partialFailure": {
+          "state": {
+            "presentation": {
+              "mode": "presence",
+              "phase": "error",
+              "generation": 46
+            },
+            "conversation": {
+              "sessionId": 41,
+              "activeTaskId": null,
+              "assistantStreaming": false,
+              "messageCount": 3,
+              "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+            },
+            "canvases": 0
+          },
+          "metrics": {
+            "starts": 2,
+            "cancels": 1,
+            "tasks": 0,
+            "observers": 0,
+            "rafs": 0,
+            "intervals": 0,
+            "otherIntervals": 1,
+            "listeners": 0
+          }
+        },
+        "afterPartialRetry": {
+          "state": {
+            "presentation": {
+              "mode": "presence",
+              "phase": "ready",
+              "generation": 47
+            },
+            "conversation": {
+              "sessionId": 41,
+              "activeTaskId": null,
+              "assistantStreaming": false,
+              "messageCount": 3,
+              "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+            },
+            "canvases": 1
+          },
+          "metrics": {
+            "starts": 2,
+            "cancels": 1,
+            "tasks": 0,
+            "observers": 1,
+            "rafs": 1,
+            "intervals": 1,
+            "otherIntervals": 1,
+            "listeners": 3
+          }
+        },
+        "samples": [
+          {
+            "cycle": 1,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 3
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 2,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 5
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 3,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 7
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 4,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 9
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 5,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 11
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 6,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 13
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 7,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 15
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 8,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 17
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 9,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 19
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 10,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 21
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 11,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 23
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 12,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 25
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 13,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 27
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 14,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 29
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 15,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 31
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 16,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 33
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 17,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 35
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 18,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 37
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 19,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 39
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          },
+          {
+            "cycle": 20,
+            "detached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 0,
+              "rafs": 0,
+              "intervals": 0,
+              "otherIntervals": 1,
+              "listeners": 0
+            },
+            "attached": {
+              "starts": 1,
+              "cancels": 0,
+              "tasks": 1,
+              "observers": 1,
+              "rafs": 1,
+              "intervals": 1,
+              "otherIntervals": 1,
+              "listeners": 3
+            },
+            "state": {
+              "presentation": {
+                "mode": "presence",
+                "phase": "ready",
+                "generation": 41
+              },
+              "conversation": {
+                "sessionId": 41,
+                "activeTaskId": 81,
+                "assistantStreaming": true,
+                "messageCount": 1,
+                "providerRoute": "Provider ativo: Fixture · fixed · score — · tentativa 1"
+              },
+              "canvases": 1
+            }
+          }
+        ]
+      },
+      "stderr": ""
+    },
+    "webkitBootContracts": [
+      {
+        "command": "/usr/bin/python3 scripts/perf1a-webkit-probe.py --boot-contract --url 'http://127.0.0.1:5173/?presentation=economy'",
+        "exitCode": 0,
+        "environment": {
+          "type": "environment",
+          "pid": 17437,
+          "url": "http://127.0.0.1:5173/?presentation=economy",
+          "softwareRendering": "1",
+          "session": "wayland",
+          "webkit": [
+            2,
+            54,
+            0
+          ]
+        },
+        "result": {
+          "type": "lifecycle-result",
+          "pass": true,
+          "state": {
+            "presentation": {
+              "mode": "economy",
+              "phase": "detached",
+              "generation": 1
+            },
+            "conversation": {
+              "sessionId": null,
+              "activeTaskId": null,
+              "assistantStreaming": false,
+              "messageCount": 0,
+              "providerRoute": null
+            },
+            "canvases": 0
+          },
+          "resources": [],
+          "metrics": {
+            "starts": 0,
+            "cancels": 0,
+            "tasks": 0,
+            "observers": 0,
+            "rafs": 0,
+            "intervals": 0,
+            "otherIntervals": 1,
+            "listeners": 0
+          }
+        },
+        "stderr": ""
+      },
+      {
+        "command": "/usr/bin/python3 scripts/perf1a-webkit-probe.py --boot-contract --url 'http://127.0.0.1:5173/?presentation=headless'",
+        "exitCode": 0,
+        "environment": {
+          "type": "environment",
+          "pid": 17438,
+          "url": "http://127.0.0.1:5173/?presentation=headless",
+          "softwareRendering": "1",
+          "session": "wayland",
+          "webkit": [
+            2,
+            54,
+            0
+          ]
+        },
+        "result": {
+          "type": "lifecycle-result",
+          "pass": true,
+          "state": {
+            "presentation": {
+              "mode": "headless",
+              "phase": "detached",
+              "generation": 1
+            },
+            "conversation": {
+              "sessionId": null,
+              "activeTaskId": null,
+              "assistantStreaming": false,
+              "messageCount": 0,
+              "providerRoute": null
+            },
+            "canvases": 0
+          },
+          "resources": [],
+          "metrics": {
+            "starts": 0,
+            "cancels": 0,
+            "tasks": 0,
+            "observers": 0,
+            "rafs": 0,
+            "intervals": 0,
+            "otherIntervals": 1,
+            "listeners": 0
+          }
+        },
+        "stderr": ""
+      }
+    ],
+    "limitations": [
+      "Renderer.dispose and own canvas listener cleanup are instrumented in deterministic fakes; native WebKit probe observes visual registrations and real retry, not driver allocation release",
+      "WebKit IPC is synthetic; Tauri focus/minimize, longer native memory sampling and real provider/TaskId gates remain pending",
+      "Cleanup failure fakes throw after cleanup effects; API refusal to free its own resources is not proven recoverable"
+    ]
   }
 }
