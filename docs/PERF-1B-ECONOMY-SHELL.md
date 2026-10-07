@@ -534,3 +534,20 @@ Interaction ou integridade de dados.
 Próximo checkpoint formal:
 
 > **PERF-1C — Headless Runtime**
+
+
+## Integração na main — 07/10/2026
+
+A branch `perf-1b-economy-shell` foi integrada à `main` por **fast-forward**
+após PASS técnico, decisão explícita de converter os gates humanos restantes em
+dívida não bloqueante e fechamento documental.
+
+- base anterior da `main`: `c883119a8fdbcc1009964fb5e43d30860c635c3f`;
+- HEAD integrado da PERF-1B:
+  `c169d8aa339d0e7963bf096d6448d5c83517c5ee`;
+- relação no momento da integração: **9 commits à frente / 0 atrás**;
+- sem squash, rebase, force-push ou perda de commits;
+- nenhum PR foi necessário porque a integração era fast-forward direta.
+
+A PERF-1B permanece encerrada em **PASS com dívidas registradas** e libera
+formalmente **PERF-1C — Headless Runtime**.
