@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **EM EXECUÇÃO — PERF-1A = PASS; PERF-1B = PASS; PERF-1C — Headless Runtime ativa na branch `perf-1c-headless-runtime`.**
+Estado: **EM EXECUÇÃO — PERF-1A = PASS; PERF-1B = PASS; PERF-1C = PASS; próximo checkpoint formal: PERF-1D — Adaptive Presence.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -257,6 +257,8 @@ Plano executável e contratos implementados: [PERF-1C — Headless Runtime](PERF
 - nenhum processo/renderer órfão após ciclos repetidos.
 
 ## PERF-1D — Adaptive Presence
+
+**Estado:** PRÓXIMO CHECKPOINT — iniciar após integração da PERF-1C.
 
 **Objetivo:** tornar Presence uma capacidade alocada sob demanda.
 
