@@ -766,6 +766,41 @@ O gate humano da UIP-5A revelou que o chat ainda carregava `max_output_tokens=51
 
 Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáveis como defaults de protótipo claramente documentados. Na UIP-6, a janela IA/modelos deve permitir política persistida por papel cognitivo, incluindo provider/agente, modelo, reasoning/thinking, teto de saída ou máximo do provider, contexto, timeouts, retries/fallback, streaming, custo/cota e parâmetros específicos suportados. Escolhas explícitas do usuário têm precedência sobre heurísticas automáticas, salvo limites reais de segurança, permissão ou capacidade da integração.
 
+## 23.5. NARYS-NORM — Identity & Namespace Normalization
+
+**Estado: PLANEJADA / SEM POSIÇÃO FIXA NO ROADMAP.**
+
+Em 07/10/2026 o projeto adotou **Narys** como nome do produto/ecossistema.
+**Luna** continua sendo a agente persistente/identidade que opera dentro desse
+sistema. A decisão de branding não autoriza uma substituição textual global:
+parte das ocorrências de `Luna` é semanticamente correta e deve permanecer,
+enquanto `Assistente-3D` e outros identificadores antigos podem estar presos a
+compatibilidade, dados locais, credenciais, bundle IDs, paths ou histórico.
+
+A trilha **NARYS-NORM** existe para revisar o código e normalizar a identidade
+técnica de forma deliberada, com migração quando necessário. Ela é
+**transversal e não preemptiva**: pode começar no próximo checkpoint estável,
+depois da LR-11 ou em uma janela posterior. Não é pré-requisito para concluir
+LR-11 e não deve interromper trabalho funcional apenas por existir.
+
+Objetivos:
+
+- inventariar ocorrências de nomes antigos em código, UI, documentação, build,
+  package metadata, Tauri, storage, credential store, banco, logs, telemetry,
+  testes, paths e automações;
+- classificar cada ocorrência como identidade pública Narys, identidade da
+  agente Luna, compatibilidade/legado intencional ou dívida removível;
+- migrar somente identificadores cuja troca seja segura ou possua caminho de
+  compatibilidade explícito;
+- impedir perda de SQLite, memória, conversas, continuations, settings, segredos
+  ou outras informações por mudança de app identifier/path;
+- manter histórico Git e documentos históricos factualmente preservados;
+- terminar com uma superfície coerente: Narys como sistema/produto e Luna como
+  agente, sem aliases acidentais ou mistura semântica.
+
+O plano detalhado, riscos e gates estão em
+[NARYS-NORMALIZATION-TRACK.md](NARYS-NORMALIZATION-TRACK.md).
+
 ## 24. Próxima ação recomendada
 
 Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7 encerrada em PASS completo em 03/10/2026** e **LR-8 encerrada em PASS completo em 05/10/2026**, a trilha já possui múltiplos Cognitive Providers reais, roteamento configurável, TaskGraph distribuído e Rate Limit Manager completo com admission, accounting, budgets, resilience e painel operacional. **A próxima ação estrutural é PERF-1 — Adaptive Presence & Economy Mode**, após o PASS técnico completo da LR-8.5 e antes da LR-9. A dívida de estabilidade espacial da UIP-4 no Wayland permanece para investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual continua documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.

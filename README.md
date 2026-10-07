@@ -1,4 +1,8 @@
-# Assistente 3D
+# Narys
+
+> **Marco de identidade — 07/10/2026.** O projeto anteriormente conhecido como **Assistente-3D** adotou **Narys** como nome do produto/ecossistema. **Luna** permanece a agente persistente e identidade que opera dentro de Narys; o nome da agente não deve ser substituído por busca global. A normalização técnica de nomes, namespaces, IDs e superfícies de compatibilidade ficou reservada à trilha transversal e sem posição fixa [NARYS-NORM — Identity & Namespace Normalization](docs/NARYS-NORMALIZATION-TRACK.md).
+>
+> O repositório, identificadores de aplicação, caminhos de dados, segredos, namespaces e referências históricas podem continuar temporariamente com nomes legados até essa trilha ser executada com inventário e migração explícitos.
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
