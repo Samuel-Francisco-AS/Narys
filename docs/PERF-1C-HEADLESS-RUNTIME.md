@@ -1,6 +1,6 @@
 # PERF-1C — Headless Runtime
 
-**Estado:** AUDITORIA INDEPENDENTE TÉCNICA = PASS — aguardando gate humano final / decisão sobre dívidas
+**Estado:** PASS — concluída em 07/10/2026 com dívidas não bloqueantes registradas
 **Branch:** `perf-1c-headless-runtime`  
 **Base:** `main@cc5bc8a50dcfc66f9c0b178b75df2cb7da05663d`  
 **HEAD remoto verificado antes de editar:** `9d51c0b8a9e1cbbf9002917538aa7fc02ade04dd`
@@ -808,3 +808,123 @@ Permanecem como gate humano ou dívida, não como falha técnica comprovada:
 CONVERTER OS GATES RESTANTES EM DÍVIDA`.
 
 Não avançar automaticamente para PERF-1D sem fechamento documental da 1C.
+
+
+## Gate humano e fechamento — 07/10/2026
+
+**Resultado:** **PASS**.
+
+O gate físico em Fedora/GNOME/Wayland confirmou o comportamento central da
+PERF-1C com provider real.
+
+### Quit não é Headless
+
+Na primeira tentativa foi usado o controle **Sair da Narys**. O processo
+`npm run tauri dev` encerrou e uma execução posterior do binário debug exibiu
+`Could not connect to localhost: Connection refused`.
+
+Esse resultado é **esperado**, não falha de Headless:
+
+- `Sair da Narys` chama `quit_narys`;
+- Quit encerra Core/processo por contrato;
+- ao encerrar o processo iniciado por `tauri dev`, o frontend Vite associado
+  também deixa de estar disponível;
+- executar posteriormente o binário debug daquele fluxo pode tentar acessar o
+  devUrl sem o servidor Vite vivo.
+
+O teste confirma a distinção de produto entre **Quit** e **Close Presentation**.
+
+### Headless real via CloseRequested
+
+Na segunda tentativa foi usado `Alt+F4`.
+
+O comportamento observado foi:
+
+1. a janela desapareceu;
+2. o processo iniciado pelo Tauri permaneceu vivo;
+3. a chamada real ao provider continuou sem interface;
+4. uma segunda ativação do mesmo binário acionou single-instance;
+5. a interface foi recriada;
+6. a Conversation reapareceu;
+7. a resposta do provider havia sido concluída e recebida.
+
+Isso valida fisicamente a cadeia:
+
+```text
+WebView aberta
+→ provider em execução
+→ CloseRequested
+→ zero Presentation
+→ Core/tarefa continuam
+→ segunda ativação
+→ nova WebView
+→ mesma Interaction/result persistido
+```
+
+Combinado com o gate nativo automatizado — que já prova mesmo TaskId,
+cancelamento, zero WebViews/WebKitWebProcess, Summary sem UI e Quit — não é
+necessária nova rodada manual para fechar a 1C.
+
+### Dívida UX descoberta — controle Close oculto em DEV
+
+A Economy Shell já possui um botão `×` cujo contrato é:
+
+> Fechar interface; manter Core ativo.
+
+Ele chama `close_presentation` e é o controle explícito destinado a entrar no
+estado Headless.
+
+No entanto, no layout DEV atual:
+
+- `.debug-toggle` usa `position:absolute`;
+- `right:6px`;
+- `top:6px`;
+- `z-index:3`.
+
+Esse botão DEV se sobrepõe visualmente ao `×` da
+`.shell-window-controls`, tornando o controle de Close Presentation
+praticamente invisível/inacessível durante desenvolvimento.
+
+Isso explica por que o gate precisou usar `Alt+F4`.
+
+Classificação:
+
+**dívida UX não bloqueante**.
+
+Motivos para não abrir FIX da 1C:
+
+- o comando/lifecycle Headless existe e foi validado;
+- `Alt+F4` atravessa o mesmo `CloseRequested`;
+- o overlay DEV não existe no build de produção;
+- não há falha de Core, broker, persistência ou lifecycle.
+
+A dívida deve ser eliminada em refinamento de UI/DEV futuro, reposicionando o
+toggle DEV ou reservando espaço explícito para ele. Não remover o botão
+`close_presentation`.
+
+### Dívidas transferidas
+
+Permanecem não bloqueantes:
+
+- teste físico de cancelamento após reopen já coberto pelo gate nativo;
+- endurance humano prolongado;
+- corrida rara close ↔ segunda ativação;
+- comportamento cross-platform;
+- transparência/Idle/Wave em mais ciclos Presence;
+- MSRV declarado 1.77.2 versus dependência Linux efetiva >=1.87;
+- overlay DEV ocultando o botão explícito de Close Presentation;
+- packaging sandboxado futuro e acesso DBus.
+
+Nenhum desses itens invalida o objetivo comprovado da 1C.
+
+## Decisão final
+
+**PERF-1C = PASS.**
+
+O Narys Core foi demonstrado operando sem WebView persistente, com Conversation
+HeadlessSafe continuando durante ausência da UI e Presentation reconstruível
+sem recriar o Core.
+
+Próximo checkpoint formal:
+
+> **PERF-1D — Adaptive Presence**
