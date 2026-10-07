@@ -1,6 +1,6 @@
 # PERF-1A — Baseline & Presentation Lifecycle
 
-**Estado:** PERF-1A IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente
+**Estado:** AUDITORIA INDEPENDENTE — FIX-1 NECESSÁRIA; gate humano final ainda pendente
 
 **Branch:** `perf-1a-baseline-lifecycle`  
 **Base:** `main@639e02b16395acf6147133c09b1f7a4bf17f19b9`  
@@ -714,3 +714,109 @@ WebGL/GC, gate nativo e revalidação de provider real permanecem explícitos.
 **Estado da entrega: PERF-1A IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria
 independente.** Nenhum PASS final foi declarado. PERF-1B/1C/1D não foram
 implementadas nem liberadas por conveniência desta validação.
+
+
+## 12. Auditoria independente — 07/10/2026
+
+**Resultado:** implementação candidata estruturalmente consistente, porém
+**PERF-1A ainda NÃO recebe PASS**. Foi encontrado um finding de lifecycle que
+exige `FIX-1`; depois da correção ainda permanecem os gates humanos já
+declarados pela própria implementação.
+
+### O que foi confirmado
+
+A auditoria do commit
+`4720ee18fa9bbff2f2c1244e284a543e282c5561` confirmou:
+
+- `App` não importa mais `AvatarViewport` estaticamente;
+- `PresenceSurface` é uma boundary real de
+  `React.lazy(() => import('../avatar/AvatarViewport'))`;
+- o contrato `PresentationController` não conhece Tauri, Three.js ou tarefas;
+- trocar o modo invalida reports de gerações antigas;
+- a Interaction/conversa permanece acima da superfície 3D;
+- o teardown normal existente remove loop, listeners, observer, canvas,
+  avatar/director e renderer;
+- late GLB loads passam por `AvatarManager.disposed` e são descartados;
+- o adapter agora descarta Skeleton/bone texture e fecha ImageBitmaps
+  deduplicados;
+- o teste determinístico verifica separação do chunk de Avatar e ausência da API
+  DEV no bundle de produção;
+- a integração WebKit/React exercita 20 ciclos e preserva a semântica sintética
+  de conversa/cancelamento sem acumular os registros visuais observados;
+- a documentação não reivindica ganho de CPU/RAM que os dados não sustentam;
+- 1B/1C/1D não foram antecipadas.
+
+### FINDING PERF-1A-F1 — inicialização parcial de SceneRuntime não é fail-atomic
+
+**Severidade:** bloqueante para o gate de lifecycle da PERF-1A.
+
+`SceneRuntime.dispose()` é adequado para uma instância que terminou de ser
+construída. O caminho de **falha durante o constructor**, porém, não possui a
+mesma garantia.
+
+Hoje o constructor:
+
+1. registra listeners de contexto no canvas;
+2. entra em um `try`;
+3. pode criar `WebGLRenderer`;
+4. pode anexar o canvas;
+5. pode criar `RenderBudget`, que registra listeners globais;
+6. em DEV pode criar `SceneDiagnostics`, que cria timer;
+7. sai do `try`;
+8. somente depois cria/observa o `ResizeObserver`.
+
+O `catch` atual remove os dois listeners de contexto e o canvas, mas não
+garante cleanup de renderer, RenderBudget ou diagnostics que tenham sido
+criados antes de uma exceção posterior. Além disso, falhas em
+`new ResizeObserver(...)` ou `observe(...)` acontecem fora do `try`: nesse
+caso `new SceneRuntime()` lança sem devolver uma instância para que
+`AvatarViewport` possa chamar `dispose()`.
+
+Isso cria uma classe possível de falha em que a Presence aparece como
+`error`/retry, mas recursos da tentativa anterior podem sobreviver.
+
+A bateria atual não fecha esse buraco:
+
+- o teste determinístico cobre teardown normal e late GLB;
+- a integração WebKit injeta falha de WebGL no início da criação do renderer;
+- não há injeção após renderer criado, após RenderBudget criado, após
+  SceneDiagnostics criado ou no setup do ResizeObserver.
+
+**Correção exigida:** tornar a inicialização de `SceneRuntime` fail-atomic.
+Qualquer exceção durante a construção deve desfazer, em ordem segura, todos os
+recursos efetivamente adquiridos até aquele ponto, sem depender de uma instância
+completamente construída. O cleanup normal de `dispose()` não deve regredir.
+
+**Teste exigido:** acrescentar cobertura determinística de pelo menos uma falha
+parcial após o renderer já existir e uma falha no setup/observe do
+ResizeObserver. Após cada falha, comprovar ausência dos listeners/timers/
+observer/canvas/renderer que sejam observáveis no harness e provar que uma nova
+tentativa consegue montar Presence normalmente.
+
+Não adicionar `forceContextLoss` como atalho. O objetivo é ownership e
+rollback correto da inicialização, não forçar o driver.
+
+### Gates humanos que continuam pendentes após FIX-1
+
+Mesmo com FIX-1 aprovada, o fechamento final da 1A ainda deve preservar como
+pendente o que a candidata já declarou honestamente:
+
+- foco/desfoco/minimização **na janela Tauri real**, sem carga concorrente;
+- amostra nativa mais longa para crescimento grosseiro de memória;
+- atividade cognitiva/provider real usando a mesma policy e sem alterar budgets;
+- confirmação factual de que esses cenários não mudam a semântica de
+  TaskId/cancelamento/continuidade.
+
+Não é necessário transformar esses gates em nova subfase. Eles pertencem ao
+fechamento da própria PERF-1A.
+
+### Decisão
+
+`PERF-1A = FIX-1 NECESSÁRIA`.
+
+Não abrir PR, não fazer merge e não avançar para PERF-1B até:
+
+1. FIX-1 implementada e auditada;
+2. testes completos verdes;
+3. gates humanos aplicáveis registrados;
+4. auditoria final autorizar PASS.
