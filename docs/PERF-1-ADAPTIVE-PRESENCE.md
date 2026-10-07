@@ -175,7 +175,7 @@ A implementação exata será decidida pela medição da plataforma. Não criar 
 
 ## PERF-1A — Baseline & Presentation Lifecycle
 
-**Estado:** EM EXECUÇÃO.
+**Estado:** PASS — concluída em 07/10/2026.
 
 **Objetivo:** estabelecer linha de base e provar que Core, Interaction e
 Presentation podem ter lifecycles independentes antes de remover recursos.
@@ -201,6 +201,8 @@ Plano executável, limites, evidências e gate:
 - typecheck/build/testes existentes continuam verdes.
 
 ## PERF-1B — Economy Shell
+
+**Estado:** PRÓXIMO CHECKPOINT — iniciar somente após integração/fechamento da branch PERF-1A.
 
 **Objetivo:** entregar a interface 2D padrão da Narys, interativa e de baixo custo, sem avatar.
 
