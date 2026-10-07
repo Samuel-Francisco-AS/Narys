@@ -834,7 +834,7 @@ completo**, **LR-8 = PASS completo**, **LR-8.5A/B/C = PASS técnico** e
 
 Em 07/10/2026, **PERF-1C — Headless Runtime** foi encerrada em PASS e integrada
 à `main` por fast-forward. Estado do último checkpoint formal da fase:
-**PERF-1D — FIX-1 OBRIGATÓRIA após auditoria independente**.
+**PERF-1D — PASS técnico após FIX-1; gate humano final pendente**.
 
 A 1D deve partir da `main` já integrada e usar os contratos comprovados pelas
 etapas anteriores:
@@ -934,6 +934,6 @@ manual; Headless persistido admite Economy temporária por ativação explícita
 Auto opera somente Economy/Headless com 30 s de hysteresis, guards e attention
 estruturada. Nenhuma policy cognitiva ou capability LR-9/10/11 foi antecipada.
 [Implementação, evidências e gates](PERF-1D-ADAPTIVE-PRESENCE.md).
-Estado: **PERF-1D — FIX-1 OBRIGATÓRIA após auditoria independente**.
+Estado: **PERF-1D — PASS técnico após FIX-1; gate humano final pendente**.
 Auditoria independente e gate humano ainda são necessários. PERF-1 permanece
 em execução. TERM/NORM continuam trilhas futuras separadas.
