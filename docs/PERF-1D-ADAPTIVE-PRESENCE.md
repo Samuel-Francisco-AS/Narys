@@ -617,3 +617,115 @@ Dois findings foram restritos ao novo harness, sem alterar o produto:
 As dívidas da auditoria (ui_suspended manual/transient, partial native failures,
 MSRV, approvals, Home/DEV, packaging/endurance/cross-platform e TERM/NORM/LR-9)
 não foram tratadas. O gate humano continua aguardando segunda auditoria focada.
+
+
+## Segunda auditoria independente — FIX-1 — 07/10/2026
+
+**Resultado:** **PASS técnico. Nenhuma FIX-2 necessária. Gate humano final liberado.**
+
+A revisão independente do commit
+`ed9e0a69bee1be5ab10eccf26650a205f45db3b2` confirmou que a FIX-1 resolveu o
+único blocker da primeira auditoria sem alterar a arquitetura geral da 1D.
+
+### Correção confirmada
+
+`Machine::reopen_target(reason)` agora possui a invariável:
+
+```text
+attention latched
+→ Economy
+
+senão AttentionRequired
+→ Economy
+
+senão
+→ policy.control_surface()
+```
+
+Consequências verificadas:
+
+- policy Presence + attention pendente não pode selecionar Presence;
+- ExplicitActivation não supera attention;
+- overwrite do último recovery reason não supera attention;
+- attention permanece latched durante reopen;
+- acknowledgment apenas limpa o latch;
+- acknowledgment não aprova tarefa/ferramenta nem troca superfície sozinho;
+- nova ExplicitActivation após acknowledgment pode voltar a Presence;
+- Auto continua incapaz de selecionar Presence.
+
+### Cobertura
+
+Os três testes determinísticos cobrem:
+
+- prioridade do latch com todas as razões allowlisted;
+- overwrite de recovery antes de Destroyed;
+- semânticas Economy/Auto/Headless sem regressão.
+
+O gate Tauri/WebView real comprova:
+
+- uma Conversation real do fixture permanece no mesmo TaskId;
+- uma única provider call;
+- Presence explícita antes do cenário;
+- Close → AttentionRequired → Economy;
+- nova ativação com attention pendente → Economy;
+- zero canvas/GLB enquanto attention está pendente;
+- acknowledgment IPC limpa o latch;
+- nova ativação posterior → Presence ready;
+- `/models/Luna.glb` observado pelo callback nativo após autorização efetiva;
+- mesmo TaskRegistry/ProviderRuntime;
+- Quit exit 0;
+- nenhum helper órfão.
+
+A corrida exata antes de `Destroyed` permanece coberta de forma determinística,
+sem introduzir hook artificial no callback nativo. Isso é aceitável: a decisão
+de superfície usa a mesma função pura chamada pelo caminho real, enquanto o gate
+nativo cobre os dois estados adjacentes com WebViews reais.
+
+### Regressão e validação
+
+A regressão curta confirmou novamente:
+
+- Auto Economy ↔ Headless;
+- Auto nunca Presence;
+- draft/UiBound/settings guards;
+- Presence manual estável;
+- Headless manual;
+- single-instance;
+- continuidade Core/TaskId;
+- Quit.
+
+Validação registrada:
+
+- typecheck/build verdes;
+- oito suites Node relevantes verdes;
+- cargo check debug/release;
+- Rust: **991 PASS / 0 FAIL / 2 ignored preexistentes**;
+- nenhum novo ignore;
+- nenhum PR/merge.
+
+Não foi necessário repetir os 15 ciclos nem o delay físico de 30 s porque a
+mudança é estritamente uma prioridade de target; a evidência longa da candidata
+continua válida.
+
+### Dívidas
+
+Permanecem não bloqueantes e inalteradas:
+
+- reserva `ui_suspended` para Headless manual/transitório em futuros callers
+  nativos/agents;
+- attention sem caller de produto/aproval framework;
+- falhas nativas parciais;
+- MSRV;
+- DBus/packaging;
+- endurance/cross-platform;
+- Home/DEV overlay;
+- NARYS-TERM/NARYS-NORM;
+- LR-9.
+
+### Decisão
+
+`PERF-1D = PASS TÉCNICO / AGUARDANDO GATE HUMANO FINAL`.
+
+O gate humano pode permanecer curto, focado somente em compositor/foco real e
+comportamento visual das policies. PERF-1 continua aberta até esse gate e o
+fechamento final da fase.
