@@ -1,6 +1,38 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **PRÓXIMA FASE — pré-condições LR-8 e LR-8.5 concluídas em PASS; executar antes da LR-9.**
+Estado: **EM EXECUÇÃO — PERF-1A ativa na branch `perf-1a-baseline-lifecycle`; LR-8 e LR-8.5 permanecem PASS.**
+
+## Decisões de execução fechadas em 07/10/2026
+
+PERF-1 possui **exatamente quatro checkpoints formais**:
+
+1. **PERF-1A — Baseline & Presentation Lifecycle**;
+2. **PERF-1B — Economy Shell**;
+3. **PERF-1C — Headless Runtime**;
+4. **PERF-1D — Adaptive Presence**.
+
+Tarefas internas, testes, auditorias e ajustes não criam novas subfases. Falhas
+relevantes podem gerar `FIX-1`, `FIX-2`, etc. dentro do checkpoint em curso.
+Após 1D ocorre auditoria/fechamento da PERF-1; não existe 1E planejada.
+
+A direção de produto também fica congelada para orientar a implementação:
+
+- **Economy Shell 2D será a interface padrão da Narys**;
+- a janela principal será redimensionável;
+- navegação esquerda e painel operacional direito serão recolhíveis,
+  restauráveis e redimensionáveis;
+- o centro será um workspace para a sessão/superfície atual;
+- o topo usará identidade mínima (miniatura da logo + `NARYS`), sem
+  `Narys // perf mode` permanente;
+- detalhes estéticos serão refinados incrementalmente e não podem justificar
+  blur, transparência real, polling excessivo ou animações contínuas caras;
+- Three.js, WebGL, GLB, AnimationMixer e loops da Presence ficam **desativados
+  por padrão**;
+- Presence 3D só é carregada após opção/configuração explícita do usuário;
+- Auto/Adaptive não recebe autorização implícita para ativar 3D;
+- Economy otimiza apresentação, **não inteligência**: não reduz thinking,
+  contexto, output budget, prioridade de Scheduler/Orchestrator nem adiciona
+  sleeps/throttling cognitivo.
 
 ## Motivação
 
@@ -61,7 +93,9 @@ Modo de interação de baixo custo:
 - UI DOM/CSS simples para conversa, status, aprovações e configurações essenciais;
 - superfícies adicionais carregadas sob demanda.
 
-Economy deve preservar integralmente as capacidades funcionais do Core.
+Economy deve preservar integralmente as capacidades funcionais do Core e passa a
+ser o **modo padrão de apresentação**. O caminho padrão de bootstrap deve evitar
+carregar o stack 3D, não apenas escondê-lo depois da inicialização.
 
 ### Headless
 
@@ -95,7 +129,10 @@ interação termina
 → liberar novamente recursos visuais
 ~~~
 
-A política deve ser configurável. Nenhuma transição automática pode destruir contexto ou esconder uma solicitação de aprovação importante.
+A política deve ser configurável. Nenhuma transição automática pode destruir
+contexto ou esconder uma solicitação de aprovação importante. Como Presence 3D
+é opt-in, uma política Auto só pode selecioná-la depois que o usuário tiver
+autorizado/configurado explicitamente esse comportamento.
 
 ## Arquitetura-alvo
 
@@ -136,9 +173,15 @@ Ao sair de Presence, a implementação deve conseguir:
 
 A implementação exata será decidida pela medição da plataforma. Não criar `forceContextLoss` ou hacks equivalentes como requisito sem provar necessidade.
 
-## PERF-1A — Baseline e contratos de lifecycle
+## PERF-1A — Baseline & Presentation Lifecycle
 
-**Objetivo:** estabelecer linha de base e provar que Core, Interaction e Presentation podem ter lifecycles independentes antes de remover recursos.
+**Estado:** EM EXECUÇÃO.
+
+**Objetivo:** estabelecer linha de base e provar que Core, Interaction e
+Presentation podem ter lifecycles independentes antes de remover recursos.
+
+Plano executável, limites, evidências e gate:
+[PERF-1A — Baseline & Presentation Lifecycle](PERF-1A-BASELINE-LIFECYCLE.md).
 
 ### Trabalho
 
@@ -157,9 +200,9 @@ A implementação exata será decidida pela medição da plataforma. Não criar 
 - desmontar/recriar a apresentação não perde TaskId, conversa ou estado de aprovação;
 - typecheck/build/testes existentes continuam verdes.
 
-## PERF-1B — Economy Mode
+## PERF-1B — Economy Shell
 
-**Objetivo:** entregar uma interface interativa de baixo custo sem avatar.
+**Objetivo:** entregar a interface 2D padrão da Narys, interativa e de baixo custo, sem avatar.
 
 ### Trabalho
 
