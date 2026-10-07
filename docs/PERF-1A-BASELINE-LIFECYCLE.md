@@ -1147,3 +1147,20 @@ A 1B pode agora tornar a interface 2D leve o default de produto, implementar a
 janela redimensionável e as regiões laterais recolhíveis/redimensionáveis, e
 medir a economia real obtida por não carregar/montar a Presence 3D no caminho
 padrão.
+
+
+## 16. Integração na main — 07/10/2026
+
+A branch `perf-1a-baseline-lifecycle` foi integrada à `main` por
+**fast-forward**, após auditoria independente, FIX-1 PASS e gate humano final.
+
+- base anterior da `main`: `639e02b16395acf6147133c09b1f7a4bf17f19b9`;
+- HEAD aprovado da PERF-1A integrado:
+  `c33bb9a02c8e6b92486a9a16e6e4b134830431f3`;
+- relação no momento da integração: **12 commits à frente / 0 atrás**;
+- não houve squash, rebase, force-push ou perda/regravação de commits;
+- não foi necessário PR porque a integração era fast-forward direta e a
+  `main` não havia avançado em paralelo.
+
+A PERF-1A permanece encerrada em **PASS**. A integração libera formalmente o
+início de **PERF-1B — Economy Shell**.
