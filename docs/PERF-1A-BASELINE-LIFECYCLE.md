@@ -1,6 +1,6 @@
 # PERF-1A — Baseline & Presentation Lifecycle
 
-**Estado:** AUDITORIA INDEPENDENTE — FIX-1 NECESSÁRIA; gate humano final ainda pendente
+**Estado:** FIX-1 PASS EM AUDITORIA INDEPENDENTE — aguardando gate humano final da PERF-1A
 
 **Branch:** `perf-1a-baseline-lifecycle`  
 **Base:** `main@639e02b16395acf6147133c09b1f7a4bf17f19b9`  
@@ -971,3 +971,87 @@ atividade cognitiva/provider real e confirmação de TaskId/cancelamento/continu
 nesses cenários. Nenhum dado de CPU/RAM ou aprovação humana foi presumido.
 A confirmação do tratamento de PERF-1A-F1 e o fechamento da PERF-1A dependem de
 **nova auditoria independente**; este registro não declara PASS.
+
+
+## 14. Nova auditoria independente da FIX-1 — 07/10/2026
+
+**Resultado:** **FIX-1 = PASS. Nenhuma FIX-2 técnica é exigida neste checkpoint.**
+
+A auditoria revisou os commits
+`58de4f11c9e2c2c4e022c6d0551dffc6bc15232d` (implementação/testes) e
+`bbcc395bbeacc45796544751ef18338ef343581a` (registro/evidência).
+
+### Finding PERF-1A-F1
+
+O finding da seção 12 está tratado.
+
+`SceneRuntime` agora possui aquisição com rollback explícito por pilha de
+releases. Recursos são registrados para liberação à medida que passam a existir,
+e `new ResizeObserver(...)` / `observe(...)` pertencem à mesma fronteira
+transacional do restante do constructor.
+
+Em falha de inicialização:
+
+- a instância é marcada como descartada;
+- releases são drenados em ordem inversa;
+- uma falha de release não impede as demais tentativas;
+- erros secundários não substituem a exceção original;
+- callback antigo de observer/contexto/animation loop não opera sobre a instância
+  descartada.
+
+O `dispose()` normal reutiliza o mesmo ownership e uma segunda chamada não
+repete releases. Não houve introdução de `forceContextLoss`, mudança de FPS,
+policy cognitiva ou antecipação de 1B/1C/1D.
+
+### Cobertura revisada
+
+A bateria determinística cobre seis pontos de falha parcial, incluindo:
+
+- renderer já adquirido;
+- canvas já anexado;
+- RenderBudget com listeners globais já adquirido;
+- SceneDiagnostics/timer já adquirido;
+- falha no constructor do ResizeObserver;
+- falha após `ResizeObserver.observe()`;
+- exceções secundárias durante cleanup/logging.
+
+A auditoria confirmou que os asserts verificam identidade do erro original,
+renderer descartado, animation loop parado, zero canvas/listeners/timer,
+observer desconectado, callbacks stale inertes e montagem válida em nova
+tentativa.
+
+Os 20 ciclos normais/late-load continuam preservados.
+
+O probe WebKit real adiciona uma falha após `super.observe(...)`, chegando a
+`error` com zero registros visuais observados e depois exercita o botão real de
+retry, criando nova geração `ready` sem alterar os contadores da Interaction.
+
+### Limites aceitos
+
+Não é exigida prova impossível de liberação absoluta de memória GPU pelo driver.
+O harness prova ownership/dispose observável e o probe real prova ausência dos
+registros visuais acompanhados. Uma API nativa que lance antes de executar seu
+próprio efeito de cleanup não pode ser tornada recuperável externamente por
+contrato; essa limitação está corretamente documentada.
+
+A ausência de GitHub Actions para o commit não invalida a evidência local
+registrada, mas os resultados continuam sendo evidência produzida no ambiente do
+executor e não uma execução independente da auditoria.
+
+### Gate restante
+
+A implementação da PERF-1A está tecnicamente aprovada para o **gate humano
+final**, sem nova FIX.
+
+O fechamento ainda precisa registrar, na aplicação Tauri real:
+
+1. foco → sem foco → minimizar/restaurar, observando cadência/lifecycle real;
+2. uma amostra nativa mais longa para descartar crescimento grosseiro de memória;
+3. uma conversa com provider real durante transições de Presentation DEV,
+   confirmando que TaskId, streaming, cancelamento/terminal e sessão continuam
+   coerentes.
+
+Esses testes pertencem ao gate da própria PERF-1A e não constituem nova subfase.
+
+**Estado após esta auditoria:**
+`PERF-1A — FIX-1 PASS / AGUARDANDO GATE HUMANO FINAL`.
