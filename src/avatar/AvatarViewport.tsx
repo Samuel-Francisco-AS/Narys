@@ -30,6 +30,7 @@ export default function AvatarViewport({ animationRequest, onStatusChange, onRea
       runtime.updateRenderConfig(renderConfig)
     } catch (error) {
       console.error('[M0-B] Falha ao iniciar WebGL:', error)
+      onReadyChange(false)
       onStatusChange('WebGL indisponível neste ambiente. Veja o console.')
       return
     }
@@ -53,6 +54,7 @@ export default function AvatarViewport({ animationRequest, onStatusChange, onRea
         const idleClip = loaded.animations.get('idle')
         const greetingClip = loaded.animations.get('greeting')
         if (!idleClip || !greetingClip) {
+          onReadyChange(false)
           onStatusChange('Modelo carregado, mas faltam clipes Idle/Wave.')
           return
         }
@@ -62,6 +64,7 @@ export default function AvatarViewport({ animationRequest, onStatusChange, onRea
       },
       (error) => {
         console.error('[M0-B] Falha ao carregar GLB:', error)
+        onReadyChange(false)
         onStatusChange('Falha ao carregar a personagem. Veja o console.')
       },
     )

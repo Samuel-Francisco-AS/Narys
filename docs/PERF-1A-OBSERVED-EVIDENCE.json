@@ -1,0 +1,750 @@
+{
+  "date": "2026-10-07",
+  "referenceSha": "838a42e4d62846a2ff6795b29a0fac9b66b5392f",
+  "candidate": "PERF-1A; audit pending; no final PASS",
+  "units": {
+    "rss": "KiB, sum of process RSS, shared pages can be counted twice",
+    "cpu": "percent of one logical CPU; /proc CPU ticks",
+    "frameTime": "milliseconds; DEV UIP-0 diagnostic"
+  },
+  "initialBeforeEdit": {
+    "environment": null,
+    "processSamples": [
+      {"type":"processes","elapsed":10.492774297999858,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":114,"rssKiB":182644},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":889,"rssKiB":415784}]},
+      {"type":"processes","elapsed":11.493681782999829,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":118,"rssKiB":182516},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":889,"rssKiB":415784}]},
+      {"type":"processes","elapsed":12.492937331000121,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":121,"rssKiB":182516},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":889,"rssKiB":397340}]},
+      {"type":"processes","elapsed":13.49316134799983,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":124,"rssKiB":182516},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":890,"rssKiB":397340}]},
+      {"type":"processes","elapsed":14.493156812000052,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":127,"rssKiB":182516},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":893,"rssKiB":397304}]},
+      {"type":"processes","elapsed":15.493181429999822,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":130,"rssKiB":182516},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":893,"rssKiB":397304}]},
+      {"type":"processes","elapsed":16.49318967699992,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":132,"rssKiB":182516},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":893,"rssKiB":397304}]},
+      {"type":"processes","elapsed":17.49315453600002,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":136,"rssKiB":182516},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":893,"rssKiB":397304}]},
+      {"type":"processes","elapsed":18.493161255999894,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":139,"rssKiB":182516},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":895,"rssKiB":383844}]},
+      {"type":"processes","elapsed":19.49317515599978,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":143,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":895,"rssKiB":383844}]},
+      {"type":"processes","elapsed":20.493183533999854,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":147,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":895,"rssKiB":383844}]},
+      {"type":"processes","elapsed":21.49319558599973,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":151,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":895,"rssKiB":383844}]},
+      {"type":"processes","elapsed":22.49314240800004,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":153,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":895,"rssKiB":383844}]},
+      {"type":"processes","elapsed":23.493224399000155,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":156,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":896,"rssKiB":383844}]},
+      {"type":"processes","elapsed":24.49330681299989,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":159,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":896,"rssKiB":383844}]},
+      {"type":"processes","elapsed":25.494364571000006,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":162,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":896,"rssKiB":383844}]},
+      {"type":"processes","elapsed":26.493221539999922,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":165,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":896,"rssKiB":383844}]},
+      {"type":"processes","elapsed":27.493175907000023,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":167,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":896,"rssKiB":383588}]},
+      {"type":"processes","elapsed":28.493151171000136,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":171,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":896,"rssKiB":382976}]},
+      {"type":"processes","elapsed":29.493140027999743,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":174,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8190,"ppid":8146,"comm":"bwrap","ticks":0,"rssKiB":2180},{"pid":8191,"ppid":8190,"comm":"bwrap","ticks":0,"rssKiB":1364},{"pid":8192,"ppid":8191,"comm":"glycin-svg","ticks":1,"rssKiB":15496},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":896,"rssKiB":382976}]},
+      {"type":"processes","elapsed":30.493294947999857,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":178,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":896,"rssKiB":382976}]},
+      {"type":"processes","elapsed":31.49298487299984,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":182,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64836},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":897,"rssKiB":383104}]},
+      {"type":"processes","elapsed":32.49315521800008,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":185,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":383104}]},
+      {"type":"processes","elapsed":33.493149536000146,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":188,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":383104}]},
+      {"type":"processes","elapsed":34.49316479900017,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":191,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":383104}]},
+      {"type":"processes","elapsed":35.49315103799972,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":194,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":383104}]},
+      {"type":"processes","elapsed":36.49313556700008,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":197,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":382976}]},
+      {"type":"processes","elapsed":37.493164538999736,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":199,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":382976}]},
+      {"type":"processes","elapsed":38.4931493009999,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":202,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":382976}]},
+      {"type":"processes","elapsed":39.49320010800011,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":207,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":382976}]},
+      {"type":"processes","elapsed":40.49315923699987,"rows":[{"pid":8146,"ppid":8144,"comm":"python3","ticks":210,"rssKiB":182388},{"pid":8181,"ppid":8146,"comm":"WebKitNetworkPr","ticks":60,"rssKiB":64632},{"pid":8223,"ppid":8146,"comm":"WebKitWebProces","ticks":898,"rssKiB":382976}]}
+    ],
+    "summary": {
+      "type": "summary",
+      "duration": 29.985919700999602,
+      "cpuPercentOneCore": 3.501643472903042,
+      "rssKiB": 629996,
+      "processCount": 3
+    },
+    "surfaceSnapshot": {
+      "canvas": 1,
+      "visibility": "visible",
+      "focus": false,
+      "assets": [
+        {"name":"http://127.0.0.1:5173/models/Luna.glb","duration":312}
+      ]
+    },
+    "graphicsReports": [
+      {"at":"2026-10-07T09:06:35.178Z","reason":"start","elapsedMs":0,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:35.179Z","reason":"render-mode-change","elapsedMs":2,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:35.181Z","reason":"render-mode-change","elapsedMs":2,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:35.196Z","reason":"start","elapsedMs":0,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:35.196Z","reason":"render-mode-change","elapsedMs":1,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:35.197Z","reason":"render-mode-change","elapsedMs":1,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:40.202Z","reason":"interval","elapsedMs":5005,"frames":128,"callbacks":242,"throttledCallbacks":114,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":25.57,"interval":{"meanMs":39.3,"p50Ms":33,"p95Ms":50,"minMs":17,"maxMs":277},"updateAndRender":{"meanMs":16.17,"p50Ms":14,"p95Ms":22,"minMs":0,"maxMs":271},"resizeCount":1,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:42.427Z","reason":"render-mode-change","elapsedMs":2225,"frames":66,"callbacks":123,"throttledCallbacks":57,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"background","renderReason":"blurred","targetFps":24,"fps":29.66,"interval":{"meanMs":33.24,"p50Ms":33,"p95Ms":47,"minMs":18,"maxMs":50},"updateAndRender":{"meanMs":14.94,"p50Ms":14,"p95Ms":23,"minMs":10,"maxMs":27},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":false,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:45.201Z","reason":"interval","elapsedMs":2774,"frames":6,"callbacks":6,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"background","renderMode":"background","renderReason":"blurred","targetFps":24,"fps":2.16,"interval":{"meanMs":49.6,"p50Ms":50,"p95Ms":59,"minMs":41,"maxMs":59},"updateAndRender":{"meanMs":26.5,"p50Ms":26,"p95Ms":33,"minMs":21,"maxMs":33},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":false,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:50.201Z","reason":"interval","elapsedMs":5000,"frames":1,"callbacks":1,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"background","renderMode":"background","renderReason":"blurred","targetFps":24,"fps":0.2,"interval":{"meanMs":3526,"p50Ms":3526,"p95Ms":3526,"minMs":3526,"maxMs":3526},"updateAndRender":{"meanMs":12,"p50Ms":12,"p95Ms":12,"minMs":12,"maxMs":12},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":false,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:06:55.202Z","reason":"interval","elapsedMs":5001,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"background","renderMode":"background","renderReason":"blurred","targetFps":24,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":false,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:07:00.202Z","reason":"interval","elapsedMs":5000,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"background","renderMode":"background","renderReason":"blurred","targetFps":24,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":false,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:07:05.202Z","reason":"interval","elapsedMs":5000,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"background","renderMode":"background","renderReason":"blurred","targetFps":24,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":false,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:07:10.206Z","reason":"interval","elapsedMs":5004,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"background","renderMode":"background","renderReason":"blurred","targetFps":24,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":false,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"}
+    ]
+  },
+  "repeatReferenceFocused": {
+    "environment": {
+      "type": "environment",
+      "pid": 12798,
+      "url": "http://127.0.0.1:5174/",
+      "softwareRendering": "1",
+      "session": "wayland",
+      "webkit": [
+        2,
+        54,
+        0
+      ]
+    },
+    "processSamples": [
+      {"type":"processes","elapsed":10.254684172999987,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":89,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1098,"rssKiB":424348}]},
+      {"type":"processes","elapsed":11.254623749999155,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":95,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1201,"rssKiB":405420}]},
+      {"type":"processes","elapsed":12.254831983999793,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":102,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1306,"rssKiB":405552}]},
+      {"type":"processes","elapsed":13.254781320999427,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":108,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1408,"rssKiB":405664}]},
+      {"type":"processes","elapsed":14.254630199999156,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":114,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1511,"rssKiB":405808}]},
+      {"type":"processes","elapsed":15.25477051299913,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":120,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1616,"rssKiB":406276}]},
+      {"type":"processes","elapsed":16.25465515199994,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":126,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1715,"rssKiB":405644}]},
+      {"type":"processes","elapsed":17.25467271799971,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":134,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1818,"rssKiB":400020}]},
+      {"type":"processes","elapsed":18.254674228999647,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":141,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":1916,"rssKiB":408520}]},
+      {"type":"processes","elapsed":19.25465993799935,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":147,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2009,"rssKiB":404068}]},
+      {"type":"processes","elapsed":20.254653031999624,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":154,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2108,"rssKiB":407260}]},
+      {"type":"processes","elapsed":21.25470521399984,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":161,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2217,"rssKiB":407896}]},
+      {"type":"processes","elapsed":22.25462217399945,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":167,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2320,"rssKiB":407344}]},
+      {"type":"processes","elapsed":23.25611239599948,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":173,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2426,"rssKiB":407524}]},
+      {"type":"processes","elapsed":24.254628739999134,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":179,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2527,"rssKiB":408376}]},
+      {"type":"processes","elapsed":25.254641356999855,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":185,"rssKiB":187276},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2624,"rssKiB":410140}]},
+      {"type":"processes","elapsed":26.254691660999924,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":192,"rssKiB":187404},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2735,"rssKiB":407768}]},
+      {"type":"processes","elapsed":27.254805249999663,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":197,"rssKiB":187404},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2836,"rssKiB":407544}]},
+      {"type":"processes","elapsed":28.254635859999325,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":203,"rssKiB":187404},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":2939,"rssKiB":407588}]},
+      {"type":"processes","elapsed":29.25465918699956,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":208,"rssKiB":187404},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12836,"ppid":12798,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":2172},{"pid":12837,"ppid":12836,"name":"bwrap","startTicks":436465,"cpuTicks":0,"rssKiB":1404},{"pid":12838,"ppid":12837,"name":"glycin-svg","startTicks":436466,"cpuTicks":1,"rssKiB":16100},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3030,"rssKiB":408052}]},
+      {"type":"processes","elapsed":30.254649118999623,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":215,"rssKiB":187404},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":52,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3131,"rssKiB":403516}]},
+      {"type":"processes","elapsed":31.254624534999493,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":223,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3235,"rssKiB":408516}]},
+      {"type":"processes","elapsed":32.2546274009992,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":230,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3342,"rssKiB":408208}]},
+      {"type":"processes","elapsed":33.25530766299926,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":237,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3445,"rssKiB":408264}]},
+      {"type":"processes","elapsed":34.25465016999988,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":243,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3551,"rssKiB":407992}]},
+      {"type":"processes","elapsed":35.25464876299975,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":250,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3646,"rssKiB":408204}]},
+      {"type":"processes","elapsed":36.254626413999176,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":257,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3746,"rssKiB":407668}]},
+      {"type":"processes","elapsed":37.25463244599996,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":262,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3847,"rssKiB":407292}]},
+      {"type":"processes","elapsed":38.25473445999978,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":269,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":3949,"rssKiB":407340}]},
+      {"type":"processes","elapsed":39.25466721399971,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":276,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":4057,"rssKiB":407424}]},
+      {"type":"processes","elapsed":40.254646156999115,"rows":[{"pid":12798,"ppid":12797,"name":"python3","startTicks":436420,"cpuTicks":282,"rssKiB":187532},{"pid":12827,"ppid":12798,"name":"WebKitNetworkPr","startTicks":436461,"cpuTicks":53,"rssKiB":64784},{"pid":12875,"ppid":12798,"name":"WebKitWebProces","startTicks":436468,"cpuTicks":4158,"rssKiB":407752}]}
+    ],
+    "summary": {
+      "type": "summary",
+      "duration": 30.001071937000233,
+      "cpuPercentOneCore": 108.462791157367,
+      "rssKiB": 660068,
+      "processCount": 3,
+      "processChurn": [
+        [12836,436465],
+        [12837,436465],
+        [12838,436466]
+      ]
+    },
+    "surfaceSnapshot": {
+      "type": "surface-snapshot",
+      "canvas": 1,
+      "visibility": "visible",
+      "focus": true,
+      "assets": [
+        {"name":"http://127.0.0.1:5174/models/Luna.glb","duration":39}
+      ]
+    },
+    "graphicsReports": [
+      {"at":"2026-10-07T09:22:50.063Z","reason":"start","elapsedMs":0,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:22:50.065Z","reason":"render-mode-change","elapsedMs":3,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:22:50.067Z","reason":"render-mode-change","elapsedMs":2,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:22:50.082Z","reason":"start","elapsedMs":0,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:22:50.082Z","reason":"render-mode-change","elapsedMs":0,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:22:50.083Z","reason":"render-mode-change","elapsedMs":1,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:22:55.085Z","reason":"interval","elapsedMs":5001,"frames":139,"callbacks":270,"throttledCallbacks":131,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":27.79,"interval":{"meanMs":36.07,"p50Ms":34,"p95Ms":48,"minMs":18,"maxMs":192},"updateAndRender":{"meanMs":14.93,"p50Ms":14,"p95Ms":19,"minMs":0,"maxMs":184},"resizeCount":1,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:23:00.089Z","reason":"interval","elapsedMs":5005,"frames":150,"callbacks":299,"throttledCallbacks":149,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":29.97,"interval":{"meanMs":33.37,"p50Ms":33,"p95Ms":43,"minMs":19,"maxMs":50},"updateAndRender":{"meanMs":14.15,"p50Ms":14,"p95Ms":18,"minMs":10,"maxMs":21},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:23:05.089Z","reason":"interval","elapsedMs":5000,"frames":150,"callbacks":297,"throttledCallbacks":147,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":30,"interval":{"meanMs":33.31,"p50Ms":33,"p95Ms":46,"minMs":17,"maxMs":49},"updateAndRender":{"meanMs":13.93,"p50Ms":14,"p95Ms":18,"minMs":10,"maxMs":20},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:23:10.090Z","reason":"interval","elapsedMs":5000,"frames":150,"callbacks":298,"throttledCallbacks":148,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":30,"interval":{"meanMs":33.33,"p50Ms":33,"p95Ms":46,"minMs":18,"maxMs":50},"updateAndRender":{"meanMs":13.57,"p50Ms":13,"p95Ms":19,"minMs":10,"maxMs":22},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:23:15.097Z","reason":"interval","elapsedMs":5008,"frames":150,"callbacks":299,"throttledCallbacks":149,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":29.95,"interval":{"meanMs":33.38,"p50Ms":34,"p95Ms":45,"minMs":18,"maxMs":50},"updateAndRender":{"meanMs":14.17,"p50Ms":14,"p95Ms":18,"minMs":10,"maxMs":22},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:23:20.097Z","reason":"interval","elapsedMs":5000,"frames":150,"callbacks":299,"throttledCallbacks":149,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":30,"interval":{"meanMs":33.27,"p50Ms":33,"p95Ms":47,"minMs":18,"maxMs":50},"updateAndRender":{"meanMs":13.78,"p50Ms":14,"p95Ms":18,"minMs":10,"maxMs":24},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:23:25.101Z","reason":"interval","elapsedMs":5004,"frames":150,"callbacks":299,"throttledCallbacks":149,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":29.98,"interval":{"meanMs":33.38,"p50Ms":33,"p95Ms":45,"minMs":17,"maxMs":50},"updateAndRender":{"meanMs":13.77,"p50Ms":13,"p95Ms":18,"minMs":9,"maxMs":20},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"}
+    ]
+  },
+  "candidateFocused": {
+    "environment": {
+      "type": "environment",
+      "pid": 13071,
+      "url": "http://127.0.0.1:5173/",
+      "softwareRendering": "1",
+      "session": "wayland",
+      "webkit": [
+        2,
+        54,
+        0
+      ]
+    },
+    "processSamples": [
+      {"type":"processes","elapsed":10.640790661999745,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":91,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1151,"rssKiB":408952}]},
+      {"type":"processes","elapsed":11.640900344999864,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":98,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1253,"rssKiB":431944}]},
+      {"type":"processes","elapsed":12.640800895000211,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":104,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1357,"rssKiB":408096}]},
+      {"type":"processes","elapsed":13.64084392299992,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":111,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1465,"rssKiB":408656}]},
+      {"type":"processes","elapsed":14.640818681999917,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":117,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1571,"rssKiB":408672}]},
+      {"type":"processes","elapsed":15.640809687999536,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":124,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1679,"rssKiB":408828}]},
+      {"type":"processes","elapsed":16.640804622999894,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":130,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1785,"rssKiB":409064}]},
+      {"type":"processes","elapsed":17.64102376200026,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":136,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1886,"rssKiB":410676}]},
+      {"type":"processes","elapsed":18.64087246500003,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":142,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":1989,"rssKiB":409200}]},
+      {"type":"processes","elapsed":19.640885838999566,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":148,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2083,"rssKiB":408900}]},
+      {"type":"processes","elapsed":20.640808311,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":154,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2178,"rssKiB":409268}]},
+      {"type":"processes","elapsed":21.640837948999433,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":161,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2276,"rssKiB":409980}]},
+      {"type":"processes","elapsed":22.64091039199957,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":167,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2375,"rssKiB":398092}]},
+      {"type":"processes","elapsed":23.640782776999913,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":173,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2474,"rssKiB":398436}]},
+      {"type":"processes","elapsed":24.64078620300006,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":180,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2572,"rssKiB":398284}]},
+      {"type":"processes","elapsed":25.64081923699996,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":186,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2670,"rssKiB":398216}]},
+      {"type":"processes","elapsed":26.64079038,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":193,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2771,"rssKiB":398268}]},
+      {"type":"processes","elapsed":27.64084420600011,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":199,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2866,"rssKiB":398348}]},
+      {"type":"processes","elapsed":28.640831838999475,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":206,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":2967,"rssKiB":398368}]},
+      {"type":"processes","elapsed":29.64086547700026,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":212,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64732},{"pid":13109,"ppid":13071,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":2324},{"pid":13110,"ppid":13109,"name":"bwrap","startTicks":450526,"cpuTicks":0,"rssKiB":1364},{"pid":13111,"ppid":13110,"name":"glycin-svg","startTicks":450527,"cpuTicks":0,"rssKiB":15932},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3066,"rssKiB":398196}]},
+      {"type":"processes","elapsed":30.640786957999808,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":218,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3170,"rssKiB":399796}]},
+      {"type":"processes","elapsed":31.64078240100025,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":224,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3276,"rssKiB":398624}]},
+      {"type":"processes","elapsed":32.640810832999705,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":230,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3376,"rssKiB":398576}]},
+      {"type":"processes","elapsed":33.64082592399973,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":236,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3481,"rssKiB":398428}]},
+      {"type":"processes","elapsed":34.640864952999436,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":243,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3587,"rssKiB":400164}]},
+      {"type":"processes","elapsed":35.64081506599996,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":249,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3686,"rssKiB":398020}]},
+      {"type":"processes","elapsed":36.640811948999726,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":256,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3783,"rssKiB":398308}]},
+      {"type":"processes","elapsed":37.640865692999796,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":263,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3884,"rssKiB":398340}]},
+      {"type":"processes","elapsed":38.640805576000275,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":269,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":3986,"rssKiB":399112}]},
+      {"type":"processes","elapsed":39.64082830699954,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":276,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":4091,"rssKiB":398148}]},
+      {"type":"processes","elapsed":40.640813488000276,"rows":[{"pid":13071,"ppid":13068,"name":"python3","startTicks":450480,"cpuTicks":281,"rssKiB":187220},{"pid":13100,"ppid":13071,"name":"WebKitNetworkPr","startTicks":450521,"cpuTicks":40,"rssKiB":64860},{"pid":13148,"ppid":13071,"name":"WebKitWebProces","startTicks":450529,"cpuTicks":4198,"rssKiB":398224}]}
+    ],
+    "summary": {
+      "type": "summary",
+      "duration": 29.996244239999214,
+      "cpuPercentOneCore": 107.91350990813524,
+      "rssKiB": 650304,
+      "processCount": 3,
+      "processChurn": [
+        [13109,450526],
+        [13110,450526],
+        [13111,450527]
+      ]
+    },
+    "surfaceSnapshot": {
+      "type": "surface-snapshot",
+      "canvas": 1,
+      "visibility": "visible",
+      "focus": true,
+      "assets": [
+        {"name":"http://127.0.0.1:5173/models/Luna.glb","duration":139}
+      ]
+    },
+    "graphicsReports": [
+      {"at":"2026-10-07T09:25:10.460Z","reason":"start","elapsedMs":0,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:10.460Z","reason":"render-mode-change","elapsedMs":1,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:10.462Z","reason":"render-mode-change","elapsedMs":1,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:10.467Z","reason":"start","elapsedMs":0,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:10.468Z","reason":"render-mode-change","elapsedMs":0,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:10.468Z","reason":"render-mode-change","elapsedMs":1,"frames":0,"callbacks":0,"throttledCallbacks":0,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":0,"interval":null,"updateAndRender":null,"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":150},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:15.467Z","reason":"interval","elapsedMs":4999,"frames":135,"callbacks":266,"throttledCallbacks":131,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":27.01,"interval":{"meanMs":37.11,"p50Ms":34,"p95Ms":48,"minMs":18,"maxMs":217},"updateAndRender":{"meanMs":14.98,"p50Ms":14,"p95Ms":19,"minMs":0,"maxMs":215},"resizeCount":1,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:20.480Z","reason":"interval","elapsedMs":5013,"frames":151,"callbacks":298,"throttledCallbacks":147,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":30.12,"interval":{"meanMs":33.26,"p50Ms":33,"p95Ms":47,"minMs":17,"maxMs":49},"updateAndRender":{"meanMs":13.79,"p50Ms":14,"p95Ms":17,"minMs":10,"maxMs":22},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:25.487Z","reason":"interval","elapsedMs":5007,"frames":150,"callbacks":295,"throttledCallbacks":145,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":29.96,"interval":{"meanMs":33.38,"p50Ms":33,"p95Ms":44,"minMs":18,"maxMs":54},"updateAndRender":{"meanMs":14.3,"p50Ms":14,"p95Ms":19,"minMs":9,"maxMs":47},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:30.487Z","reason":"interval","elapsedMs":5000,"frames":150,"callbacks":299,"throttledCallbacks":149,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":30,"interval":{"meanMs":33.29,"p50Ms":33,"p95Ms":46,"minMs":18,"maxMs":50},"updateAndRender":{"meanMs":13.41,"p50Ms":13,"p95Ms":18,"minMs":9,"maxMs":21},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:35.487Z","reason":"interval","elapsedMs":5000,"frames":150,"callbacks":298,"throttledCallbacks":148,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":30,"interval":{"meanMs":33.36,"p50Ms":33,"p95Ms":47,"minMs":18,"maxMs":50},"updateAndRender":{"meanMs":13.21,"p50Ms":13,"p95Ms":17,"minMs":10,"maxMs":23},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:40.487Z","reason":"interval","elapsedMs":5000,"frames":150,"callbacks":299,"throttledCallbacks":149,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":30,"interval":{"meanMs":33.31,"p50Ms":33,"p95Ms":46,"minMs":17,"maxMs":49},"updateAndRender":{"meanMs":13.31,"p50Ms":13,"p95Ms":18,"minMs":10,"maxMs":23},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"},
+      {"at":"2026-10-07T09:25:45.488Z","reason":"interval","elapsedMs":5001,"frames":150,"callbacks":297,"throttledCallbacks":147,"suspendedCallbacks":0,"periodRenderMode":"active","renderMode":"active","renderReason":"focused","targetFps":30,"fps":29.99,"interval":{"meanMs":33.33,"p50Ms":33,"p95Ms":47,"minMs":16,"maxMs":50},"updateAndRender":{"meanMs":14.34,"p50Ms":14,"p95Ms":19,"minMs":10,"maxMs":24},"resizeCount":0,"containerCss":{"width":300,"height":360},"canvasCss":{"width":300,"height":360},"drawingBuffer":{"width":300,"height":360},"devicePixelRatio":1,"rendererPixelRatio":1,"visibilityState":"visible","hasFocus":true,"webglVersion":"WebGL 2.0","webglRenderer":"WebKit WebGL"}
+    ]
+  },
+  "nativeCandidateUnverifiedFocus": [
+    {
+      "type": "environment",
+      "scenario": "native-presence-focus-unverified",
+      "utc": "2026-10-07T09:11:51Z",
+      "platform": "Linux-7.2.8-200.fc44.x86_64-x86_64-with-glibc2.43",
+      "session": "wayland",
+      "clockTicks": 100,
+      "logicalCpus": 8,
+      "durationSeconds": 30
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 0.0,
+      "rssKiB": 673844,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":716,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":16801,"rssKiB":427320}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 1.0,
+      "rssKiB": 673772,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":720,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":16901,"rssKiB":427248}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 2.0,
+      "rssKiB": 673948,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":723,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17001,"rssKiB":427424}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 3.0,
+      "rssKiB": 674088,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":727,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17096,"rssKiB":427564}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 4.0,
+      "rssKiB": 668640,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":729,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17194,"rssKiB":422116}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 5.0,
+      "rssKiB": 674052,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":732,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17288,"rssKiB":427528}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 6.0,
+      "rssKiB": 673836,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":736,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17384,"rssKiB":427312}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 7.0,
+      "rssKiB": 673824,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":739,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17485,"rssKiB":427300}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 8.0,
+      "rssKiB": 668788,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":742,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17591,"rssKiB":422264}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 9.0,
+      "rssKiB": 673884,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":746,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17704,"rssKiB":427360}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 10.0,
+      "rssKiB": 668936,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":750,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17809,"rssKiB":422412}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 11.0,
+      "rssKiB": 674040,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":752,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":17908,"rssKiB":427516}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 12.0,
+      "rssKiB": 674012,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":757,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18008,"rssKiB":427488}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 13.0,
+      "rssKiB": 673932,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":761,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18108,"rssKiB":427408}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 14.0,
+      "rssKiB": 673848,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":764,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18209,"rssKiB":427324}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 15.0,
+      "rssKiB": 674584,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":768,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18309,"rssKiB":428060}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 16.0,
+      "rssKiB": 674304,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":771,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18410,"rssKiB":427780}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 17.0,
+      "rssKiB": 674160,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":775,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18507,"rssKiB":427636}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 18.0,
+      "rssKiB": 674232,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":778,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18606,"rssKiB":427708}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 19.0,
+      "rssKiB": 675048,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":782,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18709,"rssKiB":428524}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 20.0,
+      "rssKiB": 675196,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":786,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18811,"rssKiB":428672}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 21.0,
+      "rssKiB": 675148,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":789,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":18915,"rssKiB":428624}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 22.0,
+      "rssKiB": 675052,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":793,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19014,"rssKiB":428528}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 23.0,
+      "rssKiB": 670140,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":797,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19119,"rssKiB":423616}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 24.0,
+      "rssKiB": 670036,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":800,"rssKiB":183184},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63340},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19220,"rssKiB":423512}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 25.0,
+      "rssKiB": 671472,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":804,"rssKiB":181904},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":63084},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19319,"rssKiB":426484}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 26.0,
+      "rssKiB": 666256,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":808,"rssKiB":181904},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":62956},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19420,"rssKiB":421396}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 27.0,
+      "rssKiB": 667560,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":812,"rssKiB":181904},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":62956},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19521,"rssKiB":422700}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 28.0,
+      "rssKiB": 671056,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":815,"rssKiB":181904},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":62956},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19615,"rssKiB":426196}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 29.0,
+      "rssKiB": 668604,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":820,"rssKiB":181904},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":62956},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19712,"rssKiB":423744}
+      ]
+    },
+    {
+      "type": "sample",
+      "elapsedSeconds": 30.0,
+      "rssKiB": 671072,
+      "processes": [
+        {"pid":8135,"ppid":6606,"name":"assistente-3d","startTicks":338424,"cpuTicks":822,"rssKiB":181904},
+        {"pid":8992,"ppid":8135,"name":"WebKitNetworkPr","startTicks":354160,"cpuTicks":64,"rssKiB":62956},
+        {"pid":9017,"ppid":8135,"name":"WebKitWebProces","startTicks":354253,"cpuTicks":19817,"rssKiB":426212}
+      ]
+    },
+    {
+      "type": "summary",
+      "elapsedSeconds": 30.0,
+      "cpuPercentOneCore": 104.066,
+      "rssMinKiB": 666256,
+      "rssMaxKiB": 675196,
+      "rssFinalKiB": 671072,
+      "processChurn": [],
+      "cpuChurnLimitation": false
+    }
+  ],
+  "webkitLifecycle": {
+    "environment": {
+      "type": "environment",
+      "pid": 12561,
+      "url": "http://127.0.0.1:5173/",
+      "softwareRendering": "1",
+      "session": "wayland",
+      "webkit": [
+        2,
+        54,
+        0
+      ]
+    },
+    "result": {
+      "type": "lifecycle-result",
+      "pass": true,
+      "before": {"presentation":{"mode":"presence","phase":"ready","generation":1},"conversation":{"sessionId":null,"activeTaskId":null,"assistantStreaming":false,"messageCount":0,"providerRoute":null},"canvases":1},
+      "running": {"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},
+      "cancelling": 82,
+      "final": {"presentation":{"mode":"presence","phase":"ready","generation":45},"conversation":{"sessionId":41,"activeTaskId":null,"assistantStreaming":false,"messageCount":3,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1},
+      "metrics": {"starts":2,"cancels":1,"tasks":0,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},
+      "samples": [
+        {"cycle":1,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":3},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":2,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":5},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":3,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":7},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":4,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":9},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":5,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":11},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":6,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":13},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":7,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":15},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":8,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":17},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":9,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":19},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":10,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":21},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":11,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":23},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":12,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":25},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":13,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":27},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":14,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":29},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":15,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":31},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":16,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":33},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":17,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":35},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":18,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":37},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":19,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":39},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}},
+        {"cycle":20,"detached":{"starts":1,"cancels":0,"tasks":1,"observers":0,"rafs":0,"intervals":0,"otherIntervals":1,"listeners":0},"attached":{"starts":1,"cancels":0,"tasks":1,"observers":1,"rafs":1,"intervals":1,"otherIntervals":1,"listeners":3},"state":{"presentation":{"mode":"presence","phase":"ready","generation":41},"conversation":{"sessionId":41,"activeTaskId":81,"assistantStreaming":true,"messageCount":1,"providerRoute":"Provider ativo: Fixture · fixed · score — · tentativa 1"},"canvases":1}}
+      ]
+    },
+    "processSamples": [
+      {"type":"processes","elapsed":10.036045928000021,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":92,"rssKiB":186872},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":123,"rssKiB":75440},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":971,"rssKiB":518988}]},
+      {"type":"processes","elapsed":11.035809883000184,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":97,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":130,"rssKiB":70040},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1046,"rssKiB":496480}]},
+      {"type":"processes","elapsed":12.035942438000347,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":103,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":140,"rssKiB":65140},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1119,"rssKiB":497412}]},
+      {"type":"processes","elapsed":13.036049366000043,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":109,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":151,"rssKiB":82756},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1212,"rssKiB":514576}]},
+      {"type":"processes","elapsed":14.035791993000203,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":117,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":166,"rssKiB":75468},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1311,"rssKiB":496880}]},
+      {"type":"processes","elapsed":15.03595078499984,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":123,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":177,"rssKiB":75996},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1416,"rssKiB":518904}]},
+      {"type":"processes","elapsed":16.035930660000304,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":129,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":185,"rssKiB":69768},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1508,"rssKiB":487900}]},
+      {"type":"processes","elapsed":17.03582138999991,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":136,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":197,"rssKiB":66036},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1582,"rssKiB":496520}]},
+      {"type":"processes","elapsed":18.035927605000325,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":142,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":205,"rssKiB":69368},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1657,"rssKiB":473292}]},
+      {"type":"processes","elapsed":19.035950221999883,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":150,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":216,"rssKiB":65284},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1740,"rssKiB":494256}]},
+      {"type":"processes","elapsed":20.035819458000333,"rows":[{"pid":12561,"ppid":12559,"name":"python3","startTicks":431138,"cpuTicks":156,"rssKiB":187000},{"pid":12590,"ppid":12561,"name":"WebKitNetworkPr","startTicks":431181,"cpuTicks":223,"rssKiB":69492},{"pid":12599,"ppid":12561,"name":"bwrap","startTicks":431186,"cpuTicks":0,"rssKiB":2228},{"pid":12600,"ppid":12599,"name":"bwrap","startTicks":431187,"cpuTicks":0,"rssKiB":1364},{"pid":12601,"ppid":12600,"name":"glycin-svg","startTicks":431187,"cpuTicks":0,"rssKiB":16328},{"pid":12638,"ppid":12561,"name":"WebKitWebProces","startTicks":431190,"cpuTicks":1816,"rssKiB":512820}]}
+    ],
+    "expectedInjectedErrors": [
+      {"type":"console","level":"error","args":["THREE.WebGLRenderer: PERF-1A injected WebGL failure"]},
+      {"type":"console","level":"error","args":["[M0-B] Falha ao iniciar WebGL:",{}]},
+      {"type":"console","level":"error","args":["THREE.WebGLRenderer: PERF-1A injected WebGL failure"]},
+      {"type":"console","level":"error","args":["[M0-B] Falha ao iniciar WebGL:",{}]}
+    ]
+  },
+  "economyBoot": {
+    "type": "lifecycle-result",
+    "pass": true,
+    "state": {
+      "presentation": {"mode":"economy","phase":"detached","generation":1},
+      "conversation": {"sessionId":null,"activeTaskId":null,"assistantStreaming":false,"messageCount":0,"providerRoute":null},
+      "canvases": 0
+    },
+    "resources": [],
+    "metrics": {
+      "starts": 0,
+      "cancels": 0,
+      "tasks": 0,
+      "observers": 0,
+      "rafs": 0,
+      "intervals": 0,
+      "otherIntervals": 1,
+      "listeners": 0
+    }
+  },
+  "headlessContractBoot": {
+    "type": "lifecycle-result",
+    "pass": true,
+    "state": {
+      "presentation": {"mode":"headless","phase":"detached","generation":1},
+      "conversation": {"sessionId":null,"activeTaskId":null,"assistantStreaming":false,"messageCount":0,"providerRoute":null},
+      "canvases": 0
+    },
+    "resources": [],
+    "metrics": {
+      "starts": 0,
+      "cancels": 0,
+      "tasks": 0,
+      "observers": 0,
+      "rafs": 0,
+      "intervals": 0,
+      "otherIntervals": 1,
+      "listeners": 0
+    }
+  },
+  "limitations": [
+    "GTK probe is not Tauri and its IPC integration uses a synthetic fixture.",
+    "Focused graphical samples do not include Rust Core; native sample focus was not verified.",
+    "Initial background run and native sample overlapped compilation; focused repeat samples were sequential with no Cargo workload.",
+    "Subprocess churn excludes CPU spent between observations by short-lived processes.",
+    "No commercial-provider TTFT, native minimization attestation, GPU-memory metric or claim of zero leaks."
+  ],
+  "coreBaseline": {
+    "samples": [
+      {
+        "registrationUs": 750,
+        "taskId": 1,
+        "terminalAndPersistenceUs": 1664388
+      },
+      {
+        "registrationUs": 50,
+        "taskId": 2,
+        "terminalAndPersistenceUs": 1642225
+      },
+      {
+        "registrationUs": 52,
+        "taskId": 3,
+        "terminalAndPersistenceUs": 1618033
+      },
+      {
+        "registrationUs": 47,
+        "taskId": 4,
+        "terminalAndPersistenceUs": 1657406
+      },
+      {
+        "registrationUs": 81,
+        "taskId": 5,
+        "terminalAndPersistenceUs": 1630985
+      }
+    ],
+    "workload": "real conversation runtime, SQLite and Scheduler; fixture provider"
+  },
+  "validation": {
+    "typecheck": "passed",
+    "build": "passed; 3D chunk >500 kB warning retained",
+    "cargoCheck": "passed; 15 existing warnings",
+    "cargoCheckRelease": "passed; 38 existing warnings",
+    "cargoTestDefaultFirstRun": {
+      "passed": 971,
+      "failed": 2,
+      "ignored": 2,
+      "seconds": 274.76,
+      "failures": [
+        "cognition::cloudflare::tests::local_http_lifecycle_covers_split_valid_eof_timeout_and_internal_code",
+        "cognition::fix5_tests::fix5_http_timeout_phases_are_real_and_diagnostics_sanitized"
+      ],
+      "conditions": "Default test concurrency overlapped graphics probes; CPU/memory pressure observed."
+    },
+    "cargoTestFinal": {
+      "passed": 974,
+      "failed": 0,
+      "ignored": 2,
+      "seconds": 398.09,
+      "testThreads": 2
+    },
+    "coreBaselineTest": {
+      "passed": 1,
+      "failed": 0,
+      "seconds": 9.98,
+      "testThreads": 1
+    },
+    "deterministicLifecycleCycles": 20,
+    "webkitReactLifecycleCycles": 20,
+    "existingFrontendScripts": "provider-operations helpers/DOM and allocation-settings passed (85 allocation checks)",
+    "status": "PERF-1A IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente"
+  }
+}

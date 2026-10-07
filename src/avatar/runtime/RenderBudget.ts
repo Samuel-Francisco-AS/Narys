@@ -1,3 +1,5 @@
+import { defaultRenderBudgetConfig, type RenderBudgetConfig } from '../../presentation/renderConfig'
+export { defaultRenderBudgetConfig, type RenderBudgetConfig } from '../../presentation/renderConfig'
 export type RenderMode = 'active' | 'background' | 'suspended'
 export type RenderReason = 'focused' | 'blurred' | 'hidden'
 
@@ -7,8 +9,6 @@ export type RenderBudgetState = {
   targetFps: number
 }
 
-export type RenderBudgetConfig = { activeFps: number; backgroundFps: number }
-export const defaultRenderBudgetConfig: RenderBudgetConfig = { activeFps: 30, backgroundFps: 24 }
 // WebKitGTK can deliver only ~2 callbacks/s for a visible, unfocused window.
 // Hidden time is rebased separately; this cap only guards unexpected visible stalls.
 const MAX_DELTA_SECONDS = 0.6

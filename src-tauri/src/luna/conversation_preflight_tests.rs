@@ -818,3 +818,37 @@ fn credential_batch_failure_never_selects_provider_and_status_is_fail_closed() {
     assert!(f.requests.lock().unwrap().is_empty());
     f.no_exchange();
 }
+
+// Core-only reference workload for PERF-1A. No WebView, credentials outside the
+// synthetic fixture, commercial API, or latency assertion tied to machine speed.
+#[test]
+fn perf1a_core_baseline_conversation_fixture() {
+    let fixture = Fixture::new(&[SecretKey::GroqApiKey]);
+    let mut samples = Vec::new();
+    for _ in 0..5 {
+        let started = std::time::Instant::now();
+        let (id, receiver) = fixture.start(fixture.session, "PERF-1A synthetic baseline");
+        let registration_us = started.elapsed().as_micros();
+        let events = fixture.collect(id, receiver, "completed");
+        let persisted_us = started.elapsed().as_micros();
+        assert!(events.iter().all(|event| event["taskId"] == id.0));
+        assert_eq!(
+            events.iter().filter(|event| event["type"] == "provider_selected").count(),
+            1
+        );
+        samples.push(serde_json::json!({
+            "taskId": id.0, "registrationUs": registration_us,
+            "terminalAndPersistenceUs": persisted_us,
+        }));
+    }
+    assert_eq!(fixture.requests.lock().unwrap().len(), 5);
+    let conn = fixture.db.open().unwrap();
+    assert_eq!(
+        conversation::session(&conn, fixture.session).unwrap().unwrap().messages.len(),
+        10
+    );
+    eprintln!("[PERF-1A Core baseline] {}", serde_json::json!({
+        "workload": "real conversation runtime, SQLite and Scheduler; fixture provider",
+        "samples": samples,
+    }));
+}
