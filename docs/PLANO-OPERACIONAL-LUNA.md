@@ -828,31 +828,33 @@ Plano detalhado:
 ## 24. Próxima ação recomendada
 
 Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 = PASS funcional**, **LR-7 = PASS
-completo**, **LR-8 = PASS completo** e **LR-8.5A/B/C = PASS técnico**, a fase
-ativa passa a ser **PERF-1 — Adaptive Presence & Economy Mode**.
+completo**, **LR-8 = PASS completo**, **LR-8.5A/B/C = PASS técnico** e
+**PERF-1A/B/C = PASS**, a fase ativa continua sendo **PERF-1 — Adaptive Presence
+& Economy Mode**.
 
-Em 07/10/2026 foi criada a branch
-`perf-1a-baseline-lifecycle` a partir de
-`main@639e02b16395acf6147133c09b1f7a4bf17f19b9`. O checkpoint **PERF-1A — Baseline & Presentation Lifecycle** foi concluído em
-**PASS em 07/10/2026** e integrado à `main` por fast-forward. O próximo
-checkpoint formal é **PERF-1B — Economy Shell**, agora em **IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+Em 07/10/2026, **PERF-1C — Headless Runtime** foi encerrada em PASS e integrada
+à `main` por fast-forward. O próximo e último checkpoint formal da fase é
+**PERF-1D — Adaptive Presence**.
 
-A direção já aprovada para PERF-1 é tornar a **Economy Shell 2D a interface
-padrão**, com janela redimensionável, navegação esquerda e painel operacional
-direito recolhíveis/redimensionáveis e workspace central. Presence/Three.js será
-opt-in e deverá permanecer fora do caminho padrão de carregamento sempre que
-possível.
+A 1D deve partir da `main` já integrada e usar os contratos comprovados pelas
+etapas anteriores:
 
-PERF-1 terá somente **1A, 1B, 1C e 1D** como checkpoints formais; correções usam
-`FIX-N` dentro do checkpoint correspondente. O plano mestre está em
-[PERF-1-ADAPTIVE-PRESENCE.md](PERF-1-ADAPTIVE-PRESENCE.md) e o plano executável
-da etapa corrente em
-[PERF-1B-ECONOMY-SHELL.md](PERF-1B-ECONOMY-SHELL.md). A 1C partiu da `main` integrada e possui plano em [PERF-1C-HEADLESS-RUNTIME.md](PERF-1C-HEADLESS-RUNTIME.md).
+- Presence com lifecycle explícito;
+- Economy como interface padrão;
+- Headless real com zero WebViews;
+- Conversation HeadlessSafe e demais tarefas UiBound por default;
+- Close Presentation distinto de Quit;
+- reabertura por single-instance sem recriar o Core.
 
-A dívida de estabilidade espacial da UIP-4 no Wayland continua não bloqueante e
-o trabalho de Blender permanece independente. NARYS-NORM também permanece
-transversal e não deve ser misturada à PERF sem necessidade de compatibilidade
-real.
+As dívidas de 1B/1C permanecem registradas e não devem ser absorvidas pela 1D
+sem relação direta com Adaptive. NARYS-TERM e NARYS-NORM continuam trilhas
+separadas.
+
+Plano mestre:
+[PERF-1-ADAPTIVE-PRESENCE.md](PERF-1-ADAPTIVE-PRESENCE.md).
+
+Último checkpoint concluído:
+[PERF-1C-HEADLESS-RUNTIME.md](PERF-1C-HEADLESS-RUNTIME.md).
 
 ## 25. Definição da primeira grande entrega funcional
 
