@@ -529,26 +529,46 @@ Com **UIP-0 → UIP-6 = PASS funcional/fechadas**, **UIP-7 é CANDIDATA ao gate 
 
 ## 20. PERF-1 — Adaptive Presence & Economy Mode
 
-**Estado: PLANEJADA.** Esta é uma segunda trilha de performance, posterior à UIP e deliberadamente posicionada **após LR-8 + LR-8.5 e antes da LR-9**.
+**Estado: EM EXECUÇÃO em 07/10/2026. PERF-1A ativa na branch
+`perf-1a-baseline-lifecycle`.**
 
-A UIP ensinou a manter a Presence 3D dentro de um orçamento visual. A PERF-1 trata do passo seguinte: quando a personagem não for necessária, a apresentação deve poder ser desmontada completamente sem desligar o Luna Core.
+Esta é a segunda trilha de performance, posterior à UIP e posicionada após
+LR-8/LR-8.5 e antes da LR-9.
 
-Modos planejados:
+A UIP ensinou a manter a Presence 3D dentro de um orçamento visual. PERF-1
+inverte a relação de custo: **Economy Shell 2D passa a ser a interface padrão e
+Presence 3D vira capability opt-in carregada sob demanda.**
 
-- **Presence:** experiência 3D atual;
-- **Economy:** UI DOM/CSS mínima, sem Three.js/WebGL/avatar montado;
-- **Headless:** Core ativo sem janela WebView persistente;
-- **Adaptive/Auto:** alternância configurável conforme interação e necessidade de atenção humana.
+Direção de produto aprovada:
 
-A otimização é estritamente de apresentação e lifecycle. Ela **não autoriza reduzir velocidade, qualidade, contexto ou capacidade cognitiva**. CPU/RAM liberadas devem permanecer disponíveis para Scheduler, Orchestrator, agents, ferramentas e demais workloads.
+- janela principal redimensionável;
+- navegação esquerda recolhível/redimensionável;
+- workspace central para a sessão/superfície atual;
+- painel operacional direito recolhível/redimensionável;
+- topo mínimo com logo + Narys;
+- DOM/CSS simples, opaco quando isso reduzir custo de composição;
+- telemetria em cadência compatível com a informação, sem render/polling
+  frenético;
+- nenhuma animação contínua apenas decorativa;
+- Three.js/WebGL/GLB/AnimationMixer desligados por padrão e não carregados no
+  caminho Economy quando a arquitetura/bundle permitirem;
+- qualidade e latência cognitiva não são sacrificadas para economizar UI.
 
-Subfases:
+A PERF-1 possui somente quatro checkpoints formais:
 
-1. **PERF-1A — baseline + contratos de lifecycle**;
-2. **PERF-1B — Economy Mode**;
+1. **PERF-1A — Baseline & Presentation Lifecycle**;
+2. **PERF-1B — Economy Shell**;
 3. **PERF-1C — Headless Runtime**;
 4. **PERF-1D — Adaptive Presence**.
 
-A fase terá gates de RSS/CPU, renderer/WebGL realmente inativos fora de Presence, ausência de vazamento grosseiro em ciclos repetidos e comparação de latência do Core para impedir que “modo econômico” vire throttling do sistema.
+Não criar 1A.1/1A.2 ou outras subdivisões formais. Ajustes permanecem no
+checkpoint corrente e defeitos relevantes usam `FIX-N` quando necessário.
 
-Plano completo: [PERF-1 — Adaptive Presence & Economy Mode](PERF-1-ADAPTIVE-PRESENCE.md).
+PERF-1A mede a Presence atual, mapeia ownership de estado e formaliza uma
+fronteira de Presentation montável/desmontável. O gate exige teardown/reentry
+sem perda de TaskId/conversa/continuidade, sem duplicação de execução, sem
+renderer órfão ou crescimento grosseiro de memória, com build/typecheck/testes
+verdes.
+
+Plano mestre: [PERF-1 — Adaptive Presence & Economy Mode](PERF-1-ADAPTIVE-PRESENCE.md).  
+Plano ativo: [PERF-1A — Baseline & Presentation Lifecycle](PERF-1A-BASELINE-LIFECYCLE.md).
