@@ -1,6 +1,6 @@
 # PERF-1A — Baseline & Presentation Lifecycle
 
-**Estado:** FIX-1 PASS EM AUDITORIA INDEPENDENTE — aguardando gate humano final da PERF-1A
+**Estado:** PASS — PERF-1A concluída em 07/10/2026
 
 **Branch:** `perf-1a-baseline-lifecycle`  
 **Base:** `main@639e02b16395acf6147133c09b1f7a4bf17f19b9`  
@@ -1055,3 +1055,95 @@ Esses testes pertencem ao gate da própria PERF-1A e não constituem nova subfas
 
 **Estado após esta auditoria:**
 `PERF-1A — FIX-1 PASS / AGUARDANDO GATE HUMANO FINAL`.
+
+
+## 15. Gate humano final e fechamento — 07/10/2026
+
+**Resultado final:** **PERF-1A = PASS.**
+
+O gate humano foi executado na aplicação Tauri real após a aprovação da FIX-1.
+
+### Continuidade com provider real
+
+Durante uma resposta real em andamento, a Presentation foi alternada entre
+Presence e modos sem a superfície 3D. A resposta continuou normalmente, sem
+reinício ou duplicação observável.
+
+Após nova troca de Presentation, o cancelamento também foi exercitado e atingiu
+corretamente a tarefa ativa. Não houve perda funcional perceptível da sessão nem
+da Interaction durante essas transições.
+
+### Detach/reentry visual
+
+A aplicação Tauri real confirmou desmontagem e recriação visual da Presence:
+a superfície 3D desapareceu quando detachada e reapareceu corretamente em
+reentry, sem tela preta, canvas duplicado ou necessidade de reiniciar o Core.
+
+### Minimização/restauração
+
+**N/A neste gate.**
+
+A interface atual não oferece controle de minimizar a janela, portanto não há
+ação nativa disponível ao usuário para executar esse cenário sem introduzir
+ferramenta/feature adicional.
+
+A ausência desse controle não bloqueia PERF-1A:
+
+- criar/alterar controles de janela não faz parte do objetivo de lifecycle;
+- o comportamento de background/visibility já possui cobertura automatizada e
+  baseline anterior;
+- adicionar minimização apenas para satisfazer o gate ampliaria escopo sem
+  validar um risco novo do contrato implementado.
+
+O cenário poderá ser reavaliado quando a Economy Shell/redesenho de janela
+introduzir controles apropriados.
+
+### Endurance nativo de 180 segundos
+
+Foi executado o sampler
+`perf1a-process-baseline.py` por 180 s sobre a árvore do processo DEV/Tauri.
+
+Embora o PID raiz escolhido tenha incluído também infraestrutura de
+desenvolvimento, a saída manteve métricas por processo e permitiu separar a
+aplicação:
+
+- processo `assistente-3d`: 190.436 KiB no início e 190.436 KiB ao final;
+- `WebKitNetworkProcess`: 65.212 KiB no início e 65.212 KiB ao final;
+- `WebKitWebProcess`: aproximadamente 484.416 KiB no início e
+  487.852 KiB ao final;
+- conjunto Narys + WebKit: crescimento aproximado de 3,4 MiB em 180 s
+  (~0,46%);
+- nenhum churn de processo foi reportado.
+
+Não há evidência de crescimento grosseiro de memória nessa janela de observação.
+A métrica agregada do root DEV (~1,6 GiB e ~110% de um core lógico) inclui
+Vite/dev server e não deve ser tratada como consumo isolado de produção da Narys.
+
+### Decisão de fechamento
+
+Todos os critérios relevantes da PERF-1A estão satisfeitos:
+
+1. baseline reproduzível registrada;
+2. Presence funcional preservada;
+3. Presentation possui contrato/lifecycle explícito;
+4. Presence pode ser desmontada e recriada;
+5. Core/Interaction continuam válidos durante transições;
+6. tarefa real não reinicia/duplica durante detach/reentry;
+7. cancelamento real permanece correto após transição;
+8. teardown normal e falhas parciais possuem ownership/rollback testados;
+9. ciclos repetidos não mostraram duplicação de renderer/canvas/listeners;
+10. endurance nativo não mostrou crescimento grosseiro de memória;
+11. boundary de import mantém Presence/Three.js fora do bundle principal;
+12. typecheck/build/testes Rust e probes relevantes permaneceram verdes;
+13. nenhuma feature de PERF-1B/1C/1D foi antecipada para obter PASS.
+
+**PERF-1A está encerrada em PASS.**
+
+Próximo checkpoint formal:
+
+> **PERF-1B — Economy Shell**
+
+A 1B pode agora tornar a interface 2D leve o default de produto, implementar a
+janela redimensionável e as regiões laterais recolhíveis/redimensionáveis, e
+medir a economia real obtida por não carregar/montar a Presence 3D no caminho
+padrão.
