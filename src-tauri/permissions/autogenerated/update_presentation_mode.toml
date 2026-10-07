@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-presentation-mode"
+description = "Enables the update_presentation_mode command without any pre-configured scope."
+commands.allow = ["update_presentation_mode"]
+
+[[permission]]
+identifier = "deny-update-presentation-mode"
+description = "Denies the update_presentation_mode command without any pre-configured scope."
+commands.deny = ["update_presentation_mode"]

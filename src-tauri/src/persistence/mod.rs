@@ -159,3 +159,5 @@ pub async fn lr4_get_recent_conversation(
 }
 #[cfg(test)]
 mod tests;
+
+pub mod shell_settings;

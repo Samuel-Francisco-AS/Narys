@@ -49,7 +49,7 @@ fn migration_empty_and_twice() {
     let v: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(v, 16);
+    assert_eq!(v, 17);
     assert_sqlite_integrity(&conn);
     drop(conn);
     assert_sqlite_integrity(&db.open().unwrap());
@@ -69,7 +69,7 @@ fn migration_003_upgrades_existing_version_2_without_changing_conversations() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 16);
+    assert_eq!(version, 17);
     let title: String = conn
         .query_row(
             "SELECT title FROM conversation_sessions WHERE id=1",
@@ -1113,7 +1113,7 @@ fn migration_004_preserves_v3_policy_and_seeds_advanced_defaults() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 16);
+    assert_eq!(version, 17);
     let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
     assert_eq!(conversation.targets[0].model, "gemini-custom");
@@ -1223,7 +1223,7 @@ fn migration_005_repairs_existing_v4_without_changing_preferences() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 16);
+    assert_eq!(version, 17);
     assert_eq!(super::general_settings::load(&conn).unwrap().active_fps, 45);
     assert_eq!(
         crate::cognition::policy::load(
@@ -1262,7 +1262,7 @@ fn migration_006_preserves_fixed_behavior_and_seeds_groq_fallback_config() {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 16);
+    assert_eq!(version, 17);
     let conversation = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
     assert_eq!(conversation.targets[0].model, "gemini-custom");
@@ -1300,7 +1300,7 @@ fn migration_007_preserves_v6_policy_and_gemini_timeout() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        16
+        17
     );
     let before = policy::load(&conn, CognitiveRole::Conversation).unwrap();
     let summary = policy::load(&conn, CognitiveRole::Summary).unwrap();
@@ -1465,4 +1465,31 @@ fn outbound_history_limits_are_explicit_utf8_safe_and_session_scoped() {
     assert_eq!(all.len(), 4);
     assert!(all.iter().all(|turn| !turn.content.contains("SEGREDO")));
     assert!(all.iter().any(|turn| turn.content.contains('😀')));
+}
+
+#[test]
+fn economy_shell_upgrade_reopen_and_preferences_do_not_change_cognition() {
+    use super::shell_settings::{self, PresentationMode, ShellLayout};
+    let (db, _) = fixture();
+    let conn = db.open().unwrap();
+    conn.execute_batch("DROP TABLE shell_settings; PRAGMA user_version=16;").unwrap();
+    let general = super::general_settings::load(&conn).unwrap();
+    let policy = crate::cognition::policy::load(&conn, crate::cognition::policy::CognitiveRole::Conversation).unwrap();
+    migrations::apply(&conn).unwrap();
+    assert_eq!(shell_settings::load(&conn).unwrap().presentation_mode, PresentationMode::Economy);
+    shell_settings::save_mode(&conn, PresentationMode::Presence).unwrap();
+    let layout = ShellLayout { left_open: false, left_width: 99999, right_open: false, right_width: 0 };
+    shell_settings::save_layout(&conn, layout).unwrap();
+    drop(conn);
+    let conn = db.open().unwrap();
+    let saved = shell_settings::load(&conn).unwrap();
+    assert_eq!(saved.presentation_mode, PresentationMode::Presence);
+    assert_eq!(saved.layout.left_width, 320);
+    assert_eq!(saved.layout.right_width, 220);
+    assert!(!saved.layout.left_open && !saved.layout.right_open);
+    shell_settings::save_mode(&conn, PresentationMode::Economy).unwrap();
+    assert_eq!(super::general_settings::load(&conn).unwrap(), general);
+    assert_eq!(crate::cognition::policy::load(&conn, crate::cognition::policy::CognitiveRole::Conversation).unwrap(), policy);
+    drop(conn);
+    assert_eq!(shell_settings::load(&db.open().unwrap()).unwrap().presentation_mode, PresentationMode::Economy);
 }

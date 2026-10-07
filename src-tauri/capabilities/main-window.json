@@ -1,9 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Janela main: comandos de tarefa e diagnosticos LR-3/LR-4/LR-5. Sem APIs core, filesystem, shell ou Stronghold no WebView.",
-  "windows": ["main"],
-  "platforms": ["linux", "macOS", "windows"],
+  "description": "Janela main: conversa, Economy Shell, snapshot operacional read-only e controles de janela; sem filesystem, shell ou Stronghold no WebView.",
+  "windows": [
+    "main"
+  ],
+  "platforms": [
+    "linux",
+    "macOS",
+    "windows"
+  ],
   "permissions": [
     "core:window:allow-is-always-on-top",
     "core:window:allow-outer-position",
@@ -33,6 +39,17 @@
     "allow-list-conversation-history",
     "allow-get-conversation-history-session",
     "allow-conversation-routing-status",
-    "allow-start-conversation-task"
+    "allow-start-conversation-task",
+    "allow-get-shell-settings",
+    "allow-update-presentation-mode",
+    "allow-update-shell-layout",
+    "allow-open-ai-settings-window",
+    "allow-get-provider-operational-snapshot",
+    "core:window:allow-set-min-size",
+    "core:window:allow-set-resizable",
+    "core:window:allow-set-background-color",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close"
   ]
 }

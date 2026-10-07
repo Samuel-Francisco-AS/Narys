@@ -811,7 +811,7 @@ Em 07/10/2026 foi criada a branch
 `perf-1a-baseline-lifecycle` a partir de
 `main@639e02b16395acf6147133c09b1f7a4bf17f19b9`. O checkpoint **PERF-1A — Baseline & Presentation Lifecycle** foi concluído em
 **PASS em 07/10/2026** e integrado à `main` por fast-forward. O próximo
-checkpoint formal e liberado é **PERF-1B — Economy Shell**.
+checkpoint formal é **PERF-1B — Economy Shell**, agora em **IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
 
 A direção já aprovada para PERF-1 é tornar a **Economy Shell 2D a interface
 padrão**, com janela redimensionável, navegação esquerda e painel operacional
@@ -823,7 +823,7 @@ PERF-1 terá somente **1A, 1B, 1C e 1D** como checkpoints formais; correções u
 `FIX-N` dentro do checkpoint correspondente. O plano mestre está em
 [PERF-1-ADAPTIVE-PRESENCE.md](PERF-1-ADAPTIVE-PRESENCE.md) e o plano executável
 da etapa corrente em
-[PERF-1A-BASELINE-LIFECYCLE.md](PERF-1A-BASELINE-LIFECYCLE.md). A branch da
+[PERF-1B-ECONOMY-SHELL.md](PERF-1B-ECONOMY-SHELL.md). A branch da
 1B deve partir da `main` já integrada, sem reutilizar a branch encerrada da 1A.
 
 A dívida de estabilidade espacial da UIP-4 no Wayland continua não bloqueante e

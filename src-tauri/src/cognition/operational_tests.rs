@@ -500,12 +500,11 @@ fn operational_command_permissions_and_memory_only_dependency_boundary() {
         .unwrap()
         .iter()
         .any(|p| p == permission));
-    for content in [
-        include_str!("../../capabilities/main-window.json"),
-        include_str!("../../capabilities/settings-general.json"),
-    ] {
-        assert!(!content.contains(permission));
-    }
+    // Economy observes the same read-only snapshot; policy mutation stays in IA settings.
+    let main = include_str!("../../capabilities/main-window.json");
+    assert!(main.contains(permission));
+    assert!(!main.contains("allow-update-provider-rate-policy"));
+    assert!(!include_str!("../../capabilities/settings-general.json").contains(permission));
     let source = include_str!("settings.rs");
     let command = source
         .split("pub async fn get_provider_operational_snapshot(")

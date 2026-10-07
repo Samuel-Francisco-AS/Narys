@@ -67,7 +67,7 @@ require.extensions['.ts'] = require.extensions['.tsx'] = (mod, filename) => {
 }
 try {
   const { PresentationController } = require('../src/presentation/PresentationController.ts')
-  const controller = new PresentationController(), states = []
+  const controller = new PresentationController('presence'), states = []
   const unsubscribe = controller.subscribe(() => states.push(controller.getSnapshot()))
   controller.report(1, 'ready'); controller.setMode('economy'); controller.report(1, 'ready')
   assert.equal(controller.getSnapshot().phase, 'detached')
@@ -168,7 +168,7 @@ try {
     assert.equal(container.children.length, 0); assert.equal(timers.size, 0); assert.equal(window.count(), 0); assert.equal(document.count(), 0)
   }
   // Actual AvatarViewport constructor catch + Presentation generation protocol.
-  const retryController = new PresentationController()
+  const retryController = new PresentationController('presence')
   effects.length = 0; refs.length = 0; refIndex = 0; container = newContainer()
   const report = ready => retryController.report(retryController.getSnapshot().generation, ready ? 'ready' : 'error')
   const viewportProps = { animationRequest: null, onReadyChange: report, onStatusChange() {}, renderConfig: { activeFps: 30, backgroundFps: 24 } }

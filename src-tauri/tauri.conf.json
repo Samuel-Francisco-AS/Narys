@@ -12,14 +12,16 @@
   "app": {
     "windows": [
       {
-        "title": "Luna",
-        "width": 310,
-        "height": 410,
-        "resizable": false,
+        "title": "Narys",
+        "width": 1120,
+        "height": 720,
+        "resizable": true,
         "transparent": true,
         "decorations": false,
         "shadow": false,
-        "fullscreen": false
+        "fullscreen": false,
+        "minWidth": 640,
+        "minHeight": 480
       }
     ],
     "security": {
@@ -49,7 +51,11 @@
         "base-uri": "'none'",
         "form-action": "'none'"
       },
-      "capabilities": ["main-window", "settings-general", "settings-ai"]
+      "capabilities": [
+        "main-window",
+        "settings-general",
+        "settings-ai"
+      ]
     }
   },
   "bundle": {

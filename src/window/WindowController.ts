@@ -1,5 +1,5 @@
 import { isTauri } from '@tauri-apps/api/core'
-import { getCurrentWindow, PhysicalSize, type PhysicalPosition } from '@tauri-apps/api/window'
+import { getCurrentWindow, LogicalSize, PhysicalSize, type PhysicalPosition } from '@tauri-apps/api/window'
 
 export type WindowErgonomicsState = {
   available: boolean
@@ -27,6 +27,8 @@ export class WindowController {
   private state = initialWindowErgonomicsState
   private unlistenMoved: (() => void) | null = null
   private disposed = false
+  private presentation: 'economy' | 'presence' | null = null
+  private economySize: [number, number] = [1120, 720]
   private layout: 'presence' | 'composer' | 'conversation' | null = null
   private layoutQueue: Promise<boolean> = Promise.resolve(true)
 
@@ -38,11 +40,6 @@ export class WindowController {
 
   async initialize(): Promise<void> {
     if (!this.window) return
-    // A WebView reload retains the native window size. Avoid redundant resize
-    // when the Tauri config already opened Presence at the intended size.
-    if (Math.round(window.innerWidth * window.devicePixelRatio) === 310
-      && Math.round(window.innerHeight * window.devicePixelRatio) === 410) this.layout = 'presence'
-    else await this.setLayout('presence')
     try {
       const alwaysOnTop = await this.window.isAlwaysOnTop()
       const position = await this.window.outerPosition()
@@ -75,6 +72,7 @@ export class WindowController {
 
   setLayout(layout: 'presence' | 'composer' | 'conversation'): Promise<boolean> {
     const next = this.layoutQueue.then(async () => {
+      if (this.disposed || this.presentation !== 'presence') return true
       if (this.layout === layout) return true
       if (!this.window) { this.layout = layout; return true }
       const dimensions = { presence: [310, 410], composer: [310, 490], conversation: [625, 490] } as const
@@ -88,6 +86,41 @@ export class WindowController {
         return true
       } catch (error) {
         this.publish({ error: `Tamanho da janela: ${this.message(error)}` })
+        return false
+      }
+    })
+    this.layoutQueue = next
+    return next
+  }
+
+  setPresentation(mode: 'economy' | 'presence', presenceLayout: 'presence' | 'composer' | 'conversation' = 'presence'): Promise<boolean> {
+    const next = this.layoutQueue.then(async () => {
+      if (this.disposed) return false
+      if (this.presentation === mode) return true
+      const previous = this.presentation
+      if (mode === 'presence') this.economySize = [Math.max(640, window.innerWidth), Math.max(480, window.innerHeight)]
+      this.presentation = mode
+      this.layout = null
+      if (!this.window) return true
+      try {
+        if (mode === 'economy') {
+          await this.window.setMinSize(new LogicalSize(640, 480))
+          await this.window.setResizable(true)
+          await this.window.setBackgroundColor('#11151e')
+          if (previous === 'presence' || window.innerWidth < 640 || window.innerHeight < 480) await this.window.setSize(new LogicalSize(this.economySize[0], this.economySize[1]))
+        } else {
+          await this.window.setMinSize(null)
+          await this.window.setResizable(false)
+          await this.window.setBackgroundColor('#00000000')
+          const dimensions = { presence: [310, 410], composer: [310, 490], conversation: [625, 490] } as const
+          await this.window.setSize(new PhysicalSize(dimensions[presenceLayout][0], dimensions[presenceLayout][1]))
+          this.layout = presenceLayout
+        }
+        this.publish({ error: null })
+        return true
+      } catch (error) {
+        this.presentation = null
+        this.publish({ error: `Presentation da janela: ${this.message(error)}` })
         return false
       }
     })

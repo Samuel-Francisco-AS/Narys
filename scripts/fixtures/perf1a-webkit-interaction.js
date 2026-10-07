@@ -2,7 +2,8 @@
 window.isTauri = true
 window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} }
 const calls = [], callbacks = new Map(), tasks = new Map()
-let nextCallback = 0, starts = 0, cancels = 0
+let nextCallback = 0, starts = 0, cancels = 0, operationalReads = 0, layoutWrites = 0
+let shellSettings = { presentationMode: 'economy', layout: { leftOpen: true, leftWidth: 208, rightOpen: true, rightWidth: 272 } }
 const messages = [{ id: 1, sessionId: 41, role: 'assistant', content: 'Fixture persistida', createdAt: '' }]
 window.__TAURI_INTERNALS__ = {
   metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
@@ -10,8 +11,14 @@ window.__TAURI_INTERNALS__ = {
   unregisterCallback: id => callbacks.delete(id),
   invoke: async (cmd, args = {}) => {
     calls.push(cmd)
+    if (cmd === 'get_shell_settings') return structuredClone(shellSettings)
+    if (cmd === 'update_presentation_mode') { shellSettings.presentationMode = args.mode; return null }
+    if (cmd === 'update_shell_layout') { layoutWrites++; shellSettings.layout = args.layout; return null }
+    if (cmd === 'get_provider_operational_snapshot') { operationalReads++; return { capturedAtUnixMs: Date.now(), admission: [], telemetry: [], rate: [], resilience: [] } }
     if (cmd === 'get_general_settings') return { activeFps: 30, backgroundFps: 24, alwaysOnTop: false }
     if (cmd === 'conversation_routing_status') return { routingMode: 'fixed', targets: [{ providerId: 'fixture', displayName: 'Fixture', configured: true, cooldownMs: 0 }] }
+    if (cmd === 'list_conversation_history') return []
+    if (cmd === 'close_conversation_session') return true
     if (cmd === 'create_conversation_session') return 41
     if (cmd === 'get_conversation_session') return { id: 41, messages }
     if (cmd === 'start_conversation_task') {
@@ -67,7 +74,8 @@ window.setInterval = (fn, ms, ...args) => { const id = nativeInterval(fn, ms, ..
 window.clearInterval = id => { intervals.delete(id); nativeClear(id) }
 window.__fixture = {
   failNextObserve: () => { failNextObserve = true },
-  metrics: () => ({ starts, cancels, tasks: tasks.size, observers, rafs: rafts.size, intervals: [...intervals.values()].filter(ms => ms === 5000).length, otherIntervals: [...intervals.values()].filter(ms => ms !== 5000).length, listeners: [...visualListeners.values()].reduce((sum, set) => sum + set.size, 0) }),
+  settings: () => structuredClone(shellSettings),
+  metrics: () => ({ layoutWrites, operationalReads, starts, cancels, tasks: tasks.size, observers, rafs: rafts.size, intervals: [...intervals.values()].filter(ms => ms === 5000).length, otherIntervals: [...intervals.values()].filter(ms => ms !== 5000).length, listeners: [...visualListeners.values()].reduce((sum, set) => sum + set.size, 0) }),
   complete: () => {
     const task = [...tasks.values()][0]
     if (!task) throw new Error('missing task')

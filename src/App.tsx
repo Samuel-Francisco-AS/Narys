@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from 'react'
+import { EconomyShell } from './shell/EconomyShell'
+import { useShellPreferences } from './shell/shellPreferences'
 import { PresenceSurface } from './presentation/PresenceSurface'
 import { PresentationController, type PresentationMode } from './presentation/PresentationController'
 import { defaultRenderBudgetConfig, type RenderBudgetConfig } from './presentation/renderConfig'
@@ -27,11 +29,12 @@ const debugSections: { id: DebugSection; label: string }[] = [
 ]
 
 export default function App() {
-  // Production remains Presence in PERF-1A. Other modes are DEV contracts only.
+  // Economy is safe before settings hydration; Presence requires persisted opt-in.
   const [presentationController] = useState(() => {
     const requested = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('presentation') : null
-    return new PresentationController(requested === 'economy' || requested === 'headless' ? requested : 'presence')
+    return new PresentationController(requested === 'presence' || requested === 'headless' ? requested : 'economy')
   })
+  const shellPreferences = useShellPreferences(presentationController)
   const presentation = useSyncExternalStore(presentationController.subscribe, presentationController.getSnapshot)
 
   const [renderConfig, setRenderConfig] = useState<RenderBudgetConfig>(defaultRenderBudgetConfig)
@@ -43,7 +46,7 @@ export default function App() {
     }
     void invoke<{ activeFps: number; backgroundFps: number; alwaysOnTop: boolean }>('get_general_settings').then(apply).catch(() => {})
     let unlisten: (() => void) | undefined
-    void listen<{ activeFps: number; backgroundFps: number; alwaysOnTop: boolean }>('general-settings-changed', event => apply(event.payload)).then(fn => { if (disposed) fn(); else unlisten = fn })
+    void listen<{ activeFps: number; backgroundFps: number; alwaysOnTop: boolean }>('general-settings-changed', event => apply(event.payload)).then(fn => { if (disposed) fn(); else unlisten = fn }).catch(() => {})
     return () => { disposed = true; unlisten?.() }
   }, [])
   const [animationRequest, setAnimationRequest] = useState<AnimationRequest | null>(null)
@@ -145,7 +148,7 @@ export default function App() {
   }
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.shiftKey && event.code === 'Space') {
+      if (presentation.mode === 'presence' && event.ctrlKey && event.shiftKey && event.code === 'Space') {
         event.preventDefault(); toggleComposer()
       }
     }
@@ -163,6 +166,10 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    void windowController.current?.setPresentation(presentation.mode === 'presence' ? 'presence' : 'economy', panelPresent.current ? 'conversation' : composerVisible.current ? 'composer' : 'presence')
+  }, [presentation.mode])
+
   const onShellPointerDownCapture = (event: ReactPointerEvent<HTMLElement>) => {
     if (!event.altKey || event.button !== 0 || !windowController.current?.canDrag) return
     if (event.target instanceof Element && event.target.closest('.debug-overlay, .debug-toggle, input, textarea, button, a, [data-no-window-drag], [contenteditable="true"]')) return
@@ -175,7 +182,11 @@ export default function App() {
   }
 
   return (
-    <main data-presentation-mode={presentation.mode} data-presentation-phase={presentation.phase} className="presence-shell" onPointerDownCapture={onShellPointerDownCapture}>
+    <main data-presentation-mode={presentation.mode} data-presentation-phase={presentation.phase} className={presentation.mode === 'economy' ? 'economy-host' : 'presence-shell'} onPointerDownCapture={onShellPointerDownCapture}>
+      {presentation.mode === 'economy' ? <EconomyShell conversation={conversation} layout={shellPreferences.layout} loaded={shellPreferences.loaded} error={shellPreferences.error || windowState.error || ''}
+        onLayout={shellPreferences.saveLayout} onPresence={() => void shellPreferences.chooseMode('presence')} onDrag={() => void windowController.current?.startDragging()} /> : <>
+      {shellPreferences.error && <p role="alert">{shellPreferences.error}</p>}
+      {presentation.mode === 'presence' && <button type="button" className="presence-economy-return" onClick={() => void shellPreferences.chooseMode('economy')}>Economy</button>}
       <section className="character-stage" aria-label="Personagem 3D Luna">
         {presentation.mode === 'presence' && <PresenceSurface
           key={presentation.generation}
@@ -191,6 +202,7 @@ export default function App() {
       {composerMounted && <Composer state={conversation.state} visible={composerOpen} onExited={onComposerExited} onDraft={conversation.setDraft} onSend={() => { setConversationMode('CURRENT'); sendStartedAt.current = panelVisible.current ? null : performance.now(); void conversation.send(); openPanel() }} onCancel={conversation.cancel} onClose={toggleComposer} onPanel={openPanel} onSettings={() => void invoke('open_general_settings_window')} panelOpen={panelOpen} />}
       {panelMounted && <ConversationPanel state={conversation.state} mode={conversationMode} historyId={historyId} onMode={setConversationMode} onHistoryId={setHistoryId} visible={panelOpen} onExited={onPanelExited} onClose={() => { setConversationMode('CURRENT'); setHistoryId(null); closePanel() }} onNew={() => { void conversation.newConversation().then((closed) => { if (closed) { setConversationMode('CURRENT'); closePanel() } }) }} onResume={conversation.resumeConversation} />}
 
+      </>}
       {import.meta.env.DEV && (
         <>
           <button

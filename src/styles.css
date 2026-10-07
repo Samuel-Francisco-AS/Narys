@@ -101,3 +101,5 @@ h3 { font-size: 18px; margin-bottom: 10px; }
 .gemini-panel button:disabled { opacity: .45; cursor: not-allowed; }
 .gemini-panel ol, .gemini-panel ul { margin: 0; padding-left: 20px; max-height: 220px; overflow-y: auto; }
 .gemini-response { white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid #4a5570; border-radius: 9px; padding: 12px; }
+
+.economy-host { width: 100%; height: 100%; overflow: hidden; background: #11151e; }

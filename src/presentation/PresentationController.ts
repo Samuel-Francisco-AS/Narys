@@ -11,7 +11,7 @@ export class PresentationController {
   private state: PresentationState
   private readonly listeners = new Set<() => void>()
 
-  constructor(mode: PresentationMode = 'presence') {
+  constructor(mode: PresentationMode = 'economy') {
     this.state = { mode, phase: mode === 'presence' ? 'loading' : 'detached', generation: 1 }
   }
 

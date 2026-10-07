@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **EM EXECUÇÃO — PERF-1A = PASS e integrada à main; PERF-1B — Economy Shell liberada para início.**
+Estado: **EM EXECUÇÃO — PERF-1A = PASS e integrada à main; PERF-1B — Economy Shell em IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -202,7 +202,9 @@ Plano executável, limites, evidências e gate:
 
 ## PERF-1B — Economy Shell
 
-**Estado:** LIBERADA — próximo checkpoint formal da PERF-1.
+**Estado:** IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente.
+
+Entrega e evidências: [PERF-1B — Economy Shell](PERF-1B-ECONOMY-SHELL.md).
 
 **Objetivo:** entregar a interface 2D padrão da Narys, interativa e de baixo custo, sem avatar.
 

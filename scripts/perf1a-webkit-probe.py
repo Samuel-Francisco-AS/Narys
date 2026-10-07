@@ -23,6 +23,8 @@ parser.add_argument('--lifecycle', action='store_true')
 parser.add_argument('--boot-contract', action='store_true', help='Assert fresh DEV Economy/Headless startup has no 3D resources')
 parser.add_argument('--url', default='http://127.0.0.1:5173/')
 args = parser.parse_args()
+if args.lifecycle and args.url == 'http://127.0.0.1:5173/':
+    args.url += '?presentation=presence'
 if args.lifecycle and args.boot_contract:
     parser.error('Choose one probe scenario')
 os.environ.setdefault('LIBGL_ALWAYS_SOFTWARE', '1')

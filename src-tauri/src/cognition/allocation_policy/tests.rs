@@ -16,7 +16,7 @@ fn defaults(conn: &Connection) {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        16
+        17
     );
     assert_eq!(
         conn.query_row(
@@ -96,7 +96,7 @@ fn b4_v12_upgrade_preserves_routing_and_b3_defaults() {
 #[test]
 fn b4_future_version_rejected() {
     let conn = fresh();
-    conn.pragma_update(None, "user_version", 17).unwrap();
+    conn.pragma_update(None, "user_version", 18).unwrap();
     assert_eq!(
         migrations::apply(&conn).unwrap_err().code(),
         "migration_failed"

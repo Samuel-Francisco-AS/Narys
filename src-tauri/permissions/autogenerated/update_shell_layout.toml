@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-update-shell-layout"
+description = "Enables the update_shell_layout command without any pre-configured scope."
+commands.allow = ["update_shell_layout"]
+
+[[permission]]
+identifier = "deny-update-shell-layout"
+description = "Denies the update_shell_layout command without any pre-configured scope."
+commands.deny = ["update_shell_layout"]

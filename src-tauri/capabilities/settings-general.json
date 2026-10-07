@@ -1,8 +1,20 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "settings-general",
-  "description": "Janela geral independente: apenas navegação para IA.",
-  "windows": ["settings-general"],
-  "platforms": ["linux", "macOS", "windows"],
-  "permissions": ["allow-open-ai-settings-window", "allow-get-general-settings", "allow-update-general-settings"]
+  "description": "Janela geral independente: preferências gerais e Presentation manual, navegação para IA.",
+  "windows": [
+    "settings-general"
+  ],
+  "platforms": [
+    "linux",
+    "macOS",
+    "windows"
+  ],
+  "permissions": [
+    "allow-open-ai-settings-window",
+    "allow-get-general-settings",
+    "allow-update-general-settings",
+    "allow-get-shell-settings",
+    "allow-update-presentation-mode"
+  ]
 }
