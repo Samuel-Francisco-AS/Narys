@@ -803,7 +803,31 @@ O plano detalhado, riscos e gates estão em
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7 encerrada em PASS completo em 03/10/2026** e **LR-8 encerrada em PASS completo em 05/10/2026**, a trilha já possui múltiplos Cognitive Providers reais, roteamento configurável, TaskGraph distribuído e Rate Limit Manager completo com admission, accounting, budgets, resilience e painel operacional. **A próxima ação estrutural é PERF-1 — Adaptive Presence & Economy Mode**, após o PASS técnico completo da LR-8.5 e antes da LR-9. A dívida de estabilidade espacial da UIP-4 no Wayland permanece para investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual continua documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 = PASS funcional**, **LR-7 = PASS
+completo**, **LR-8 = PASS completo** e **LR-8.5A/B/C = PASS técnico**, a fase
+ativa passa a ser **PERF-1 — Adaptive Presence & Economy Mode**.
+
+Em 07/10/2026 foi criada a branch
+`perf-1a-baseline-lifecycle` a partir de
+`main@639e02b16395acf6147133c09b1f7a4bf17f19b9`. O checkpoint ativo é
+**PERF-1A — Baseline & Presentation Lifecycle**.
+
+A direção já aprovada para PERF-1 é tornar a **Economy Shell 2D a interface
+padrão**, com janela redimensionável, navegação esquerda e painel operacional
+direito recolhíveis/redimensionáveis e workspace central. Presence/Three.js será
+opt-in e deverá permanecer fora do caminho padrão de carregamento sempre que
+possível.
+
+PERF-1 terá somente **1A, 1B, 1C e 1D** como checkpoints formais; correções usam
+`FIX-N` dentro do checkpoint correspondente. O plano mestre está em
+[PERF-1-ADAPTIVE-PRESENCE.md](PERF-1-ADAPTIVE-PRESENCE.md) e o plano executável
+da etapa corrente em
+[PERF-1A-BASELINE-LIFECYCLE.md](PERF-1A-BASELINE-LIFECYCLE.md).
+
+A dívida de estabilidade espacial da UIP-4 no Wayland continua não bloqueante e
+o trabalho de Blender permanece independente. NARYS-NORM também permanece
+transversal e não deve ser misturada à PERF sem necessidade de compatibilidade
+real.
 
 ## 25. Definição da primeira grande entrega funcional
 
