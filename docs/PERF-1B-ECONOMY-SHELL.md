@@ -456,3 +456,22 @@ Esses itens viram FIX somente se houver falha reproduzível no gate.
 
 Não abrir PR, não fazer merge e não avançar para PERF-1C antes do gate e do
 fechamento documental.
+
+
+## Registro de direção futura — NARYS-TERM
+
+Durante o gate humano da Economy Shell foi levantada a possibilidade de a Narys
+hospedar um terminal Linux real no workspace central.
+
+A decisão é **registrar e adiar**, sem ampliar a PERF-1B.
+
+A trilha futura
+[NARYS-TERM — Terminal Runtime & Interactive Shell Surface](NARYS-TERMINAL-RUNTIME-TRACK.md)
+cobre PTY real, emulação visual, sessões humanas/agentivas, ownership,
+auditoria e approvals.
+
+A view atual `Shell / Home` permanece deliberadamente uma home/launcher.
+Nenhum terminal fictício, output sintético ou shell via campo de texto será
+introduzido nesta fase apenas para preencher o workspace.
+
+Esse registro não altera o gate da PERF-1B nem cria nova subfase.
