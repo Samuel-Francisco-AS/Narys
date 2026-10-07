@@ -30,6 +30,7 @@ export class SceneDiagnostics {
   private suspendedCount = 0
   private resizeCount = 0
   private readonly timer: number
+  private disposed = false
   private periodRenderMode: RenderBudgetState['mode']
 
   constructor(
@@ -40,8 +41,9 @@ export class SceneDiagnostics {
     private readonly getRenderBudget: () => RenderBudgetState,
   ) {
     this.periodRenderMode = getRenderBudget().mode
-    this.timer = window.setInterval(() => this.report('interval'), REPORT_INTERVAL_MS)
+    // Complete the fallible initial report before acquiring the timer.
     this.report('start')
+    this.timer = window.setInterval(() => this.report('interval'), REPORT_INTERVAL_MS)
   }
 
   recordFrame(startedAt: number, endedAt: number): void {
@@ -70,6 +72,7 @@ export class SceneDiagnostics {
   }
 
   private report(reason: string): void {
+    if (this.disposed) return
     const now = performance.now()
     const elapsedMs = now - this.periodStartedAt
     const bounds = this.container.getBoundingClientRect()
@@ -112,6 +115,8 @@ export class SceneDiagnostics {
   }
 
   dispose(): void {
+    if (this.disposed) return
+    this.disposed = true
     window.clearInterval(this.timer)
   }
 }

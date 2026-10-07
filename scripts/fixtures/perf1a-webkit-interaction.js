@@ -43,11 +43,19 @@ for (const [target, types] of [[window, ['focus', 'blur']], [document, ['visibil
   target.addEventListener = (type, fn, opts) => { visualListeners.get(type)?.add(fn); add(type, fn, opts) }
   target.removeEventListener = (type, fn, opts) => { visualListeners.get(type)?.delete(fn); remove(type, fn, opts) }
 }
-let observers = 0
+let observers = 0, failNextObserve = false
 const NativeObserver = window.ResizeObserver
 window.ResizeObserver = class extends NativeObserver {
   observed = false
-  observe(...args) { if (!this.observed) { this.observed = true; observers++ } return super.observe(...args) }
+  observe(...args) {
+    if (!this.observed) { this.observed = true; observers++ }
+    const result = super.observe(...args)
+    if (failNextObserve) {
+      failNextObserve = false
+      throw new Error('PERF-1A FIX-1 injected failure after native ResizeObserver.observe')
+    }
+    return result
+  }
   disconnect() { if (this.observed) { this.observed = false; observers-- } super.disconnect() }
 }
 const rafts = new Set(), intervals = new Map()
@@ -58,6 +66,7 @@ const nativeInterval = window.setInterval.bind(window), nativeClear = window.cle
 window.setInterval = (fn, ms, ...args) => { const id = nativeInterval(fn, ms, ...args); intervals.set(id, ms); return id }
 window.clearInterval = id => { intervals.delete(id); nativeClear(id) }
 window.__fixture = {
+  failNextObserve: () => { failNextObserve = true },
   metrics: () => ({ starts, cancels, tasks: tasks.size, observers, rafs: rafts.size, intervals: [...intervals.values()].filter(ms => ms === 5000).length, otherIntervals: [...intervals.values()].filter(ms => ms !== 5000).length, listeners: [...visualListeners.values()].reduce((sum, set) => sum + set.size, 0) }),
   complete: () => {
     const task = [...tasks.values()][0]

@@ -15,11 +15,14 @@ export class SceneRuntime {
   private readonly resizeObserver: ResizeObserver
   private readonly diagnostics: SceneDiagnostics | null
   private readonly renderBudget: RenderBudget
+  private readonly releases: (() => void)[] = []
+  private disposed = false
   private frames = 0
   private reportedGlError = false
   updateRenderConfig(config: RenderBudgetConfig): void { this.renderBudget.updateConfig(config) }
 
   private readonly onContextLost = (event: Event) => {
+    if (this.disposed) return
     event.preventDefault()
     this.callbacks.onReadyChange(false)
     this.callbacks.onStatusChange('Contexto WebGL perdido. Recarregue a janela.')
@@ -27,6 +30,7 @@ export class SceneRuntime {
   }
 
   private readonly onContextRestored = () => {
+    if (this.disposed) return
     this.callbacks.onStatusChange('WebGL restaurado. Recarregue para refazer a cena.')
     console.warn('[M0-B] Contexto WebGL restaurado; recarregamento necessário')
   }
@@ -43,11 +47,17 @@ export class SceneRuntime {
     fillLight.position.set(-3, 2, -2)
     this.scene.add(fillLight)
 
-    this.canvas.setAttribute('aria-label', 'Modelo 3D da assistente Luna')
-    this.canvas.addEventListener('webglcontextlost', this.onContextLost)
-    this.canvas.addEventListener('webglcontextrestored', this.onContextRestored)
+    // Register each release before the next fallible step. Only a fully
+    // initialized runtime escapes this constructor; partial attempts roll back.
+    this.releases.push(() => this.scene.clear(), () => this.canvas.remove())
     try {
+      this.canvas.setAttribute('aria-label', 'Modelo 3D da assistente Luna')
+      this.releases.push(() => this.canvas.removeEventListener('webglcontextlost', this.onContextLost))
+      this.canvas.addEventListener('webglcontextlost', this.onContextLost)
+      this.releases.push(() => this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored))
+      this.canvas.addEventListener('webglcontextrestored', this.onContextRestored)
       this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, alpha: true, powerPreference: 'low-power' })
+      this.releases.push(() => this.renderer.dispose(), () => this.renderer.setAnimationLoop(null))
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
       this.renderer.outputColorSpace = THREE.SRGBColorSpace
       this.container.appendChild(this.canvas)
@@ -56,31 +66,39 @@ export class SceneRuntime {
       const webglRenderer = gl.getParameter(gl.RENDERER) as string
       console.info('[M0-B] WebGL:', webglVersion, '| Renderer:', webglRenderer)
       this.renderBudget = new RenderBudget(() => this.diagnostics?.reportTransition())
+      this.releases.push(() => this.renderBudget.dispose())
       this.diagnostics = import.meta.env.DEV
         ? new SceneDiagnostics(this.container, this.renderer, webglVersion, webglRenderer, () => this.renderBudget.current)
         : null
+      this.releases.push(() => this.diagnostics?.dispose())
+      this.resizeObserver = new ResizeObserver(() => {
+        // A queued observer delivery may outlive disconnect().
+        if (this.disposed) return
+        const width = Math.max(this.container.clientWidth, 1)
+        const height = Math.max(this.container.clientHeight, 1)
+        this.camera.aspect = width / height
+        this.camera.updateProjectionMatrix()
+        this.renderer.setSize(width, height, false)
+        this.diagnostics?.recordResize()
+      })
+      this.releases.push(() => this.resizeObserver.disconnect())
+      this.resizeObserver.observe(this.container)
     } catch (error) {
-      this.canvas.removeEventListener('webglcontextlost', this.onContextLost)
-      this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored)
-      this.canvas.remove()
+      const cleanupErrors = this.releaseResources()
+      // Cleanup failures are secondary evidence; never mask the init failure.
+      if (cleanupErrors.length) {
+        try { console.error('[M0-B] Falhas no rollback de SceneRuntime:', cleanupErrors) } catch { /* Preserve the original error even if logging fails. */ }
+      }
       throw error
     }
-
-    this.resizeObserver = new ResizeObserver(() => {
-      const width = Math.max(this.container.clientWidth, 1)
-      const height = Math.max(this.container.clientHeight, 1)
-      this.camera.aspect = width / height
-      this.camera.updateProjectionMatrix()
-      this.renderer.setSize(width, height, false)
-      this.diagnostics?.recordResize()
-    })
-    this.resizeObserver.observe(this.container)
   }
 
   start(onFrame: (delta: number) => void): void {
+    if (this.disposed) return
     const gl = this.renderer.getContext()
     this.renderBudget.resetClock()
     this.renderer.setAnimationLoop(() => {
+      if (this.disposed) return
       const now = performance.now()
       const delta = this.renderBudget.sample(now)
       this.diagnostics?.recordCallback(delta === null, this.renderBudget.current.mode === 'suspended')
@@ -111,15 +129,18 @@ export class SceneRuntime {
     this.renderer.setAnimationLoop(null)
   }
 
+  private releaseResources(): unknown[] {
+    this.disposed = true
+    const errors: unknown[] = []
+    while (this.releases.length) {
+      const release = this.releases.pop()!
+      try { release() } catch (error) { errors.push(error) }
+    }
+    return errors
+  }
+
   dispose(): void {
-    this.stop()
-    this.renderBudget.dispose()
-    this.diagnostics?.dispose()
-    this.resizeObserver.disconnect()
-    this.canvas.removeEventListener('webglcontextlost', this.onContextLost)
-    this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored)
-    this.renderer.dispose()
-    this.canvas.remove()
-    this.scene.clear()
+    const errors = this.releaseResources()
+    if (errors.length) throw new AggregateError(errors, 'Falha ao liberar SceneRuntime')
   }
 }

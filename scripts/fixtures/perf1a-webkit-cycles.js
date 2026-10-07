@@ -54,5 +54,25 @@
   const retry = [...document.querySelectorAll('button')].find(button => button.textContent === 'Tentar novamente')
   assert(retry, 'retry control missing'); retry.click()
   await until(() => harness.snapshot().presentation.phase === 'ready', 'runtime retry failed')
-  window.webkit.messageHandlers.perf.postMessage(JSON.stringify({ type: 'lifecycle-result', pass: true, before, running, cancelling, final: harness.snapshot(), metrics: window.__fixture.metrics(), samples }))
+  // Fail after real renderer, RenderBudget, diagnostics and native observation.
+  const priorGeneration = harness.snapshot().presentation.generation
+  const callsBeforeFailure = window.__fixture.metrics()
+  window.__fixture.failNextObserve()
+  harness.recreate()
+  await until(() => harness.snapshot().presentation.phase === 'error' && harness.snapshot().canvases === 0, 'partial init failure not surfaced/cleaned')
+  await wait(100)
+  const partialFailure = { state: harness.snapshot(), metrics: window.__fixture.metrics() }
+  assert(partialFailure.state.presentation.generation > priorGeneration, 'missing failed generation')
+  assert(partialFailure.metrics.observers === 0 && partialFailure.metrics.rafs === 0 && partialFailure.metrics.intervals === 0 && partialFailure.metrics.listeners === 0, 'partial init registrations survive: ' + JSON.stringify(partialFailure))
+  window.dispatchEvent(new Event('blur')); document.dispatchEvent(new Event('visibilitychange'))
+  await wait(100)
+  assert(harness.snapshot().presentation.phase === 'error' && harness.snapshot().canvases === 0, 'late event changed failed generation')
+  const partialRetry = [...document.querySelectorAll('button')].find(button => button.textContent === 'Tentar novamente')
+  assert(partialRetry, 'partial init retry control missing'); partialRetry.click()
+  await until(() => harness.snapshot().presentation.phase === 'ready', 'partial init retry failed')
+  const afterPartialRetry = { state: harness.snapshot(), metrics: window.__fixture.metrics() }
+  assert(afterPartialRetry.state.presentation.generation > partialFailure.state.presentation.generation, 'retry reused failed generation')
+  assert(afterPartialRetry.state.canvases === 1 && afterPartialRetry.metrics.observers === 1 && afterPartialRetry.metrics.intervals === 1 && afterPartialRetry.metrics.listeners === 3 && afterPartialRetry.metrics.rafs <= 1, 'partial init retry duplicates registrations')
+  assert(afterPartialRetry.metrics.starts === callsBeforeFailure.starts && afterPartialRetry.metrics.cancels === callsBeforeFailure.cancels && afterPartialRetry.state.conversation.sessionId === partialFailure.state.conversation.sessionId, 'partial failure/retry changed Interaction')
+  window.webkit.messageHandlers.perf.postMessage(JSON.stringify({ type: 'lifecycle-result', pass: true, before, running, cancelling, final: harness.snapshot(), metrics: window.__fixture.metrics(), partialFailure, afterPartialRetry, samples }))
 })().catch(error => window.webkit.messageHandlers.perf.postMessage(JSON.stringify({ type: 'lifecycle-result', pass: false, error: String(error), stack: error.stack })))
