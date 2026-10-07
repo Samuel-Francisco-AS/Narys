@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **EM EXECUÇÃO — PERF-1A = PASS e integrada à main; PERF-1B — Economy Shell em IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente.**
+Estado: **EM EXECUÇÃO — PERF-1A = PASS; PERF-1B = PASS com dívidas registradas; próximo checkpoint: PERF-1C — Headless Runtime.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -231,6 +231,8 @@ Comparar Economy contra Presence no mesmo cenário:
 Não fixar antecipadamente um percentual obrigatório de RAM/CPU: o ganho precisa ser factual e será registrado.
 
 ## PERF-1C — Headless Runtime
+
+**Estado:** PRÓXIMO CHECKPOINT — liberado após integração da PERF-1B.
 
 **Objetivo:** permitir que o Luna Core continue operando sem janela WebView persistente.
 
