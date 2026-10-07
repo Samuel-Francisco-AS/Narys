@@ -2356,6 +2356,9 @@ desta trilha.
 
 **C1 PASS · C2 PASS · C3 PASS · C4 PASS · LR-8.5C PASS TÉCNICO.**
 
-A branch `lr-8.5c-safe-handoff` está tecnicamente apta para o procedimento
-padrão de fechamento/merge. Este registro não executa o merge nem altera
-`main`.
+`lr-8.5c-safe-handoff` foi integrada à `main` por fast-forward em 06/10/2026,
+preservando os 12 commits auditados da trilha. A `main` avançou de
+`0024fec735e3f6cb2461dbdeba8fa6aa4be32d32` para
+`2fbf00d2b1ed6af54a621359fb8b003125383d3c` sem divergência. **LR-8.5C está
+encerrada em PASS técnico. Próxima fase liberada: PERF-1 — Adaptive Presence &
+Economy Mode.**
