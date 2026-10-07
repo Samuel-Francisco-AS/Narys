@@ -1,6 +1,6 @@
 # PERF-1C — Headless Runtime
 
-**Estado:** PERF-1C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente
+**Estado:** AUDITORIA INDEPENDENTE TÉCNICA = PASS — aguardando gate humano final / decisão sobre dívidas
 **Branch:** `perf-1c-headless-runtime`  
 **Base:** `main@cc5bc8a50dcfc66f9c0b178b75df2cb7da05663d`  
 **HEAD remoto verificado antes de editar:** `9d51c0b8a9e1cbbf9002917538aa7fc02ade04dd`
@@ -647,3 +647,164 @@ O arquivo de evidência registra SHA-256 do binário instrumentado e do build
 normal; o build normal não contém as variáveis/endpoints de ativação do probe.
 
 **PERF-1C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente**.
+
+
+## Auditoria independente técnica — 07/10/2026
+
+**Resultado:** **PASS técnico. Nenhuma FIX de arquitetura Headless é exigida.**
+
+A auditoria independente revisou o commit
+`09b2052864119670f541ae2d0b442370cac6da48`, o diff contra o plano inicial,
+o broker, lifecycle Tauri, Conversation, SummaryWorker, capabilities, probe nativo
+e evidências registradas.
+
+### Broker e policy
+
+O desacoplamento principal está correto:
+
+- `TaskAttachmentPolicy::UiBound` permanece default;
+- somente Conversation de produto entra explicitamente como
+  `HeadlessSafe`;
+- `TaskEventSink::UiBound` continua propagando `channel_closed`;
+- `TaskEventSink::HeadlessSafe` retém estado/eventos no broker e remove somente
+  o subscriber visual quando o Channel falha;
+- broker é escopado por TaskId + session id;
+- sequência monotônica rejeita duplicação/out-of-order;
+- replay é bounded por 128 eventos / 256 KiB;
+- gap de replay é sinalizado por `replay_complete=false`;
+- terminal permanece observável mesmo quando evento grande não cabe no replay;
+- subscriber novo não cria tarefa/provider call.
+
+A perda da WebView não virou autorização global para execução oculta:
+Orchestrator, TaskGraph, diagnósticos e demais registros continuam UiBound.
+
+### Conversation e reidratação
+
+A autoridade de cancelamento foi corretamente retirada do cleanup React para a
+capability HeadlessSafe.
+
+O fluxo de recovery:
+
+1. obtém a única sessão selecionada do processo;
+2. carrega SQLite;
+3. observa o TaskId já existente;
+4. anexa novo subscriber;
+5. não chama `start_conversation_task`;
+6. descarta callbacks stale/task errado/sequência duplicada;
+7. recarrega resposta persistida no terminal.
+
+O tratamento de replay truncado é conservador: não apresenta chunks antigos como
+prefixo completo; mostra estado factual e só concatena eventos futuros.
+
+`CurrentRunSessions::selected()` falha em ambiguidade, evitando escolher sessão
+arbitrária.
+
+### Lifecycle Headless
+
+`tauri.conf.json` usa `create:false` e `presentation::reopen()` cria a main
+a partir da configuração autoritativa.
+
+Close Presentation:
+
+- desanexa subscriber;
+- cancela somente registros UiBound;
+- destrói todas as WebViews de Presentation;
+- no Linux termina explicitamente o WebProcess antes de `destroy()`;
+- não usa hide/minimize/off-screen como keep-alive.
+
+Reopen:
+
+- usa o plugin single-instance como único mecanismo;
+- cria/foca exatamente uma main;
+- preserva instâncias do Core/TaskRegistry/ProviderRuntime;
+- mantém Economy/Presence por preferência persistida.
+
+Quit:
+
+- bloqueia novos registros;
+- solicita cancelamento;
+- sinaliza SummaryWorker;
+- aguarda cooperativamente com deadline de 5 s;
+- usa saída programática para não ser retida pelo keep-alive.
+
+A distinção Close / Reopen / Quit está materializada, não apenas documentada.
+
+### Evidência nativa
+
+O probe usa WebViews Tauri/Wry reais e frontend de produção embutido. A fixture
+de provider é loopback, mas atravessa adapter Groq, preflight, SecretStore,
+Scheduler, SQLite e Conversation reais.
+
+A auditoria considera a evidência suficiente para o gate técnico:
+
+- oito estados fechados com zero WebViews e zero WebKitWebProcess;
+- sete reopens por segunda ativação;
+- TaskRegistry/ProviderRuntime preservados;
+- mesma session/TaskId;
+- uma única provider call para a tarefa reanexada;
+- completion sem UI;
+- cancelamento do mesmo TaskId;
+- SummaryWorker concluindo sem UI;
+- Quit com tarefa ativa persistindo cancelled e exit 0;
+- nenhum helper da árvore observada sobrevivendo ao Quit;
+- Economy e Presence reabertas sem regressão detectada.
+
+A permanência de um `WebKitNetworkProcess` compartilhado não equivale a uma
+WebView oculta e não invalida o gate Headless. O requisito relevante é ausência
+de janela/WebView/renderer/WebProcess de renderização.
+
+### Performance
+
+As duas rodadas Economy e duas Headless são comparáveis dentro do mesmo binário
+release/probe e mesmo processo/Core.
+
+A evidência registra aproximadamente:
+
+- Economy: 530,44 MiB RSS médio / 6,4335% de um core;
+- Headless: 224,01 MiB RSS / 0,267% de um core;
+- zero WebViews/WebKitWebProcess no estado Headless;
+- redução observada de ~57,77% de RSS e ~95,85% do CPU idle nesta fixture.
+
+Esses valores permanecem específicos desta máquina, software rendering e janela
+de medição; não são promessa universal.
+
+### Dívida de MSRV / dependency resolution
+
+O manifesto do produto ainda declara `rust-version = "1.77.2"`.
+
+A introdução de `tauri-plugin-single-instance = 2.3.7` resolveu no lock Linux
+`zbus 5.19.0`, cuja crate declara MSRV Rust 1.87. Portanto o MSRV efetivo da
+árvore Linux atual é maior que o manifesto.
+
+Isso **não invalida a implementação Headless validada no ambiente atual
+Rust 1.98.1**, mas é uma inconsistência real de build contract.
+
+Tratamento recomendado, fora do gate arquitetural da 1C:
+
+- decidir se Narys ainda promete Rust 1.77.2;
+- se sim, controlar/pinar uma resolução compatível e validar a toolchain;
+- se não, atualizar o `rust-version` para o mínimo efetivamente suportado e
+  registrar a mudança.
+
+Não mascarar o problema apenas porque o toolchain local é mais novo.
+
+### Riscos/dívidas restantes
+
+Permanecem como gate humano ou dívida, não como falha técnica comprovada:
+
+1. provider comercial autorizado em Conversation Headless;
+2. launcher físico GNOME/Wayland em vez do segundo binário controlado pelo probe;
+3. Presence real após reopen com inspeção humana de transparência/Idle/Wave;
+4. endurance mais longo;
+5. corrida rara close ↔ segunda ativação;
+6. comportamento de falha parcial ao destruir múltiplas janelas;
+7. MSRV efetivo da árvore Linux;
+8. packaging sandboxado futuro (Flatpak/Snap) precisará declarar acesso DBus para
+   single-instance.
+
+### Decisão
+
+`PERF-1C = PASS TÉCNICO / AGUARDANDO GATE HUMANO FINAL OU DECISÃO EXPLÍCITA DE
+CONVERTER OS GATES RESTANTES EM DÍVIDA`.
+
+Não avançar automaticamente para PERF-1D sem fechamento documental da 1C.
