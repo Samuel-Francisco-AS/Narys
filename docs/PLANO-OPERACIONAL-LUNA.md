@@ -469,11 +469,11 @@ jitter, cooldown, circuit breaker, budgets e telemetria. Quota/custo/saúde
 desconhecidos permanecem explicitamente desconhecidos; nenhuma regra comercial
 mutável é hardcoded no Luna Core.
 
-**LR-8.5A e LR-8.5B estão encerradas em PASS técnico em 06/10/2026. Próxima ação: LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff.** A LR-8E fechou com painel operacional, auditoria independente, gate humano A–D/M e bateria automatizada determinística E–L. O contrato detalhado, limitações residuais e evidências estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md), [LR-8E-FINAL-GATE.md](LR-8E-FINAL-GATE.md) e [LR-8E-AUTOMATED-GATE-E-L.md](LR-8E-AUTOMATED-GATE-E-L.md).
+**LR-8.5A, LR-8.5B e LR-8.5C estão encerradas em PASS técnico em 06/10/2026; LR-8.5 está concluída. Próxima ação: PERF-1 — Adaptive Presence & Economy Mode.** A LR-8E fechou com painel operacional, auditoria independente, gate humano A–D/M e bateria automatizada determinística E–L. O contrato detalhado, limitações residuais e evidências estão em [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md), [LR-8E-FINAL-GATE.md](LR-8E-FINAL-GATE.md) e [LR-8E-AUTOMATED-GATE-E-L.md](LR-8E-AUTOMATED-GATE-E-L.md).
 
 ## 12.5. LR-8.5 — Cognitive Resource Economy & Allocation
 
-**Estado: EM EXECUÇÃO — LR-8.5A/B = PASS; LR-8.5C é a próxima subfase antes da PERF-1/LR-9.**
+**Estado: PASS TÉCNICO — LR-8.5A/B/C concluídas e integradas à `main` em 06/10/2026. Próxima fase: PERF-1 antes da LR-9.**
 
 A LR-8 fecha capacidade operacional de cada provider; a LR-8.5 passa a decidir
 qual recurso cognitivo vale consumir entre opções heterogêneas.
@@ -768,7 +768,7 @@ Até a UIP-6, ajustes como elevar temporariamente o output budget são aceitáve
 
 ## 24. Próxima ação recomendada
 
-Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7 encerrada em PASS completo em 03/10/2026** e **LR-8 encerrada em PASS completo em 05/10/2026**, a trilha já possui múltiplos Cognitive Providers reais, roteamento configurável, TaskGraph distribuído e Rate Limit Manager completo com admission, accounting, budgets, resilience e painel operacional. **A próxima ação estrutural é LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff**, após os PASS técnicos de LR-8.5A/B e antes da PERF-1/LR-9. A dívida de estabilidade espacial da UIP-4 no Wayland permanece para investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual continua documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
+Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 encerradas em PASS funcional**, **LR-7 encerrada em PASS completo em 03/10/2026** e **LR-8 encerrada em PASS completo em 05/10/2026**, a trilha já possui múltiplos Cognitive Providers reais, roteamento configurável, TaskGraph distribuído e Rate Limit Manager completo com admission, accounting, budgets, resilience e painel operacional. **A próxima ação estrutural é PERF-1 — Adaptive Presence & Economy Mode**, após o PASS técnico completo da LR-8.5 e antes da LR-9. A dívida de estabilidade espacial da UIP-4 no Wayland permanece para investigação nativa dedicada. O trabalho de Blender segue independente; o offset dos brincos no GLB atual continua documentado como dívida do pipeline de exportação, sem evidência de defeito no runtime Three.js.
 
 ## 25. Definição da primeira grande entrega funcional
 
