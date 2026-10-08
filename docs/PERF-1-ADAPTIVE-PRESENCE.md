@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **EM EXECUÇÃO — PERF-1A/B/C = PASS; PERF-1D = PASS técnico após FIX-1, aguardando gate humano final.**
+Estado: **PASS — PERF-1A/B/C/D concluídas em 07/10/2026; aguardando somente integração final na main.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -250,7 +250,7 @@ Plano executável e contratos implementados: [PERF-1C — Headless Runtime](PERF
 
 ## PERF-1D — Adaptive Presence
 
-**Estado:** PASS TÉCNICO após FIX-1 — aguardando gate humano final.
+**Estado:** PASS — concluída em 07/10/2026 após FIX-1 e gate humano.
 Último checkpoint formal da PERF-1, que permanece aberta.
 
 Contratos, evidências e gates: [PERF-1D — Adaptive Presence](PERF-1D-ADAPTIVE-PRESENCE.md).
@@ -401,3 +401,77 @@ PERF-1 fecha quando:
 8. nenhuma regressão deliberada de latência cognitiva é introduzida;
 9. a arquitetura preserva Presentation como cliente descartável do Core;
 10. a próxima expansão operacional pode consumir o orçamento recuperado sem depender da Presence.
+
+
+## Fechamento da PERF-1 — 07/10/2026
+
+**Resultado final:** **PASS**.
+
+Os quatro checkpoints formais foram concluídos:
+
+- PERF-1A — Baseline & Presentation Lifecycle: PASS;
+- PERF-1B — Economy Shell: PASS;
+- PERF-1C — Headless Runtime: PASS;
+- PERF-1D — Adaptive Presence: PASS após FIX-1.
+
+A fase comprovou o princípio central:
+
+> Presence é um recurso de apresentação alocado conforme necessidade; o Narys
+> Core não depende de uma WebView ou do stack 3D para existir e trabalhar.
+
+### Contratos consolidados
+
+- Economy 2D é o default;
+- Presence 3D permanece opt-in explícito;
+- Headless real existe com zero WebViews;
+- Close Presentation é distinto de Quit;
+- Conversation pode ser HeadlessSafe;
+- tarefas UiBound continuam fail-closed;
+- reabertura preserva Core/TaskId e não duplica provider call;
+- policy persistida possui Economy/Presence/Headless/Auto;
+- Auto opera somente Economy ↔ Headless;
+- Auto nunca ativa Presence;
+- Attention pendente força Economy até acknowledgment;
+- draft/UiBound/janelas auxiliares protegem contra teardown destrutivo;
+- transições possuem hysteresis e proteção contra decisões stale;
+- telemetria Adaptive é local, bounded e sem conteúdo de conversa;
+- nenhuma redução cognitiva foi usada para obter economia.
+
+### Evidência de performance preservada
+
+As medições da fase registraram redução material de custo ao remover Presentation:
+
+- Economy eliminou Three.js/WebGL/GLB no caminho padrão;
+- Headless eliminou WebViews/WebKitWebProcess de renderização;
+- os benchmarks observados mostraram redução substancial de RSS e CPU nos
+  estados Economy/Headless;
+- 15 ciclos Adaptive não mostraram crescimento grosseiro na coleta curta.
+
+Os números permanecem específicos do ambiente medido e não são promessa
+cross-platform.
+
+### Dívidas consolidadas
+
+As dívidas abaixo não bloqueiam o PASS e permanecem explícitas:
+
+1. refinamento de Home/Economy e ergonomia extrema;
+2. overlay DEV ocultando o controle de Close em alguns layouts;
+3. rollback mais forte para falhas nativas parciais de janela;
+4. comportamento cross-platform e packaging DBus;
+5. endurance prolongado;
+6. MSRV declarado incompatível com parte da árvore Linux atual;
+7. reserva `ui_suspended` para Headless manual/transitório quando surgirem
+   callers nativos/agents capazes de iniciar UiBound sem WebView;
+8. integração real do Attention contract com approvals/tools;
+9. launcher/recuperação de UX mais polida para desenvolvimento;
+10. NARYS-TERM e NARYS-NORM permanecem trilhas separadas.
+
+Nenhuma dessas dívidas justifica PERF-1E.
+
+### Próximo roadmap
+
+Com a PERF-1 encerrada, o roadmap pode voltar à expansão funcional planejada,
+começando por **LR-9 — Luna Voice / feedback natural**, salvo decisão posterior
+de repriorização.
+
+**PERF-1 encerrada em PASS.**
