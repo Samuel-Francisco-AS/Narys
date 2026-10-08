@@ -790,3 +790,22 @@ da fase:
 
 Próxima ação: fechamento documental e integração da **PERF-1 inteira** na
 `main`.
+
+
+## Integração na main — 07/10/2026
+
+A branch `perf-1d-adaptive-presence` foi integrada à `main` por
+**fast-forward** após PASS técnico, FIX-1 aprovada em segunda auditoria e gate
+humano final.
+
+- base anterior da `main`: `e998bcee7f586effad1d8c8245d14f3fa4c020ef`;
+- HEAD integrado da branch:
+  `df389394001f19307ba175e51bbc7edc4cee858f`;
+- relação no momento da integração: **14 commits à frente / 0 atrás**;
+- nenhum squash, rebase, force-push ou perda de histórico;
+- nenhum PR foi necessário.
+
+A branch remota permanece temporariamente disponível para sincronização e
+limpeza segura pelo mantenedor.
+
+**PERF-1D permanece PASS. PERF-1 permanece PASS completo.**
