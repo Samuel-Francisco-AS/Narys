@@ -314,20 +314,58 @@ Candidatos iniciais:
 
 Esses agentes devem obedecer às mesmas políticas de orçamento, permissões e observabilidade do Luna Core.
 
-## 9. LLM de saída / Luna Voice
+### 8.1. Planos cognitivo, de execução e de observação
 
-Workers internos podem produzir dados estruturados e secos. A resposta apresentada ao usuário passa por uma camada de saída.
+A partir da LR-9, agentes e providers não confundem interface visual com
+capacidade de agir.
 
-Responsabilidades:
+~~~text
+Cognitive Plane
+    ↓
+Execution Broker → Structured Exec / PTY → OS
+    ↓
+Operational Trace Bus
+    ↓
+Observation Plane / Terminal Surface
+~~~
 
-- receber TaskResult resumido, não todo o material bruto;
-- receber identidade e memórias relevantes;
-- produzir a fala final coerente da Luna;
-- ter fallback de modelo;
-- não ser a fonte da memória;
-- não reescrever fatos ou ações executadas de maneira incompatível com o TaskResult.
+O **Execution Broker** é a fronteira de efeitos reais. Ele mantém owner/origin,
+TaskId, workspace scope, cwd, lifecycle, cancelamento, provenance e ligação com
+policy/approval.
 
-A mesma camada pode transformar eventos complexos em feedback natural quando templates locais não forem suficientes.
+A **Terminal Surface** é consumidora: fechar, ocultar ou atrasar a UI não pode
+parar a execução.
+
+SpecialistAgents não digitam silenciosamente na PTY humana. Sessões agentivas
+possuem ownership próprio; compartilhamento exige handoff explícito.
+
+Observabilidade segue passive trace: adapters transportam somente eventos já
+produzidos naturalmente pelo backend. Nenhum prompt ou inferência adicional
+existe apenas para gerar telemetria humana.
+
+Plano: [LR-9 — Operational Terminal & Cognitive Trace Runtime](NARYS-TERMINAL-RUNTIME-TRACK.md).
+
+## 9. LLM de saída / Luna Voice — trilha futura
+
+O conceito continua válido, mas foi retirado da posição LR-9 em 08/10/2026.
+
+Uma futura camada de saída pode receber resultado canônico resumido, identidade,
+memórias relevantes e constraints de apresentação para produzir comunicação
+coerente.
+
+Responsabilidades preservadas:
+
+- não ser fonte da memória;
+- não alterar fatos executados;
+- possuir fallback;
+- evitar logs/tokens brutos;
+- usar templates locais quando suficientes;
+- não impor segunda inferência a toda resposta.
+
+Essa camada não participa do Operational Trace e não fabrica "pensamentos" ou
+progresso para preencher o Terminal.
+
+Registro: [NARYS-VOICE](NARYS-VOICE-FUTURE-TRACK.md).
 
 ## 10. Feedback durante operações
 
