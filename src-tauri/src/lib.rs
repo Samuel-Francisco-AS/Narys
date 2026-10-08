@@ -3,6 +3,7 @@ mod cognition;
 pub mod cognitive_resources;
 mod luna;
 pub mod operational_trace;
+pub mod execution;
 mod persistence;
 mod presentation;
 mod adaptive;
@@ -23,8 +24,10 @@ pub fn run() {
             });
         }))
         .manage(presentation::PresentationHost::default())
-        .manage(operational_trace::OperationalTraceBus::process_wide())
-        .setup(|app| {
+        .manage(operational_trace::OperationalTraceBus::process_wide());
+    #[cfg(target_os = "linux")]
+    let builder = builder.manage(execution::ExecutionBroker::process_wide());
+    let builder = builder.setup(|app| {
             let directory = app.path().app_local_data_dir()?;
             let db = persistence::database::Database::new(directory.clone());
             if let Ok(conn) = db.open() {
@@ -340,6 +343,14 @@ pub fn run() {
                 app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().events.detach_main();
             }
             tauri::RunEvent::Exit => {
+                #[cfg(target_os = "linux")]
+                {
+                    let broker = app.state::<std::sync::Arc<execution::ExecutionBroker>>();
+                    broker.request_shutdown();
+                    if !broker.wait_shutdown(execution::SHUTDOWN_DEADLINE) {
+                        eprintln!("[Execution] shutdown deadline exceeded");
+                    }
+                }
                 app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().shutdown();
                 app.state::<std::sync::Arc<cognition::summary::SummaryWorker>>().shutdown();
             }

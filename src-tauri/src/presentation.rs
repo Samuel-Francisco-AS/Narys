@@ -60,16 +60,24 @@ pub fn request_quit(app: &AppHandle) {
     crate::adaptive::quit(app);
     app.state::<Arc<TaskRegistry>>().shutdown();
     app.state::<Arc<SummaryWorker>>().shutdown();
+    #[cfg(target_os = "linux")]
+    app.state::<Arc<crate::execution::ExecutionBroker>>().request_shutdown();
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
         // Let cooperative cancellation persist task outcomes; bounded shutdown cannot hang.
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
-        while (handle.state::<Arc<TaskRegistry>>().active_count() > 0 || handle.state::<Arc<TaskRegistry>>().worker_count() > 0 || handle.state::<Arc<TaskRegistry>>().has_foreground_provider_work() || !handle.state::<Arc<SummaryWorker>>().stopped())
+        while (handle.state::<Arc<TaskRegistry>>().active_count() > 0 || handle.state::<Arc<TaskRegistry>>().worker_count() > 0 || handle.state::<Arc<TaskRegistry>>().has_foreground_provider_work() || !handle.state::<Arc<SummaryWorker>>().stopped() || execution_pending(&handle))
             && tokio::time::Instant::now() < deadline {
             tokio::time::sleep(std::time::Duration::from_millis(25)).await;
         }
         handle.exit(0);
     });
+}
+fn execution_pending(_app: &AppHandle) -> bool {
+    #[cfg(target_os = "linux")]
+    { return !_app.state::<Arc<crate::execution::ExecutionBroker>>().stopped(); }
+    #[cfg(not(target_os = "linux"))]
+    { false }
 }
 pub fn should_keep_alive(_app: &AppHandle, code: Option<i32>) -> bool {
     // Also keep the loop alive if windows close during cooperative Quit.

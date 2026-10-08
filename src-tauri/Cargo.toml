@@ -12,6 +12,7 @@ default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 perf1c-probe = ["tauri/dynamic-acl"]
 perf1d-probe = ["perf1c-probe"]
+lr9b-probe = ["perf1c-probe"]
 
 [lib]
 name = "assistente_3d_lib"
@@ -31,6 +32,9 @@ tauri-plugin-stronghold = { version = "2.3.2", default-features = false }
 getrandom = "0.3"
 keyring = { version = "=3.6.3", default-features = false, features = ["sync-secret-service", "crypto-rust", "apple-native", "windows-native"] }
 [target.'cfg(target_os = "linux")'.dependencies]
+portable-pty = { version = "=0.9.0", default-features = false }
+# Already resolved by Tauri/portable-pty; nonblocking descriptors and managed signals.
+libc = "=0.2.189"
 # Same binding already used by Wry; official renderer teardown (WebKit >=2.34).
 webkit2gtk = { version = "=2.0.2", features = ["v2_38"] }
 dbus-secret-service = { version = "=4.0.1", default-features = false }
