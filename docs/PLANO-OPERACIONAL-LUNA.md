@@ -842,7 +842,7 @@ O fechamento em 07/10/2026 consolida:
 - Attention com recuperação segura em Economy;
 - dívidas não bloqueantes preservadas documentalmente.
 
-Após integração final da PERF-1 na `main`, a próxima fase funcional prevista é
+A PERF-1 está integrada à `main`. A próxima fase funcional prevista é
 **LR-9 — Luna Voice / feedback natural**, salvo repriorização explícita.
 
 NARYS-TERM e NARYS-NORM permanecem trilhas separadas e não alteram esse
