@@ -1,6 +1,6 @@
 # LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** EM ANDAMENTO — LR-9A encerrada em PASS e integrada; LR-9B IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna em 08/10/2026.
+**Estado:** EM ANDAMENTO — LR-9A/B encerradas, auditadas e integradas; LR-9C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.
 **Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
 registrada originalmente durante a PERF-1B em 07/10/2026.  
 **Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
@@ -71,9 +71,11 @@ Eventos críticos não podem ser descartados silenciosamente por otimização vi
 
 ### 2.5. Terminal is not Authority
 
-A superfície visual não concede permissão para executar nada. Autoridade
-permanece em Luna Core, capabilities, workspace scope, policies, approvals e
-Execution Broker.
+A superfície visual não define admission/policy ou execution authority agentiva.
+Autoridade de processo permanece no Execution Broker. Na LR-9C, a boundary
+humana específica permite à main controlar o shell humano durante uma attachment:
+é uma ampliação intencional da trust boundary, registrada em SECURITY, sem
+conceder authority a agentes/providers ou transformar Presentation em Core.
 
 ## 3. Três planos
 
@@ -367,6 +369,12 @@ com provenance; close/reopen sem processo órfão.
 
 ### LR-9C — Terminal Surface & Stream Management
 
+**Estado:** IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.
+Home foi reutilizada como Terminal lazy, com registry humano process-wide,
+reattach, Channels raw/batched, input/resize bounded, Activity virtualizada e
+lifecycle Headless independente da UI. Não há adapters LR-9D ou execução agentiva.
+[Arquitetura, budgets, segurança, testes e evidências](LR-9C-TERMINAL-SURFACE-STREAMS.md).
+
 Substituir a Home vazia por superfície operacional com PTY, traces multi-source,
 filtros, batches, coalescing, virtualização/scrollback bounded e cadence
 adaptativa.
@@ -433,10 +441,9 @@ Registro:
 
 ## 16. Próxima ação
 
-LR-9A está encerrada em PASS e integrada. A **LR-9B está como implementação
-candidata**, com trabalho interrompido recuperado e gates técnicos concluídos.
-Próxima ação: **auditoria independente da Luna**, antes de integração ou avanço
-funcional para LR-9C.
+LR-9A e LR-9B estão encerradas em PASS, auditadas e integradas.
+A **LR-9C está como implementação candidata**, aguardando auditoria independente
+da Luna. Não há PASS definitivo, PR ou merge nesta entrega.
 
-LR-9C/D/E permanecem sem implementação; a camada visual continua reservada à
-LR-9C e adapters reais à LR-9D.
+LR-9D/E permanecem sem implementação. Adapters cognitivos/agentivos reais,
+approvals, sandbox e handoff continuam nas fases seguintes.

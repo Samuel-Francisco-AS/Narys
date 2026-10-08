@@ -1,0 +1,3601 @@
+{
+  "pass": true,
+  "realTauri": true,
+  "realProductionReactXterm": true,
+  "realChannels": true,
+  "providerInvocationRequestedByHarness": false,
+  "binarySha256": "7e12cb92ca0e1a7fcd476db11a32c662512fe3e144498437f9873c02578d8e5b",
+  "performance": [
+    {
+      "scenario": "Economy Conversation idle, Terminal not loaded",
+      "seconds": 10.405,
+      "cpuPercentOneCore": 9.226,
+      "rssMinMiB": 580.27,
+      "rssMaxMiB": 581.25,
+      "processChurn": []
+    },
+    {
+      "scenario": "Terminal idle",
+      "seconds": 10.458,
+      "cpuPercentOneCore": 10.232,
+      "rssMinMiB": 602.59,
+      "rssMaxMiB": 603.62,
+      "processChurn": []
+    },
+    {
+      "scenario": "Terminal visual PTY burst >6 MiB",
+      "seconds": 10.516,
+      "cpuPercentOneCore": 43.458,
+      "rssMinMiB": 602.71,
+      "rssMaxMiB": 642.54,
+      "processChurn": []
+    },
+    {
+      "scenario": "Operational Trace burst 6000 facts",
+      "seconds": 11.166,
+      "cpuPercentOneCore": 51.942,
+      "rssMinMiB": 634.27,
+      "rssMaxMiB": 655.62,
+      "processChurn": []
+    },
+    {
+      "scenario": "Headless real PTY alive",
+      "seconds": 10.455,
+      "cpuPercentOneCore": 1.435,
+      "rssMinMiB": 271.38,
+      "rssMaxMiB": 271.38,
+      "processChurn": []
+    }
+  ],
+  "headlessWebKitWebProcesses": [],
+  "headlessBridgeWorkers": 0,
+  "reattachSameSessionPid": true,
+  "quitElapsedSeconds": 0.366,
+  "quitExitCode": 0,
+  "remainingExecutionPids": [],
+  "phase": "LR-9C",
+  "candidateStatus": "IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna",
+  "base": "0080dcf9a4536bc8e07cdb34b67848d1520853f3",
+  "branch": "lr-9c-terminal-surface-streams",
+  "rawReportSha256": "eef045edbc7bdf7ff887789e36a1eacde13fb9c7fc14b3b68d9fa8d690333876",
+  "environment": {
+    "kernel": "7.2.8-200.fc44.x86_64",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Fedora 1.98.1-1.fc44)",
+    "node": "v24.18.0",
+    "webkit": "2.54.0",
+    "session": "Wayland",
+    "binary": "debug + lr9c-probe; production frontend embedded",
+    "rendering": "software",
+    "home": "isolated temporary canonical HOME",
+    "compileConcurrent": false,
+    "devServerInMeasuredTree": false
+  },
+  "measurementLimits": [
+    "CPU percent of one core; 1 Hz sampling after 10 s idle warmup",
+    "RSS sum can double-count shared pages; not PSS",
+    "Burst sample includes return to idle; short child jobs may escape sampling",
+    "Diagnostic single-machine debug/probe; no universal or release performance promise"
+  ],
+  "providerAdmissionsAcrossSnapshots": 0,
+  "snapshots": [
+    {
+      "sequence": 1,
+      "action": "snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 2,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 3,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 4,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 5,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 6,
+      "action": "lr9c_terminal",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 7,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 8,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 9,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 1,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 10,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 1,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 11,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 1,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 12,
+      "action": "lr9c_start",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 1,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": null,
+        "status": null,
+        "trace": 0
+      }
+    },
+    {
+      "sequence": 13,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "1",
+          "pid": 36559,
+          "retainedBytes": 16,
+          "retainedChunks": 1,
+          "totalBytes": 16,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 80,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 24,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 14,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "1",
+          "pid": 36559,
+          "retainedBytes": 16,
+          "retainedChunks": 1,
+          "totalBytes": 16,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 80,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 24,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 15,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36559,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 17,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 16,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36559,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 17,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 17,
+      "action": "lr9c_burst",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36559,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 17,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 18,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634967,
+          "gap": true,
+          "latest": "1737",
+          "pid": 36559,
+          "retainedBytes": 1656864,
+          "retainedChunks": 512,
+          "totalBytes": 6291831,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 19,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634967,
+          "gap": true,
+          "latest": "1737",
+          "pid": 36559,
+          "retainedBytes": 1656864,
+          "retainedChunks": 512,
+          "totalBytes": 6291831,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 20,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634967,
+          "gap": true,
+          "latest": "1737",
+          "pid": 36559,
+          "retainedBytes": 1656864,
+          "retainedChunks": 512,
+          "totalBytes": 6291831,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 21,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634967,
+          "gap": true,
+          "latest": "1737",
+          "pid": 36559,
+          "retainedBytes": 1656864,
+          "retainedChunks": 512,
+          "totalBytes": 6291831,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 22,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634967,
+          "gap": true,
+          "latest": "1737",
+          "pid": 36559,
+          "retainedBytes": 1656864,
+          "retainedChunks": 512,
+          "totalBytes": 6291831,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 23,
+      "action": "lr9c_input",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634967,
+          "gap": true,
+          "latest": "1737",
+          "pid": 36559,
+          "retainedBytes": 1656864,
+          "retainedChunks": 512,
+          "totalBytes": 6291831,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 24,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634969,
+          "gap": true,
+          "latest": "1738",
+          "pid": 36559,
+          "retainedBytes": 1656911,
+          "retainedChunks": 512,
+          "totalBytes": 6291880,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 25,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634969,
+          "gap": true,
+          "latest": "1738",
+          "pid": 36559,
+          "retainedBytes": 1656911,
+          "retainedChunks": 512,
+          "totalBytes": 6291880,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 26,
+      "action": "lr9c_resize",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634969,
+          "gap": true,
+          "latest": "1738",
+          "pid": 36559,
+          "retainedBytes": 1656911,
+          "retainedChunks": 512,
+          "totalBytes": 6291880,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 27,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634969,
+          "gap": true,
+          "latest": "1738",
+          "pid": 36559,
+          "retainedBytes": 1656911,
+          "retainedChunks": 512,
+          "totalBytes": 6291880,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1"
+          ]
+        },
+        "status": {
+          "cols": 75,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 28,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634969,
+          "gap": true,
+          "latest": "1738",
+          "pid": 36559,
+          "retainedBytes": 1656911,
+          "retainedChunks": 512,
+          "totalBytes": 6291880,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1"
+          ]
+        },
+        "status": {
+          "cols": 67,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 10,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 29,
+      "action": "lr9c_input",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4634969,
+          "gap": true,
+          "latest": "1738",
+          "pid": 36559,
+          "retainedBytes": 1656911,
+          "retainedChunks": 512,
+          "totalBytes": 6291880,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1"
+          ]
+        },
+        "status": {
+          "cols": 67,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 10,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 30,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 67,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 10,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 31,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 67,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 10,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 2
+      }
+    },
+    {
+      "sequence": 32,
+      "action": "lr9c_trace",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 67,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 10,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 33,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 67,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 10,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 34,
+      "action": "lr9c_narrow",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 67,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 10,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 35,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 67,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 10,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 36,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 37,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 38,
+      "action": "lr9c_conversation",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 39,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 40,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 41,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 42,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 43,
+      "action": "lr9c_headless_burst",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4639064,
+          "gap": true,
+          "latest": "1739",
+          "pid": 36559,
+          "retainedBytes": 1652865,
+          "retainedChunks": 512,
+          "totalBytes": 6291929,
+          "markersInRetainedTail": [
+            "VISUAL_ALIVE",
+            "INPUT_AFTER_1",
+            "INPUT_AFTER_2"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 44,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 4766041,
+          "gap": true,
+          "latest": "1785",
+          "pid": 36559,
+          "retainedBytes": 1697675,
+          "retainedChunks": 512,
+          "totalBytes": 6463716,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 45,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 6554084,
+          "gap": true,
+          "latest": "2322",
+          "pid": 36559,
+          "retainedBytes": 1662976,
+          "retainedChunks": 512,
+          "totalBytes": 8217060,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 46,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 8985060,
+          "gap": true,
+          "latest": "3061",
+          "pid": 36559,
+          "retainedBytes": 1591296,
+          "retainedChunks": 512,
+          "totalBytes": 10576356,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 47,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 48,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 49,
+      "action": "lr9c_terminal",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 50,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 51,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 52,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 53,
+      "action": "close",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 54,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 55,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 56,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 57,
+      "action": "lr9c_headless_burst",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 11006436,
+          "gap": true,
+          "latest": "3714",
+          "pid": 36559,
+          "retainedBytes": 1576992,
+          "retainedChunks": 512,
+          "totalBytes": 12583428,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 58,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 12329444,
+          "gap": true,
+          "latest": "4130",
+          "pid": 36559,
+          "retainedBytes": 1499179,
+          "retainedChunks": 512,
+          "totalBytes": 13828623,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 59,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 14268943,
+          "gap": true,
+          "latest": "4779",
+          "pid": 36559,
+          "retainedBytes": 1640448,
+          "retainedChunks": 512,
+          "totalBytes": 15909391,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 60,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 16149007,
+          "gap": true,
+          "latest": "5365",
+          "pid": 36559,
+          "retainedBytes": 1644544,
+          "retainedChunks": 512,
+          "totalBytes": 17793551,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 61,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 62,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 63,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 64,
+      "action": "lr9c_snapshot",
+      "windows": [],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 65,
+      "action": "snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 66,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 67,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 68,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 69,
+      "action": "lr9c_terminal",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 70,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 71,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 0,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 72,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 71,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 20,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 73,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 74,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 75,
+      "action": "lr9c_input",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17199630,
+          "gap": true,
+          "latest": "5693",
+          "pid": 36559,
+          "retainedBytes": 1675297,
+          "retainedChunks": 512,
+          "totalBytes": 18874927,
+          "markersInRetainedTail": [
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 76,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17201679,
+          "gap": true,
+          "latest": "5694",
+          "pid": 36559,
+          "retainedBytes": 1673324,
+          "retainedChunks": 512,
+          "totalBytes": 18875003,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 77,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17201679,
+          "gap": true,
+          "latest": "5694",
+          "pid": 36559,
+          "retainedBytes": 1673324,
+          "retainedChunks": 512,
+          "totalBytes": 18875003,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 78,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17201679,
+          "gap": true,
+          "latest": "5694",
+          "pid": 36559,
+          "retainedBytes": 1673324,
+          "retainedChunks": 512,
+          "totalBytes": 18875003,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 79,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17201679,
+          "gap": true,
+          "latest": "5694",
+          "pid": 36559,
+          "retainedBytes": 1673324,
+          "retainedChunks": 512,
+          "totalBytes": 18875003,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 80,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17201679,
+          "gap": true,
+          "latest": "5694",
+          "pid": 36559,
+          "retainedBytes": 1673324,
+          "retainedChunks": 512,
+          "totalBytes": 18875003,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 81,
+      "action": "lr9c_exit",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 17201679,
+          "gap": true,
+          "latest": "5694",
+          "pid": 36559,
+          "retainedBytes": 1673324,
+          "retainedChunks": 512,
+          "totalBytes": 18875003,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 954
+      }
+    },
+    {
+      "sequence": 82,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 17203727,
+          "gap": true,
+          "latest": "5695",
+          "pid": 36559,
+          "retainedBytes": 1671293,
+          "retainedChunks": 512,
+          "totalBytes": 18875020,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": 0,
+          "reaped": true,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "completed"
+        },
+        "trace": 955
+      }
+    },
+    {
+      "sequence": 83,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 17203727,
+          "gap": true,
+          "latest": "5695",
+          "pid": 36559,
+          "retainedBytes": 1671293,
+          "retainedChunks": 512,
+          "totalBytes": 18875020,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": 0,
+          "reaped": true,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "completed"
+        },
+        "trace": 955
+      }
+    },
+    {
+      "sequence": 84,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 17203727,
+          "gap": true,
+          "latest": "5695",
+          "pid": 36559,
+          "retainedBytes": 1671293,
+          "retainedChunks": 512,
+          "totalBytes": 18875020,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": 0,
+          "reaped": true,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "completed"
+        },
+        "trace": 955
+      }
+    },
+    {
+      "sequence": 85,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 17203727,
+          "gap": true,
+          "latest": "5695",
+          "pid": 36559,
+          "retainedBytes": 1671293,
+          "retainedChunks": 512,
+          "totalBytes": 18875020,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": 0,
+          "reaped": true,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "completed"
+        },
+        "trace": 955
+      }
+    },
+    {
+      "sequence": 86,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 17203727,
+          "gap": true,
+          "latest": "5695",
+          "pid": 36559,
+          "retainedBytes": 1671293,
+          "retainedChunks": 512,
+          "totalBytes": 18875020,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": 0,
+          "reaped": true,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "completed"
+        },
+        "trace": 955
+      }
+    },
+    {
+      "sequence": 87,
+      "action": "lr9c_start",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 17203727,
+          "gap": true,
+          "latest": "5695",
+          "pid": 36559,
+          "retainedBytes": 1671293,
+          "retainedChunks": 512,
+          "totalBytes": 18875020,
+          "markersInRetainedTail": [
+            "INPUT_AFTER_3",
+            "HEADLESS_ALIVE"
+          ]
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": 0,
+          "reaped": true,
+          "rows": 11,
+          "sessionId": "1",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "completed"
+        },
+        "trace": 955
+      }
+    },
+    {
+      "sequence": 88,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 3,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "1",
+          "pid": 36746,
+          "retainedBytes": 16,
+          "retainedChunks": 1,
+          "totalBytes": 16,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 80,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 24,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 957
+      }
+    },
+    {
+      "sequence": 89,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 957
+      }
+    },
+    {
+      "sequence": 90,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 957
+      }
+    },
+    {
+      "sequence": 91,
+      "action": "lr9c_end_session",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 957
+      }
+    },
+    {
+      "sequence": 92,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 957
+      }
+    },
+    {
+      "sequence": 93,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 1,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 957
+      }
+    },
+    {
+      "sequence": 94,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": true,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "cancelled"
+        },
+        "trace": 958
+      }
+    },
+    {
+      "sequence": 95,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": true,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "cancelled"
+        },
+        "trace": 958
+      }
+    },
+    {
+      "sequence": 96,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": true,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "cancelled"
+        },
+        "trace": 958
+      }
+    },
+    {
+      "sequence": 97,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": true,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "cancelled"
+        },
+        "trace": 958
+      }
+    },
+    {
+      "sequence": 98,
+      "action": "lr9c_frontend",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": true,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "cancelled"
+        },
+        "trace": 958
+      }
+    },
+    {
+      "sequence": 99,
+      "action": "lr9c_start",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 2,
+        "brokerActive": 0,
+        "brokerWorkers": 0,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36746,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": true,
+          "rows": 14,
+          "sessionId": "2",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "cancelled"
+        },
+        "trace": 958
+      }
+    },
+    {
+      "sequence": 100,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 3,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "1",
+          "pid": 36751,
+          "retainedBytes": 16,
+          "retainedChunks": 1,
+          "totalBytes": 16,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 80,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 24,
+          "sessionId": "3",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 960
+      }
+    },
+    {
+      "sequence": 101,
+      "action": "lr9c_snapshot",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": true,
+        "bridgeWorkers": 3,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "2",
+          "pid": 36751,
+          "retainedBytes": 29,
+          "retainedChunks": 2,
+          "totalBytes": 29,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 68,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "3",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 960
+      }
+    },
+    {
+      "sequence": 102,
+      "action": "quit",
+      "windows": [
+        "main"
+      ],
+      "terminal": {
+        "attachmentActive": false,
+        "bridgeWorkers": 2,
+        "brokerActive": 1,
+        "brokerWorkers": 2,
+        "session": {
+          "droppedBytes": 0,
+          "gap": false,
+          "latest": "3",
+          "pid": 36751,
+          "retainedBytes": 42,
+          "retainedChunks": 3,
+          "totalBytes": 42,
+          "markersInRetainedTail": []
+        },
+        "status": {
+          "cols": 69,
+          "exitCode": null,
+          "reaped": false,
+          "rows": 14,
+          "sessionId": "3",
+          "shell": "sh",
+          "startingDirectory": "/tmp/narys-lr9c-native-482o8vjn",
+          "state": "running"
+        },
+        "trace": 960
+      }
+    }
+  ],
+  "frontend": {
+    "samples": 33,
+    "maxRowsObserved": 31,
+    "maxTraceUpdatesObserved": 10,
+    "widthsObserved": [
+      640,
+      900,
+      1068,
+      1120
+    ],
+    "nativeResourceTimingLimitation": "Custom Tauri protocol returned empty resource timing list. Initial lazy graph proved by manifest; HTTP WebKit proved one JS load across view reattach."
+  },
+  "webKitSyntheticGate": {
+    "productionFrontend": true,
+    "syntheticIPC": true,
+    "passWide": true,
+    "passNarrow": true,
+    "events": 4096,
+    "retainedRows": 1024,
+    "maxRowsObserved": 31,
+    "maxRowsBudget": 40,
+    "lazyLoads": 1,
+    "widths": [
+      1120,
+      640
+    ]
+  },
+  "nodeGate": {
+    "pass": true,
+    "events": 6000,
+    "updates": 48,
+    "retainedRows": 1024,
+    "maxDomRowsBudget": 40,
+    "exactId": "9007199254740993",
+    "rawMaxCursor": "18446744073709551615"
+  },
+  "nativeTests": {
+    "fullPassed": 1072,
+    "fullFailed": 0,
+    "fullIgnored": 2,
+    "fullSeconds": 241.29,
+    "lr9cSpecific": 14,
+    "ignored": "Inherited authenticated Codex environment gates",
+    "traceFixture": {
+      "events": 6120,
+      "stream": 6000,
+      "state": 60,
+      "critical": 60,
+      "sources": 4,
+      "noWebviewAck": true,
+      "retained": 952,
+      "liveDeliveryDropped": 6056,
+      "stateRetained": 60,
+      "criticalRetained": 60,
+      "inFlight": 1
+    },
+    "ptyFixtureBytesMinimum": 6291456,
+    "specificPassed": 14,
+    "specificSeconds": 5.35,
+    "ptyFixture": {
+      "totalBytes": 6292754,
+      "droppedBytes": 4563799,
+      "retainedBytes": 1728955,
+      "workersAfterCleanup": 0
+    }
+  },
+  "gates": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "cargoCheck": "PASS (19 inherited warnings)",
+    "cargoTest": "PASS",
+    "cargoCheckRelease": "PASS (42 inherited warnings)",
+    "nativeHeadlessReattach": "PASS",
+    "nodeLR9C": "PASS",
+    "webKitLR9CWideNarrow": "PASS",
+    "webKitEconomyShell": "PASS",
+    "frontExistingSuites": "PASS",
+    "lazyManifestAudit": "PASS",
+    "dependencyTreeAudit": "PASS",
+    "newRustModulesFmt": "PASS",
+    "diffCheck": "PASS"
+  },
+  "dependencies": {
+    "@xterm/xterm": "6.0.0",
+    "@xterm/addon-fit": "0.11.0",
+    "newTransitiveRuntimeDependencies": 0,
+    "newRustDependencies": 0,
+    "npmAuditInherited": "source-map-js 1.2.1, dev/PostCSS/Vite, high GHSA-68fv-2mgg-jv7q"
+  },
+  "chunks": {
+    "terminalJS": {
+      "file": "assets/TerminalWorkspace-BZE7cj2l.js",
+      "kB": 344.26,
+      "gzipKB": 87.56
+    },
+    "terminalCSS": {
+      "file": "assets/TerminalWorkspace-Cm59dRth.css",
+      "kB": 5.71,
+      "gzipKB": 1.52
+    },
+    "AppJS": {
+      "kB": 50.35,
+      "gzipKB": 14.39
+    },
+    "initialIndexJS": {
+      "kB": 221.94,
+      "gzipKB": 69.61
+    },
+    "avatarJS": {
+      "kB": 634.27,
+      "gzipKB": 160.15,
+      "warning": "Inherited >500 kB opt-in chunk"
+    }
+  },
+  "implementationCommit": "0f7784b378afd98ea0de01b2fd0f4c88635ecb80"
+}

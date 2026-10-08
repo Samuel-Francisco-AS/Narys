@@ -79,3 +79,48 @@ O segredo tipado `GeminiApiKey` é gravado no Stronghold; o unlock continua no c
 O segredo tipado `GroqApiKey` usa o mesmo Stronghold e a mesma chave de desbloqueio protegida pelo credential store do sistema. Os comandos `groq_set_api_key`, `groq_delete_api_key` e `groq_status` não retornam o valor da credencial. O adapter lê a chave no Rust via `spawn_blocking` e envia somente um header `Authorization: Bearer` marcado como sensível. A janela `settings-ai` recebe apenas o estado configurado/não configurado e não ganha filesystem, shell ou IPC genérico de segredos.
 
 O diagnóstico `groq_probe` é explícito, usa `Fixed("groq")`, contexto sintético sem memória privada e não persiste conversa. Nenhuma chamada Groq ocorre no startup. Conversation e Summary continuam `Fixed("gemini")` durante a LR-7B; a distribuição real fica para LR-7C. Veja [GROQ-PROVIDER.md](GROQ-PROVIDER.md).
+
+## LR-9C · terminal humano e trust boundary da main
+
+A LR-9C amplia intencionalmente a confiança depositada na WebView `main`:
+**dar input à PTY humana permite controlar aquele shell humano enquanto a
+attachment estiver ativa**. Esse shell pode executar comandos humanos reais,
+herdar o ambiente do usuário e acessar recursos permitidos pela conta do SO.
+Uma main totalmente comprometida pode iniciar/anexar a sessão e operar esse
+shell; esta UI não promete impedir comandos arbitrários nessa situação.
+`Terminal is not Authority` significa que Presentation não define admission,
+policy, ownership do processo ou authority agentiva. Não significa que uma
+WebView com acesso ao input humano seja incapaz de controlar o shell.
+
+Apenas `main-window.json` recebe as oito permissões específicas:
+`terminal_session_status`, `open_human_terminal`, `attach_terminal_surface`,
+`detach_terminal_surface`, `acknowledge_terminal_batch`, `send_terminal_input`,
+`resize_terminal` e `close_human_terminal`. Todos os handlers também conferem
+`window.label() == "main"`. Settings não recebe essas permissões.
+A attachment nativa é exigida para input/resize e revogada no detach,
+Close Presentation, substituição ou falha/timeout da bridge. Ela é um identificador
+escopado de Presentation, nunca uma serialização de `ExecutionAuthority`.
+
+Não há `execute_command`, escolha de executable/argv/environment/cwd/PID pela
+WebView, shell/filesystem/process plugin ou token de authority no DTO. O registry
+chama a boundary humana LR-9B, resolve o shell no backend e inicia em HOME
+absoluto/canonical existente; fallback `/`. Isso é diretório inicial, não sandbox.
+Conversation, providers e agents não importam a API de Terminal nem ganharam
+um caminho nativo de execution authority. A separação de código não constitui
+isolamento entre componentes que habitam a mesma main comprometida.
+
+CSP de produção permanece `default-src 'none'`, scripts/estilos/fontes locais,
+`connect-src` self/IPC, workers/frames/objects bloqueados, sem `unsafe-eval` ou
+script remoto. Xterm e fit são assets locais lazy; não há addon de rede ou
+plugin genérico. O probe verificou a renderização e IPC reais sob essa CSP.
+O trace DTO projeta somente OperationalEvent autorizado, sem ExecutionRequest,
+ExecutionResult ou projeção de environment/credenciais; não acrescenta private
+reasoning ou summary inventado ao conteúdo já existente no bus.
+PTY é stream humano bruto: o próprio usuário pode imprimir dados sensíveis no
+shell; seu conteúdo não é encaminhado ao trace, Conversation ou provider.
+
+Close Presentation preserva o processo; Quit cancela/reap pelo Broker existente.
+Não há persistência da PTY após restart, execução agentiva, handoff ou sandbox.
+Tauri Isolation Pattern permanece possibilidade de hardening futuro, sem ser
+implementado nesta fase. Contratos, budgets, gates e limites:
+[LR-9C — Terminal Surface & Streams](LR-9C-TERMINAL-SURFACE-STREAMS.md).
