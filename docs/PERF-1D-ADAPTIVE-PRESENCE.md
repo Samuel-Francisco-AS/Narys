@@ -1,6 +1,6 @@
 # PERF-1D — Adaptive Presence
 
-**Estado:** PERF-1D FIX-1 IMPLEMENTADA — aguardando segunda auditoria independente
+**Estado:** PASS — concluída em 07/10/2026 após FIX-1, segunda auditoria independente e gate humano
 
 Branch: `perf-1d-adaptive-presence`. Base: `main@e998bcee7f586effad1d8c8245d14f3fa4c020ef`.
 Workspace inicialmente limpo e HEAD conferido antes de editar. A/B/C permanecem
@@ -729,3 +729,64 @@ Permanecem não bloqueantes e inalteradas:
 O gate humano pode permanecer curto, focado somente em compositor/foco real e
 comportamento visual das policies. PERF-1 continua aberta até esse gate e o
 fechamento final da fase.
+
+
+## Gate humano final — 07/10/2026
+
+**Resultado:** **PASS**.
+
+Foram executados os três cenários físicos definidos para o fechamento da 1D:
+
+1. **Auto → Headless → reopen Economy**
+   - policy Auto selecionada;
+   - a Narys perdeu foco;
+   - após o delay configurado, a Presentation foi encerrada;
+   - uma nova ativação recriou a interface em Economy;
+   - nenhuma Presence 3D apareceu espontaneamente.
+
+2. **Presence manual permanece estável**
+   - policy Presence selecionada explicitamente;
+   - a Luna 3D foi exibida;
+   - a Narys perdeu foco e permaneceu em background por mais que a janela de
+     hysteresis;
+   - Presence não foi desmontada automaticamente.
+
+3. **Presence → Auto converge para Economy**
+   - com Presence ativa, policy Auto foi escolhida;
+   - o stack 3D foi desmontado;
+   - Economy assumiu a superfície;
+   - nenhuma nova ativação automática de Presence ocorreu.
+
+Esses resultados confirmam em compositor/foco reais as três invariantes finais:
+
+- Auto opera somente **Economy ↔ Headless**;
+- Presence permanece uma escolha manual do usuário;
+- preferência manual possui precedência sobre Adaptive.
+
+O gate humano não exigiu repetição de provider/benchmark porque continuidade de
+TaskId/Core, ausência de duplicação de provider call, guards, Attention e
+lifecycle já haviam sido cobertos pelos probes e auditorias independentes.
+
+## Fechamento da PERF-1D
+
+**PERF-1D = PASS.**
+
+A quarta e última implementação formal da PERF-1 está encerrada. Nenhuma
+PERF-1E é criada.
+
+Dívidas permanecem registradas para trilhas futuras, sem bloquear o fechamento
+da fase:
+
+- reserva `ui_suspended` em Headless manual/transitório para futuros callers
+  nativos/agents;
+- integration real futura do contrato de Attention com approvals/tools;
+- falhas parciais de APIs nativas de janela;
+- MSRV declarado versus dependências Linux atuais;
+- packaging/DBus e cross-platform;
+- endurance prolongado;
+- refinamentos Home/DEV overlay;
+- NARYS-TERM;
+- NARYS-NORM.
+
+Próxima ação: fechamento documental e integração da **PERF-1 inteira** na
+`main`.
