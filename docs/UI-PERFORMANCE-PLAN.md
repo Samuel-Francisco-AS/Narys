@@ -529,7 +529,7 @@ Com **UIP-0 → UIP-6 = PASS funcional/fechadas**, **UIP-7 é CANDIDATA ao gate 
 
 ## 20. PERF-1 — Adaptive Presence & Economy Mode
 
-**Estado: PASS em 07/10/2026. PERF-1A/B/C/D concluídas; aguardando integração final da trilha na main.**
+**Estado: PASS COMPLETO em 07/10/2026. PERF-1A/B/C/D concluídas e integradas à main.**
 
 Esta é a segunda trilha de performance, posterior à UIP e posicionada após
 LR-8/LR-8.5 e antes da LR-9.
