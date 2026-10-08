@@ -473,7 +473,7 @@ mutável é hardcoded no Luna Core.
 
 ## 12.5. LR-8.5 — Cognitive Resource Economy & Allocation
 
-**Estado: PASS TÉCNICO — LR-8.5A/B/C concluídas e integradas à `main` em 06/10/2026. Próxima fase: PERF-1 antes da LR-9.**
+**Estado: PASS TÉCNICO — LR-8.5A/B/C concluídas e integradas à `main` em 06/10/2026. PERF-1 concluiu em 07/10; LR-9 é a fase funcional atual planejada.**
 
 A LR-8 fecha capacidade operacional de cada provider; a LR-8.5 passa a decidir
 qual recurso cognitivo vale consumir entre opções heterogêneas.
@@ -505,31 +505,43 @@ providers pagos reais ficam naturalmente para LR-12.
 
 Plano detalhado: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md).
 
-## 13. LR-9 — Luna Voice e feedback natural
+## 13. LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-Separar worker de apresentação.
+**Estado: PLANEJADA — próxima fase funcional após PERF-1.**
 
-### Trabalho
+O antigo escopo Luna Voice / feedback natural foi adiado para uma trilha futura
+sem posição fixa. LR-9 passa a preparar a infraestrutura operacional que
+LR-10/Copilot e LR-11/Codex deverão reutilizar.
 
-- TaskResult estruturado;
-- output model policy;
-- fallback;
-- Identity + RelevantMemory;
-- progress templates locais;
-- LLM apenas para feedback complexo quando necessário.
+Objetivo: terminal Linux real para o humano, Execution Broker comum para efeitos
+no sistema e observabilidade passiva, bounded e não bloqueante para providers,
+workers e SpecialistAgents.
 
-### Regra
-
-Eventos simples não gastam LLM.
-
-Exemplo:
+Invariantes: Passive Observability; Execution Independence; Bounded by Design;
+Source Fidelity; Terminal is not Authority.
 
 ~~~text
-ToolStarted(test_runner)
-→ "Estou executando os testes agora."
+Cognitive Plane → decide
+Execution Plane → executa via Execution Broker / Exec / PTY
+Observation Plane → observa via Operational Trace Bus
 ~~~
 
-pode ser template local.
+Decomposição:
+
+1. LR-9A — Operational Trace Contracts & Passive Event Bus;
+2. LR-9B — Execution Broker & Real PTY Runtime;
+3. LR-9C — Terminal Surface & Stream Management;
+4. LR-9D — Cognitive / Agent Trace Adapters;
+5. LR-9E — Concurrency, Security & Final Gate.
+
+Conversation fica com pedidos, respostas, perguntas, approvals, decisões e
+relatórios. Terminal concentra shell, comandos, stdout/stderr, subtarefas,
+progresso e traces operacionais.
+
+LR-9 não entrega shell irrestrito aos especialistas; cria a fronteira que
+LR-10/LR-11 deverão consumir.
+
+Plano: [NARYS-TERMINAL-RUNTIME-TRACK.md](NARYS-TERMINAL-RUNTIME-TRACK.md).
 
 ## 14. LR-10 — GitHub Copilot SpecialistAgent
 
@@ -634,7 +646,7 @@ A propriedade-alvo é:
 > **mais experiência útil → menos inteligência externa necessária para obter a mesma capacidade.**
 
 O registro não altera LR-9/LR-10/LR-11, não inicia código e não fixa ainda a
-posição relativa de NX contra LR-12/LR-13, NARYS-TERM, NARYS-NORM ou lanes de
+posição relativa de NX contra LR-12/LR-13, NARYS-VOICE, NARYS-NORM ou lanes de
 avatar. Essa priorização será feita no checkpoint pós-LR-11.
 
 Plano dedicado:
@@ -841,29 +853,26 @@ Objetivos:
 O plano detalhado, riscos e gates estão em
 [NARYS-NORMALIZATION-TRACK.md](NARYS-NORMALIZATION-TRACK.md).
 
-## 23.6. NARYS-TERM — Terminal Runtime & Interactive Shell Surface
+## 23.6. NARYS-TERM — promovida para LR-9
 
-**Estado:** trilha futura registrada em 07/10/2026, sem posição definitiva.
+**Estado:** PROMOVIDA em 08/10/2026.
 
-Objetivo: permitir que o workspace central da Narys hospede um **terminal Linux
-real via PTY**, utilizável por humano e, futuramente, por Luna/SpecialistAgents
-com ownership, auditoria e autorização explícitos.
+A trilha registrada durante PERF-1B passou a ocupar formalmente LR-9 e foi
+ampliada com Execution Broker, Operational Trace Bus, passive observability,
+stream management e preparação explícita para LR-10/LR-11.
 
-Princípios:
-
-- frontend é emulador/superfície, não autoridade de processo;
-- backend Rust possui PTY/process lifecycle;
-- ações carregam origem `human | luna | specialist_agent | automation`;
-- sessões agentivas são identificáveis e separáveis da sessão humana;
-- comandos privilegiados/destrutivos exigem policy/approval;
-- APIs estruturadas continuam preferíveis quando houver primitive específica;
-- a trilha não deve atrasar PERF-1.
-
-A atual view `Shell / Home` permanece uma home/launcher até essa capability
-existir; ela não deve fingir executar shell.
-
-Plano detalhado:
+Plano mestre:
 [NARYS-TERMINAL-RUNTIME-TRACK.md](NARYS-TERMINAL-RUNTIME-TRACK.md).
+
+## 23.7. NARYS-VOICE — Unified Voice & Natural Feedback
+
+**Estado:** TRILHA FUTURA / SEM POSIÇÃO FIXA.
+
+O antigo escopo LR-9 foi preservado sem fase numerada. Não é pré-requisito para
+LR-10/LR-11 e não deve fabricar traces para o Terminal.
+
+Plano:
+[NARYS-VOICE-FUTURE-TRACK.md](NARYS-VOICE-FUTURE-TRACK.md).
 
 ## 24. Próxima ação recomendada
 
@@ -882,11 +891,9 @@ O fechamento em 07/10/2026 consolida:
 - Attention com recuperação segura em Economy;
 - dívidas não bloqueantes preservadas documentalmente.
 
-A PERF-1 está integrada à `main`. A próxima fase funcional prevista é
-**LR-9 — Luna Voice / feedback natural**, salvo repriorização explícita.
+A PERF-1 está integrada à `main`. Em 08/10/2026, NARYS-TERM foi promovida e ampliada para a próxima fase funcional: **LR-9 — Operational Terminal & Cognitive Trace Runtime**.
 
-NARYS-TERM e NARYS-NORM permanecem trilhas separadas e não alteram esse
-fechamento.
+NARYS-NORM permanece transversal. O antigo escopo Luna Voice foi preservado em NARYS-VOICE, sem posição fixa.
 
 Plano encerrado:
 [PERF-1-ADAPTIVE-PRESENCE.md](PERF-1-ADAPTIVE-PRESENCE.md).
@@ -906,7 +913,8 @@ A primeira versão da “Luna estrutural” estará demonstrada quando houver:
 - Scheduler econômico;
 - rate limit/fallback;
 - feedback em andamento;
-- Luna Voice;
+- terminal operacional/trace runtime bounded;
+- Execution Broker preparado para SpecialistAgents;
 - Avatar Runtime desacoplado;
 - pelo menos Idle plugável;
 - Animation Director;
