@@ -1,0 +1,509 @@
+{
+  "pass": true,
+  "binarySha256": "bfcf2b39e132c9a105a3ad9246d43941c4d3479e44dd1b6dad23071bb3a45988",
+  "realTauri": true,
+  "providerInvocationRequestedByHarness": false,
+  "headlessWebKitWebProcesses": [],
+  "quitElapsedSeconds": 0.415,
+  "quitExitCode": 0,
+  "remainingExecutionPids": [],
+  "rawEvidenceSha256": "b301ed766ab02c40bb902ba300a744755b9b774cf8b2765a3cca98f3e1c5c77e",
+  "projection": "Execution/Presentation facts from native snapshots; last 128 characters of each bounded PTY tail. Raw evidence at /tmp/narys-lr9b-native-final.json.",
+  "snapshots": [
+    {
+      "action": "snapshot",
+      "sequence": 1,
+      "pid": 19241,
+      "windows": [
+        "main"
+      ],
+      "mainPresent": true,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 0,
+        "brokerAddress": 94737608494320,
+        "runs": null,
+        "sessions": 0,
+        "workers": 0
+      }
+    },
+    {
+      "action": "lr9b_start",
+      "sequence": 2,
+      "pid": 19241,
+      "windows": [
+        "main"
+      ],
+      "mainPresent": true,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 3,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": null,
+          "floodState": "Running",
+          "ptyDroppedBytes": 0,
+          "ptyGap": false,
+          "ptyId": 3,
+          "ptyLatest": 0,
+          "ptyPid": null,
+          "ptyRetainedBytes": 0,
+          "ptyRetainedChunks": 0,
+          "ptyState": "Starting",
+          "ptyTail": "",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 0
+        },
+        "sessions": 1,
+        "workers": 7
+      }
+    },
+    {
+      "action": "lr9b_snapshot",
+      "sequence": 3,
+      "pid": 19241,
+      "windows": [
+        "main"
+      ],
+      "mainPresent": true,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 3,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": null,
+          "floodState": "Running",
+          "ptyDroppedBytes": 0,
+          "ptyGap": false,
+          "ptyId": 3,
+          "ptyLatest": 0,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 0,
+          "ptyRetainedChunks": 0,
+          "ptyState": "Running",
+          "ptyTail": "",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 0
+        },
+        "sessions": 1,
+        "workers": 8
+      }
+    },
+    {
+      "action": "close",
+      "sequence": 4,
+      "pid": 19241,
+      "windows": [
+        "main"
+      ],
+      "mainPresent": true,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 3,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": null,
+          "floodState": "Running",
+          "ptyDroppedBytes": 0,
+          "ptyGap": false,
+          "ptyId": 3,
+          "ptyLatest": 0,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 0,
+          "ptyRetainedChunks": 0,
+          "ptyState": "Running",
+          "ptyTail": "",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 0
+        },
+        "sessions": 1,
+        "workers": 8
+      }
+    },
+    {
+      "action": "lr9b_snapshot",
+      "sequence": 5,
+      "pid": 19241,
+      "windows": [],
+      "mainPresent": false,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 3,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": null,
+          "floodState": "Running",
+          "ptyDroppedBytes": 0,
+          "ptyGap": false,
+          "ptyId": 3,
+          "ptyLatest": 0,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 0,
+          "ptyRetainedChunks": 0,
+          "ptyState": "Running",
+          "ptyTail": "",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 0
+        },
+        "sessions": 1,
+        "workers": 8
+      }
+    },
+    {
+      "action": "lr9b_burst",
+      "sequence": 6,
+      "pid": 19241,
+      "windows": [],
+      "mainPresent": false,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 3,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": null,
+          "floodState": "Running",
+          "ptyDroppedBytes": 0,
+          "ptyGap": false,
+          "ptyId": 3,
+          "ptyLatest": 0,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 0,
+          "ptyRetainedChunks": 0,
+          "ptyState": "Running",
+          "ptyTail": "",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 0
+        },
+        "sessions": 1,
+        "workers": 8
+      }
+    },
+    {
+      "action": "lr9b_snapshot",
+      "sequence": 7,
+      "pid": 19241,
+      "windows": [],
+      "mainPresent": false,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 2,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": {
+            "reaped": true,
+            "stderrDropped": 4194304,
+            "stderrTotal": 6291456,
+            "stdoutDropped": 4194304,
+            "stdoutTotal": 6291456
+          },
+          "floodState": "Completed",
+          "ptyDroppedBytes": 4565038,
+          "ptyGap": true,
+          "ptyId": 3,
+          "ptyLatest": 1909,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 1726483,
+          "ptyRetainedChunks": 512,
+          "ptyState": "Running",
+          "ptyTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxPTY_ALIVE\r\n",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 4096
+        },
+        "sessions": 1,
+        "workers": 5
+      }
+    },
+    {
+      "action": "lr9b_snapshot",
+      "sequence": 8,
+      "pid": 19241,
+      "windows": [
+        "main"
+      ],
+      "mainPresent": true,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 2,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": {
+            "reaped": true,
+            "stderrDropped": 4194304,
+            "stderrTotal": 6291456,
+            "stdoutDropped": 4194304,
+            "stdoutTotal": 6291456
+          },
+          "floodState": "Completed",
+          "ptyDroppedBytes": 4565038,
+          "ptyGap": true,
+          "ptyId": 3,
+          "ptyLatest": 1909,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 1726483,
+          "ptyRetainedChunks": 512,
+          "ptyState": "Running",
+          "ptyTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxPTY_ALIVE\r\n",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 4096
+        },
+        "sessions": 1,
+        "workers": 5
+      }
+    },
+    {
+      "action": "lr9b_resize",
+      "sequence": 9,
+      "pid": 19241,
+      "windows": [
+        "main"
+      ],
+      "mainPresent": true,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 2,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": {
+            "reaped": true,
+            "stderrDropped": 4194304,
+            "stderrTotal": 6291456,
+            "stdoutDropped": 4194304,
+            "stdoutTotal": 6291456
+          },
+          "floodState": "Completed",
+          "ptyDroppedBytes": 4565038,
+          "ptyGap": true,
+          "ptyId": 3,
+          "ptyLatest": 1909,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 1726483,
+          "ptyRetainedChunks": 512,
+          "ptyState": "Running",
+          "ptyTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxPTY_ALIVE\r\n",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 4096
+        },
+        "sessions": 1,
+        "workers": 5
+      }
+    },
+    {
+      "action": "lr9b_snapshot",
+      "sequence": 10,
+      "pid": 19241,
+      "windows": [
+        "main"
+      ],
+      "mainPresent": true,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 2,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": {
+            "reaped": true,
+            "stderrDropped": 4194304,
+            "stderrTotal": 6291456,
+            "stdoutDropped": 4194304,
+            "stdoutTotal": 6291456
+          },
+          "floodState": "Completed",
+          "ptyDroppedBytes": 4569133,
+          "ptyGap": true,
+          "ptyId": 3,
+          "ptyLatest": 1910,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 1722410,
+          "ptyRetainedChunks": 512,
+          "ptyState": "Running",
+          "ptyTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxPTY_ALIVE\r\n39 111\r\nAFTER_REOPEN\r\n",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 4096
+        },
+        "sessions": 1,
+        "workers": 5
+      }
+    },
+    {
+      "action": "close",
+      "sequence": 11,
+      "pid": 19241,
+      "windows": [
+        "main"
+      ],
+      "mainPresent": true,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 2,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": {
+            "reaped": true,
+            "stderrDropped": 4194304,
+            "stderrTotal": 6291456,
+            "stdoutDropped": 4194304,
+            "stdoutTotal": 6291456
+          },
+          "floodState": "Completed",
+          "ptyDroppedBytes": 4569133,
+          "ptyGap": true,
+          "ptyId": 3,
+          "ptyLatest": 1910,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 1722410,
+          "ptyRetainedChunks": 512,
+          "ptyState": "Running",
+          "ptyTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxPTY_ALIVE\r\n39 111\r\nAFTER_REOPEN\r\n",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 4096
+        },
+        "sessions": 1,
+        "workers": 5
+      }
+    },
+    {
+      "action": "lr9b_snapshot",
+      "sequence": 12,
+      "pid": 19241,
+      "windows": [],
+      "mainPresent": false,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 2,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": {
+            "reaped": true,
+            "stderrDropped": 4194304,
+            "stderrTotal": 6291456,
+            "stdoutDropped": 4194304,
+            "stdoutTotal": 6291456
+          },
+          "floodState": "Completed",
+          "ptyDroppedBytes": 4569133,
+          "ptyGap": true,
+          "ptyId": 3,
+          "ptyLatest": 1910,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 1722410,
+          "ptyRetainedChunks": 512,
+          "ptyState": "Running",
+          "ptyTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxPTY_ALIVE\r\n39 111\r\nAFTER_REOPEN\r\n",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 4096
+        },
+        "sessions": 1,
+        "workers": 5
+      }
+    },
+    {
+      "action": "quit",
+      "sequence": 13,
+      "pid": 19241,
+      "windows": [],
+      "mainPresent": false,
+      "registryAddress": 94737608508304,
+      "providerRuntimeAddress": 94737611323280,
+      "activeCount": 0,
+      "execution": {
+        "active": 2,
+        "brokerAddress": 94737608494320,
+        "runs": {
+          "floodId": 1,
+          "floodPid": 19405,
+          "floodResult": {
+            "reaped": true,
+            "stderrDropped": 4194304,
+            "stderrTotal": 6291456,
+            "stdoutDropped": 4194304,
+            "stdoutTotal": 6291456
+          },
+          "floodState": "Completed",
+          "ptyDroppedBytes": 4569133,
+          "ptyGap": true,
+          "ptyId": 3,
+          "ptyLatest": 1910,
+          "ptyPid": 19411,
+          "ptyRetainedBytes": 1722410,
+          "ptyRetainedChunks": 512,
+          "ptyState": "Running",
+          "ptyTail": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxPTY_ALIVE\r\n39 111\r\nAFTER_REOPEN\r\n",
+          "sleeperId": 2,
+          "sleeperPid": 19406,
+          "sleeperState": "Running",
+          "ptyTailObservedLength": 4096
+        },
+        "sessions": 1,
+        "workers": 5
+      }
+    }
+  ]
+}

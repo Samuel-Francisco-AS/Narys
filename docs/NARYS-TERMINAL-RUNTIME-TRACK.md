@@ -1,6 +1,6 @@
 # LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** EM ANDAMENTO — LR-9A encerrada em PASS técnico + auditoria independente e integrada à `main` em 08/10/2026; próxima subfase: LR-9B.
+**Estado:** EM ANDAMENTO — LR-9A encerrada em PASS e integrada; LR-9B IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna em 08/10/2026.
 **Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
 registrada originalmente durante a PERF-1B em 07/10/2026.  
 **Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
@@ -340,6 +340,22 @@ lento/ausente, limites respeitados e CRITICAL preservado sob pressão de STREAM.
 
 ### LR-9B — Execution Broker & Real PTY Runtime
 
+**Estado:** **LR-9B IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+Branch local recuperada sem recriação ou descarte de trabalho. Execution Broker
+process-wide, authority separada de provenance, Structured Exec com drenagem
+concorrente/bounded, PTY humana real, input/replay/resize/lifecycle, timeout,
+cancellation e shutdown coordenado foram implementados. Agents continuam sem
+execution authority; não há generic shell IPC ou Terminal React.
+
+35 testes específicos, stress Exec/PTY sem rede, suíte integral com 1058 aprovados
+(zero falhas, dois ignored herdados), check debug/release, typecheck/build e probe
+Tauri Close/Reopen/Quit passaram. MSRV 1.77.2 não atestado e dívida global herdada
+permanecem explícitos; PTY Linux requer pidfd/kernel >=5.3 e `/proc`.
+
+[Recuperação, contratos, budgets, gates e limitações](LR-9B-EXECUTION-BROKER-PTY.md).
+[Evidência nativa](LR-9B-NATIVE-EVIDENCE.json).
+
 Criar ExecutionRequest/Result, Structured Exec mínimo, PTY real Rust, sessão
 humana Linux, lifecycle, resize, owner/origin e cleanup.
 
@@ -414,8 +430,10 @@ Registro:
 
 ## 16. Próxima ação
 
-LR-9A está encerrada em PASS. Após integração e sincronização da `main`, iniciar
-o planejamento da **LR-9B — Execution Broker & Real PTY Runtime**.
+LR-9A está encerrada em PASS e integrada. A **LR-9B está como implementação
+candidata**, com trabalho interrompido recuperado e gates técnicos concluídos.
+Próxima ação: **auditoria independente da Luna**, antes de integração ou avanço
+funcional para LR-9C.
 
 LR-9C/D/E permanecem sem implementação; a camada visual continua reservada à
 LR-9C e adapters reais à LR-9D.
