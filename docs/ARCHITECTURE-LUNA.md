@@ -430,6 +430,71 @@ A Luna continua sendo autoridade sobre tarefa, identidade, memória, permissões
 
 Detalhes, candidatos, benchmark e projeção de integração estão em [LOCAL-COGNITIVE-SUPPORT-LUNA.md](LOCAL-COGNITIVE-SUPPORT-LUNA.md).
 
+## 13.1. Evolução cognitiva pós-LR-11
+
+Após LR-11, a arquitetura reserva uma trilha experimental **NX — Narys Cognitive
+Evolution**. Ela não substitui LR-8.5 nem Local Cognitive Support: parte dessas
+fundações para investigar capacidade acumulativa no nível do sistema.
+
+A hipótese central é que o runtime deve aprender a reduzir dependência futura de
+raciocínio externo para famílias de problemas já compreendidas.
+
+Primitives candidatas:
+
+~~~text
+Intent Field
+    ↓
+Cognitive IR
+    ↓
+Attention Market + Epistemic Ledger
+    ↓
+Cognitive Metabolism
+    ↓
+Shadow Cognition (quando o ganho esperado justificar)
+    ↓
+Action / Evidence Contract
+    ↓
+Proof-Carrying Action
+    ↓
+Experience
+   ↙   ↘
+Semantic   Skill Foundry
+Immune         ↓
+System     capacidade reutilizável
+
+Local Reflex Mesh participa como camada subcognitiva de baixa autoridade.
+~~~
+
+Invariantes da pesquisa:
+
+- memória não equivale a verdade;
+- contexto/atenção possuem custo explícito;
+- profundidade de raciocínio deve ser proporcional a risco e ganho esperado;
+- executor não declara sucesso sem satisfazer o contrato de evidência;
+- experiência repetida deve poder cristalizar em mecanismos mais baratos;
+- defesas contra falhas aprendidas precisam de escopo e validade;
+- modelos locais não recebem autoridade apenas por serem gratuitos;
+- Narys mantém intenção, política, aprendizado e autorização;
+- o futuro AI-Native Runtime mantém primitives de ambiente e execução
+  determinística.
+
+A fronteira pretendida permanece:
+
+~~~text
+Narys
+  → Cognitive IR + Action Contract
+  → AI-Native Runtime
+  → Evidence Receipt
+  → Narys
+~~~
+
+A trilha usa numeração NX separada das LRs de entrega e só é elegível para
+execução após o fechamento da LR-11. Cada hipótese deve possuir baseline, métrica
+e possibilidade real de rejeição antes de promoção ao núcleo.
+
+Detalhes:
+[NARYS-POST-LR11-COGNITIVE-EVOLUTION.md](NARYS-POST-LR11-COGNITIVE-EVOLUTION.md).
+
 ## 14. Fontes técnicas de referência
 
 Verificadas em 25/09/2026:
