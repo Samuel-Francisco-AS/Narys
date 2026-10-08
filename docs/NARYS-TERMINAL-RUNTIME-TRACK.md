@@ -369,11 +369,19 @@ com provenance; close/reopen sem processo órfão.
 
 ### LR-9C — Terminal Surface & Stream Management
 
-**Estado:** IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.
+**Estado:** **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 08/10/2026.**
+
 Home foi reutilizada como Terminal lazy, com registry humano process-wide,
 reattach, Channels raw/batched, input/resize bounded, Activity virtualizada e
-lifecycle Headless independente da UI. Não há adapters LR-9D ou execução agentiva.
-[Arquitetura, budgets, segurança, testes e evidências](LR-9C-TERMINAL-SURFACE-STREAMS.md).
+lifecycle Headless independente da UI. A auditoria independente confirmou
+Presentation sem autoridade de execução, backpressure fora do Core, trust boundary
+explícita e ausência de adapters LR-9D/execução agentiva.
+
+Dívidas não bloqueantes: Activity recolhida ainda processa trace enquanto Terminal
+permanece montado; o budget de 2 MiB do TraceStore é lógico e precisa de medição
+física continuada; UX cross-platform permanece futura.
+
+[Arquitetura, budgets, segurança, testes, evidências e fechamento](LR-9C-TERMINAL-SURFACE-STREAMS.md).
 
 Substituir a Home vazia por superfície operacional com PTY, traces multi-source,
 filtros, batches, coalescing, virtualização/scrollback bounded e cadence
