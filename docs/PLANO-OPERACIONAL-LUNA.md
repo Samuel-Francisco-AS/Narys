@@ -600,6 +600,46 @@ Luna consegue:
 - registrar resultado/uso;
 - preservar task state fora do Codex.
 
+## 15.5. NX — Narys Cognitive Evolution (pós-LR-11)
+
+**Estado: PLANEJADA / TRILHA EXPERIMENTAL. Execução somente após o fechamento da LR-11.**
+
+A fase pós-LR-11 reserva uma trilha de pesquisa arquitetural para investigar
+mecanismos que tornem a Narys estruturalmente diferente de um agente convencional
+baseado apenas em mais providers, mais contexto, mais memória ou mais workers.
+
+Tese:
+
+> **Narys transforma recursos cognitivos escassos em capacidade acumulativa.**
+
+A trilha investiga, sem antecipar implementação:
+
+- Cognitive IR;
+- Cognitive Metabolism;
+- Attention Market;
+- Epistemic Ledger e dívida epistemológica;
+- Proof-Carrying Actions;
+- Skill Foundry;
+- Semantic Immune System;
+- Shadow Cognition;
+- Intent Field;
+- Local Reflex Mesh.
+
+A numeração de pesquisa será **NX-0 → NX-8**, separada das LRs de entrega. Cada
+bloco deve nascer de hipótese falsificável, baseline e métrica; falhar em provar
+ganho é resultado válido e não obriga promoção ao produto.
+
+A propriedade-alvo é:
+
+> **mais experiência útil → menos inteligência externa necessária para obter a mesma capacidade.**
+
+O registro não altera LR-9/LR-10/LR-11, não inicia código e não fixa ainda a
+posição relativa de NX contra LR-12/LR-13, NARYS-TERM, NARYS-NORM ou lanes de
+avatar. Essa priorização será feita no checkpoint pós-LR-11.
+
+Plano dedicado:
+[NARYS-POST-LR11-COGNITIVE-EVOLUTION.md](NARYS-POST-LR11-COGNITIVE-EVOLUTION.md).
+
 ## 16. LR-12 — provider pack adicional
 
 A LR-7D2.5 antecipa a redundância essencial que antes morava parcialmente aqui:
