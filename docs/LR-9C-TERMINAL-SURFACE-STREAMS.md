@@ -1,6 +1,6 @@
 # LR-9C — Terminal Surface & Stream Management
 
-**Estado:** **LR-9C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+**Estado:** **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 08/10/2026.**
 
 Base confirmada, com workspace limpo e fetch: `origin/main =
 0080dcf9a4536bc8e07cdb34b67848d1520853f3`. Branch única de trabalho:
@@ -347,3 +347,69 @@ mudar a semântica do shell para agradar à fixture. Não são evidências PASS 
 **Nenhum agent execution path, provider execution path ou integração LR-9D foi
 introduzido. Passive Observability, Execution Independence, Bounded by Design,
 Source Fidelity e ownership nativo permanecem preservados.**
+
+
+## Fechamento independente — 08/10/2026
+
+A auditoria independente da Luna revisou o diff completo contra `main`, o
+registry humano, boundary IPC, permissions, Channels raw, PTY replay/live,
+Operational Trace bridge, lazy loading, store/viewport bounded, Headless/Reattach,
+trust boundary e evidência nativa.
+
+**Veredito:** **PASS TÉCNICO DA AUDITORIA INDEPENDENTE.**
+
+Nenhuma FIX-1 bloqueante foi necessária.
+
+A revisão confirmou:
+
+- Terminal Surface permanece Presentation e não se torna Execution Authority;
+- WebView não escolhe executable, argv, cwd, environment, PID ou authority;
+- somente a main possui as oito permissões específicas do terminal humano;
+- settings permanecem sem terminal permissions;
+- PTY reader continua nativo e independente da WebView;
+- live PTY transporta cursor/wakeup bounded e replay continua autoritativo;
+- Tauri Channel raw entrega bytes ao xterm sem armazenar output em React state;
+- ACK/backpressure existe apenas em worker descartável da Presentation;
+- trace bridge usa replay/live da LR-9A e não altera o publisher path;
+- DTO de trace é explícito e sanitizado;
+- TraceStore e DOM são bounded de forma independente;
+- xterm/CSS permanecem lazy e Conversation continua view inicial;
+- Close/Headless preserva a PTY e reopen reencontra a mesma sessão/PID;
+- nenhum adapter LR-9D ou caminho de execution authority para agents foi criado.
+
+### Dívidas não bloqueantes
+
+1. Activity recolhida ainda mantém o trace bridge/store ativo enquanto a view
+   Terminal permanece montada. Se LR-9D produzir tráfego muito alto, avaliar
+   suspend/replay-on-expand sem quebrar observabilidade bounded.
+2. O budget de 2 MiB do TraceStore é lógico/estimado e não equivale a heap JS
+   físico. Continuar medindo RSS/PSS real sob carga antes de tuning.
+3. A entrega permanece Linux-first. Backend está corretamente cfg-gated, mas uma
+   futura UX cross-platform deve mostrar indisponibilidade explícita em targets
+   sem runtime PTY em vez de depender apenas de invoke failure.
+
+Nenhum desses pontos reabre LR-9C.
+
+### Estado de fechamento
+
+~~~text
+LR-9C — Terminal Surface & Stream Management
+
+IMPLEMENTAÇÃO                 PASS
+AUDITORIA INDEPENDENTE        PASS
+HUMAN PTY SURFACE             PASS
+RAW CHANNEL STREAM            PASS
+BOUNDED BACKPRESSURE          PASS
+TRACE BATCHING                PASS
+TRACE VIRTUALIZATION          PASS
+HEADLESS / REATTACH           PASS
+LAZY TERMINAL                 PASS
+TRUST BOUNDARY                PASS
+AGENT EXECUTION               NÃO
+LR-9D ADAPTERS                NÃO
+GENERIC SHELL IPC             NÃO
+BLOCKERS                      0
+FIX-1                         não necessária
+~~~
+
+A próxima etapa é **LR-9D — Cognitive / Agent Trace Adapters**.
