@@ -1,6 +1,6 @@
 # LR-9B — Execution Broker & Real PTY Runtime
 
-**Estado:** **LR-9B IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+**Estado:** **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 08/10/2026.**
 **Branch:** `lr-9b-execution-broker-pty`.
 **Base preservada:** `60763776cc01d315b681d9b37f8af9b069497c80`.
 
@@ -371,3 +371,64 @@ python3 scripts/lr9b-native-probe.py --output /tmp/narys-lr9b-native.json
 
 **LR-9B IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
 Nenhum PASS definitivo, PR ou merge é declarado.
+
+
+## Fechamento independente — 08/10/2026
+
+A auditoria independente da Luna revisou o diff completo contra `main`, a
+separação authority/provenance, Structured Exec, PTY real, process-group/session
+cleanup, drenagem sem Presentation, integração Headless/Quit, trace best-effort,
+stress e evidência nativa.
+
+**Veredito:** **PASS TÉCNICO DA AUDITORIA INDEPENDENTE.**
+
+Nenhuma FIX-1 bloqueante foi necessária.
+
+A revisão confirmou:
+
+- `ExecutionAuthority` opaca e separada de `ExecutionOrigin`;
+- origins agentivos não recebem execution authority nesta fase;
+- Structured Exec usa executable + argv, sem shell implícito;
+- stdout/stderr continuam sendo drenados após atingir o budget de captura;
+- PTY real mantém reader no Core e continua progredindo sem WebView;
+- cancellation/timeout preservam causa terminal e fazem TERM → grace → KILL → reap;
+- cleanup de job-control PTY usa session/PGID + pidfd sem atingir processo
+  Structured independente;
+- Close/Headless preserva Broker e PTY; Quit coordena shutdown bounded;
+- lifecycle trace é best-effort e não controla execução;
+- nenhuma generic shell API, shell/filesystem plugin ou capability nova foi
+  entregue ao frontend.
+
+### Dívidas não bloqueantes carregadas adiante
+
+1. LR-9C deve criar um registry/reattach nativo e scoped para que a Presentation
+   reencontre uma `PtySession` pelo ID sem se tornar dona do processo.
+2. `ExecutionResult` conserva o `ExecutionRequest` completo; futuras projeções
+   IPC/telemetria devem ser sanitizadas e não serializar environment/argv
+   indiscriminadamente.
+3. A PTY humana herda o timeout máximo global de 1 hora. Antes da superfície de
+   produto, revisar lifecycle interativo para sessão longa/timeout opcional.
+4. O MSRV declarado 1.77.2 continua não atestado e a árvore já possui dívida
+   global herdada acima dele.
+
+Nenhum desses pontos reabre LR-9B.
+
+### Estado de fechamento
+
+~~~text
+LR-9B — Execution Broker & Real PTY Runtime
+
+IMPLEMENTAÇÃO              PASS
+AUDITORIA INDEPENDENTE     PASS
+STRUCTURED EXEC            PASS
+REAL PTY                   PASS
+HEADLESS CONTINUITY        PASS
+CANCELLATION / REAP        PASS
+AUTHORITY BOUNDARY         PASS
+AGENT EXECUTION ENABLED    NÃO
+GENERIC SHELL IPC          NÃO
+BLOCKERS                   0
+FIX-1                      não necessária
+~~~
+
+A próxima etapa é **LR-9C — Terminal Surface & Stream Management**.
