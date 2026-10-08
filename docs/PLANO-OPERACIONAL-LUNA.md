@@ -507,7 +507,7 @@ Plano detalhado: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURC
 
 ## 13. LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado: EM ANDAMENTO — LR-9A e LR-9B encerradas em PASS técnico + auditoria independente em 08/10/2026; próxima subfase: LR-9C.**
+**Estado: EM ANDAMENTO — LR-9A/B/C encerradas em PASS técnico + auditoria independente em 08/10/2026; próxima subfase: LR-9D.**
 
 LR-9A estabeleceu o Observation Plane com contratos tipados,
 OperationalTraceBus process-wide, retenção priority-aware/bounded, live
@@ -516,12 +516,18 @@ best-effort, replay com gaps, batching, métricas e coalescing seguro.
 LR-9B estabeleceu o Execution Plane com Execution Broker process-wide,
 authority separada de provenance, Structured Exec, PTY humana real,
 drenagem bounded independente da UI, cancellation/reap e shutdown Headless-safe.
-Agents continuam sem execution authority e não existe generic shell IPC.
+
+LR-9C materializou a Human Operational Surface: Home virou Terminal lazy,
+registry/reattach humano, Channels raw para PTY, Activity bounded/virtualizada,
+input/resize coalescidos e continuidade Close/Headless/Reopen. Agents continuam
+sem execution authority e não existe generic shell IPC.
 
 Fechamentos e evidências:
 - [LR-9A — Operational Trace Bus](LR-9A-OPERATIONAL-TRACE-BUS.md)
 - [LR-9B — Execution Broker & Real PTY Runtime](LR-9B-EXECUTION-BROKER-PTY.md)
-- [LR-9B — evidência nativa](LR-9B-NATIVE-EVIDENCE.json).
+- [LR-9B — evidência nativa](LR-9B-NATIVE-EVIDENCE.json)
+- [LR-9C — Terminal Surface & Stream Management](LR-9C-TERMINAL-SURFACE-STREAMS.md)
+- [LR-9C — evidência nativa](LR-9C-NATIVE-EVIDENCE.json).
 
 O antigo escopo Luna Voice / feedback natural foi adiado para uma trilha futura
 sem posição fixa. LR-9 passa a preparar a infraestrutura operacional que
