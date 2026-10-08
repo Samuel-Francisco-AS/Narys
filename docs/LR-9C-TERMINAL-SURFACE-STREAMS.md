@@ -413,3 +413,20 @@ FIX-1                         não necessária
 ~~~
 
 A próxima etapa é **LR-9D — Cognitive / Agent Trace Adapters**.
+
+
+## Integração na main — 08/10/2026
+
+Após PASS técnico e auditoria independente, a branch
+`lr-9c-terminal-surface-streams` foi integrada à `main` por **fast-forward**.
+
+- base anterior da `main`: `0080dcf9a4536bc8e07cdb34b67848d1520853f3`;
+- HEAD integrado da branch: `d6525622111abb877b2778d1391abafe02d4e9d2`;
+- relação imediatamente antes da integração: **5 commits à frente / 0 atrás**;
+- sem squash;
+- sem rebase;
+- sem force-push;
+- sem merge commit.
+
+A LR-9C está oficialmente encerrada e integrada. A próxima subfase é
+**LR-9D — Cognitive / Agent Trace Adapters**.
