@@ -473,7 +473,7 @@ mutável é hardcoded no Luna Core.
 
 ## 12.5. LR-8.5 — Cognitive Resource Economy & Allocation
 
-**Estado: PASS TÉCNICO — LR-8.5A/B/C concluídas e integradas à `main` em 06/10/2026. PERF-1 concluiu em 07/10; LR-9 é a fase funcional atual planejada.**
+**Estado: PASS TÉCNICO — LR-8.5A/B/C concluídas e integradas à `main` em 06/10/2026. PERF-1 concluiu em 07/10; LR-9 está em andamento na LR-9A candidata.**
 
 A LR-8 fecha capacidade operacional de cada provider; a LR-8.5 passa a decidir
 qual recurso cognitivo vale consumir entre opções heterogêneas.
@@ -507,7 +507,10 @@ Plano detalhado: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURC
 
 ## 13. LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado: PLANEJADA — próxima fase funcional após PERF-1.**
+**Estado: EM ANDAMENTO — LR-9A IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna; LR-9B/C/D/E permanecem planejadas.**
+
+Contratos, implementação isolada e evidências técnicas:
+[LR-9A — Operational Trace Bus](LR-9A-OPERATIONAL-TRACE-BUS.md).
 
 O antigo escopo Luna Voice / feedback natural foi adiado para uma trilha futura
 sem posição fixa. LR-9 passa a preparar a infraestrutura operacional que

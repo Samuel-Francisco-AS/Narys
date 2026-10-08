@@ -470,9 +470,10 @@ Nenhuma dessas dívidas justifica PERF-1E.
 
 ### Próximo roadmap
 
-Com a PERF-1 encerrada, o roadmap pode voltar à expansão funcional planejada,
-começando por **LR-9 — Luna Voice / feedback natural**, salvo decisão posterior
-de repriorização.
+Com a PERF-1 encerrada, o roadmap pode voltar à expansão funcional planejada.
+Em 08/10/2026, LR-9 foi redefinida como **Operational Terminal & Cognitive Trace
+Runtime**, começando pelos contratos e bus passivo da LR-9A. Luna Voice foi
+preservada na trilha futura NARYS-VOICE, sem posição fixa.
 
 **PERF-1 encerrada em PASS.**
 

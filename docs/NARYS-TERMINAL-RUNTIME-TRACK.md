@@ -1,6 +1,6 @@
 # LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** PLANEJADA — próxima fase funcional após PERF-1.  
+**Estado:** EM ANDAMENTO — LR-9A implementação candidata; LR-9B/C/D/E planejadas.
 **Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
 registrada originalmente durante a PERF-1B em 07/10/2026.  
 **Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
@@ -315,6 +315,20 @@ isso não transforma Conversation em console de log.
 
 ### LR-9A — Operational Trace Contracts & Passive Event Bus
 
+**Estado:** **LR-9A IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+Contratos nativos tipados, bus único em managed state sem dependência de UI,
+retenção priority-aware com reservas, live best-effort bounded, replay com
+detecção de gaps, batches, métricas e coalescer separado foram implementados.
+32 testes específicos e suíte Rust integral (1023 passaram, 2 ignorados
+preexistentes, zero falhas) concluíram os gates técnicos. Stress de cinco fontes
+sintéticas preservou todos os STATE/CRITICAL sem consumo do subscriber. Nenhum
+adapter real, IPC/frontend, persistência, execução ou inferência foi adicionado.
+
+Contratos, budgets, evidências, ressalva de formatação global preexistente e
+dívidas: [LR-9A — Operational Trace Bus](LR-9A-OPERATIONAL-TRACE-BUS.md).
+Não é PASS definitivo; a auditoria independente permanece pendente.
+
 Formalizar OperationalEvent, provenance/correlation, CRITICAL/STATE/STREAM,
 bus assíncrono, buffers bounded, batching/coalescing e overflow determinístico.
 
@@ -397,5 +411,6 @@ Registro:
 
 ## 16. Próxima ação
 
-Começar por LR-9A: contratos, budgets/limites mensuráveis e testes de pressão.
-Não iniciar pela camada visual.
+Auditar independentemente a implementação candidata da LR-9A e seus contratos,
+budgets e gates sintéticos. LR-9B/C/D/E permanecem sem implementação nesta
+entrega; a camada visual continua reservada à LR-9C.
