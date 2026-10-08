@@ -466,7 +466,7 @@ mecanismos úteis, não defender previamente todas as ideias registradas.
 A trilha fica **reservada ao pós-LR-11**. Seu registro não antecipa implementação,
 não modifica os gates atuais e não obriga que todos os blocos sejam executados.
 
-LR-12, LR-13, trilhas de avatar, NARYS-TERM e NARYS-NORM continuam independentes.
+LR-12, LR-13, trilhas de avatar, NARYS-VOICE e NARYS-NORM continuam independentes. NARYS-TERM foi promovida para LR-9 em 08/10/2026.
 A posição relativa exata entre essas trilhas será decidida no checkpoint
 pós-LR-11 segundo custo, dependências e valor experimental.
 
