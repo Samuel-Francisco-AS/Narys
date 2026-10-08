@@ -1,68 +1,162 @@
-# NARYS-TERM — Terminal Runtime & Interactive Shell Surface
+# LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** TRILHA FUTURA — registrada, sem posição definitiva no roadmap.
-**Origem:** decisão de produto durante a PERF-1B em 07/10/2026.
-**Relação com PERF:** fora de escopo da PERF-1B/1C/1D; não deve atrasar o
-fechamento da trilha de performance.
+**Estado:** PLANEJADA — próxima fase funcional após PERF-1.  
+**Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
+registrada originalmente durante a PERF-1B em 07/10/2026.  
+**Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
+posteriormente por LR-10/Copilot e LR-11/Codex.
 
-## Visão
+## 1. Visão
 
-Transformar o workspace da Narys em uma superfície capaz de hospedar um
-**terminal Linux real**, compartilhável entre usuário e agentes, sem confundir
-Presentation com execução de processos.
+A LR-9 transforma a área central da Economy Shell em uma **superfície operacional**
+da Narys.
 
-A meta não é apenas embutir um prompt visual. A Narys deve oferecer uma sessão
-de terminal interativa com PTY, ownership explícito, auditoria de origem,
-políticas de autorização e integração futura com Luna/SpecialistAgents.
+Ela combina duas capacidades diferentes, que podem aparecer juntas na interface
+sem serem confundidas internamente:
 
-A superfície pode coexistir com Conversation, Tasks, Relays, System e outras
-views do workspace central.
+1. um **terminal Linux real**, baseado em PTY, utilizável normalmente pelo humano;
+2. uma **superfície de observabilidade passiva** para acompanhar trabalho,
+   progresso, comandos, eventos e saídas naturalmente expostas por Cognitive
+   Providers, workers, TaskGraph e SpecialistAgents.
 
-## Princípio
+A Conversation continua responsável pela comunicação de alto nível: pedidos,
+respostas, perguntas, approvals, decisões, alertas que exigem intervenção e
+relatórios finais.
 
-> o terminal é uma superfície operacional do Runtime, não um campo de texto que
-> envia comandos cegamente.
+O Terminal concentra atividade operacional: shell humano, stdout/stderr,
+comandos/processos, routing/fallback/retry útil, subtarefas/workers, ações de
+ferramentas e traces concorrentes de múltiplas inteligências.
 
-Frontend renderiza a sessão; autoridade de processo, PTY, cwd, lifecycle e
-políticas permanece no Core/nativo.
+O Terminal não é a fonte da verdade da tarefa e não substitui o Luna Core.
 
-## Arquitetura alvo
+## 2. Invariantes
 
-```text
-Economy / Narys Shell
-        │
-        ▼
-Terminal Surface
-(emulador visual)
-        │
-        │ IPC/event stream
-        ▼
-Terminal Runtime — Rust
-        │
-        ├── PTY session
-        ├── process lifecycle
-        ├── cwd / env permitidos
-        ├── resize cols/rows
-        ├── input/output
-        └── audit / authorization
-                │
-                ▼
-         bash / zsh / programas Linux
-```
+### 2.1. Passive Observability
 
-Uma biblioteca de emulação de terminal no frontend, como xterm.js ou equivalente,
-é aceitável. Ela não deve possuir o processo real.
+> observar nunca cria trabalho cognitivo adicional para a inteligência observada.
 
-No backend, utilizar PTY real para preservar compatibilidade com ferramentas
-interativas. Execução via simples `Command + stdin/stdout pipes` não substitui
-o requisito principal para programas como shell interativo, vim, nano, ssh,
-python REPL ou TUI.
+Adapters podem transportar somente aquilo que a fonte já produz naturalmente em
+seu endpoint, SDK, CLI, protocolo ou runtime.
 
-## Sessões
+É proibido:
 
-Conceito inicial:
+- acrescentar prompt pedindo que um modelo narre o trabalho apenas para o Terminal;
+- gastar nova inferência para fabricar progresso;
+- exigir mensagens extras de SpecialistAgents para preencher a UI;
+- inferir ou fabricar "pensamentos" que o backend não expôs;
+- tentar extrair private chain-of-thought oculto.
 
-```text
+Se um backend expõe apenas started/completed, é isso que existe. Se expõe
+reasoning summaries, agent messages, tool events ou progress deltas próprios,
+esses itens podem ser apresentados conforme policy.
+
+### 2.2. Execution Independence
+
+> um consumidor lento de observabilidade nunca pode retardar o executor.
+
+UI fechada, Headless, frame lento, scroll pesado ou subscriber ausente não podem
+aplicar backpressure bloqueante a provider, worker, agent ou processo.
+
+### 2.3. Bounded by Design
+
+Toda fila, buffer, scrollback e janela de replay possui limite explícito de
+eventos e/ou bytes. Não existe coleção de trace que cresça indefinidamente.
+
+### 2.4. Source Fidelity
+
+A Narys pode transportar, agrupar, coalescer e renderizar informação recebida.
+Não pode transformar ausência de evidência em descrição factual.
+
+Eventos críticos não podem ser descartados silenciosamente por otimização visual.
+
+### 2.5. Terminal is not Authority
+
+A superfície visual não concede permissão para executar nada. Autoridade
+permanece em Luna Core, capabilities, workspace scope, policies, approvals e
+Execution Broker.
+
+## 3. Três planos
+
+~~~text
+                 NARYS CORE
+                     │
+       ┌─────────────┴─────────────┐
+       │                           │
+ Cognitive Plane             Execution Plane
+       │                           │
+ providers/workers           Execution Broker
+ planner/agents          ┌─────────┴─────────┐
+                         │                   │
+                 Structured Exec           PTY
+                         │                   │
+                         └─────────┬─────────┘
+                                   │
+                                  OS
+                                   │
+                            Observation Plane
+                                   │
+                          Operational Trace Bus
+                                   │
+                            Terminal Surface
+~~~
+
+**Cognitive Plane:** decide, planeja e escolhe recursos.
+
+**Execution Plane:** executa efeitos reais através de uma fronteira controlada.
+
+**Observation Plane:** expõe eventos e saídas já produzidos sem se tornar
+dependência para a execução.
+
+## 4. Execution Broker
+
+A LR-9 cria a fundação comum que SpecialistAgents posteriores devem consumir para
+chegar ao Linux.
+
+~~~text
+ExecutionRequest
+- execution_id
+- task_id
+- owner/origin
+- workspace_scope
+- cwd
+- capability
+- mode
+- payload
+
+ExecutionResult
+- execution_id
+- exit/status
+- stdout/stderr refs ou bounded output
+- timestamps
+- provenance
+~~~
+
+### 4.1. Structured Exec
+
+Preferido para comandos não interativos e automação controlável, como
+`git status`, `cargo test`, `npm run build` e `rg`.
+
+Deve preservar owner, cwd, PID/lifecycle, exit code, stdout/stderr, cancelamento
+e timeout.
+
+### 4.2. PTY Execution
+
+Usada quando a semântica exige terminal interativo: shell, REPL, vim/nano, TUI
+ou processo que aguarda input.
+
+A PTY não é atalho para contornar policy.
+
+### 4.3. Fronteira pré-especialistas
+
+LR-9 constrói Broker e primitivas, mas **não entrega shell irrestrito ao Codex ou
+Copilot antecipadamente**.
+
+LR-10 e LR-11 continuam responsáveis por habilitar capabilities reais,
+approvals, sandbox/workspace e gates de seus SpecialistAgents.
+
+## 5. Terminal Runtime humano
+
+~~~text
 TerminalSession
 - session_id
 - owner/origin
@@ -72,212 +166,236 @@ TerminalSession
 - state
 - created_at
 - process/pty handle
-```
+~~~
 
-Capacidades mínimas futuras:
+Capacidades mínimas:
 
 - criar sessão;
-- enviar input;
-- receber output incremental;
-- redimensionar PTY;
+- abrir shell do usuário;
+- input/output incremental;
+- resize;
 - consultar estado;
 - encerrar sessão;
-- lidar com exit code/signal;
-- recuperar UI sem fingir que processo inexistente continua vivo.
+- exit code/signal;
+- destruir/recriar UI sem processo órfão.
 
-Persistência de processo entre restart do aplicativo **não é requisito inicial**.
-Se desejada no futuro, deve ser uma decisão explícita.
+Persistir processo após restart completo da aplicação não é requisito inicial.
 
-## Origem e auditoria
+A sessão humana e sessões agentivas são distintas. Agentes não digitam
+silenciosamente na PTY humana. Compartilhamento futuro exige handoff explícito de
+ownership.
 
-Qualquer ação deve preservar autoria/origem.
+## 6. Operational Trace
 
-Exemplo conceitual:
+Contrato provider/agent-neutral:
 
-```text
-CommandOrigin
-- human
-- luna
-- specialist_agent
-- automation
-```
+~~~text
+OperationalEvent
+- event_id / sequence
+- task_id
+- subtask_id?
+- source_type
+- source_id
+- source_instance?
+- kind
+- priority
+- timestamp
+- correlation_id?
+- bounded payload
+~~~
 
-O Runtime deve conseguir registrar, conforme política de privacidade:
+Fontes possíveis: core, scheduler, task_graph, cognitive_provider, worker,
+specialist_agent, execution_broker, terminal_process e human.
 
-- quem originou a ação;
-- sessão;
-- cwd;
-- comando/ação autorizada;
-- timestamp;
-- resultado/exit status;
-- aprovações relevantes.
+### Classes mínimas
 
-A implementação não deve depender de agentes "digitando teclas escondidas" na
-mesma sessão humana sem ownership observável.
+**CRITICAL:** approval required, security/policy block, failed, cancelled,
+completed quando necessário à integridade.
 
-## Sessão humana e sessões agentivas
+**STATE:** started, planning, worker/subtask lifecycle, tool/command lifecycle,
+retry/fallback, checkpoint e state transition.
 
-A direção desejada permite múltiplas sessões no workspace:
+**STREAM:** stdout/stderr chunks, provider deltas, agent-message deltas,
+reasoning/summary deltas expostos pelo backend e progress fragments.
 
-```text
+CRITICAL e estado necessário à reconstrução têm precedência sobre STREAM.
+
+## 7. Ingestão e performance
+
+~~~text
+sources
+  ↓
+trace adapters
+  ↓
+Operational Trace Bus
+  ↓
+bounded ingest buffers
+  ↓
+batch / coalesce / priority
+  ↓
+UI stream batches
+  ↓
+virtualized trace surface
+~~~
+
+- muitos eventos podem atravessar IPC em batch;
+- deltas do mesmo item podem atualizar uma entrada viva;
+- agrupar transporte não autoriza resumir conteúdo com LLM;
+- usar limites por fonte/tarefa e limite global em itens/bytes;
+- overflow deve ser determinístico e observável;
+- STREAM antigo pode ser evictado/coalescido antes de CRITICAL;
+- traces estruturados devem renderizar somente janela necessária;
+- PTY mantém stream/emulador próprio, sem OperationalEvent por byte.
+
+Sob carga crescente: batches maiores → coalescing maior → cadence visual menor →
+eviction bounded de STREAM antigo. A execução não desacelera para acompanhar UI.
+
+## 8. Headless e reentrada
+
+Em Headless, tarefas, workers, agents e Execution Broker continuam. Ausência de
+subscriber visual não é erro.
+
+Ao reabrir uma Presentation, entregar snapshot atual + janela recente bounded,
+nunca replay ilimitado de deltas acumulados.
+
+## 9. Segurança e autorização
+
+Shell arbitrário é capability de alto impacto.
+
+Distinguir ao menos observação, execução comum em workspace autorizado, ação
+destrutiva, ação privilegiada, rede sujeita a policy, processo persistente e
+delegação agentiva.
+
+`sudo`, remoção destrutiva, instalação de pacotes, push/publicação,
+credenciais, saída do workspace e daemons podem exigir approval.
+
+Não usar allowlist textual ingênua como única barreira.
+
+## 10. Relação com Codex, Copilot e providers
+
+O bridge Codex atual já observa notificações de agent message e
+reasoning/summary delta em seu protocolo, mas deliberadamente reduz isso a
+eventos genéricos e não expõe protocolo bruto ao frontend.
+
+LR-9 pode criar adapter sanitizado para eventos **naturalmente expostos**, sem
+ampliar trabalho do Codex e sem habilitar execução real antecipadamente.
+
+LR-10 preencherá o mesmo contrato com os eventos/capabilities realmente
+disponíveis na integração Copilot.
+
+Cognitive Providers entram somente com streaming, usage, routing,
+retry/fallback, tool/progress ou outros eventos que a integração já exponha.
+Não padronizar "pensamento" inexistente entre providers.
+
+## 11. Conversation x Terminal
+
+~~~text
+Conversation
+→ pedidos
+→ respostas
+→ perguntas
+→ approvals
+→ decisões
+→ relatórios
+
 Terminal
-● Sam
-  ~/Projetos/Narys
+→ shell
+→ comandos
+→ traces
+→ subtarefas
+→ progresso
+→ stdout/stderr
+→ atividade agentiva
+~~~
 
-● Luna / Task #104
-  cargo test
+Evento operacional pode gerar alerta na Conversation se exigir decisão humana;
+isso não transforma Conversation em console de log.
 
-● Codex / Task #105
-  ~/Projetos/Narys
-```
+## 12. Decomposição formal
 
-Uma sessão humana pode ser interativa e visível. Sessões de agentes devem ser
-identificáveis e auditáveis.
+### LR-9A — Operational Trace Contracts & Passive Event Bus
 
-Compartilhar a mesma PTY entre humano e agente só deve acontecer por mecanismo
-explícito, com regras claras de concorrência/controle.
+Formalizar OperationalEvent, provenance/correlation, CRITICAL/STATE/STREAM,
+bus assíncrono, buffers bounded, batching/coalescing e overflow determinístico.
 
-## Segurança e autorização
+Gate: rajadas sintéticas multi-source, producer não bloqueia consumidor
+lento/ausente, limites respeitados e CRITICAL preservado sob pressão de STREAM.
 
-Shell arbitrário é capability de alto impacto. O Runtime deve possuir fronteira
-de autorização própria.
+### LR-9B — Execution Broker & Real PTY Runtime
 
-Comandos/ações sensíveis podem exigir aprovação conforme policy, por exemplo:
+Criar ExecutionRequest/Result, Structured Exec mínimo, PTY real Rust, sessão
+humana Linux, lifecycle, resize, owner/origin e cleanup.
 
-- `sudo`;
-- alterações destrutivas de filesystem;
-- instalação/remoção de pacotes;
-- push/publicação;
-- manipulação de credenciais;
-- comandos que escapem do workspace autorizado;
-- processos persistentes/daemons;
-- rede quando restrita por policy.
+Gate: shell real; cd/ls/git/cargo; programa interativo simples; structured exec
+com provenance; close/reopen sem processo órfão.
 
-A arquitetura deve distinguir pelo menos:
+### LR-9C — Terminal Surface & Stream Management
 
-- leitura/observação;
-- comando comum dentro de contexto autorizado;
-- ação destrutiva ou privilegiada;
-- delegação para agente.
+Substituir a Home vazia por superfície operacional com PTY, traces multi-source,
+filtros, batches, coalescing, virtualização/scrollback bounded e cadence
+adaptativa.
 
-Não implementar allowlist textual simplista como única barreira de segurança.
+Gate: PTY responsiva + stress concorrente sem render por delta como requisito;
+fechar view não afeta execução.
 
-## Relação com agentes
+### LR-9D — Cognitive / Agent Trace Adapters
 
-A trilha deve poder evoluir para que Luna, Codex, Copilot e outros
-SpecialistAgents usem sessões ou runtimes de terminal sem depender da UI.
+Adaptar TaskEventKind, Scheduler/TaskGraph/workers, providers quando houver
+evento útil e bridge Codex atual como primeira prova agentiva passiva. Deixar
+contrato pronto para Copilot.
 
-Exemplo futuro:
+Gate: provenance correta, zero trabalho extra para gerar trace, conteúdo não
+exposto continua não exposto e sanitização não vaza segredo/protocolo bruto.
 
-```text
-Usuário: "Luna, rode os testes."
+### LR-9E — Concurrency, Security & Final Gate
 
-Luna
-→ solicita ação terminal
-→ policy avalia
-→ Terminal Runtime executa
-→ output estruturado/eventos
-→ UI mostra a mesma sessão
-→ resultado retorna ao agente
-```
+Consolidar execution + observation + Presentation lifecycle, paralelismo,
+approvals, cancelamento, Headless/reentrada e stress final.
 
-A UI não deve ser requisito para a execução agentiva; isso preserva a direção
-AI-Native do projeto.
+Gate mínimo: PTY humana, múltiplas fontes concorrentes, Structured Exec
+controlado, burst alto de STREAM, CRITICAL preservado, UI descartável, zero
+aumento deliberado de provider calls/tokens por observabilidade e nenhum processo
+órfão.
 
-## Relação com AI-Native Runtime
+## 13. Fora de escopo
 
-Essa trilha pode se tornar uma das primitivas operacionais do ecossistema:
+- Copilot SpecialistAgent completo;
+- Codex executor completo;
+- shell irrestrito a agents;
+- tmux completo;
+- persistência de PTY após reboot;
+- Windows/macOS obrigatórios no primeiro gate;
+- sudo automático;
+- private chain-of-thought;
+- resumo de traces via LLM por padrão;
+- substituir primitives estruturadas por shell;
+- reabrir a antiga Luna Voice;
+- misturar Presentation com autoridade de processo.
 
-- executar comando;
-- abrir sessão;
-- observar processo;
-- enviar input;
-- receber saída;
-- manipular cwd;
-- atribuir origem;
-- pedir aprovação;
-- gerar eventos auditáveis.
+## 14. Roadmap
 
-A API estruturada deve ser preferida quando houver primitive específica melhor
-que shell. O terminal é ferramenta universal e fallback operacional, não
-substituto de APIs nativas de filesystem, Git, navegador ou outras capabilities.
+~~~text
+PERF-1 PASS
+   ↓
+LR-9 Operational Terminal & Cognitive Trace Runtime
+   ↓
+LR-10 GitHub Copilot SpecialistAgent
+   ↓
+LR-11 OpenAI Codex SpecialistAgent
+~~~
 
-## UI futura
+LR-10/LR-11 herdam Execution Broker, provenance, PTY/exec primitives, trace
+contracts, observação bounded e uma superfície preparada para concorrência.
 
-A Economy Shell pode ganhar uma entrada `Terminal` na navegação.
+## 15. Antiga LR-9
 
-A view central pode suportar:
+O antigo escopo **Luna Voice e feedback natural** foi adiado em 08/10/2026.
+Continua válido, mas sem posição fixa e sem bloquear LR-10/LR-11.
 
-- tabs/sessões;
-- terminal principal;
-- indicação de cwd;
-- owner/origin;
-- estado do processo;
-- sessão humana vs agentiva;
-- approvals;
-- exit status;
-- reconexão visual.
+Registro:
+[NARYS-VOICE — Unified Voice & Natural Feedback](NARYS-VOICE-FUTURE-TRACK.md).
 
-Não adicionar gráficos/efeitos contínuos que contradigam a direção de performance
-da Economy Shell.
+## 16. Próxima ação
 
-A atual view `Shell / Home` continua sendo home/launcher e não precisa fingir
-ser terminal até esta trilha existir.
-
-## Não objetivos iniciais
-
-A primeira entrega desta trilha não precisa:
-
-- substituir o terminal do sistema inteiro;
-- implementar multiplexer completo estilo tmux;
-- persistir PTYs após reboot;
-- suportar Windows/macOS no primeiro spike;
-- conceder sudo automático;
-- dar shell irrestrito a agentes;
-- misturar terminal com Headless Runtime;
-- implementar parser semântico completo de shell;
-- substituir primitives estruturadas do Narys Runtime.
-
-## Pré-requisitos sugeridos
-
-Antes da implementação real, revisar:
-
-- resultado da PERF-1;
-- lifecycle do Headless Runtime;
-- modelo de permissions/approvals;
-- LR de ferramentas reais;
-- fronteira de SpecialistAgents;
-- política de workspace/filesystem;
-- necessidades do AI-Native Runtime.
-
-A trilha pode começar antes de todos esses itens somente como POC isolada de PTY,
-sem expor execução agentiva irrestrita.
-
-## POC sugerida
-
-Primeiro spike:
-
-1. criar uma única sessão PTY local;
-2. abrir shell do usuário;
-3. renderizar em uma view Terminal;
-4. input/output bidirecional;
-5. resize real;
-6. `cd`, `ls`, `cargo test` e programa interativo simples;
-7. encerrar/recriar sem processo órfão;
-8. nenhuma capability de agente ainda.
-
-Gate da POC:
-
-> Narys hospeda uma sessão Linux interativa real, com lifecycle limpo e sem
-> shell invisível/órfão.
-
-Somente depois introduzir ownership de agentes e policies de autorização.
-
-## Posição no roadmap
-
-Sem posição definitiva.
-
-Esta trilha é intencionalmente registrada agora para preservar a direção de
-produto, mas **não deve interromper PERF-1**. Sua posição deverá ser escolhida
-após PERF e considerando LR-13/tools reais, SpecialistAgents e o avanço do
-AI-Native Runtime.
+Começar por LR-9A: contratos, budgets/limites mensuráveis e testes de pressão.
+Não iniciar pela camada visual.
