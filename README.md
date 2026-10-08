@@ -6,7 +6,19 @@
 
 Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
-**Estado:** M0-A aprovado e encerrado. M0-B mantém a candidata Luna integrada e interativa. LR-1 a LR-5 estabeleceram runtime visual desacoplado, tarefas/eventos, segurança, SQLite, Context Builder, Registry, Scheduler e MockProvider. **LR-6 está em PASS completo** com Gemini real, streaming, usage, cancelamento, persistência local e credencial protegida validados no Fedora. A trilha **UIP-0 → UIP-7** está encerrada em PASS funcional. **LR-7 está encerrada em PASS completo desde 03/10/2026**: a trilha integrou Groq como segundo provider, distribuição real Gemini ↔ Groq, policies por papel, Codex Agent Bridge read-only, Orchestrator/Planner, routing Preferred/Auto/affinity, redundância com Cloudflare e finalmente LR-7D3 com TaskGraph distribuído real. O gate final usou Planner Groq e Workers Groq + Cloudflare em duas subtarefas paralelas, com consolidação determinística e provenance persistida. **LR-8 está encerrada em PASS completo desde 05/10/2026**, incluindo painel operacional, gate humano A–D/M e bateria determinística auditada E–L. Veja [o fechamento LR-8](docs/LR-8-RATE-LIMIT-MANAGER.md). **LR-8.5 está em execução: LR-8.5A e LR-8.5B encerraram em PASS técnico e estão integradas à `main` (A pela PR #23; B pela PR #24) em 06/10/2026; a próxima subfase é LR-8.5C — Safe Cross-Resource / Cross-Variant Handoff, antes da PERF-1/LR-9.** A trilha já modela access paths, billing domains, escassez de quota, custo de oportunidade, autorização de gasto e seleção econômica de provider/model/effort; a LR-8.5C fecha o handoff seguro. Veja [o plano LR-8.5](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md). A dívida formal de substituir a rota Mistral bloqueada por OpenAI API paga permanece. O trabalho artístico de Blender segue independente. **Após o fechamento da UIP-2 e antes da UIP-3, a Idle procedural foi substituída por uma Idle manual exportada do Blender; isso cria uma nova baseline de asset/performance para as medições seguintes.** Consulte [gate final UIP-7](docs/UIP-7-FINAL-PERFORMANCE.md), [integração da Idle manual](docs/MANUAL-IDLE-INTEGRATION.md), [plano de UI/performance](docs/UI-PERFORMANCE-PLAN.md), [status técnico](docs/M0-B-STATUS.md) e [plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
+**Estado:** LR-1 → LR-8.5 e UIP-0 → UIP-7 estão consolidados. **PERF-1 — Adaptive Presence & Economy Mode fechou em PASS completo em 07/10/2026**, com Economy 2D como default, Presence opt-in, Headless real e Adaptive restrito a Economy ↔ Headless.
+
+Em 08/10/2026, NARYS-TERM foi promovida e ampliada para a próxima fase funcional:
+**LR-9 — Operational Terminal & Cognitive Trace Runtime**. Ela prepara PTY humano
+real, Execution Broker, passive trace bounded e a superfície operacional que
+LR-10/Copilot e LR-11/Codex deverão reutilizar. O antigo escopo LR-9/Luna Voice
+foi preservado como NARYS-VOICE, sem posição fixa.
+
+Veja [LR-9 / NARYS-TERM](docs/NARYS-TERMINAL-RUNTIME-TRACK.md),
+[NARYS-VOICE](docs/NARYS-VOICE-FUTURE-TRACK.md),
+[PERF-1](docs/PERF-1-ADAPTIVE-PRESENCE.md),
+[LR-8.5](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md) e
+[o plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## LR-7D1 — PASS completo
 
@@ -44,6 +56,8 @@ Documentos principais:
 - [Arquitetura-alvo da Luna](docs/ARCHITECTURE-LUNA.md)
 - [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
 - [LR-8.5 — Cognitive Resource Economy & Allocation](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md)
+- [LR-9 — Operational Terminal & Cognitive Trace Runtime](docs/NARYS-TERMINAL-RUNTIME-TRACK.md)
+- [NARYS-VOICE — Unified Voice & Natural Feedback](docs/NARYS-VOICE-FUTURE-TRACK.md)
 - [Narys pós-LR-11 — Cognitive Evolution Track](docs/NARYS-POST-LR11-COGNITIVE-EVOLUTION.md)
 - [Local Cognitive Support — papel dos coprocessadores locais na Luna](docs/LOCAL-COGNITIVE-SUPPORT-LUNA.md)
 - [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
