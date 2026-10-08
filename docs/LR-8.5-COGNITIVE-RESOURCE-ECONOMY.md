@@ -560,7 +560,7 @@ LR-8D
 → LR-8 PASS
 → LR-8.5 Cognitive Resource Economy & Allocation
 → PERF-1 Adaptive Presence & Economy Mode
-→ LR-9 Voice / feedback natural
+→ LR-9 Operational Terminal & Cognitive Trace Runtime
 → LR-10 GitHub Copilot SpecialistAgent
 → LR-11 OpenAI Codex SpecialistAgent
 → LR-12 provider pack adicional / paid providers
