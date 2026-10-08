@@ -476,6 +476,12 @@ introduzido nesta fase apenas para preencher o workspace.
 
 Esse registro não altera o gate da PERF-1B nem cria nova subfase.
 
+**Atualização pós-PERF — 08/10/2026:** após o fechamento completo da PERF-1,
+NARYS-TERM foi promovida e ampliada para **LR-9 — Operational Terminal &
+Cognitive Trace Runtime**. O registro acima permanece como origem histórica da
+decisão; o plano vigente está em
+[NARYS-TERMINAL-RUNTIME-TRACK.md](NARYS-TERMINAL-RUNTIME-TRACK.md).
+
 
 ## Fechamento com dívidas não bloqueantes — 07/10/2026
 
