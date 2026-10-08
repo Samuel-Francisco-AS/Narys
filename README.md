@@ -44,6 +44,7 @@ Documentos principais:
 - [Arquitetura-alvo da Luna](docs/ARCHITECTURE-LUNA.md)
 - [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
 - [LR-8.5 — Cognitive Resource Economy & Allocation](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md)
+- [Narys pós-LR-11 — Cognitive Evolution Track](docs/NARYS-POST-LR11-COGNITIVE-EVOLUTION.md)
 - [Local Cognitive Support — papel dos coprocessadores locais na Luna](docs/LOCAL-COGNITIVE-SUPPORT-LUNA.md)
 - [Avatar e runtime de animações](docs/AVATAR-ANIMATION-RUNTIME.md)
 - [Integração da Idle manual e quebra de baseline](docs/MANUAL-IDLE-INTEGRATION.md)
