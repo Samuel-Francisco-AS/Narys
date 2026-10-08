@@ -829,32 +829,30 @@ Plano detalhado:
 
 Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 = PASS funcional**, **LR-7 = PASS
 completo**, **LR-8 = PASS completo**, **LR-8.5A/B/C = PASS técnico** e
-**PERF-1A/B/C = PASS**, a fase ativa continua sendo **PERF-1 — Adaptive Presence
-& Economy Mode**.
+**PERF-1A/B/C/D = PASS**, a trilha **PERF-1 — Adaptive Presence & Economy Mode**
+está encerrada.
 
-Em 07/10/2026, **PERF-1C — Headless Runtime** foi encerrada em PASS e integrada
-à `main` por fast-forward. Estado do último checkpoint formal da fase:
-**PERF-1D — PASS técnico após FIX-1; gate humano final pendente**.
+O fechamento em 07/10/2026 consolida:
 
-A 1D deve partir da `main` já integrada e usar os contratos comprovados pelas
-etapas anteriores:
+- Economy como default 2D;
+- Presence como opt-in explícito;
+- Headless real sem WebView;
+- Adaptive Auto restrito a Economy ↔ Headless;
+- continuidade do Core/Conversation sem dependência da Presentation;
+- Attention com recuperação segura em Economy;
+- dívidas não bloqueantes preservadas documentalmente.
 
-- Presence com lifecycle explícito;
-- Economy como interface padrão;
-- Headless real com zero WebViews;
-- Conversation HeadlessSafe e demais tarefas UiBound por default;
-- Close Presentation distinto de Quit;
-- reabertura por single-instance sem recriar o Core.
+Após integração final da PERF-1 na `main`, a próxima fase funcional prevista é
+**LR-9 — Luna Voice / feedback natural**, salvo repriorização explícita.
 
-As dívidas de 1B/1C permanecem registradas e não devem ser absorvidas pela 1D
-sem relação direta com Adaptive. NARYS-TERM e NARYS-NORM continuam trilhas
-separadas.
+NARYS-TERM e NARYS-NORM permanecem trilhas separadas e não alteram esse
+fechamento.
 
-Plano mestre:
+Plano encerrado:
 [PERF-1-ADAPTIVE-PRESENCE.md](PERF-1-ADAPTIVE-PRESENCE.md).
 
-Último checkpoint concluído:
-[PERF-1C-HEADLESS-RUNTIME.md](PERF-1C-HEADLESS-RUNTIME.md).
+Último checkpoint:
+[PERF-1D-ADAPTIVE-PRESENCE.md](PERF-1D-ADAPTIVE-PRESENCE.md).
 
 ## 25. Definição da primeira grande entrega funcional
 
@@ -934,6 +932,4 @@ manual; Headless persistido admite Economy temporária por ativação explícita
 Auto opera somente Economy/Headless com 30 s de hysteresis, guards e attention
 estruturada. Nenhuma policy cognitiva ou capability LR-9/10/11 foi antecipada.
 [Implementação, evidências e gates](PERF-1D-ADAPTIVE-PRESENCE.md).
-Estado: **PERF-1D — PASS técnico após FIX-1; gate humano final pendente**.
-Auditoria independente e gate humano ainda são necessários. PERF-1 permanece
-em execução. TERM/NORM continuam trilhas futuras separadas.
+Estado: **PERF-1D = PASS** após FIX-1, segunda auditoria e gate humano. **PERF-1 = PASS completo** em 07/10/2026. TERM/NORM continuam trilhas futuras separadas.
