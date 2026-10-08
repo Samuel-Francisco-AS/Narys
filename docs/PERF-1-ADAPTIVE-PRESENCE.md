@@ -1,6 +1,6 @@
 # PERF-1 — Adaptive Presence & Economy Mode
 
-Estado: **PASS — PERF-1A/B/C/D concluídas em 07/10/2026; aguardando somente integração final na main.**
+Estado: **PASS COMPLETO — PERF-1A/B/C/D concluídas e integradas à main em 07/10/2026.**
 
 ## Decisões de execução fechadas em 07/10/2026
 
@@ -475,3 +475,21 @@ começando por **LR-9 — Luna Voice / feedback natural**, salvo decisão poster
 de repriorização.
 
 **PERF-1 encerrada em PASS.**
+
+
+## Integração final da PERF-1 — 07/10/2026
+
+A quarta e última etapa foi integrada por fast-forward, encerrando a trilha
+PERF-1 na `main`.
+
+A fase termina com os seguintes estados consolidados:
+
+- Presence: opt-in explícito;
+- Economy: default 2D;
+- Headless: Core sem WebView persistente;
+- Auto: Economy ↔ Headless, nunca Presence;
+- Attention: Economy enquanto pendente;
+- Core/TaskId independentes da Presentation;
+- dívidas futuras registradas sem criação de PERF-1E.
+
+**Estado final: PERF-1 = PASS COMPLETO E INTEGRADO.**
