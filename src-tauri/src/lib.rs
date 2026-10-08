@@ -2,6 +2,7 @@ mod agents;
 mod cognition;
 pub mod cognitive_resources;
 mod luna;
+pub mod operational_trace;
 mod persistence;
 mod presentation;
 mod adaptive;
@@ -22,6 +23,7 @@ pub fn run() {
             });
         }))
         .manage(presentation::PresentationHost::default())
+        .manage(operational_trace::OperationalTraceBus::process_wide())
         .setup(|app| {
             let directory = app.path().app_local_data_dir()?;
             let db = persistence::database::Database::new(directory.clone());
