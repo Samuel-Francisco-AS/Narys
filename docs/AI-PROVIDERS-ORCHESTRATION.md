@@ -511,22 +511,29 @@ Configuração inicial conceitual, não números congelados:
 
 O runtime deve parar quando o valor marginal de uma nova chamada não justificar tempo/custo.
 
-## 11. Luna Voice
+## 11. Luna Voice — adiada / sem posição fixa
 
-A saída final e feedback natural devem preservar uma identidade única mesmo com workers diferentes.
+A saída final e feedback natural ainda podem futuramente preservar identidade
+única entre workers diferentes, porém esse escopo deixou de ocupar LR-9 em
+08/10/2026.
 
-A Luna Voice recebe um pacote resumido:
+Uma futura Luna Voice poderá receber:
 
 ~~~text
 UserRequest
-TaskResult
+CanonicalResult
 RelevantIdentity
 RelevantMemory
 RecentConversation
 PresentationConstraints
 ~~~
 
-Workers internos podem responder em formato estruturado. A Luna Voice não deve receber automaticamente todos os logs/tokens brutos.
+e nunca deve receber automaticamente logs/tokens brutos.
+
+Essa trilha é distinta do Observation Plane: traces de agents/providers são
+passivos e refletem apenas o que a integração já expõe, sem nova inferência.
+
+Detalhes: [NARYS-VOICE-FUTURE-TRACK.md](NARYS-VOICE-FUTURE-TRACK.md).
 
 ## 12. Ordem de integração recomendada
 
@@ -542,9 +549,10 @@ Workers internos podem responder em formato estruturado. A Luna Voice não deve 
 6. **LR-7D3 fechada em 03/10/2026**: task graph mínimo validado com Groq + Cloudflare em trabalho útil e provenance persistida.
 7. **LR-8 encerrada em PASS completo em 05/10/2026:** LR-8A/B/C/D/E fecharam quota/telemetria, admission, accounting/budgets, resilience e painel operacional com gate final aprovado. Próxima trilha: **LR-8.5 — Cognitive Resource Economy & Allocation**; consulte [LR-8-RATE-LIMIT-MANAGER.md](LR-8-RATE-LIMIT-MANAGER.md) e [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md).
 8. OpenRouter/Cohere/Hugging Face como experimentos/fallback posteriores.
-9. GitHub Copilot SDK como SpecialistAgent.
-10. Codex amplia sua integração agentiva já iniciada na D0.5.
-11. OpenAI API paga somente depois de orçamento/limites estarem consolidados.
+9. **LR-9 — Operational Terminal & Cognitive Trace Runtime:** Execution Broker, PTY humano real, passive trace e superfície bounded antes dos especialistas.
+10. **LR-10 — GitHub Copilot SDK como SpecialistAgent**, reutilizando Execution Broker/trace contracts.
+11. **LR-11 — Codex amplia sua integração agentiva já iniciada na D0.5**, reutilizando a mesma fronteira de execução/observação.
+12. OpenAI API paga somente depois de orçamento/limites estarem consolidados.
 
 Essa ordem pode mudar por bloqueio técnico, mas a primeira prova de arquitetura precisa usar pelo menos **dois providers independentes** para evitar uma abstração falsa.
 
