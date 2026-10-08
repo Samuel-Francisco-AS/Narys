@@ -334,3 +334,21 @@ FIX                     não necessária
 
 A próxima etapa funcional após integração e sincronização local é o planejamento
 da **LR-9B — Execution Broker & Real PTY Runtime**.
+
+
+## Integração na main — 08/10/2026
+
+Após PASS técnico e auditoria independente, a branch
+`lr-9a-operational-trace-bus` foi integrada à `main` por **fast-forward**.
+
+- base anterior da `main`: `dbfcbd4d1d426d79b59a20614753fe77d25e8f69`;
+- HEAD integrado da branch: `b8b7d9b1add50d73ec550bf18fba69ab2bfa92ee`;
+- relação imediatamente antes da integração: **5 commits à frente / 0 atrás**;
+- sem squash;
+- sem rebase;
+- sem force-push;
+- sem merge commit;
+- histórico da implementação e do fechamento preservado integralmente.
+
+A LR-9A está oficialmente encerrada e integrada. A próxima subfase é
+**LR-9B — Execution Broker & Real PTY Runtime**.
