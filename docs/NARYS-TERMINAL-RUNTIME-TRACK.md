@@ -1,6 +1,6 @@
 # LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** EM ANDAMENTO — LR-9A encerrada em PASS técnico + auditoria independente; LR-9B/C/D/E planejadas.
+**Estado:** EM ANDAMENTO — LR-9A encerrada em PASS técnico + auditoria independente e integrada à `main` em 08/10/2026; próxima subfase: LR-9B.
 **Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
 registrada originalmente durante a PERF-1B em 07/10/2026.  
 **Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
