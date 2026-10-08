@@ -359,7 +359,7 @@ Sequência planejada:
 LR-8 PASS
 → LR-8.5 Cognitive Resource Economy & Allocation
 → PERF-1 Adaptive Presence & Economy Mode
-→ LR-9 Luna Voice / feedback natural
+→ LR-9 Operational Terminal & Cognitive Trace Runtime
 → LR-10 Copilot SpecialistAgent
 → LR-11 Codex SpecialistAgent
 → expansão de ferramentas e operação
@@ -368,7 +368,7 @@ LR-8 PASS
 PERF-1 fica nessa posição por duas razões:
 
 1. **não interferir na estabilização cognitiva da LR-8/LR-8.5**;
-2. **recuperar orçamento de CPU/RAM antes de aumentar a carga permanente com voz, agentes, ferramentas, navegador e integrações externas.**
+2. **recuperar orçamento de CPU/RAM antes de aumentar a carga operacional com terminal, observabilidade concorrente, agentes, ferramentas, navegador e integrações externas.**
 
 Ela é portanto um **checkpoint de eficiência antes da fase operacional pesada**.
 
@@ -464,7 +464,7 @@ As dívidas abaixo não bloqueiam o PASS e permanecem explícitas:
    callers nativos/agents capazes de iniciar UiBound sem WebView;
 8. integração real do Attention contract com approvals/tools;
 9. launcher/recuperação de UX mais polida para desenvolvimento;
-10. NARYS-TERM e NARYS-NORM permanecem trilhas separadas.
+10. NARYS-NORM permanece trilha separada; NARYS-TERM foi posteriormente promovida a LR-9 em 08/10/2026.
 
 Nenhuma dessas dívidas justifica PERF-1E.
 
