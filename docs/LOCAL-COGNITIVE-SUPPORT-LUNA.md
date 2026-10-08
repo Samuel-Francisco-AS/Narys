@@ -620,7 +620,7 @@ Estas etapas são **rótulos de pesquisa**, não novas fases LR já comprometida
 - Whisper;
 - TTS baseline;
 - medir latência e CPU;
-- pode convergir com objetivos futuros de LR-9.
+- pode convergir com a trilha futura NARYS-VOICE e/ou uma capability de speech dedicada.
 
 ### LCS-L2 — semantic retrieval
 
@@ -665,7 +665,7 @@ A ideia local pode reutilizar princípios aprendidos em LR-8, mas não deve ser 
 
 Possíveis pontos posteriores:
 
-- **LR-9 / Voice:** candidatos VAD/ASR/TTS locais podem ser avaliados;
+- **NARYS-VOICE / speech futuro:** candidatos VAD/ASR/TTS locais podem ser avaliados quando houver posição e budget;
 - **LR-14 / Economia-Timing-Distribuição:** incluir métricas de remote tokens avoided, local load time, local RAM/CPU e local-vs-remote decision;
 - **AI-Native Runtime:** destino arquitetural do lifecycle/model registry local.
 
