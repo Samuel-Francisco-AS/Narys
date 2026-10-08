@@ -507,9 +507,14 @@ Plano detalhado: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURC
 
 ## 13. LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado: EM ANDAMENTO — LR-9A IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna; LR-9B/C/D/E permanecem planejadas.**
+**Estado: EM ANDAMENTO — LR-9A encerrada em PASS técnico + auditoria independente em 08/10/2026; próxima subfase: LR-9B.**
 
-Contratos, implementação isolada e evidências técnicas:
+LR-9A estabeleceu contratos tipados, OperationalTraceBus process-wide, retenção
+priority-aware/bounded, live best-effort não bloqueante, replay com gaps,
+batching, métricas e coalescing seguro. A auditoria independente aprovou a
+candidata sem FIX bloqueante.
+
+Fechamento e evidências:
 [LR-9A — Operational Trace Bus](LR-9A-OPERATIONAL-TRACE-BUS.md).
 
 O antigo escopo Luna Voice / feedback natural foi adiado para uma trilha futura
