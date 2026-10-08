@@ -1,7 +1,9 @@
 # LR-9A — Operational Trace Contracts & Passive Event Bus
 
-**Estado:** **LR-9A IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
-Não é PASS definitivo e não libera automaticamente LR-9B/C/D/E.
+**Estado:** **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 08/10/2026.**
+A implementação foi aprovada sem FIX bloqueante e está liberada para integração
+fast-forward na `main`. LR-9B/C/D/E permanecem fases independentes e não foram
+antecipadas.
 
 Base: `origin/main` em `dbfcbd4d1d426d79b59a20614753fe77d25e8f69`, workspace
 limpo, referências atualizadas antes da criação de
@@ -280,3 +282,55 @@ Nenhuma divergência justifica ampliar o escopo autorizado.
 Passive Observability é estrutural: nenhum prompt, provider call, agent request,
 inferência, resumo por LLM, narração artificial ou private chain-of-thought
 foi acrescentado no caminho da observação.
+
+
+## Fechamento independente — 08/10/2026
+
+A auditoria independente da Luna revisou o diff completo contra `main`, os
+contratos, retenção/replay, live delivery, coalescing, stress sintético,
+composition root e documentação da candidata.
+
+**Veredito:** **PASS TÉCNICO DA AUDITORIA INDEPENDENTE.**
+
+Nenhuma FIX-1 foi necessária.
+
+A revisão confirmou:
+
+- Passive Observability materializada no código, sem dependência de providers,
+  agents, Presentation, IPC, rede, processo ou filesystem;
+- live delivery bounded e não bloqueante via `sync_channel` + `try_send`;
+- retenção bounded por eventos/bytes com prioridade STREAM < STATE < CRITICAL;
+- replay com detecção correta de buracos internos via `highest_lost_sequence`;
+- coalescing como view derivada, exata e sem perda das identidades originais;
+- singleton process-wide independente do lifecycle visual;
+- ausência de integração real antecipada com TaskEvent/Scheduler/TaskGraph,
+  providers, Codex, Copilot ou frontend;
+- branch candidata baseada diretamente na `main`, sem divergência de histórico.
+
+### Observações não bloqueantes
+
+1. `retain_event()` recalcula contagem/bytes por classe percorrendo até 1024
+   itens sob o mutex global. Continua bounded e correto, mas deve ser medido
+   quando LR-9D conectar fontes reais de alta frequência. Se virar hot path,
+   considerar contadores incrementais por classe.
+2. `subscribers_disconnected` inclui detach normal por `Drop`. Antes da
+   telemetria visível da LR-9C, avaliar separar detach esperado de desconexão
+   inesperada para evitar interpretação operacional equivocada.
+3. O budget de 2 MiB é carga lógica estimada do histórico, não promessa de RSS.
+   LR-9C/9D devem medir custo físico real sob IPC e carga concorrente.
+
+Nenhum desses pontos reabre LR-9A.
+
+### Estado de fechamento
+
+~~~text
+LR-9A — Operational Trace Contracts & Passive Event Bus
+
+IMPLEMENTAÇÃO          PASS
+AUDITORIA INDEPENDENTE PASS
+BLOCKERS               0
+FIX                     não necessária
+~~~
+
+A próxima etapa funcional após integração e sincronização local é o planejamento
+da **LR-9B — Execution Broker & Real PTY Runtime**.
