@@ -340,20 +340,23 @@ lento/ausente, limites respeitados e CRITICAL preservado sob pressão de STREAM.
 
 ### LR-9B — Execution Broker & Real PTY Runtime
 
-**Estado:** **LR-9B IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+**Estado:** **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 08/10/2026.**
 
-Branch local recuperada sem recriação ou descarte de trabalho. Execution Broker
-process-wide, authority separada de provenance, Structured Exec com drenagem
-concorrente/bounded, PTY humana real, input/replay/resize/lifecycle, timeout,
-cancellation e shutdown coordenado foram implementados. Agents continuam sem
-execution authority; não há generic shell IPC ou Terminal React.
+Execution Broker process-wide, authority separada de provenance, Structured Exec
+com drenagem concorrente/bounded, PTY humana real, input/replay/resize/lifecycle,
+timeout, cancellation e shutdown coordenado foram implementados. Agents continuam
+sem execution authority; não há generic shell IPC ou Terminal React.
 
-35 testes específicos, stress Exec/PTY sem rede, suíte integral com 1058 aprovados
-(zero falhas, dois ignored herdados), check debug/release, typecheck/build e probe
-Tauri Close/Reopen/Quit passaram. MSRV 1.77.2 não atestado e dívida global herdada
-permanecem explícitos; PTY Linux requer pidfd/kernel >=5.3 e `/proc`.
+35 testes específicos, stress Exec/PTY sem rede, suíte integral registrada com
+1058 aprovados (zero falhas, dois ignored herdados), check debug/release,
+typecheck/build e probe Tauri Close/Reopen/Quit passaram. A auditoria independente
+aprovou a candidata sem FIX bloqueante.
 
-[Recuperação, contratos, budgets, gates e limitações](LR-9B-EXECUTION-BROKER-PTY.md).
+Dívidas não bloqueantes: reattach/registry PTY para LR-9C, projeção IPC sanitizada
+de resultados, revisão do timeout de 1 hora para sessão humana longa e MSRV global
+1.77.2 ainda não atestado.
+
+[Fechamento, recuperação, contratos, budgets, gates e limitações](LR-9B-EXECUTION-BROKER-PTY.md).
 [Evidência nativa](LR-9B-NATIVE-EVIDENCE.json).
 
 Criar ExecutionRequest/Result, Structured Exec mínimo, PTY real Rust, sessão
