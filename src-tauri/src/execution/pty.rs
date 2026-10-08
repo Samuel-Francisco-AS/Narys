@@ -6,9 +6,9 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
-        mpsc::{self, SyncSender, TrySendError},
-        Arc, Mutex,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc::{self, Receiver, SyncSender, TrySendError},
+        Arc, Mutex, Weak,
     },
     thread,
     time::{Duration, Instant, SystemTime},
@@ -29,6 +29,8 @@ struct Output {
     dropped_chunks: u64,
     read_error: bool,
     incomplete: bool,
+    observers: Vec<(u64, SyncSender<u64>, Arc<AtomicU64>)>,
+    next_observer: u64,
 }
 impl Output {
     fn append(&mut self, bytes: &[u8]) -> bool {
@@ -53,7 +55,59 @@ impl Output {
             sequence,
             bytes: bytes.into(),
         });
+        // Notifications carry only a cursor, never another copy of output.
+        // A full queue loses a wakeup; replay remains the recovery authority.
+        self.observers
+            .retain(|(_, tx, loss)| match tx.try_send(sequence) {
+                Ok(()) => true,
+                Err(TrySendError::Full(_)) => {
+                    let _ = loss.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
+                        Some(n.saturating_add(1))
+                    });
+                    true
+                }
+                Err(TrySendError::Disconnected(_)) => false,
+            });
         true
+    }
+}
+pub const PTY_LIVE_QUEUE: usize = 1;
+pub const PTY_MAX_SUBSCRIBERS: usize = 2;
+pub struct PtyLiveSubscriber {
+    id: u64,
+    data: Weak<PtyData>,
+    receiver: Receiver<u64>,
+    pub cursor: u64,
+    loss: Arc<AtomicU64>,
+}
+impl PtyLiveSubscriber {
+    pub fn lost_notifications(&self) -> u64 {
+        self.loss.load(Ordering::Acquire)
+    }
+    /// Consumer-only blocking wait. Producer uses try_send under bounded storage lock.
+    pub fn wait(&self, timeout: Duration) -> Option<u64> {
+        self.receiver.recv_timeout(timeout).ok()
+    }
+}
+impl Drop for PtyLiveSubscriber {
+    fn drop(&mut self) {
+        if let Some(data) = self.data.upgrade() {
+            data.output
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .observers
+                .retain(|(id, _, _)| *id != self.id);
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum PtyLifecycle {
+    Bounded,
+    HumanInteractive,
+}
+impl PtyLifecycle {
+    pub(crate) fn expired(self, elapsed: Duration, timeout: Duration) -> bool {
+        self == Self::Bounded && elapsed >= timeout
     }
 }
 struct PtyData {
@@ -63,6 +117,7 @@ struct PtyData {
     input: SyncSender<Vec<u8>>,
     request: ExecutionRequest,
     created_at: SystemTime,
+    lifecycle: PtyLifecycle,
 }
 #[derive(Clone)]
 pub struct PtySession {
@@ -91,6 +146,32 @@ pub struct PtyReplay {
     pub incomplete: bool,
 }
 impl PtySession {
+    pub fn subscribe(&self) -> Result<PtyLiveSubscriber, ExecutionError> {
+        let mut output = self.data.output.lock().unwrap_or_else(|p| p.into_inner());
+        if output.observers.len() >= PTY_MAX_SUBSCRIBERS {
+            return Err(ExecutionError::SessionLimit);
+        }
+        let id = output
+            .next_observer
+            .checked_add(1)
+            .ok_or(ExecutionError::IdExhausted)?;
+        output.next_observer = id;
+        let (tx, receiver) = mpsc::sync_channel(PTY_LIVE_QUEUE);
+        let loss = Arc::new(AtomicU64::new(0));
+        output.observers.push((id, tx, loss.clone()));
+        Ok(PtyLiveSubscriber {
+            id,
+            data: Arc::downgrade(&self.data),
+            receiver,
+            cursor: output.latest,
+            loss,
+        })
+    }
+    #[cfg(test)]
+    pub(crate) fn subscriber_count(&self) -> usize {
+        self.data.output.lock().unwrap().observers.len()
+    }
+
     pub fn id(&self) -> PtySessionId {
         PtySessionId(self.execution.id())
     }
@@ -233,6 +314,15 @@ impl ExecutionBroker {
         dimensions: PtyDimensions,
         authority: &ExecutionAuthority,
     ) -> Result<PtySession, ExecutionError> {
+        self.open_pty_with_lifecycle(request, dimensions, authority, PtyLifecycle::Bounded)
+    }
+    fn open_pty_with_lifecycle(
+        self: &Arc<Self>,
+        request: &ExecutionRequest,
+        dimensions: PtyDimensions,
+        authority: &ExecutionAuthority,
+        lifecycle: PtyLifecycle,
+    ) -> Result<PtySession, ExecutionError> {
         authority.authorize(request, ExecutionMode::Pty)?;
         // No fixture authority and no agent origin can open/write a human PTY.
         authority.authorize_input(&request.origin)?;
@@ -246,6 +336,7 @@ impl ExecutionBroker {
             input,
             request,
             created_at: SystemTime::now(),
+            lifecycle,
         });
         let worker_data = data.clone();
         let execution = self.launch(ExecutionMode::Pty, move |handle, broker| {
@@ -273,7 +364,12 @@ impl ExecutionBroker {
             timeout: MAX_TIMEOUT,
             capture: CapturePolicy::default(),
         };
-        self.open_pty(&request, dimensions, authority)
+        self.open_pty_with_lifecycle(
+            &request,
+            dimensions,
+            authority,
+            PtyLifecycle::HumanInteractive,
+        )
     }
 }
 /// Absolute executable $SHELL, then /bin/bash, then /bin/sh; no command string,
@@ -422,7 +518,7 @@ fn run_pty(
         result.mode,
         ExecutionState::Running,
     );
-    let deadline = Instant::now() + result.request.timeout;
+    let started = Instant::now();
     let mut terminal = None;
     let mut term_at = None;
     let mut exit_observed = false;
@@ -440,7 +536,10 @@ fn run_pty(
                         .read_error
                 {
                     Some(ExecutionState::Failed)
-                } else if Instant::now() >= deadline {
+                } else if data
+                    .lifecycle
+                    .expired(started.elapsed(), result.request.timeout)
+                {
                     Some(ExecutionState::TimedOut)
                 } else {
                     None

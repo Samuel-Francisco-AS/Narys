@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--url', default='http://127.0.0.1:4173/')
 parser.add_argument('--mode', choices=['economy', 'presence'], default='economy')
 parser.add_argument('--test', action='store_true')
+parser.add_argument('--lr9c', action='store_true', help='LR-9C synthetic IPC/real xterm DOM suite')
 parser.add_argument('--screenshot')
 parser.add_argument('--width', type=int, default=1120)
 parser.add_argument('--restored-layout', action='store_true')
@@ -45,6 +46,8 @@ fixture = Path(__file__).with_name('fixtures').joinpath('perf1a-webkit-interacti
 fixture = fixture.replace("presentationMode: 'economy'", "presentationMode: '" + args.mode + "'")
 if args.restored_layout:
     fixture = fixture.replace('leftWidth: 208', 'leftWidth: 9999').replace('rightWidth: 272', 'rightWidth: 1')
+if args.lr9c:
+    fixture += Path(__file__).with_name('fixtures').joinpath('lr9c-webkit-ipc.js').read_text()
 # Count actual context acquisition and delivered animation callbacks, not target FPS.
 fixture += r"""
 window.__graphics = { contexts: 0, frames: 0, frames3D: 0, drawCalls: 0, frameStamp: null, lastDrawStamp: null, bootstrapMs: null };
@@ -84,7 +87,7 @@ window.show_all()
 
 def loaded(view, event):
     if event == WebKit2.LoadEvent.FINISHED and args.test:
-        code = Path(__file__).with_name('fixtures').joinpath('perf1b-webkit-shell.js').read_text()
+        code = Path(__file__).with_name('fixtures').joinpath('lr9c-webkit-terminal.js' if args.lr9c else 'perf1b-webkit-shell.js').read_text()
         view.evaluate_javascript(code, -1, None, None, None, None)
 view.connect('load-changed', loaded)
 view.load_uri(args.url)

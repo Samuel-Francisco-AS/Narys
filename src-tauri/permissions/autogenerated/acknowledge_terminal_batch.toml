@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-acknowledge-terminal-batch"
+description = "Enables the acknowledge_terminal_batch command without any pre-configured scope."
+commands.allow = ["acknowledge_terminal_batch"]
+
+[[permission]]
+identifier = "deny-acknowledge-terminal-batch"
+description = "Denies the acknowledge_terminal_batch command without any pre-configured scope."
+commands.deny = ["acknowledge_terminal_batch"]

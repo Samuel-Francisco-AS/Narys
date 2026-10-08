@@ -13,6 +13,7 @@ custom-protocol = ["tauri/custom-protocol"]
 perf1c-probe = ["tauri/dynamic-acl"]
 perf1d-probe = ["perf1c-probe"]
 lr9b-probe = ["perf1c-probe"]
+lr9c-probe = ["perf1c-probe"]
 
 [lib]
 name = "assistente_3d_lib"

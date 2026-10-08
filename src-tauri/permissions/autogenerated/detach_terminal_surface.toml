@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-detach-terminal-surface"
+description = "Enables the detach_terminal_surface command without any pre-configured scope."
+commands.allow = ["detach_terminal_surface"]
+
+[[permission]]
+identifier = "deny-detach-terminal-surface"
+description = "Denies the detach_terminal_surface command without any pre-configured scope."
+commands.deny = ["detach_terminal_surface"]

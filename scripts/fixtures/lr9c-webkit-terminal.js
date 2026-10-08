@@ -1,0 +1,24 @@
+;(async()=>{
+ const wait=ms=>new Promise(r=>setTimeout(r,ms));const assert=(v,m)=>{if(!v)throw Error(m)};const until=async(fn,m)=>{let start=performance.now();while(!fn()){if(performance.now()-start>15000)throw Error(m);await wait(40)}}
+ const click=label=>{let b=document.querySelector(`[aria-label="${label}"]`);assert(b,label);b.click()};const textClick=text=>{let b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===text);assert(b,text);b.click()}
+ await until(()=>document.querySelector('.economy-shell')&&!document.querySelector('.nav-collapse').disabled,'bootstrap');await wait(100)
+ assert(document.querySelector('[data-view=conversation]'),'conversation default');assert(!performance.getEntriesByType('resource').some(r=>r.name.includes('TerminalWorkspace')),'terminal eager')
+ click('Terminal');await until(()=>document.querySelector('[data-terminal-connection=conectado]'),'terminal selected');assert(window.__terminalFixture.metrics().opens===0,'auto shell');assert(document.body.innerText.includes('Iniciar terminal local'),'CTA')
+ textClick('Iniciar terminal local');await until(()=>document.querySelector('.xterm-helper-textarea'),'xterm');await wait(100);assert(window.__terminalFixture.metrics().opens===1,'one gesture one open')
+ window.__terminalFixture.output('FIRST\r\n');window.__terminalFixture.output('\x1b[32mSECOND\x1b[0m\r\n');await until(()=>document.querySelector('.xterm-rows').innerText.includes('SECOND'),'raw bytes xterm');assert(document.querySelector('.xterm-rows').innerText.indexOf('FIRST')<document.querySelector('.xterm-rows').innerText.indexOf('SECOND'),'output order')
+ const d=new DataTransfer();d.setData('text/plain','á\x1b[A\rtext');document.querySelector('.xterm-helper-textarea').dispatchEvent(new ClipboardEvent('paste',{clipboardData:d,bubbles:true,cancelable:true}));await wait(50);assert(window.__terminalFixture.metrics().sent.length>0,'batched input')
+ let maxRows=0
+ const originalUpdates=Number(document.querySelector('[data-trace-updates]').dataset.traceUpdates)
+ for(let i=0;i<4096;i+=128){window.__terminalFixture.trace(i,128,i===0?'184':'0');await wait(65);maxRows=Math.max(maxRows,document.querySelectorAll('[data-trace-row]').length)}await wait(100)
+ assert(maxRows>0 && maxRows<=40,'DOM cap');assert(Number(document.querySelector('[data-trace-updates]').dataset.traceUpdates)-originalUpdates<50,'event render burst');assert(document.querySelector('[data-trace-gap]').innerText.includes('184'),'gap marker')
+ const retained=Number(document.querySelector('.terminal-activity small').innerText.match(/(\d+) retidos/)[1]);assert(retained<=1024,'store cap')
+ const select=document.querySelector('.trace-filters select');select.value='CRITICAL';select.dispatchEvent(new Event('change',{bubbles:true}));await wait(100);assert([...document.querySelectorAll('[data-trace-row]')].every(r=>r.classList.contains('trace-critical')),'critical retained filter')
+ textClick('Activity ▾ Recolher');await until(()=>!document.querySelector('.trace-viewport'),'collapse');textClick('Activity ▸ Abrir');await until(()=>document.querySelector('.trace-viewport'),'expand')
+ window.__terminalFixture.output('RECOVERED\r\n',184n);await until(()=>document.querySelector('[data-pty-gap]'),'pty gap')
+ click('Conversa');await until(()=>!document.querySelector('.terminal-workspace'),'detach');assert(window.__terminalFixture.metrics().closes===0,'view closed session');click('Terminal');await until(()=>document.querySelector('.xterm-helper-textarea'),'reattach');await wait(100);assert(window.__terminalFixture.metrics().opens===1,'reattach spawned');assert(document.querySelector('[data-terminal-session]').dataset.terminalSession==='9007199254740993','exact id')
+ const resources=performance.getEntriesByType('resource').filter(r=>/TerminalWorkspace.*\.js/.test(r.name));assert(resources.length===1,'lazy chunk loaded once');assert(window.__fixture.metrics().rafs===0,'permanent RAF')
+ // At 640px (separate harness run), Shell/Activity tabs keep one usable area.
+ if(innerWidth<=740){textClick('Activity');await wait(60);assert(getComputedStyle(document.querySelector('.terminal-shell-area')).display==='none','narrow shell hidden');assert(getComputedStyle(document.querySelector('.terminal-activity')).display!=='none','narrow trace visible');textClick('Shell')}
+ textClick('Encerrar sessão');await until(()=>document.querySelector('[data-terminal-state=cancelled]'),'explicit close');assert(window.__terminalFixture.metrics().closes===1,'close count')
+ window.webkit.messageHandlers.perf.postMessage(JSON.stringify({type:'shell-result',pass:true,gate:'LR-9C WebKit DOM',maxRows,rows:document.querySelectorAll('[data-trace-row]').length,retained,lazyLoads:resources.length,width:innerWidth,metrics:window.__terminalFixture.metrics()}))
+})().catch(e=>window.webkit.messageHandlers.perf.postMessage(JSON.stringify({type:'shell-result',pass:false,error:String(e),stack:e.stack})))

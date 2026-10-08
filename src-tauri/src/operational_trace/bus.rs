@@ -6,7 +6,7 @@ use std::{
         mpsc::{self, Receiver, SyncSender, TrySendError},
         Arc, Mutex, OnceLock, Weak,
     },
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 pub const MAX_RETAINED_EVENTS: usize = 1024;
@@ -130,8 +130,13 @@ impl OperationalTraceBus {
         Self(Mutex::new(Storage::default()))
     }
     #[cfg(test)]
-    pub(super) fn isolated() -> Arc<Self> {
+    pub(crate) fn isolated() -> Arc<Self> {
         Arc::new(Self::new())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn seed_test_sequence(&self, sequence: u64) {
+        self.0.lock().unwrap().stats.latest_sequence = sequence;
     }
 
     pub fn publish(&self, draft: EventDraft) -> Result<PublishReceipt, TraceError> {
@@ -353,6 +358,14 @@ pub struct LiveSubscriber {
     pending: Option<Arc<OperationalEvent>>,
 }
 impl LiveSubscriber {
+    /// Consumer-only wait for the first item; publishers remain exclusively try_send.
+    pub fn wait(&mut self, timeout: Duration) -> bool {
+        if self.pending.is_some() {
+            return true;
+        }
+        self.pending = self.receiver.recv_timeout(timeout).ok();
+        self.pending.is_some()
+    }
     pub fn cursor(&self) -> u64 {
         self.cursor
     }

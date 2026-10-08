@@ -32,6 +32,8 @@ pub fn reopen(app: &AppHandle) -> Result<(), String> {
 pub fn close(app: &AppHandle) -> Result<(), String> {
     // Remove subscription before destroying its Channel/WebView. No keep-alive window.
     app.state::<Arc<TaskRegistry>>().events.detach_main();
+    #[cfg(target_os = "linux")]
+    app.state::<crate::terminal_surface::SurfaceHub>().detach_main();
     app.state::<Arc<TaskRegistry>>().detach_ui_bound();
     // Auxiliary settings hosts are also disposable. They cannot sustain a fake headless state.
     for window in app.webview_windows().values() {
@@ -58,6 +60,8 @@ pub fn request_quit(app: &AppHandle) {
     let host = app.state::<PresentationHost>();
     if host.quitting.swap(true, Ordering::AcqRel) { return; }
     crate::adaptive::quit(app);
+    #[cfg(target_os = "linux")]
+    app.state::<crate::terminal_surface::SurfaceHub>().detach_main();
     app.state::<Arc<TaskRegistry>>().shutdown();
     app.state::<Arc<SummaryWorker>>().shutdown();
     #[cfg(target_os = "linux")]

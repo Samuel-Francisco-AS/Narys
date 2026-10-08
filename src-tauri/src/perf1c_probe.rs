@@ -76,7 +76,11 @@ pub fn start(app: &AppHandle) {
                 let execution_action = crate::execution::probe::action(&handle, request["action"].as_str().unwrap_or(""));
                 #[cfg(not(all(feature = "lr9b-probe", target_os = "linux")))]
                 let execution_action: Option<Result<(), String>> = None;
-                let result = execution_action.or(adaptive_action).unwrap_or_else(|| match request["action"].as_str().unwrap_or("") {
+                #[cfg(all(feature = "lr9c-probe", target_os = "linux"))]
+                let surface_action = crate::terminal_surface::probe::action(&handle, request["action"].as_str().unwrap_or(""));
+                #[cfg(not(all(feature = "lr9c-probe", target_os = "linux")))]
+                let surface_action: Option<Result<(), String>> = None;
+                let result = surface_action.or(execution_action).or(adaptive_action).unwrap_or_else(|| match request["action"].as_str().unwrap_or("") {
                     "close" => crate::adaptive::close(&handle, crate::adaptive::Reason::ManualClose),
                     "send" => handle.get_webview_window("main").ok_or("no main".to_owned()).and_then(|w| w.eval("const t=document.querySelector('textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(t,'Native headless fixture'); t.dispatchEvent(new Event('input',{bubbles:true})); setTimeout(()=>{[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Enviar').click()},100)").map_err(|e| e.to_string())),
                     "new" => handle.get_webview_window("main").ok_or("no main".to_owned()).and_then(|w| w.eval("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Nova conversa').click()").map_err(|e| e.to_string())),
@@ -92,6 +96,8 @@ pub fn start(app: &AppHandle) {
                 let mut response = json!({"sequence":sequence,"error":result.err(),"pid":std::process::id(),"windows":handle.webview_windows().keys().collect::<Vec<_>>(),"mainPresent":handle.get_webview_window("main").is_some(),"registryAddress":Arc::as_ptr(registry.inner()) as usize,"providerRuntimeAddress":Arc::as_ptr(handle.state::<Arc<ProviderRuntime>>().inner()) as usize,"sessionId":session,"task":session.and_then(|id| registry.events.snapshot(id)),"activeCount":registry.active_count(),"adaptive":handle.state::<crate::adaptive::AdaptivePresentationManager>().snapshot(),"scheduler":handle.state::<Arc<ProviderRuntime>>().scheduler.operational_snapshot()});
                 #[cfg(all(feature = "lr9b-probe", target_os = "linux"))]
                 { response["execution"] = crate::execution::probe::snapshot(&handle); }
+                #[cfg(all(feature = "lr9c-probe", target_os = "linux"))]
+                { response["terminal"] = crate::terminal_surface::probe::snapshot(&handle); }
                 // Mutability is needed only by the opt-in execution probe.
                 #[cfg(not(all(feature = "lr9b-probe", target_os = "linux")))]
                 let response = { let _ = &mut response; response };

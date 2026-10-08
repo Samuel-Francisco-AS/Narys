@@ -114,8 +114,12 @@ impl ExecutionBroker {
         }
     }
     #[cfg(test)]
-    pub(super) fn isolated() -> Arc<Self> {
+    pub(crate) fn isolated() -> Arc<Self> {
         Arc::new(Self::new())
+    }
+    #[cfg(test)]
+    pub(crate) fn seed_test_id(&self, id: u64) {
+        self.ids.0.store(id, Ordering::Relaxed);
     }
     fn prune(registry: &mut Registry) {
         registry.entries.retain(|_, e| !e.worker.is_finished());

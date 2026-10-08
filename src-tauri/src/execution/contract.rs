@@ -68,7 +68,7 @@ pub enum ExecutionOrigin {
 
 /// Opaque, non-deserializable capability. No public constructor; only the native
 /// execution boundary can mint HumanLocal. Neither PID nor declared origin mints it.
-/// LR-9C must add a scoped human boundary here, never forward an IPC authority enum.
+/// LR-9C human registry uses this natively, never forwards an IPC authority enum.
 pub struct ExecutionAuthority(AuthorityKind);
 enum AuthorityKind {
     HumanLocal,
@@ -78,7 +78,6 @@ enum AuthorityKind {
     },
 }
 impl ExecutionAuthority {
-    #[allow(dead_code)] // Reserved for the scoped native human entrypoint of LR-9C.
     pub(super) fn human_local() -> Self {
         Self(AuthorityKind::HumanLocal)
     }

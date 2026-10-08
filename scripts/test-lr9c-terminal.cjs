@@ -1,0 +1,34 @@
+// LR-9C deterministic protocol, rendering, lazy graph and trust-boundary gates.
+const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), Module = require('node:module'), ts = require('typescript')
+const prior = require.extensions['.ts']
+require.extensions['.ts'] = (module, file) => module._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{ compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022} }).outputText,file)
+const wait = ms => new Promise(r=>setTimeout(r,ms))
+;(async()=>{try {
+ const {InputBatcher,ResizeCoalescer,decodePtyFrame,MAX_INPUT_BYTES}=require('../src/terminal/protocol.ts')
+ const {TraceStore,filterTrace,virtualRange,TRACE_MAX_ROWS,TRACE_MAX_DOM_ROWS,TRACE_MAX_BYTES}=require('../src/terminal/traceStore.ts')
+ const frame=new ArrayBuffer(29),header=new DataView(frame);header.setBigUint64(0,18446744073709551615n,true);header.setBigUint64(8,9007199254740993n,true);header.setBigUint64(16,1n,true);new Uint8Array(frame,24).set([0,255,27,91,65]);
+ const decoded=decodePtyFrame(frame);assert.equal(decoded.cursor,'18446744073709551615');assert.equal(decoded.missingChunks,9007199254740993n);assert.deepEqual([...decoded.bytes],[0,255,27,91,65]);assert.throws(()=>decodePtyFrame(new ArrayBuffer(5)))
+ const sent=[],errors=[];const input=new InputBatcher(async bytes=>{sent.push(bytes);await wait(1)},message=>errors.push(message))
+ for(const text of ['á','\x1b[','A','\r','text']) input.text(text)
+ await wait(30);assert.equal(sent.length,1);assert.equal(new TextDecoder().decode(sent[0]),'á\x1b[A\rtext')
+ sent.length=0;const paste='🦀'.repeat(40000);input.text(paste);await wait(40);assert(sent.length>=3);assert(sent.every(b=>b.length<=MAX_INPUT_BYTES));assert.equal(new TextDecoder().decode(Buffer.concat(sent)),paste)
+ let attempts=0;const failing=new InputBatcher(async()=>{attempts++;throw Error('input_queue_full')},message=>errors.push(message));failing.text('a');await wait(20);failing.text('b');await wait(20);assert.equal(attempts,1);failing.resume();failing.text('c');await wait(20);assert.equal(attempts,2);assert(errors.some(e=>e.includes('Nenhum retry')));failing.dispose();input.dispose()
+ const sizes=[];const resize=new ResizeCoalescer(async(...size)=>sizes.push(size),e=>{throw Error(e)});for(let i=1;i<=50;i++)resize.resize(i,80+i);await wait(110);assert.deepEqual(sizes,[[50,130]]);resize.resize(9999,0);await wait(110);assert.deepEqual(sizes.at(-1),[1000,1]);resize.dispose()
+ const store=new TraceStore();let notifications=0;store.subscribe(()=>notifications++)
+ const event=i=>({sequence:String(i),lastSequence:String(i),fragments:1,observedAtUnixMs:1,lastObservedAtUnixMs:1,class:i%100===0?'CRITICAL':i%100===1?'STATE':'STREAM',sourceType:'worker',sourceId:`fixture-${i%4}`,sourceInstance:null,taskId:i%4,subtaskId:null,correlationId:null,kind:'text_delta',code:null,channel:'stdout',text:'á exact text '+ 'x'.repeat(1000)})
+ // 6000 facts, slow batch consumer, no provider/network/LLM.
+ for(let after=0;after<6000;after+=128){const end=Math.min(6000,after+128);store.ingest({cursor:String(end),missingEvents:'0',liveDeliveryDropped:'99',replayComplete:true,events:Array.from({length:end-after},(_,i)=>event(after+i+1))},()=>{});store.flush()}
+ const snapshot=store.getSnapshot();assert(snapshot.events.length<=TRACE_MAX_ROWS);assert(snapshot.evicted>0n);assert.equal(snapshot.events.filter(e=>e.class==='CRITICAL').length,60);assert.equal(snapshot.events.filter(e=>e.class==='STATE').length,60);assert.equal(notifications,47)
+ const filtered=filterTrace(snapshot.events,'worker:fixture-1','','');assert(filtered.every(e=>snapshot.events.includes(e)));assert.equal(store.getSnapshot(),snapshot)
+ for(const [scroll,height] of [[0,10000],[5000,480],[10000000,480]]){const range=virtualRange(snapshot.events.length,scroll,height);assert(range.end-range.first<=TRACE_MAX_DOM_ROWS)}
+ store.ingest({cursor:'9007199254740993',missingEvents:'184',liveDeliveryDropped:'100',replayComplete:false,events:[]},()=>{});await wait(70);assert.equal(store.getSnapshot().missing,184n);assert(store.getSnapshot().incomplete);store.dispose()
+ const bytesStore=new TraceStore();for(let i=0;i<512;i+=128){bytesStore.ingest({cursor:String(i+128),missingEvents:'0',liveDeliveryDropped:'0',replayComplete:true,events:Array.from({length:128},(_,j)=>({...event(i+j+1),text:'x'.repeat(32768)}))},()=>{});bytesStore.flush()};assert(bytesStore.getSnapshot().events.reduce((n,e)=>n+512+new TextEncoder().encode(e.text).length,0)<=TRACE_MAX_BYTES);bytesStore.dispose()
+ const shell=fs.readFileSync('src/shell/EconomyShell.tsx','utf8'),workspace=fs.readFileSync('src/terminal/TerminalWorkspace.tsx','utf8');assert(shell.includes("lazy(() => import('../terminal/TerminalWorkspace'))"));assert(shell.includes("useState<View>('conversation')"));assert(!shell.includes('@xterm'));assert(workspace.includes('term.write(frame.bytes'));assert(!workspace.includes('setInterval')&&!workspace.includes('requestAnimationFrame'))
+ for(const file of ['src/terminal/TerminalWorkspace.tsx','src/terminal/protocol.ts','src/terminal/traceStore.ts'])for(const forbidden of ['execute_command','spawn(', 'ExecutionAuthority','setOutput','emit('])assert(!fs.readFileSync(file,'utf8').includes(forbidden),`${file}: ${forbidden}`)
+ const manifest=JSON.parse(fs.readFileSync('dist/.vite/manifest.json'));const terminal=Object.values(manifest).find(e=>e.src==='src/terminal/TerminalWorkspace.tsx');assert(terminal&&terminal.isDynamicEntry);const initial=new Set();function visit(key){if(initial.has(key))return;initial.add(key);for(const imp of manifest[key]?.imports??[])visit(imp)}
+ for(const key of Object.keys(manifest).filter(k=> /index.html|src\/App.tsx|OperationalSummary/.test(k)))visit(key)
+ assert(!initial.has('src/terminal/TerminalWorkspace.tsx'));for(const key of initial){const entry=manifest[key];if(!entry)continue;const js=fs.readFileSync(path.join('dist',entry.file),'utf8');assert(!js.includes('xterm-helper-textarea'));for(const css of entry.css??[])assert(!fs.readFileSync(path.join('dist',css),'utf8').includes('.xterm'))}
+ const capability=JSON.parse(fs.readFileSync('src-tauri/capabilities/main-window.json'));assert.deepEqual(capability.windows,['main']);for(const file of ['settings-ai','settings-general'])assert(!fs.readFileSync(`src-tauri/capabilities/${file}.json`,'utf8').includes('terminal'))
+ const csp=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json')).app.security.csp;assert.equal(csp['script-src'],"'self'");assert.equal(csp['worker-src'],"'none'")
+ console.log(JSON.stringify({pass:true,gate:'LR-9C protocol/store/lazy/security',events:6000,updates:notifications,retained:snapshot.events.length,maxDomRows:TRACE_MAX_DOM_ROWS,terminalChunk:terminal.file,initialChunks:[...initial]}))
+} finally {require.extensions['.ts']=prior}})().catch(e=>{console.error(e);process.exitCode=1})

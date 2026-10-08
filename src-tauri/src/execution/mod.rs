@@ -7,7 +7,7 @@ mod broker;
 #[cfg(target_os = "linux")]
 mod os;
 #[cfg(target_os = "linux")]
-mod pty;
+pub(crate) mod pty;
 #[cfg(target_os = "linux")]
 pub use broker::*;
 #[cfg(target_os = "linux")]
@@ -16,3 +16,6 @@ pub use pty::*;
 pub(crate) mod probe;
 #[cfg(all(test, target_os = "linux"))]
 mod tests;
+
+#[cfg(target_os = "linux")]
+pub(crate) mod human;

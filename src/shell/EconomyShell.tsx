@@ -7,10 +7,11 @@ import type { useConversationController } from '../conversation/ConversationCont
 import type { ConversationMode } from '../conversation/types'
 import { clampLayout, type ShellLayout, type AdaptiveSnapshot } from './shellPreferences'
 import './economy.css'
+const TerminalWorkspace = lazy(() => import('../terminal/TerminalWorkspace'))
 const OperationalSummary = lazy(() => import('./OperationalSummary'))
 type View = 'home' | 'conversation' | 'relays' | 'tasks' | 'system' | 'settings'
 const views: { id: View; label: string; path: string }[] = [
-  { id: 'home', label: 'Shell / Home', path: 'M3 10 12 3 21 10v11H3Z M9 21v-8h6v8' },
+  { id: 'home', label: 'Terminal', path: 'M3 10 12 3 21 10v11H3Z M9 21v-8h6v8' },
   { id: 'conversation', label: 'Conversa', path: 'M3 3h18v14H8l-5 4Z' },
   { id: 'relays', label: 'Relays', path: 'M4 6h16M4 12h16M4 18h16M7 3v6M17 9v6M7 15v6' },
   { id: 'tasks', label: 'Tasks', path: 'm3 6 2 2 4-4M12 6h9m-18 6 2 2 4-4M12 12h9m-18 6 2 2 4-4M12 18h9' },
@@ -72,9 +73,8 @@ export function EconomyShell({ adaptive, conversation, layout, loaded, error, on
         {view === 'conversation' ? <div className="shell-conversation">
           <ConversationPanel state={conversation.state} mode={mode} historyId={historyId} onMode={setMode} onHistoryId={setHistoryId} visible onExited={() => {}} onClose={() => setView('home')} onNew={() => { void conversation.newConversation().then(closed => { if (closed) { setMode('CURRENT'); setHistoryId(null) } }) }} onResume={conversation.resumeConversation} />
           <Composer state={conversation.state} visible onExited={() => {}} onDraft={conversation.setDraft} onSend={() => { setMode('CURRENT'); void conversation.send() }} onCancel={conversation.cancel} onClose={() => setView('home')} onPanel={() => setView('conversation')} onSettings={() => void openSettings('open_general_settings_window')} panelOpen />
-        </div> : <div className="shell-view">
+        </div> : view === 'home' ? <Suspense fallback={<p>Carregando Terminal…</p>}><TerminalWorkspace /></Suspense> : <div className="shell-view">
           <h1>{views.find(v => v.id === view)?.label}</h1>
-          {view === 'home' && <><p>Workspace da Narys. A Luna conversa e opera pelo Core, independentemente da Presence.</p><button onClick={() => setView('conversation')}>Abrir conversa</button><p>Logs e diagnósticos completos permanecem nas superfícies existentes de IA e modelos.</p></>}
           {view === 'relays' && <><p>Providers, credenciais e roteamento existentes.</p><button onClick={() => void openSettings('open_ai_settings_window')}>Providers e operação</button></>}
           {view === 'tasks' && <><p>Tarefa da conversa: {conversation.state.activeTaskId === null ? 'nenhuma ativa nesta Interaction' : `#${conversation.state.activeTaskId}`}</p><p>TaskGraph, Resource Allocation e Handoff podem ser inspecionados na superfície operacional existente.</p><button onClick={() => void openSettings('open_ai_settings_window')}>Abrir TaskGraph / operação</button>{conversation.state.activeTaskId !== null && <button onClick={conversation.cancel}>Cancelar tarefa da conversa</button>}<p>Aprovações de ferramentas ainda não possuem capability de produto nesta versão.</p></>}
           {view === 'system' && <><p>Presentation: Economy · superfície 3D desmontada.</p><p>Sessão: {conversation.state.sessionId ?? 'ainda não iniciada'}</p><p>{conversation.state.providerRoute ?? 'Rota ainda não observada nesta conversa.'}</p><p>CPU, RAM, uptime e detalhes do sistema: indisponíveis nesta superfície.</p><button onClick={() => void openSettings('open_ai_settings_window')}>Diagnósticos operacionais</button></>}

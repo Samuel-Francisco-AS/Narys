@@ -5,6 +5,8 @@ mod luna;
 pub mod operational_trace;
 pub mod execution;
 mod persistence;
+#[cfg(target_os = "linux")]
+mod terminal_surface;
 mod presentation;
 mod adaptive;
 #[cfg(feature = "perf1d-probe")]
@@ -26,7 +28,9 @@ pub fn run() {
         .manage(presentation::PresentationHost::default())
         .manage(operational_trace::OperationalTraceBus::process_wide());
     #[cfg(target_os = "linux")]
-    let builder = builder.manage(execution::ExecutionBroker::process_wide());
+    let builder = builder.manage(execution::ExecutionBroker::process_wide())
+        .manage(execution::human::HumanTerminal::process_wide())
+        .manage(terminal_surface::SurfaceHub::default());
     let builder = builder.setup(|app| {
             let directory = app.path().app_local_data_dir()?;
             let db = persistence::database::Database::new(directory.clone());
@@ -209,6 +213,22 @@ pub fn run() {
         adaptive::report_presentation_ui,
         adaptive::confirm_auto_close,
         adaptive::acknowledge_presentation_attention,
+        #[cfg(target_os = "linux")]
+        terminal_surface::terminal_session_status,
+        #[cfg(target_os = "linux")]
+        terminal_surface::open_human_terminal,
+        #[cfg(target_os = "linux")]
+        terminal_surface::attach_terminal_surface,
+        #[cfg(target_os = "linux")]
+        terminal_surface::detach_terminal_surface,
+        #[cfg(target_os = "linux")]
+        terminal_surface::acknowledge_terminal_batch,
+        #[cfg(target_os = "linux")]
+        terminal_surface::send_terminal_input,
+        #[cfg(target_os = "linux")]
+        terminal_surface::resize_terminal,
+        #[cfg(target_os = "linux")]
+        terminal_surface::close_human_terminal,
         presentation::close_presentation,
         presentation::quit_narys,
         luna::get_current_interaction,
@@ -275,6 +295,22 @@ pub fn run() {
         adaptive::report_presentation_ui,
         adaptive::confirm_auto_close,
         adaptive::acknowledge_presentation_attention,
+        #[cfg(target_os = "linux")]
+        terminal_surface::terminal_session_status,
+        #[cfg(target_os = "linux")]
+        terminal_surface::open_human_terminal,
+        #[cfg(target_os = "linux")]
+        terminal_surface::attach_terminal_surface,
+        #[cfg(target_os = "linux")]
+        terminal_surface::detach_terminal_surface,
+        #[cfg(target_os = "linux")]
+        terminal_surface::acknowledge_terminal_batch,
+        #[cfg(target_os = "linux")]
+        terminal_surface::send_terminal_input,
+        #[cfg(target_os = "linux")]
+        terminal_surface::resize_terminal,
+        #[cfg(target_os = "linux")]
+        terminal_surface::close_human_terminal,
         presentation::close_presentation,
         presentation::quit_narys,
         luna::get_current_interaction,
@@ -341,6 +377,8 @@ pub fn run() {
             }
             tauri::RunEvent::WindowEvent { label, event: tauri::WindowEvent::Destroyed, .. } if label == "main" => {
                 app.state::<std::sync::Arc<luna::runtime::TaskRegistry>>().events.detach_main();
+                #[cfg(target_os = "linux")]
+                app.state::<terminal_surface::SurfaceHub>().detach_main();
             }
             tauri::RunEvent::Exit => {
                 #[cfg(target_os = "linux")]
