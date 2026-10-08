@@ -432,3 +432,20 @@ FIX-1                      não necessária
 ~~~
 
 A próxima etapa é **LR-9C — Terminal Surface & Stream Management**.
+
+
+## Integração na main — 08/10/2026
+
+Após PASS técnico e auditoria independente, a branch
+`lr-9b-execution-broker-pty` foi integrada à `main` por **fast-forward**.
+
+- base anterior da `main`: `60763776cc01d315b681d9b37f8af9b069497c80`;
+- HEAD integrado da branch: `7750995704574656e27df9d2de9782632f4c89d6`;
+- relação imediatamente antes da integração: **5 commits à frente / 0 atrás**;
+- sem squash;
+- sem rebase;
+- sem force-push;
+- sem merge commit.
+
+A LR-9B está oficialmente encerrada e integrada. A próxima subfase é
+**LR-9C — Terminal Surface & Stream Management**.
