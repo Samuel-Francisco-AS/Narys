@@ -512,3 +512,350 @@ async fn manual_final_codex_agent_bridge_gate() {
     }).await.unwrap();
     assert_eq!(result,Err(cancelled()));
 }
+
+// LR-9D uses this exact fake protocol/controlled worker path, never an app-server process.
+use crate::operational_trace::{
+    adapters::{
+        tests::{code as trace_code, events as trace_events, payloads, RejectPublisher},
+        AgentTraceAdapter, AgentTraceContext, PassiveTracePublisher,
+    },
+    OperationalKind, OperationalTraceBus, SourceType, TextChannel,
+};
+fn lr9d_adapter(publisher: PassiveTracePublisher) -> AgentTraceAdapter {
+    AgentTraceAdapter::new(
+        publisher,
+        AgentTraceContext {
+            source_id: "codex".into(),
+            task_id: None,
+            subtask_id: None,
+        },
+    )
+}
+fn lr9d_delta(method: &str, text: &str) -> Value {
+    json!({"method":method,"params":{"threadId":"t","turnId":"v","delta":text}})
+}
+fn lr9d_run(
+    fake: &mut Fake<'_>,
+    sink: &dyn AgentTraceSink,
+    events: &mut Vec<AgentEvent>,
+    cancel_on_work: bool,
+) -> Result<String, OperationFailure> {
+    let control = fake.control;
+    run_controlled_prepared_turn_observed(
+        fake,
+        "t",
+        "AGENT-OBJECTIVE-SECRET",
+        control,
+        &mut |event| {
+            if cancel_on_work && event == AgentEvent::WorkStarted {
+                control.cancelled.store(true, Ordering::Release);
+            }
+            events.push(event);
+            Ok(())
+        },
+        sink,
+    )
+}
+#[test]
+fn lr9d_codex_display_notifications_are_exact_private_reasoning_is_never_exposed() {
+    let bus = OperationalTraceBus::isolated();
+    let trace = lr9d_adapter(PassiveTracePublisher::new(bus.clone()));
+    let control = LifecycleControl::default();
+    let message_text = format!("{}😀\nTAIL", "á".repeat(5000));
+    let display_text = "Resumo de exibição 🦀\n".repeat(500);
+    let mut wrong_thread = lr9d_delta("item/agentMessage/delta", "WRONG-THREAD-SECRET");
+    wrong_thread["params"]["threadId"] = json!("other");
+    let mut wrong_turn = lr9d_delta("item/reasoning/summaryTextDelta", "WRONG-TURN-SECRET");
+    wrong_turn["params"]["turnId"] = json!("other");
+    let mut missing = lr9d_delta("item/agentMessage/delta", "bad");
+    missing["params"].as_object_mut().unwrap().remove("delta");
+    let malformed = json!({"method":"item/agentMessage/delta","params":{"threadId":"t","turnId":"v","delta":123}});
+    let mut fake = Fake::new(
+        &control,
+        vec![
+            lr9d_delta("item/reasoning/textDelta", "PRIVATE-REASONING-SECRET"),
+            wrong_thread,
+            wrong_turn,
+            missing,
+            malformed,
+            lr9d_delta("item/agentMessage/delta", ""),
+            lr9d_delta("item/reasoning/otherDelta", "AMBIGUOUS-SECRET"),
+            lr9d_delta("item/agentMessage/delta", &message_text),
+            lr9d_delta("item/reasoning/summaryTextDelta", &display_text),
+            message(),
+            completed("completed"),
+        ],
+    );
+    let mut events = vec![];
+    assert!(lr9d_run(&mut fake, &trace, &mut events, false).is_ok());
+    fake.cleaned();
+    assert_eq!(
+        events,
+        [
+            AgentEvent::SessionReady,
+            AgentEvent::WorkStarted,
+            AgentEvent::OutputObserved,
+            AgentEvent::Completed
+        ]
+    );
+    let observed = trace_events(&bus);
+    for (channel, text) in [
+        (TextChannel::AgentMessage, message_text),
+        (TextChannel::DisplayReasoningSummary, display_text),
+    ] {
+        let pieces: Vec<_> = observed
+            .iter()
+            .filter_map(|e| match e.kind() {
+                OperationalKind::TextDelta { channel: c, text } if *c == channel => {
+                    Some(text.as_str())
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(pieces.concat(), text);
+        assert!(pieces.iter().all(|s| s.len() <= 8192));
+    }
+    assert!(!payloads(&bus).contains("SECRET")); // Includes private reasoning, objective and unrelated activity.
+    assert_eq!(
+        observed
+            .iter()
+            .filter(|e| trace_code(e) == "output_observed")
+            .count(),
+        1
+    );
+    assert!(observed.iter().all(|e| e.provenance().source.source_type
+        == SourceType::SpecialistAgent
+        && e.provenance().source.id.as_str() == "codex"));
+    assert_eq!(fake.calls, ["turn/start", "thread/unsubscribe", "shutdown"]);
+}
+#[test]
+fn lr9d_private_reasoning_only_keeps_factual_output_observed_without_text() {
+    let bus = OperationalTraceBus::isolated();
+    let trace = lr9d_adapter(PassiveTracePublisher::new(bus.clone()));
+    let control = LifecycleControl::default();
+    let mut fake = Fake::new(
+        &control,
+        vec![
+            lr9d_delta("item/reasoning/textDelta", "PRIVATE-REASONING-SECRET"),
+            message(),
+            completed("completed"),
+        ],
+    );
+    assert!(lr9d_run(&mut fake, &trace, &mut vec![], false).is_ok());
+    assert!(trace_events(&bus)
+        .iter()
+        .any(|e| trace_code(e) == "output_observed"));
+    assert!(trace_events(&bus)
+        .iter()
+        .all(|e| !matches!(e.kind(), OperationalKind::TextDelta { .. })));
+    assert!(!payloads(&bus).contains("SECRET"));
+}
+#[test]
+fn lr9d_forbidden_protocol_still_fails_closed_without_payload_or_private_marker() {
+    for kind in [
+        "commandExecution",
+        "fileChange",
+        "mcpToolCall",
+        "dynamicToolCall",
+        "webSearch",
+        "unknown",
+    ] {
+        let bus = OperationalTraceBus::isolated();
+        let trace = lr9d_adapter(PassiveTracePublisher::new(bus.clone()));
+        let control = LifecycleControl::default();
+        let mut item = forbidden(kind);
+        item["params"]["item"]["payload"] = json!("/private/raw FORBIDDEN-SECRET ENV=SECRET");
+        let mut fake = Fake::new(&control, vec![item]);
+        assert_eq!(
+            lr9d_run(&mut fake, &trace, &mut vec![], false),
+            Err(PlannerTurnDiagnosticCode::PlannerTurnUnexpectedItem.into())
+        );
+        fake.cleaned();
+        assert_eq!(
+            trace_events(&bus).last().map(|e| trace_code(e)),
+            Some("agent_failed")
+        );
+        assert!(!payloads(&bus).contains("/private/raw"));
+        assert!(!payloads(&bus).contains("SECRET"));
+    }
+    for notification in [
+        json!({"id":77,"method":"item/commandExecution/requestApproval","params":{"payload":"/private/raw"}}),
+        json!({"method":"item/commandExecution/outputDelta","params":{"payload":"/private/raw"}}),
+        json!({"method":"item/webSearch/delta","params":{"payload":"/private/raw"}}),
+    ] {
+        let bus = OperationalTraceBus::isolated();
+        let trace = lr9d_adapter(PassiveTracePublisher::new(bus.clone()));
+        let control = LifecycleControl::default();
+        let mut fake = Fake::new(&control, vec![notification]);
+        assert!(lr9d_run(&mut fake, &trace, &mut vec![], false).is_err());
+        fake.cleaned();
+        assert!(!payloads(&bus).contains("/private/raw"));
+    }
+}
+#[test]
+fn lr9d_observer_absent_failed_slow_and_3000_deltas_preserve_requests_result_and_cleanup() {
+    let mut expected = None;
+    for mode in 0..4 {
+        let bus = OperationalTraceBus::isolated();
+        let subscriber = if mode == 2 {
+            Some(bus.subscribe().unwrap())
+        } else {
+            None
+        };
+        let trace: Box<dyn AgentTraceSink> = match mode {
+            0 => Box::new(NoopAgentTrace),
+            1 => Box::new(lr9d_adapter(PassiveTracePublisher::new(Arc::new(
+                RejectPublisher,
+            )))),
+            _ => Box::new(lr9d_adapter(PassiveTracePublisher::new(bus.clone()))),
+        };
+        let control = LifecycleControl::default();
+        let mut fake = Fake::new(&control, vec![]);
+        for _ in 0..3000 {
+            fake.notifications.push_back((
+                Ok(lr9d_delta("item/agentMessage/delta", "Natural 🦀")),
+                false,
+            ));
+        }
+        fake.notifications.push_back((Ok(message()), false));
+        fake.notifications
+            .push_back((Ok(completed("completed")), false));
+        let mut events = vec![];
+        let result = lr9d_run(&mut fake, trace.as_ref(), &mut events, false).unwrap();
+        fake.cleaned();
+        let current = (result, events, fake.calls.clone());
+        if let Some(expected) = &expected {
+            assert_eq!(&current, expected);
+        } else {
+            expected = Some(current);
+        }
+        assert_eq!(fake.calls.iter().filter(|c| **c == "turn/start").count(), 1);
+        assert_eq!(fake.interrupts(), 0);
+        if mode == 2 {
+            assert!(bus.stats().live_delivery_dropped > 0);
+        }
+        assert!(bus.stats().retained_events <= crate::operational_trace::MAX_RETAINED_EVENTS);
+        assert!(bus.stats().retained_bytes <= crate::operational_trace::MAX_RETAINED_BYTES);
+        drop(subscriber);
+    }
+}
+#[test]
+fn lr9d_cancellation_observer_failure_never_changes_interrupt_or_cleanup() {
+    let mut expected = None;
+    for mode in 0..3 {
+        let bus = OperationalTraceBus::isolated();
+        let trace: Box<dyn AgentTraceSink> = match mode {
+            0 => Box::new(NoopAgentTrace),
+            1 => Box::new(lr9d_adapter(PassiveTracePublisher::new(Arc::new(
+                RejectPublisher,
+            )))),
+            _ => Box::new(lr9d_adapter(PassiveTracePublisher::new(bus.clone()))),
+        };
+        let control = LifecycleControl::default();
+        let mut fake = Fake::new(&control, vec![completed("interrupted")]);
+        let mut events = vec![];
+        let result = lr9d_run(&mut fake, trace.as_ref(), &mut events, true);
+        assert_eq!(result, Err(cancelled()));
+        fake.cleaned();
+        assert_eq!(fake.interrupts(), 1);
+        let current = (result, events, fake.calls.clone());
+        if let Some(expected) = &expected {
+            assert_eq!(&current, expected);
+        } else {
+            expected = Some(current);
+        }
+        if mode == 2 {
+            assert_eq!(
+                trace_events(&bus)
+                    .iter()
+                    .map(|e| trace_code(e))
+                    .collect::<Vec<_>>(),
+                [
+                    "session_ready",
+                    "work_started",
+                    "cancellation_requested",
+                    "agent_cancelled"
+                ]
+            );
+        }
+    }
+}
+#[test]
+fn lr9d_functional_sink_error_is_not_masked_by_successful_passive_trace() {
+    let b = OperationalTraceBus::isolated();
+    let trace = lr9d_adapter(PassiveTracePublisher::new(b.clone()));
+    let control = LifecycleControl::default();
+    let mut fake = Fake::new(&control, vec![completed("interrupted")]);
+    let result = run_controlled_prepared_turn_observed(
+        &mut fake,
+        "t",
+        "objective",
+        &control,
+        &mut |event| {
+            if event == AgentEvent::WorkStarted {
+                Err(AgentError::EventSinkClosed)
+            } else {
+                Ok(())
+            }
+        },
+        &trace,
+    );
+    assert_eq!(
+        result,
+        Err(OperationFailure::Agent(AgentError::EventSinkClosed))
+    );
+    assert_eq!(fake.interrupts(), 1);
+    fake.cleaned();
+}
+// Shared multi-source gate exercises actual controlled Codex protocol concurrently.
+pub(crate) fn lr9d_fake_trace_operation(publisher: PassiveTracePublisher, burst: usize) -> usize {
+    let trace = lr9d_adapter(publisher);
+    let control = LifecycleControl::default();
+    let mut fake = Fake::new(&control, vec![]);
+    for _ in 0..burst {
+        for (method, text) in [
+            ("item/agentMessage/delta", "Natural agent 🦀"),
+            ("item/reasoning/summaryTextDelta", "Display summary 🦀"),
+        ] {
+            fake.notifications
+                .push_back((Ok(lr9d_delta(method, text)), false));
+        }
+    }
+    fake.notifications.push_back((
+        Ok(lr9d_delta(
+            "item/reasoning/textDelta",
+            "PRIVATE-REASONING-SECRET",
+        )),
+        false,
+    ));
+    fake.notifications.push_back((Ok(message()), false));
+    fake.notifications
+        .push_back((Ok(completed("completed")), false));
+    assert!(lr9d_run(&mut fake, &trace, &mut vec![], false).is_ok());
+    fake.cleaned();
+    assert_eq!(fake.interrupts(), 0);
+    assert_eq!(fake.calls, ["turn/start", "thread/unsubscribe", "shutdown"]);
+    1
+}
+#[test]
+fn lr9d_two_concurrent_operations_have_distinct_local_correlation() {
+    let b = OperationalTraceBus::isolated();
+    std::thread::scope(|s| {
+        for _ in 0..2 {
+            let b = b.clone();
+            s.spawn(move || lr9d_fake_trace_operation(PassiveTracePublisher::new(b), 1));
+        }
+    });
+    let e = trace_events(&b);
+    let ids: Vec<_> = e
+        .iter()
+        .filter(|e| trace_code(e) == "session_ready")
+        .map(|e| e.provenance().correlation_id.clone().unwrap())
+        .collect();
+    assert_eq!(ids.len(), 2);
+    assert_ne!(ids[0], ids[1]);
+    assert!(ids.iter().all(|id| id.as_str().starts_with("agent-call-")));
+    assert!(e
+        .iter()
+        .all(|e| ids.contains(e.provenance().correlation_id.as_ref().unwrap())));
+}

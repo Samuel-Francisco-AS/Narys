@@ -352,6 +352,9 @@ fn emit(
     kind: TaskEventKind,
 ) -> Result<(), String> {
     *sequence += 1;
+    crate::operational_trace::adapters::TaskTraceAdapter::production(
+        crate::operational_trace::SourceType::Core, "core",
+    ).observe(id, &kind);
     channel
         .send(TaskEvent {
             task_id: id,
@@ -368,7 +371,13 @@ fn scheduler_event<'a>(
     sequence: &'a mut u32,
     cancelled: &'a AtomicBool,
 ) -> impl FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send + 'a {
+    let mut trace = crate::operational_trace::adapters::SchedulerTraceAdapter::production(
+        crate::operational_trace::adapters::SchedulerTraceContext::new(
+            Some(id), None, crate::cognition::policy::CognitiveRole::Orchestrator,
+        ),
+    );
     move |event| {
+        trace.observe(&event);
         let kind = match event {
             SchedulerEvent::Queued {
                 provider_id,

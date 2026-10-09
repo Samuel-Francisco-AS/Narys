@@ -118,7 +118,8 @@ pub async fn plan(registry: &Arc<AgentRegistry>, objective: String) -> Result<Pl
     let request = AgentRequest { objective, required_capabilities };
     let cancelled = AtomicBool::new(false);
     let mut sink = |_| Ok(());
-    let result = entry.backend.execute(&request, &cancelled, &mut sink).await?;
+    let result = entry.backend.execute_observed(&request, &cancelled, &mut sink,
+        Arc::new(crate::operational_trace::adapters::AgentTraceAdapter::production(&entry.config.id))).await?;
     PlanV1::parse(&result.output)
 }
 

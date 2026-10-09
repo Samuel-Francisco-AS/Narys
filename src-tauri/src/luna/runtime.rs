@@ -333,6 +333,9 @@ fn emit(
     kind: TaskEventKind,
 ) -> Result<(), String> {
     *sequence += 1;
+    crate::operational_trace::adapters::TaskTraceAdapter::production(
+        crate::operational_trace::SourceType::Core, "core",
+    ).observe(id, &kind);
     channel
         .send(TaskEvent {
             task_id: id,
@@ -594,6 +597,9 @@ pub fn start_conversation_with_policy(
                 &timeouts,
                 allocation,
             )?;
+            let mut trace = crate::operational_trace::adapters::SchedulerTraceAdapter::production(
+                crate::operational_trace::adapters::SchedulerTraceContext::new(Some(id), None, CognitiveRole::Conversation),
+            );
             let result = runtime
                 .scheduler
                 .run_with_retry(
@@ -602,6 +608,7 @@ pub fn start_conversation_with_policy(
                     policy.retry_policy(),
                     &cancelled,
                     &mut |event| {
+                        trace.observe(&event);
                         let kind = match event {
                             SchedulerEvent::Queued {
                                 provider_id,
@@ -1011,9 +1018,13 @@ pub fn start_cognition(
                 if context_event.is_err() {
                     Err("channel_closed")
                 } else {
+                    let mut trace = crate::operational_trace::adapters::SchedulerTraceAdapter::production(
+                        crate::operational_trace::adapters::SchedulerTraceContext::new(Some(id), None, CognitiveRole::Conversation),
+                    );
                     cognition
                         .scheduler(scenario)
                         .run(request, budget, &cancelled, &mut |event| {
+                            trace.observe(&event);
                             let kind = match event {
                                 SchedulerEvent::Queued {
                                     provider_id,
@@ -1558,4 +1569,34 @@ mod headless_registry_tests {
         registry.shutdown(); assert!(registry.register().is_err());
         assert!(registry.register_existing(TaskId(100)).is_err());
     }
+}
+
+#[cfg(test)]
+#[test]
+fn lr9d_trace_publication_is_independent_of_failed_functional_channel() {
+    let bus = crate::operational_trace::OperationalTraceBus::process_wide();
+    let after = bus.stats().latest_sequence;
+    let id = TaskId(9_007_199_254_740_990);
+    let channel =
+        Channel::new(|_| Err(std::io::Error::other("fixture_closed")).map_err(Into::into));
+    let mut sequence = 0;
+    assert_eq!(
+        emit(
+            &channel,
+            id,
+            &mut sequence,
+            TaskState::Failed,
+            TaskEventKind::TaskFailed {
+                detail: "CHANNEL-DETAIL-SECRET".into()
+            }
+        ),
+        Err("channel_closed".into())
+    );
+    assert_eq!(sequence, 1);
+    let replay = bus
+        .replay(after, crate::operational_trace::BatchLimits::default())
+        .unwrap();
+    assert!(replay.events.iter().any(|e| e.provenance().task_id == Some(id)
+        && matches!(e.kind(),crate::operational_trace::OperationalKind::Critical {code,message,..}
+            if code.as_str()=="task_failed" && message.as_str().is_empty())));
 }

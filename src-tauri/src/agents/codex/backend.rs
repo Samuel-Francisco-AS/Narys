@@ -1,3 +1,6 @@
+#[cfg(test)]
+use crate::agents::trace::NoopAgentTrace;
+use crate::agents::trace::{AgentTraceSink, AgentTraceObservation, observe_passively};
 use std::{fs, path::{Path, PathBuf}, sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex}, time::{Duration, Instant}};
 
 use serde::Serialize;
@@ -119,8 +122,14 @@ struct CodexPlannerProbeBackend { diagnostic: ProbeDiagnostic }
 impl AgentBackend for CodexPlannerProbeBackend {
     fn execute<'a>(&'a self, request: &'a AgentRequest, cancelled: &'a AtomicBool,
         on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send)) -> AgentFuture<'a> {
-        execute_planner(request, cancelled, on_event, Some(&self.diagnostic))
+        execute_planner(request, cancelled, on_event, Some(&self.diagnostic),
+            Arc::new(crate::operational_trace::adapters::AgentTraceAdapter::production("codex")))
     }
+    fn execute_observed<'a>(&'a self, request: &'a AgentRequest, cancelled: &'a AtomicBool,
+        on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send), trace: Arc<dyn AgentTraceSink>) -> AgentFuture<'a> {
+        execute_planner(request, cancelled, on_event, Some(&self.diagnostic), trace)
+    }
+
 }
 
 pub async fn probe_planner(registry: &Arc<crate::agents::registry::AgentRegistry>, objective: String)
@@ -159,13 +168,19 @@ pub fn production_config() -> AgentConfig {
 impl AgentBackend for CodexAgentBackend {
     fn execute<'a>(&'a self, request: &'a AgentRequest, cancelled: &'a AtomicBool,
         on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send)) -> AgentFuture<'a> {
-        execute_planner(request, cancelled, on_event, None)
+        execute_planner(request, cancelled, on_event, None,
+            Arc::new(crate::operational_trace::adapters::AgentTraceAdapter::production("codex")))
     }
+    fn execute_observed<'a>(&'a self, request: &'a AgentRequest, cancelled: &'a AtomicBool,
+        on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send), trace: Arc<dyn AgentTraceSink>) -> AgentFuture<'a> {
+        execute_planner(request, cancelled, on_event, None, trace)
+    }
+
 }
 
 fn execute_planner<'a>(request: &'a AgentRequest, cancelled: &'a AtomicBool,
     on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send),
-    diagnostic: Option<&'a ProbeDiagnostic>) -> AgentFuture<'a> {
+    diagnostic: Option<&'a ProbeDiagnostic>, trace: Arc<dyn AgentTraceSink>) -> AgentFuture<'a> {
     Box::pin(async move {
         if cancelled.load(Ordering::Acquire) { return Err(AgentError::Cancelled); }
         if !production_config().capabilities.supports(&request.required_capabilities)
@@ -175,7 +190,7 @@ fn execute_planner<'a>(request: &'a AgentRequest, cancelled: &'a AtomicBool,
         }
         let objective = request.objective.clone();
         let result = drive_worker(cancelled, on_event, move |control, emit| {
-            run_planner(&objective, control, emit)
+            run_planner(&objective, control, emit, trace.as_ref())
         }).await?;
         let output = match result {
             Ok(output) => output,
@@ -557,25 +572,38 @@ fn run_preflight() -> PlannerPreflightProbe {
     }
 }
 
-fn run_planner(objective: &str, control: &LifecycleControl, emit: &mut EventSink<'_>) -> Result<String, OperationFailure> {
+fn run_planner(objective: &str, control: &LifecycleControl, emit: &mut EventSink<'_>, trace: &dyn AgentTraceSink) -> Result<String, OperationFailure> {
     if let Some(reason) = control.stop_reason() { return Err(OperationFailure::Agent(reason)); }
     let mut prepared = match PreparedPlannerSession::prepare_detailed() {
         Ok(prepared) => prepared,
         Err(failure) => {
             // Preparation already attempted cleanup; preserve its safe diagnostic.
+            observe_passively(trace, AgentTraceObservation::Lifecycle(&AgentEvent::Failed));
             let _ = emit(AgentEvent::Failed);
             return Err(OperationFailure::Diagnostic(failure.planner_code()));
         }
     };
-    run_controlled_prepared_turn(&mut prepared.session, &prepared.thread_id, objective, control, emit)
+    run_controlled_prepared_turn_observed(&mut prepared.session, &prepared.thread_id, objective, control, emit, trace)
 }
 
+#[cfg(test)]
 fn run_controlled_prepared_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, objective: &str,
     control: &LifecycleControl, emit: &mut EventSink<'_>) -> Result<String, OperationFailure> {
+    run_controlled_prepared_turn_observed(session, thread_id, objective, control, emit, &NoopAgentTrace)
+}
+
+fn run_controlled_prepared_turn_observed<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, objective: &str,
+    control: &LifecycleControl, functional: &mut EventSink<'_>, trace: &dyn AgentTraceSink) -> Result<String, OperationFailure> {
+    let mut tap = |event: AgentEvent| {
+        observe_passively(trace, AgentTraceObservation::Lifecycle(&event));
+        functional(event)
+    };
+    let emit: &mut EventSink<'_> = &mut tap;
+
     let result = match control.stop_reason() {
         Some(reason) => Err(OperationFailure::Agent(reason)),
         None => match emit(AgentEvent::SessionReady) {
-            Ok(()) => run_controlled_turn(session, thread_id, objective, control, emit),
+            Ok(()) => run_controlled_turn(session, thread_id, objective, control, emit, trace),
             Err(_) => Err(OperationFailure::Agent(AgentError::EventSinkClosed)),
         },
     };
@@ -647,7 +675,7 @@ fn stop_active_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, tu
 }
 
 fn run_controlled_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, objective: &str,
-    control: &LifecycleControl, emit: &mut EventSink<'_>) -> Result<String, OperationFailure> {
+    control: &LifecycleControl, emit: &mut EventSink<'_>, trace: &dyn AgentTraceSink) -> Result<String, OperationFailure> {
     use PlannerTurnDiagnosticCode::*;
     if let Some(reason) = control.stop_reason() { return Err(OperationFailure::Agent(reason)); }
     let turn = session.request("turn/start", turn_start_params(thread_id, objective),
@@ -672,6 +700,7 @@ fn run_controlled_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str,
         // The received terminal notification wins if cancellation has not yet
         // been observed by the loop. It must still pass schema/Core validation.
         if inspect_notification(&notification, thread_id, turn_id, &mut answer)? { break; }
+        observe_display_delta(&notification, thread_id, turn_id, trace);
         if !output_observed && response_activity(&notification, thread_id, turn_id) {
             output_observed = true;
             if emit(AgentEvent::OutputObserved).is_err() {
@@ -681,6 +710,21 @@ fn run_controlled_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str,
     }
     let plan = PlanV1::parse(answer.as_deref().ok_or(PlannerResponseMissing)?).map_err(|_| PlannerPlanInvalid)?;
     serde_json::to_string(&plan).map_err(|_| PlannerPlanInvalid.into())
+}
+
+/// Called only AFTER the existing fail-closed notification inspection succeeded.
+/// summaryTextDelta explicitly denotes the protocol's display summary; ambiguous
+/// or private reasoning notifications have no textual observation variant.
+fn observe_display_delta(notification: &Value, thread_id: &str, turn_id: &str, trace: &dyn AgentTraceSink) {
+    let Some(params) = notification.get("params") else { return; };
+    if params.get("threadId").and_then(Value::as_str) != Some(thread_id)
+        || params.get("turnId").and_then(Value::as_str) != Some(turn_id) { return; }
+    let Some(delta) = params.get("delta").and_then(Value::as_str).filter(|s| !s.is_empty()) else { return; };
+    match notification.get("method").and_then(Value::as_str) {
+        Some("item/agentMessage/delta") => observe_passively(trace, AgentTraceObservation::AgentMessage(delta)),
+        Some("item/reasoning/summaryTextDelta") => observe_passively(trace, AgentTraceObservation::DisplayReasoningSummary(delta)),
+        _ => {},
+    }
 }
 
 fn response_activity(notification: &Value, thread_id: &str, turn_id: &str) -> bool {
@@ -1198,4 +1242,4 @@ mod tests {
 
 #[cfg(test)]
 #[path = "lifecycle_tests.rs"]
-mod lifecycle_tests;
+pub(crate) mod lifecycle_tests;

@@ -1,3 +1,4 @@
+use crate::operational_trace::adapters::{PassiveTracePublisher, SchedulerTraceAdapter, SchedulerTraceContext, SummaryTraceAdapter, SummaryTraceState};
 use super::{
     policy::{self, CognitiveRole, CognitiveRolePolicy},
     scheduler::Scheduler,
@@ -144,8 +145,14 @@ impl SummaryWorker {
         }
     }
     async fn process(&self, claimed: ClaimedSummary) -> ProcessOutcome {
+        self.process_observed(claimed, PassiveTracePublisher::production()).await
+    }
+    async fn process_observed(&self, claimed: ClaimedSummary, publisher: PassiveTracePublisher) -> ProcessOutcome {
+        let trace = SummaryTraceAdapter::new(publisher.clone());
+        trace.observe(SummaryTraceState::Started);
         debug_assert_eq!(self.role, CognitiveRole::Summary);
         if self.registry.has_foreground_provider_work() {
+            trace.observe(SummaryTraceState::Deferred);
             self.defer_claim(claimed.id);
             return ProcessOutcome::Foreground;
         }
@@ -156,6 +163,7 @@ impl SummaryWorker {
             Ok(snapshot) => {
                 if snapshot.routing.validate().is_err() {
                     eprintln!("[Summary] policy code=invalid");
+                    trace.observe(SummaryTraceState::Deferred);
                     self.defer_claim(claimed.id);
                     return ProcessOutcome::Transient;
                 }
@@ -163,6 +171,7 @@ impl SummaryWorker {
             }
             Err(_) => {
                 eprintln!("[Summary] policy code=read_failed");
+                trace.observe(SummaryTraceState::Deferred);
                 self.defer_claim(claimed.id);
                 return ProcessOutcome::Transient;
             }
@@ -179,6 +188,7 @@ impl SummaryWorker {
                 })
             })
             .await;
+            trace.observe(SummaryTraceState::Disabled);
             return ProcessOutcome::Continue;
         }
         // Revalidate the exact snapshot used below, even if settings changed
@@ -189,6 +199,7 @@ impl SummaryWorker {
             .await
             .unwrap_or(false)
         {
+            trace.observe(SummaryTraceState::Deferred);
             self.defer_claim(claimed.id);
             return ProcessOutcome::Transient;
         }
@@ -196,6 +207,7 @@ impl SummaryWorker {
             Ok(timeouts) => timeouts,
             Err(_) => {
                 eprintln!("[Summary] timeouts code=read_failed");
+                trace.observe(SummaryTraceState::Deferred);
                 self.defer_claim(claimed.id);
                 return ProcessOutcome::Transient;
             }
@@ -213,9 +225,13 @@ impl SummaryWorker {
             max_output_tokens: policy.max_output_tokens,
         };
         if self.registry.has_foreground_provider_work() {
+            trace.observe(SummaryTraceState::Deferred);
             self.defer_claim(claimed.id);
             return ProcessOutcome::Foreground;
         }
+        let mut context = SchedulerTraceContext::new(None, None, CognitiveRole::Summary);
+        context.correlation = trace.correlation();
+        let mut scheduler_trace = SchedulerTraceAdapter::new(publisher, context);
         let result = self
             .scheduler
             .run_with_retry(
@@ -223,10 +239,11 @@ impl SummaryWorker {
                 budget,
                 policy.retry_policy(),
                 &self.shutdown,
-                &mut |_| Ok(()),
+                &mut |event| { scheduler_trace.observe(&event); Ok(()) },
             )
             .await;
         if self.shutdown.load(Ordering::Acquire) {
+            trace.observe(SummaryTraceState::Deferred);
             self.defer_claim(claimed.id);
             return ProcessOutcome::Transient;
         }
@@ -273,13 +290,18 @@ impl SummaryWorker {
                     }
                 }
             }
-            Ok::<_, crate::persistence::database::PersistenceError>(())
+            Ok::<_, crate::persistence::database::PersistenceError>(changed)
         })
         .await;
-        if !matches!(write, Ok(Ok(()))) {
+        if !matches!(write, Ok(Ok(_))) {
+            trace.observe(SummaryTraceState::PersistenceFailed);
             eprintln!("[Summary] persistence code=write_failed");
             return ProcessOutcome::Transient;
         }
+        trace.observe(if matches!(write, Ok(Ok(false))) { SummaryTraceState::Unchanged }
+            else if transient { SummaryTraceState::Deferred }
+            else if error_code.is_some() { SummaryTraceState::Failed }
+            else { SummaryTraceState::Completed });
         if transient {
             ProcessOutcome::Transient
         } else {
@@ -491,9 +513,9 @@ mod tests {
         sync::Mutex,
         time::{SystemTime, UNIX_EPOCH},
     };
-    struct Fake {
-        responses: Mutex<VecDeque<Result<String, ProviderError>>>,
-        requests: Mutex<Vec<String>>,
+    pub(super) struct Fake {
+        pub(super) responses: Mutex<VecDeque<Result<String, ProviderError>>>,
+        pub(super) requests: Mutex<Vec<String>>,
         entered: Arc<Notify>,
         release: Option<Arc<Notify>>,
     }
@@ -538,7 +560,7 @@ mod tests {
             })
         }
     }
-    fn fixture() -> (Database, Arc<Fake>, Arc<Scheduler>, Arc<TaskRegistry>) {
+    pub(super) fn fixture() -> (Database, Arc<Fake>, Arc<Scheduler>, Arc<TaskRegistry>) {
         let n = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -584,7 +606,7 @@ mod tests {
             Arc::new(TaskRegistry::default()),
         )
     }
-    fn add_session(db: &Database, marker: &str) -> i64 {
+    pub(super) fn add_session(db: &Database, marker: &str) -> i64 {
         let mut conn = db.open().unwrap();
         let id = conversation::create_session(&conn).unwrap();
         conversation::append_exchange_to_session(&mut conn, id, marker, "Resposta").unwrap();
@@ -643,7 +665,7 @@ mod tests {
             while !worker.stopped() { tokio::time::sleep(std::time::Duration::from_millis(10)).await; }
         }).await.unwrap();
     }
-    fn worker(
+    pub(super) fn worker(
         db: Database,
         scheduler: Arc<Scheduler>,
         registry: Arc<TaskRegistry>,
@@ -1255,5 +1277,180 @@ mod uip6b_budget_tests {
         assert!(small.contains("fala 9"));
         assert_eq!(summary_input(&messages, false, 0), "");
         assert!(serde_json::from_str::<serde_json::Value>(&small).is_ok());
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod lr9d_tests {
+    use super::tests::{add_session, fixture, worker};
+    use super::*;
+    use crate::operational_trace::{
+        adapters::{
+            tests::{code, events, payloads, NoopPublisher, RejectPublisher},
+            TracePublisher,
+        },
+        OperationalKind, OperationalTraceBus, SourceType,
+    };
+    #[tokio::test]
+    async fn summary_passive_lifecycle_no_transcript_raw_metadata_and_identical_process_outcome() {
+        for response in [
+            Ok("{\"title\":\"TITLE-SECRET\",\"summary\":\"SUMMARY-SECRET\"}".to_string()),
+            Err(super::super::types::ProviderError::Unavailable {
+                retry_after_ms: None,
+            }),
+            Err(super::super::types::ProviderError::Fatal),
+            Ok("RAW-OUTPUT-SECRET".to_string()),
+        ] {
+            let mut baseline = None;
+            for mode in 0..4 {
+                let (db, fake, scheduler, registry) = fixture();
+                let id = add_session(&db, "TRANSCRIPT-SECRET");
+                fake.responses.lock().unwrap().push_back(response.clone());
+                let mut conn = db.open().unwrap();
+                let claim = conversation::claim_next_pending_summary(&mut conn)
+                    .unwrap()
+                    .unwrap();
+                drop(conn);
+                let bus = OperationalTraceBus::isolated();
+                let subscriber = if mode == 3 {
+                    Some(bus.subscribe().unwrap())
+                } else {
+                    None
+                };
+                if mode == 3 {
+                    let fill = SummaryTraceAdapter::new(PassiveTracePublisher::new(bus.clone()));
+                    for _ in 0..65 {
+                        fill.observe(SummaryTraceState::Started);
+                    }
+                }
+                let after = bus.stats().latest_sequence;
+                let publisher: Arc<dyn TracePublisher> = match mode {
+                    0 => Arc::new(NoopPublisher),
+                    1 => Arc::new(RejectPublisher),
+                    _ => bus.clone(),
+                };
+                let outcome = worker(db.clone(), scheduler, registry)
+                    .process_observed(claim, PassiveTracePublisher::new(publisher))
+                    .await;
+                let history = conversation::history_session(&db.open().unwrap(), id)
+                    .unwrap()
+                    .unwrap();
+                let current = (
+                    outcome,
+                    history.summary_status,
+                    history.title,
+                    history.summary,
+                    fake.requests.lock().unwrap().clone(),
+                );
+                if let Some(expected) = &baseline {
+                    assert!(expected == &current);
+                } else {
+                    baseline = Some(current);
+                }
+                assert_eq!(fake.requests.lock().unwrap().len(), 1);
+                if mode >= 2 {
+                    let e: Vec<_> = events(&bus)
+                        .into_iter()
+                        .filter(|e| e.sequence() > after)
+                        .collect();
+                    assert!(e.iter().all(|e| e.provenance().task_id.is_none()));
+                    assert_eq!(e.iter().filter(|e| code(e) == "summary_started").count(), 1);
+                    assert_eq!(
+                        e.iter().filter(|e| code(e) == "provider_selected").count(),
+                        1
+                    );
+                    assert!(e
+                        .iter()
+                        .all(|e| !matches!(e.kind(), OperationalKind::TextDelta { .. })));
+                    assert!(!payloads(&bus).contains("SECRET"));
+                    let expected = match &response {
+                        Ok(r) if r.starts_with('{') => "summary_completed",
+                        Err(super::super::types::ProviderError::Unavailable { .. }) => {
+                            "summary_deferred"
+                        }
+                        _ => "summary_failed",
+                    };
+                    assert_eq!(e.last().map(|e| code(e)), Some(expected));
+                    assert!(e
+                        .iter()
+                        .filter(|e| code(e).starts_with("summary_"))
+                        .all(|e| e.provenance().source.source_type == SourceType::Worker
+                            && e.provenance().source.id.as_str() == "summary"));
+                    let correlation = e[0].provenance().correlation_id.clone();
+                    assert!(e
+                        .iter()
+                        .all(|e| e.provenance().correlation_id == correlation));
+                }
+                if mode == 3 {
+                    assert!(bus.stats().live_delivery_dropped > 0);
+                }
+                drop(subscriber);
+            }
+        }
+    }
+    /// Production Summary process, synthetic persistent session and streaming provider.
+    pub(crate) async fn stress_summary(publisher: PassiveTracePublisher) -> (usize, Vec<String>) {
+        use crate::cognition::{
+            provider::{Provider, ProviderFuture},
+            registry::ProviderRegistry,
+            types::{
+                ProviderCapabilities, ProviderChunk, ProviderConfig, ProviderError, ProviderRequest,
+            },
+        };
+        struct Streaming(Arc<super::tests::Fake>);
+        impl Provider for Streaming {
+            fn execute<'a>(
+                &'a self,
+                r: &'a ProviderRequest,
+                cancelled: &'a AtomicBool,
+                chunk: &'a mut (dyn FnMut(ProviderChunk) -> Result<(), ProviderError> + Send),
+            ) -> ProviderFuture<'a> {
+                Box::pin(async move {
+                    let response = self.0.execute(r, cancelled, chunk).await?;
+                    for _ in 0..3000 {
+                        chunk(ProviderChunk {
+                            text: "SUMMARY-INTERNAL-SECRET".into(),
+                        })?;
+                    }
+                    Ok(response)
+                })
+            }
+        }
+        let (db, fake, _, registry) = fixture();
+        let id = add_session(&db, "SUMMARY-TRANSCRIPT-SECRET");
+        fake.responses.lock().unwrap().push_back(Ok(
+            "{\"title\":\"TITLE-SECRET\",\"summary\":\"SUMMARY-SECRET\"}".into(),
+        ));
+        let mut providers = ProviderRegistry::default();
+        providers
+            .register(
+                ProviderConfig {
+                    id: "gemini".into(),
+                    enabled: true,
+                    priority: 1,
+                    capabilities: ProviderCapabilities::text_stream(),
+                },
+                Arc::new(Streaming(fake.clone())),
+            )
+            .unwrap();
+        let scheduler = Arc::new(Scheduler::new(providers));
+        let mut conn = db.open().unwrap();
+        let claim = conversation::claim_next_pending_summary(&mut conn)
+            .unwrap()
+            .unwrap();
+        drop(conn);
+        assert_eq!(
+            worker(db.clone(), scheduler, registry)
+                .process_observed(claim, publisher)
+                .await,
+            ProcessOutcome::Continue
+        );
+        let history = conversation::history_session(&db.open().unwrap(), id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(history.summary_status, "completed");
+        assert_eq!(fake.requests.lock().unwrap().len(), 1);
+        let requests = fake.requests.lock().unwrap().clone();
+        (1, requests)
     }
 }

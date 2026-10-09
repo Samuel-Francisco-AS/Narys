@@ -561,3 +561,63 @@ fn simultaneous_worker_admission_never_exceeds_bridge_budget() {
     release.1.notify_all();
     until(|| hub.worker_count() == 0);
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn activity_fixture_uses_real_adapters_and_existing_lr9c_dto() {
+    use crate::agents::{
+        trace::{AgentTraceObservation, AgentTraceSink},
+        types::AgentEvent,
+    };
+    use crate::cognition::{policy::CognitiveRole, scheduler::SchedulerEvent};
+    use crate::luna::task::{TaskEventKind, TaskId};
+    use crate::operational_trace::adapters::tests::{events, selected, subtask_started};
+    use crate::operational_trace::adapters::*;
+    let b = OperationalTraceBus::isolated();
+    let p = PassiveTracePublisher::new(b.clone());
+    TaskTraceAdapter::new(p.clone(), SourceType::Core, "core")
+        .observe(TaskId(17), &TaskEventKind::TaskStarted);
+    let mut s = SchedulerTraceAdapter::new(
+        p.clone(),
+        SchedulerTraceContext::new(Some(TaskId(17)), None, CognitiveRole::Conversation),
+    );
+    s.observe(&selected(1));
+    s.observe(&SchedulerEvent::Chunk {
+        provider_id: "p".into(),
+        text: "Saída pública 🦀".into(),
+    });
+    TaskTraceAdapter::new(p.clone(), SourceType::TaskGraph, "task_graph")
+        .observe(TaskId(17), &TaskEventKind::TaskPlanned { step_count: 2 });
+    TaskTraceAdapter::new(p.clone(), SourceType::Worker, "worker")
+        .observe(TaskId(17), &subtask_started());
+    let a = AgentTraceAdapter::new(
+        p,
+        AgentTraceContext {
+            source_id: "codex".into(),
+            task_id: Some(TaskId(17)),
+            subtask_id: None,
+        },
+    );
+    a.observe(AgentTraceObservation::Lifecycle(&AgentEvent::SessionReady));
+    a.observe(AgentTraceObservation::AgentMessage(
+        "Mensagem natural do planner",
+    ));
+    a.observe(AgentTraceObservation::DisplayReasoningSummary(
+        "Resumo explicitamente exibível",
+    ));
+    a.observe(AgentTraceObservation::Lifecycle(&AgentEvent::Completed));
+    let dto: Vec<_> = events(&b)
+        .iter()
+        .map(|e| crate::terminal_surface::dto::TraceDto::event(e))
+        .collect();
+    let json = serde_json::to_value(&dto).unwrap();
+    assert_eq!(dto.len(), 9);
+    if let Ok(path) = std::env::var("NARYS_LR9D_ACTIVITY_FIXTURE") {
+        std::fs::write(path, serde_json::to_string_pretty(&json).unwrap()).unwrap();
+    }
+    assert!(json
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|e| e["sourceType"] == "specialist_agent" && e["sourceId"] == "codex"));
+}

@@ -30,6 +30,9 @@ fn emit(
     kind: TaskEventKind,
 ) -> Result<(), &'static str> {
     let sequence = sequence.fetch_add(1, Ordering::AcqRel).saturating_add(1);
+    crate::operational_trace::adapters::TaskTraceAdapter::production(
+        crate::operational_trace::SourceType::Worker, "worker",
+    ).observe(root, &kind);
     channel
         .send(TaskEvent {
             task_id: root,
@@ -47,7 +50,14 @@ fn worker_events<'a>(
     sequence: &'a std::sync::atomic::AtomicU32,
     cancelled: &'a AtomicBool,
 ) -> impl FnMut(SchedulerEvent) -> Result<(), SchedulerError> + Send + 'a {
-    move |event| match event {
+    let mut trace = crate::operational_trace::adapters::SchedulerTraceAdapter::production(
+        crate::operational_trace::adapters::SchedulerTraceContext::new(
+            Some(root), Some(subtask_id), crate::cognition::policy::CognitiveRole::Worker,
+        ),
+    );
+    move |event| {
+        trace.observe(&event);
+        match event {
         SchedulerEvent::Selected { .. } => Ok(()),
         SchedulerEvent::Queued {
             provider_id,
@@ -121,6 +131,7 @@ fn worker_events<'a>(
             SchedulerError::EventSinkClosed
         }),
         SchedulerEvent::Fallback { .. } => Err(SchedulerError::InvalidTargetConfig),
+    }
     }
 }
 

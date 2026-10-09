@@ -1,7 +1,8 @@
 //! Passive, ephemeral observation of explicitly published, already authorized
 //! and sanitized content. No inference, execution, persistence or Presentation.
 //! The sole production instance is registered at the composition root; adapters
-//! are deliberately deferred to LR-9D.
+//! project source facts through the LR-9D passive adapters.
+pub(crate) mod adapters;
 mod bus;
 mod coalesce;
 mod contract;

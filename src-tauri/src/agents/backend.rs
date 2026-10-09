@@ -1,6 +1,5 @@
 use std::{future::Future, pin::Pin, sync::atomic::AtomicBool};
 
-#[cfg(test)]
 use std::sync::Arc;
 
 use super::types::{AgentError, AgentEvent, AgentRequest, AgentResult};
@@ -20,6 +19,23 @@ pub trait AgentBackend: Send + Sync {
         cancelled: &'a AtomicBool,
         on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send),
     ) -> AgentFuture<'a>;
+
+    fn execute_observed<'a>(
+        &'a self,
+        request: &'a AgentRequest,
+        cancelled: &'a AtomicBool,
+        on_event: &'a mut (dyn FnMut(AgentEvent) -> Result<(), AgentError> + Send),
+        trace: Arc<dyn super::trace::AgentTraceSink>,
+    ) -> AgentFuture<'a> {
+        Box::pin(async move {
+            let mut tap = |event: AgentEvent| {
+                super::trace::observe_passively(trace.as_ref(), super::trace::AgentTraceObservation::Lifecycle(&event));
+                on_event(event)
+            };
+            self.execute(request, cancelled, &mut tap).await
+        })
+    }
+
 }
 
 #[cfg(test)]
