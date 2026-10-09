@@ -452,3 +452,22 @@ FIX-1                          não necessária
 ~~~
 
 A próxima etapa é **LR-9E — Concurrency, Security & Final Gate**.
+
+
+## Integração na main — 08/10/2026
+
+Após PASS técnico e auditoria independente, a branch
+`lr-9d-cognitive-agent-trace-adapters` foi integrada à `main` por
+**fast-forward**.
+
+- base anterior da `main`: `46da34e0cf316fb11f4ed01a0f516b627641991f`;
+- HEAD integrado da branch: `9636157abc630a69c94422138f4511d821aa162d`;
+- relação imediatamente antes da integração: **5 commits à frente / 0 atrás**;
+- sem squash;
+- sem rebase;
+- sem force-push;
+- sem merge commit.
+
+A LR-9D está oficialmente encerrada e integrada. A próxima subfase é
+**LR-9E — Concurrency, Security & Final Gate**, com o profiling/overhead do
+OperationalTraceBus como gate obrigatório antes do encerramento da LR-9.
