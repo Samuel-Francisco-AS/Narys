@@ -6,7 +6,7 @@
 - Branch: `lr-10a-sdk-runtime-feasibility`.
 - Base local/remota verificada: `25327feb88207a465945453d32dba11c10538e1c`.
 - Main local/remota verificada: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`.
-- Commit da implementação testada: [`dbbcc58162f00f0e1b8a6b2351142ffade221742`](https://github.com/Samuel-Francisco-AS/Narys/commit/dbbcc58162f00f0e1b8a6b2351142ffade221742) — código, testes e evidências finais.
+- Commit da implementação testada: [`118a349467759bb7c24244b85398971ff331268c`](https://github.com/Samuel-Francisco-AS/Narys/commit/118a349467759bb7c24244b85398971ff331268c) — árvore final de código, fixtures atômicas, testes e evidências; 26 testes Rust retestados após o ajuste final.
 - Commits desta entrega: fronteira experimental, fechamento documental, snapshots atômicos da fixture e fechamento documental final; identificados no histórico abaixo.
 - HEAD documental final/remoto: referência verificável no [histórico da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). O SHA do próprio commit documental não é inserido circularmente neste arquivo.
 - Estado: **LR-10A FIX-3 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
