@@ -1,14 +1,11 @@
 //! FIX-2: empty-session observations. No inference, retries or resume-to-create fallback.
-use crate::{
-    bounded, error_code, explicit_program, options, resume_config, session_config, shutdown,
-    DEADLINE,
-};
-use github_copilot_sdk::{session::Session, CliProgram, Client, ClientOptions, SessionId};
+use crate::{bounded, error_code, resume_config, session_config, shutdown, DEADLINE};
+use github_copilot_sdk::{session::Session, Client, ClientOptions, SessionId};
 use serde_json::{json, Value};
 use std::path::{Component, Path};
 
 /// Rebuild options for each owned CLI; ClientOptions in 1.0.17 is not Clone.
-/// Read-only host, only this invocation's workspace/state writable, no fallback.
+/// Minimal offline namespace; existing host authentication fails closed.
 pub fn guarded_options(
     cli: &Path,
     workspace: &Path,
@@ -27,41 +24,10 @@ pub fn guarded_options(
     {
         return Err("state_outside_owned_root");
     }
-    let mut opts = options(explicit_program(cli)?, workspace, state);
-    opts.program = CliProgram::Path(explicit_program(Path::new("/usr/bin/bwrap"))?);
-    opts.prefix_args = vec![
-        "--ro-bind".into(),
-        "/".into(),
-        "/".into(),
-        "--dev-bind".into(),
-        "/dev".into(),
-        "/dev".into(),
-        "--proc".into(),
-        "/proc".into(),
-        "--bind".into(),
-        workspace.into(),
-        workspace.into(),
-        "--bind".into(),
-        state.into(),
-        state.into(),
-    ];
     if existing_auth {
-        let home = std::env::var_os("HOME").ok_or("home_unavailable")?;
-        let target = Path::new(&home).join(".copilot/session-state");
-        if !target.is_dir() {
-            return Err("existing_session_root_missing");
-        }
-        opts.base_directory = None;
-        opts.env_remove.push("COPILOT_HOME".into());
-        opts.prefix_args
-            .extend(["--bind".into(), sessions.into(), target.into_os_string()]);
-    } else {
-        // The caller creates a private home for every storage namespace.
-        opts.base_directory = Some(sessions.parent().ok_or("invalid_state_root")?.into());
+        return Err("BLOCKED_AUTH_BOUNDARY");
     }
-    opts.prefix_args
-        .extend(["--".into(), explicit_program(cli)?.into_os_string()]);
-    Ok(opts)
+    crate::boundary::isolated_options(cli, workspace, state, sessions)
 }
 
 /// Inspect only a known invocation-owned session directory, without file contents.

@@ -1,0 +1,112 @@
+{
+  "schema_version": 2,
+  "probe": "metadata",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 0,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_zero",
+  "wall_ms": 3299.41,
+  "cleanup_ms": 29.24,
+  "peak_process_tree_rss_bytes": 464453632,
+  "peak_owned_processes": 4,
+  "sampled_cpu_seconds_lower_bound": 3.72,
+  "system_processes_before": 338,
+  "system_processes_after": 334,
+  "observed_owned_processes": 5,
+  "attributed_processes": [
+    {
+      "pid": 81296,
+      "start_ticks": 3126806,
+      "basis": "launched_root"
+    },
+    {
+      "pid": 81343,
+      "start_ticks": 3126921,
+      "basis": "subreaper_child"
+    }
+  ],
+  "unsampled_attributed_descendants": 0,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 1,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "inference_calls": 0,
+    "owned_pid_gone": true,
+    "pid": 81322,
+    "probe": "metadata",
+    "result": {
+      "auth": {
+        "entitlement": "unknown_until_service_metadata",
+        "identity_omitted": true,
+        "state": "authentication_required"
+      },
+      "catalog": {
+        "error": "rpc_error_unknown",
+        "state": "models_unavailable"
+      },
+      "quota": {
+        "error": "rpc_error_unknown",
+        "source": "account.getQuota",
+        "state": "quota_unknown"
+      }
+    },
+    "sdk": "1.0.17",
+    "shutdown": "graceful",
+    "start_ms": 3196,
+    "stop_ms": 40
+  },
+  "fix3_provenance": {
+    "phase": "LR-10A FIX-3",
+    "observed_at": "2026-10-09T18:47:58.582628+00:00",
+    "binary_sha256": "126d889838519c1dbf2eade2b8f6cd54b0f1a0281df6abd92e70ca05d7b96ae0",
+    "cli_sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+    "sources_sha256": {
+      "src/main.rs": "168a2ba69cd37d67052307ec35bb9118995871d05cb01625e08d29970e835f69",
+      "src/lib.rs": "d3daa4edc6a0eba6dc7ac4cff3545937f50ba98e12df3951efe17f5e12881e99",
+      "src/persistence.rs": "0891b8122b86ad19d7a18a82fa3c6c1e1cb2a852c42a6612bcc4b4d9ee430729",
+      "src/boundary.rs": "1c333ce9eff5ff38b5461e44d2537f9947709550c64a63059c3d8f43e87dd841",
+      "boundary.py": "81db8452342a95a0f02be3c569e175811cc72ec12b7fe30883c9f9db839fbf39",
+      "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+      "run_fix3.py": "ebb8817c11eef42ad62044ee2651eb9fa8e25dad8c9c91f1b3e98d25705ed92d",
+      "Cargo.toml": "dfff2dfa91056f8afeddf63e807bc71cf3fc1b12d504557e152cb3323309a381",
+      "Cargo.lock": "d39b2f7219d5bbbe8b372f08283eea568544d053aad73668be3059e2a3979468"
+    },
+    "config_stat_before": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_after": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_unchanged": true,
+    "config_contents_read": false,
+    "host_credentials_exposed": false,
+    "host_network_shared": false,
+    "inference_requests": 0,
+    "agentive_tool_requests": 0,
+    "driver_exit_code": 0,
+    "a9": "BLOCKED",
+    "gates": [
+      "BLOCKED_AUTH_BOUNDARY",
+      "BLOCKED_NETWORK_BOUNDARY",
+      "BLOCKED_SUPERVISOR_FAILURE_CONTAINMENT",
+      "BLOCKED_REAL"
+    ]
+  }
+}

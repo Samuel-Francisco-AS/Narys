@@ -1,6 +1,7 @@
 use github_copilot_sdk::Client;
 use narys_lr10a_poc::*;
 use serde_json::json;
+use std::os::unix::fs::PermissionsExt;
 use std::{path::Path, time::Instant};
 
 #[tokio::main(flavor = "current_thread")]
@@ -36,8 +37,16 @@ async fn run() -> i32 {
             return 2;
         }
     };
-    let workspace = tempfile::tempdir().expect("temporary fixture workspace");
-    let state = tempfile::tempdir().expect("temporary runtime state");
+    let job = tempfile::Builder::new()
+        .prefix("narys-lr10a-fix3-")
+        .permissions(std::fs::Permissions::from_mode(0o700))
+        .tempdir_in("/tmp")
+        .expect("private experimental job");
+    let workspace = tempfile::tempdir_in(job.path()).expect("temporary fixture workspace");
+    let state = tempfile::tempdir_in(job.path()).expect("temporary runtime state");
+    std::fs::create_dir(job.path().join("logs")).unwrap();
+    let session_storage = state.path().join("session-state");
+    std::fs::create_dir(&session_storage).unwrap();
     std::fs::write(
         workspace.path().join("fixture.txt"),
         "LR-10A read-only fixture: 2 + 3 = 5\n",
@@ -45,8 +54,6 @@ async fn run() -> i32 {
     .unwrap();
     let start = Instant::now();
     if args[1].starts_with("sessions") {
-        let session_storage = state.path().join("session-state");
-        std::fs::create_dir(&session_storage).unwrap();
         let report = persistence::matrix(
             |root| {
                 persistence::guarded_options(
@@ -57,7 +64,7 @@ async fn run() -> i32 {
                     args[1].ends_with("existing-auth"),
                 )
             },
-            workspace.path(),
+            Path::new("/fixture"),
             &session_storage,
         )
         .await;
@@ -69,36 +76,22 @@ async fn run() -> i32 {
         // Matrix observations do not turn the blocked real-history gate into PASS.
         return 1;
     }
-    let mut opts = options(cli, workspace.path(), state.path());
-    // Manual metadata-only probe against CLI's existing credential store. No login,
-    // setters, session creation or config copies. Keep logs in the temporary dir.
-    if args[1].ends_with("existing-auth") {
-        opts.base_directory = None;
-        opts.env_remove.push("COPILOT_HOME".into());
-        // Existing auth can mutate CLI configuration during startup. Enforce a
-        // read-only host view for this metadata-only experiment, with only our
-        // disposable workspace/log dirs writable. This is not a product sandbox.
-        let copilot = explicit_program(Path::new(&args[2])).unwrap();
-        opts.program = github_copilot_sdk::CliProgram::Path("/usr/bin/bwrap".into());
-        opts.prefix_args = vec![
-            "--ro-bind".into(),
-            "/".into(),
-            "/".into(),
-            "--dev-bind".into(),
-            "/dev".into(),
-            "/dev".into(),
-            "--proc".into(),
-            "/proc".into(),
-            "--bind".into(),
-            workspace.path().into(),
-            workspace.path().into(),
-            "--bind".into(),
-            state.path().into(),
-            state.path().into(),
-            "--".into(),
-            copilot.into_os_string(),
-        ];
-    }
+    let opts = match persistence::guarded_options(
+        &cli,
+        workspace.path(),
+        state.path(),
+        &session_storage,
+        args[1].ends_with("existing-auth"),
+    ) {
+        Ok(opts) => opts,
+        Err(code) => {
+            println!(
+                "{}",
+                json!({"configuration_error":code,"inference_calls":0})
+            );
+            return 2;
+        }
+    };
     let client = match bounded(Client::start(opts)).await {
         Ok(c) => c,
         Err(code) => {

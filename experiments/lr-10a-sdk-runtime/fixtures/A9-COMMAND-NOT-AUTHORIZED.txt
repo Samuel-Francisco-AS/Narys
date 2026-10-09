@@ -1,40 +1,60 @@
-AWAITING_HUMAN_APPROVAL / BLOCKED_REAL
+LR-10A / FIX-3 — INERT SPECIFICATION, NOT AN EXECUTABLE COMMAND
+A9: BLOCKED_REAL / AWAITING_HUMAN_APPROVAL
+NOT READY_FOR_A9. No authorization requested or granted in FIX-3.
 
-This is inert text. Do not execute without separate human approval for inference
-and quota consumption AND resolution/retest of the A6/A7 runtime failures.
-The POC executable intentionally has no inference command.
+There is deliberately no A9/inference mode or SDK send invocation in this POC.
+This file must remain plain, non-executable text. Do not use copilot -p, prompts
+in CLI arguments, a broad host mount, or a raw CLI command as an A9 substitute.
 
-Preparation (local only, authorized; no Copilot call):
-FIXTURE_ROOT=$(mktemp -d /tmp/narys-lr10a-a9-fixture.XXXXXX)
-STATE_ROOT=$(mktemp -d /tmp/narys-lr10a-a9-state.XXXXXX)
-cp experiments/lr-10a-sdk-runtime/fixtures/a9-read-only.txt "$FIXTURE_ROOT/fixture.txt"
-mkdir "$STATE_ROOT/sessions" "$STATE_ROOT/logs"
-CLI_NATIVE=/absolute/path/to/version-verified/copilot
+Architecture actually tested without inference:
+- Rust SDK 1.0.17, non-bundled pinned native CLI, Edition 2021/Rust 1.94.0.
+- Owned-process FIX-1 harness and an empty-root Bubblewrap namespace.
+- Only native runtime, selected individual system libraries, read-only disposable
+  fixture, private writable state/logs/tmp, namespaced proc and two devices.
+- Cleared/allowlisted environment, no personal roots, host sockets or keyring.
+- Deny-all SDK permission policy for create AND resume, zero tools, no MCP,
+  plugins, extensions, file hooks, ambient instructions/skills or host Git.
+- Offline networking. This proves no provider connectivity or safe authentication.
 
-Future command (NOT EXECUTED, NOT VALIDATED end-to-end):
-bwrap --ro-bind / / --dev-bind /dev /dev --proc /proc \
-  --bind "$STATE_ROOT" "$STATE_ROOT" \
-  --bind "$STATE_ROOT/sessions" "$HOME/.copilot/session-state" \
-  --chdir "$FIXTURE_ROOT" -- "$CLI_NATIVE" \
-  --no-auto-update --disable-builtin-mcps --log-level none \
-  --log-dir "$STATE_ROOT/logs" --model auto \
-  --available-tools=view --deny-tool=shell --deny-tool=write \
-  -p 'Leia apenas fixture.txt. Informe alpha + beta em uma frase. Não edite arquivos, execute comandos, use rede como ferramenta, delegue ou inicie outra tarefa.'
+Mandatory unresolved gates before any separately approved implementation/run:
+1. BLOCKED_AUTH_BOUNDARY: prove approved least-privilege provider authentication
+   without copying/exporting current credentials or mounting a session bus/keyring.
+   Authenticated metadata and filesystem isolation must both pass independently.
+2. BLOCKED_NETWORK_BOUNDARY: define/verify provider destinations separately from
+   arbitrary subprocess/tool connections. Offline or generic connectivity is
+   insufficient; no --share-net fallback. TLS/DNS resources require justification.
+3. BLOCKED_SUPERVISOR_FAILURE_CONTAINMENT: address/audit worker-death and adversarial
+   descendant limits. Successful routine timeout cleanup does not resolve them.
+4. Prove required SDK/CLI tool/extension controls fail closed, including unsupported
+   options and resumed permissions; fixture success is not complete real-CLI proof.
+5. Human authorization after independent audit, with exact scope and cost budget.
+   Unknown quota/units, unavailable entitlement/Auto or inability to prevent paid
+   fallback/overage blocks admission. Do not infer account balances from missing data.
 
-Run only under an audited owned-process cleanup harness; the raw command above
-is a reviewable specification, not an approved operation. Additional configured
-MCPs/skills/instructions must be excluded before a real run; CLI deny/tool flags
-and a prompt alone do not establish isolation. The read-only host mount prevents
-host writes, but exposes readable host data and devices and allows networking.
-This is not a production sandbox or a proof of least privilege.
+Future SDK procedure (design only, no executable entry point):
+- Create one private 0700 invocation root with an audited mount manifest, a
+  non-sensitive read-only fixture and exclusive state/log directories. Record
+  fixture hash and independent expected_sum. No personal session inspection.
+- Capture sanitized auth, entitlement, model capabilities/Auto eligibility and
+  quota BEFORE, recording source, timestamp and actual units. Approval must specify
+  maximum spend, acceptable units and how overage/fallback are prevented.
+- Through the Rust SDK only, create an explicitly owned UUID session with deny-all
+  permissions and zero tools. A trusted host reader may place the approved fixture
+  text in the single approved request; no external tool permission is implied.
+  Any exception (even a read-only tool) requires separate explicit approval.
+- Send exactly ONE inference request via the SDK after every gate passes. Use Auto
+  only if eligible at authorization time. No retries, paid fallback, YOLO,
+  Autopilot, MCP, delegation, login or permission broadening.
+- Bound startup, request and shutdown; verify owned identities reaped, SDK operation
+  outcome and cleanup outcome separately. session.idle alone proves no task success.
+- Observe genuine provider response/transcript, detach, stop/restart the owned CLI
+  with the SAME private state, then resume the SAME ID and inspect history without
+  a second inference. A synthetic transcript or recreated session is not success.
+- Independently verify answer and fixture bytes; metadata/messages are not proof
+  of an operational action. Compare usage/quota AFTER with sources and units.
+  No account query now was capable of measuring an authenticated billing delta.
+- Store sanitized evidence only; no credentials, raw protocol, hidden prompts or
+  personal file contents. Report uncertainty/failure, do not silently repair state.
 
-Procedure after approval:
-1. Capture safe auth/catalog/quota metadata before; unknown quota blocks admission.
-2. Confirm pinned CLI/SDK, read-only fixture hash, zero configured extension tools,
-   no escaped descendants and a hard timeout/cleanup owner.
-3. Execute at most one explicitly budgeted inference after approval. No fallback,
-   YOLO, Autopilot or paid overage. Auto being listed does not prove model access.
-4. Record exit status, permitted events and provider usage/quota after, with units.
-   Absence of usage is unknown, never zero. session.idle is not task success.
-5. Verify fixture bytes unchanged and all owned processes reaped; verify the answer
-   independently against expected_sum. Audit before assigning any real gate result.
+An A9 authorization will be decided separately AFTER Luna's audit. Passing FIX-3
+fixtures alone never changes this gate. FIX-3 executed zero inference requests.

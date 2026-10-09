@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "policy": "offline-deny-all",
+  "program_kind": "sdk-cli",
+  "library_mounts": [
+    [
+      "/usr/lib64/ld-linux-x86-64.so.2",
+      "/lib64/ld-linux-x86-64.so.2"
+    ],
+    [
+      "/usr/lib64/libc.so.6",
+      "/lib64/libc.so.6"
+    ],
+    [
+      "/usr/lib64/libdl.so.2",
+      "/lib64/libdl.so.2"
+    ],
+    [
+      "/usr/lib64/libgcc_s-16-20260819.so.1",
+      "/lib64/libgcc_s.so.1"
+    ],
+    [
+      "/usr/lib64/libm.so.6",
+      "/lib64/libm.so.6"
+    ],
+    [
+      "/usr/lib64/libpthread.so.0",
+      "/lib64/libpthread.so.0"
+    ],
+    [
+      "/usr/lib64/libstdc++.so.6.0.36",
+      "/lib64/libstdc++.so.6"
+    ],
+    [
+      "/usr/lib64/libutil.so.1",
+      "/lib64/libutil.so.1"
+    ]
+  ],
+  "environment_names": [
+    "COPILOT_DISABLE_KEYTAR",
+    "COPILOT_HOME",
+    "COPILOT_RUNTIME_PROCESS_FILE_LOGGING",
+    "HOME",
+    "LANG",
+    "PATH",
+    "TMPDIR",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME"
+  ],
+  "network": "private_offline_namespace",
+  "auth": "no_host_credentials_or_bus",
+  "seccomp": "x86_64_deny_keyring_introspection_namespace_mount_io_uring",
+  "a9": "BLOCKED_AUTH_BOUNDARY_AND_NETWORK",
+  "inference_calls": 0,
+  "methodology": "ldd on pinned trusted ELF, cleared environment, individual resolved system library files only. Additional libutil dlopen dependency identified in protected no-inference startup diagnostic; final SDK handshake confirms this closure for tested methods only.",
+  "cli_sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+  "cli_bytes": 178457408,
+  "forbidden_mount_sources": [
+    "/",
+    "/home",
+    "/home/sam",
+    "/root",
+    "/run/user",
+    "host credential/config files"
+  ],
+  "provider_network_ready": false,
+  "authentication_ready": false,
+  "sdk_source_provenance": {
+    "crate": "github-copilot-sdk",
+    "version": "1.0.17",
+    "vcs_sha": "0e56b9a0033f48e4358ee027a4077cd6ebd61f32",
+    "vcs_dirty": true,
+    "authority": "published crate source, not unqualified latest documentation",
+    "sha256": {
+      "src/lib.rs": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+      "src/session.rs": "c358f0f773c7687947f89a9be7cc2c988db279cd33993d7024b40ce1f0a3b196",
+      "src/types.rs": "e4276d1da838b5d23b7d5c3a76a35d89357bfdcef578d496edd1c5191530ca3f",
+      "src/permission.rs": "f6f6ba9461afdbdafa223fcb32125eb540e21fdeb33770a785031b38a418859a",
+      "src/handler.rs": "6db16f9d3efd9bab0617efa25fdfd3db2f7b82c33045f7b443fcd6a35abe81c7"
+    }
+  },
+  "boundary_source_sha256": "81db8452342a95a0f02be3c569e175811cc72ec12b7fe30883c9f9db839fbf39"
+}

@@ -1,0 +1,877 @@
+{
+  "phase": "LR-10A FIX-3",
+  "tests": [
+    {
+      "test": "__main__.BoundaryTests.test_G10_missing_kernel_capability_and_wrong_arch_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G10_mount_failure_does_not_execute_target",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G10_symlink_mount_source_and_external_data_rejected",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G10_unknown_policy_non_elf_and_missing_dependency_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G12_no_executable_inference_route",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G12_runtime_rejects_inference_mode_before_cli_start",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G1_authorized_fixture_read_and_private_writes",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G2_external_canary_and_personal_roots_hidden",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G3_symlink_and_traversal_cannot_expose_host",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G4_environment_allowlist_discards_sensitive_names",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G5_external_shell_absent_kernel_keyring_denied",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G6_plan_has_no_host_mcp_plugin_or_auth_mount",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G7_no_credential_proxy_or_bus_bypass",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G8_timeout_active_tree_external_process_preserved",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G9_evidence_contains_only_safe_checks",
+      "status": "PASS"
+    }
+  ],
+  "tests_run": 15,
+  "successful": true,
+  "observations": [
+    {
+      "test": "__main__.BoundaryTests.test_G10_mount_failure_does_not_execute_target",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 90.2,
+        "cleanup_ms": 18.96,
+        "peak_process_tree_rss_bytes": 14221312,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 330,
+        "system_processes_after": 330,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80621,
+            "start_ticks": 3123093,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "target_not_executed": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G12_runtime_rejects_inference_mode_before_cli_start",
+      "result": {
+        "schema_version": 2,
+        "probe": "a9",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 2,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 93.05,
+        "cleanup_ms": 20.22,
+        "peak_process_tree_rss_bytes": 0,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.0,
+        "system_processes_before": 330,
+        "system_processes_after": 330,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80624,
+            "start_ticks": 3123105,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "inference_mode_rejected": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G1_authorized_fixture_read_and_private_writes",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 0,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_zero",
+        "wall_ms": 90.5,
+        "cleanup_ms": 19.07,
+        "peak_process_tree_rss_bytes": 14352384,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 330,
+        "system_processes_after": 330,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80631,
+            "start_ticks": 3123118,
+            "basis": "launched_root"
+          },
+          {
+            "pid": 80632,
+            "start_ticks": 3123122,
+            "basis": "subreaper_child"
+          }
+        ],
+        "unsampled_attributed_descendants": 1,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 1,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "checks": {
+            "environment_absent": true,
+            "fixture_read": true,
+            "fixture_write_denied": true,
+            "host_tcp_denied": true,
+            "host_unix_socket_denied": true,
+            "kernel_keyring_denied": true,
+            "minimal_devices": true,
+            "namespace_proc_only": true,
+            "no_new_privileges": true,
+            "outside_read_denied": true,
+            "outside_write_denied": true,
+            "personal_roots_absent": true,
+            "private_logs_write": true,
+            "private_state_write": true,
+            "root_write_denied": true,
+            "shell_binary_absent": true,
+            "symlink_read_denied": true,
+            "traversal_read_denied": true
+          },
+          "inference_calls": 0,
+          "passed": true,
+          "sensitive_environment_names_absent": [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "COPILOT_SDK_AUTH_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+            "COPILOT_PROVIDER_API_KEY",
+            "COPILOT_PROVIDER_BASE_URL",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "SSH_AUTH_SOCK",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "PYTHONPATH",
+            "GIT_CONFIG_GLOBAL",
+            "AWS_SECRET_ACCESS_KEY",
+            "SYNTHETIC_SECRET",
+            "DISPLAY",
+            "WAYLAND_DISPLAY"
+          ],
+          "sensitive_values_exported": false
+        }
+      },
+      "harness_exit_code": 0,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G2_external_canary_and_personal_roots_hidden",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 0,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_zero",
+        "wall_ms": 90.36,
+        "cleanup_ms": 19.58,
+        "peak_process_tree_rss_bytes": 14221312,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 330,
+        "system_processes_after": 330,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80641,
+            "start_ticks": 3123131,
+            "basis": "launched_root"
+          },
+          {
+            "pid": 80642,
+            "start_ticks": 3123134,
+            "basis": "subreaper_child"
+          }
+        ],
+        "unsampled_attributed_descendants": 1,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 1,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "checks": {
+            "environment_absent": true,
+            "fixture_read": true,
+            "fixture_write_denied": true,
+            "host_tcp_denied": true,
+            "host_unix_socket_denied": true,
+            "kernel_keyring_denied": true,
+            "minimal_devices": true,
+            "namespace_proc_only": true,
+            "no_new_privileges": true,
+            "outside_read_denied": true,
+            "outside_write_denied": true,
+            "personal_roots_absent": true,
+            "private_logs_write": true,
+            "private_state_write": true,
+            "root_write_denied": true,
+            "shell_binary_absent": true,
+            "symlink_read_denied": true,
+            "traversal_read_denied": true
+          },
+          "inference_calls": 0,
+          "passed": true,
+          "sensitive_environment_names_absent": [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "COPILOT_SDK_AUTH_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+            "COPILOT_PROVIDER_API_KEY",
+            "COPILOT_PROVIDER_BASE_URL",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "SSH_AUTH_SOCK",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "PYTHONPATH",
+            "GIT_CONFIG_GLOBAL",
+            "AWS_SECRET_ACCESS_KEY",
+            "SYNTHETIC_SECRET",
+            "DISPLAY",
+            "WAYLAND_DISPLAY"
+          ],
+          "sensitive_values_exported": false
+        }
+      },
+      "harness_exit_code": 0,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G3_symlink_and_traversal_cannot_expose_host",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 0,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_zero",
+        "wall_ms": 93.31,
+        "cleanup_ms": 20.09,
+        "peak_process_tree_rss_bytes": 14221312,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 330,
+        "system_processes_after": 330,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80651,
+            "start_ticks": 3123144,
+            "basis": "launched_root"
+          },
+          {
+            "pid": 80652,
+            "start_ticks": 3123148,
+            "basis": "subreaper_child"
+          }
+        ],
+        "unsampled_attributed_descendants": 1,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 1,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "checks": {
+            "environment_absent": true,
+            "fixture_read": true,
+            "fixture_write_denied": true,
+            "host_tcp_denied": true,
+            "host_unix_socket_denied": true,
+            "kernel_keyring_denied": true,
+            "minimal_devices": true,
+            "namespace_proc_only": true,
+            "no_new_privileges": true,
+            "outside_read_denied": true,
+            "outside_write_denied": true,
+            "personal_roots_absent": true,
+            "private_logs_write": true,
+            "private_state_write": true,
+            "root_write_denied": true,
+            "shell_binary_absent": true,
+            "symlink_read_denied": true,
+            "traversal_read_denied": true
+          },
+          "inference_calls": 0,
+          "passed": true,
+          "sensitive_environment_names_absent": [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "COPILOT_SDK_AUTH_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+            "COPILOT_PROVIDER_API_KEY",
+            "COPILOT_PROVIDER_BASE_URL",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "SSH_AUTH_SOCK",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "PYTHONPATH",
+            "GIT_CONFIG_GLOBAL",
+            "AWS_SECRET_ACCESS_KEY",
+            "SYNTHETIC_SECRET",
+            "DISPLAY",
+            "WAYLAND_DISPLAY"
+          ],
+          "sensitive_values_exported": false
+        }
+      },
+      "harness_exit_code": 0,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G4_environment_allowlist_discards_sensitive_names",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 0,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_zero",
+        "wall_ms": 94.1,
+        "cleanup_ms": 22.29,
+        "peak_process_tree_rss_bytes": 14295040,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 330,
+        "system_processes_after": 330,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80661,
+            "start_ticks": 3123156,
+            "basis": "launched_root"
+          },
+          {
+            "pid": 80662,
+            "start_ticks": 3123160,
+            "basis": "subreaper_child"
+          }
+        ],
+        "unsampled_attributed_descendants": 1,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 1,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "checks": {
+            "environment_absent": true,
+            "fixture_read": true,
+            "fixture_write_denied": true,
+            "host_tcp_denied": true,
+            "host_unix_socket_denied": true,
+            "kernel_keyring_denied": true,
+            "minimal_devices": true,
+            "namespace_proc_only": true,
+            "no_new_privileges": true,
+            "outside_read_denied": true,
+            "outside_write_denied": true,
+            "personal_roots_absent": true,
+            "private_logs_write": true,
+            "private_state_write": true,
+            "root_write_denied": true,
+            "shell_binary_absent": true,
+            "symlink_read_denied": true,
+            "traversal_read_denied": true
+          },
+          "inference_calls": 0,
+          "passed": true,
+          "sensitive_environment_names_absent": [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "COPILOT_SDK_AUTH_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+            "COPILOT_PROVIDER_API_KEY",
+            "COPILOT_PROVIDER_BASE_URL",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "SSH_AUTH_SOCK",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "PYTHONPATH",
+            "GIT_CONFIG_GLOBAL",
+            "AWS_SECRET_ACCESS_KEY",
+            "SYNTHETIC_SECRET",
+            "DISPLAY",
+            "WAYLAND_DISPLAY"
+          ],
+          "sensitive_values_exported": false
+        }
+      },
+      "harness_exit_code": 0,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G5_external_shell_absent_kernel_keyring_denied",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 0,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_zero",
+        "wall_ms": 93.02,
+        "cleanup_ms": 20.05,
+        "peak_process_tree_rss_bytes": 14147584,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 330,
+        "system_processes_after": 330,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80671,
+            "start_ticks": 3123170,
+            "basis": "launched_root"
+          },
+          {
+            "pid": 80672,
+            "start_ticks": 3123174,
+            "basis": "subreaper_child"
+          }
+        ],
+        "unsampled_attributed_descendants": 1,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 1,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "checks": {
+            "environment_absent": true,
+            "fixture_read": true,
+            "fixture_write_denied": true,
+            "host_tcp_denied": true,
+            "host_unix_socket_denied": true,
+            "kernel_keyring_denied": true,
+            "minimal_devices": true,
+            "namespace_proc_only": true,
+            "no_new_privileges": true,
+            "outside_read_denied": true,
+            "outside_write_denied": true,
+            "personal_roots_absent": true,
+            "private_logs_write": true,
+            "private_state_write": true,
+            "root_write_denied": true,
+            "shell_binary_absent": true,
+            "symlink_read_denied": true,
+            "traversal_read_denied": true
+          },
+          "inference_calls": 0,
+          "passed": true,
+          "sensitive_environment_names_absent": [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "COPILOT_SDK_AUTH_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+            "COPILOT_PROVIDER_API_KEY",
+            "COPILOT_PROVIDER_BASE_URL",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "SSH_AUTH_SOCK",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "PYTHONPATH",
+            "GIT_CONFIG_GLOBAL",
+            "AWS_SECRET_ACCESS_KEY",
+            "SYNTHETIC_SECRET",
+            "DISPLAY",
+            "WAYLAND_DISPLAY"
+          ],
+          "sensitive_values_exported": false
+        }
+      },
+      "harness_exit_code": 0,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G7_no_credential_proxy_or_bus_bypass",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 0,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_zero",
+        "wall_ms": 91.02,
+        "cleanup_ms": 19.62,
+        "peak_process_tree_rss_bytes": 14221312,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 330,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80686,
+            "start_ticks": 3123184,
+            "basis": "launched_root"
+          },
+          {
+            "pid": 80687,
+            "start_ticks": 3123187,
+            "basis": "subreaper_child"
+          }
+        ],
+        "unsampled_attributed_descendants": 1,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 1,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "checks": {
+            "environment_absent": true,
+            "fixture_read": true,
+            "fixture_write_denied": true,
+            "host_tcp_denied": true,
+            "host_unix_socket_denied": true,
+            "kernel_keyring_denied": true,
+            "minimal_devices": true,
+            "namespace_proc_only": true,
+            "no_new_privileges": true,
+            "outside_read_denied": true,
+            "outside_write_denied": true,
+            "personal_roots_absent": true,
+            "private_logs_write": true,
+            "private_state_write": true,
+            "root_write_denied": true,
+            "shell_binary_absent": true,
+            "symlink_read_denied": true,
+            "traversal_read_denied": true
+          },
+          "inference_calls": 0,
+          "passed": true,
+          "sensitive_environment_names_absent": [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "COPILOT_SDK_AUTH_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+            "COPILOT_PROVIDER_API_KEY",
+            "COPILOT_PROVIDER_BASE_URL",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "SSH_AUTH_SOCK",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "PYTHONPATH",
+            "GIT_CONFIG_GLOBAL",
+            "AWS_SECRET_ACCESS_KEY",
+            "SYNTHETIC_SECRET",
+            "DISPLAY",
+            "WAYLAND_DISPLAY"
+          ],
+          "sensitive_values_exported": false
+        }
+      },
+      "harness_exit_code": 0,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G8_timeout_active_tree_external_process_preserved",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": -9,
+        "stdout_truncated": false,
+        "timed_out": true,
+        "operation_outcome": "timeout",
+        "wall_ms": 245.99,
+        "cleanup_ms": 30.71,
+        "peak_process_tree_rss_bytes": 8790016,
+        "peak_owned_processes": 4,
+        "sampled_cpu_seconds_lower_bound": 0.03,
+        "system_processes_before": 333,
+        "system_processes_after": 336,
+        "observed_owned_processes": 4,
+        "attributed_processes": [
+          {
+            "pid": 80699,
+            "start_ticks": 3123196,
+            "basis": "launched_root"
+          },
+          {
+            "pid": 80700,
+            "start_ticks": 3123200,
+            "basis": "subreaper_child"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 1,
+        "harness_recovery_signals": 1,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "timeout_recovered",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "harness_exit_code": 1,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true,
+      "external_identity_unchanged_and_alive": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G9_evidence_contains_only_safe_checks",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 0,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_zero",
+        "wall_ms": 90.71,
+        "cleanup_ms": 19.05,
+        "peak_process_tree_rss_bytes": 14221312,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 335,
+        "system_processes_after": 335,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 80712,
+            "start_ticks": 3123224,
+            "basis": "launched_root"
+          },
+          {
+            "pid": 80713,
+            "start_ticks": 3123228,
+            "basis": "subreaper_child"
+          }
+        ],
+        "unsampled_attributed_descendants": 1,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 1,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "checks": {
+            "environment_absent": true,
+            "fixture_read": true,
+            "fixture_write_denied": true,
+            "host_tcp_denied": true,
+            "host_unix_socket_denied": true,
+            "kernel_keyring_denied": true,
+            "minimal_devices": true,
+            "namespace_proc_only": true,
+            "no_new_privileges": true,
+            "outside_read_denied": true,
+            "outside_write_denied": true,
+            "personal_roots_absent": true,
+            "private_logs_write": true,
+            "private_state_write": true,
+            "root_write_denied": true,
+            "shell_binary_absent": true,
+            "symlink_read_denied": true,
+            "traversal_read_denied": true
+          },
+          "inference_calls": 0,
+          "passed": true,
+          "sensitive_environment_names_absent": [
+            "GH_TOKEN",
+            "GITHUB_TOKEN",
+            "COPILOT_SDK_AUTH_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+            "COPILOT_PROVIDER_API_KEY",
+            "COPILOT_PROVIDER_BASE_URL",
+            "ANTHROPIC_API_KEY",
+            "OPENAI_API_KEY",
+            "SSH_AUTH_SOCK",
+            "DBUS_SESSION_BUS_ADDRESS",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "PYTHONPATH",
+            "GIT_CONFIG_GLOBAL",
+            "AWS_SECRET_ACCESS_KEY",
+            "SYNTHETIC_SECRET",
+            "DISPLAY",
+            "WAYLAND_DISPLAY"
+          ],
+          "sensitive_values_exported": false
+        }
+      },
+      "harness_exit_code": 0,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    }
+  ],
+  "inference_calls": 0,
+  "real_copilot_invocations_in_suite": 0,
+  "boundary_fixture_sha256": "2c9d09974b0b3386e3885254695916a2673f1722070f713fd9ab6a27f9f9bb02",
+  "boundary_source_sha256": "81db8452342a95a0f02be3c569e175811cc72ec12b7fe30883c9f9db839fbf39"
+}

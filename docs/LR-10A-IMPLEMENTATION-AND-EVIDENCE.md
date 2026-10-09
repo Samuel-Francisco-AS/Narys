@@ -433,3 +433,43 @@ atualizado, nenhum arquivo de produção alterado. Gate de conversa real permane
 BLOCKED_REAL/AWAITING_HUMAN_APPROVAL; não existe PASS definitivo da LR-10A.
 
 **LR-10A FIX-2 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**
+
+## Adendo — LR-10A FIX-3: fronteira experimental offline e preparação A9 (2026-10-09)
+
+A guarda ampla read-only do host foi substituída por namespace Bubblewrap com
+root vazio, um ELF fixado, oito libraries individuais de sistema e dados privados.
+Sem home pessoal, keyring/D-Bus, config/session pessoal, rede do host ou ambiente
+herdado. Fixture RO, state/logs RW, proc namespaced RO, dev null/urandom, capabilities
+removidas, nested userns negado e seccomp x86_64 obrigatório. Launcher/flags falham
+fechados; nenhuma inferência ou ferramenta agentiva real foi executada.
+
+40 testes Python (25 herdados + 15 boundary) e 26 Rust (22 herdados + 4 security)
+passaram. SDK/CLI real fez handshake/metadata e matriz de sessões vazias dentro da
+fronteira mínima. Auth requerida, catálogo indisponível e quota desconhecida;
+config.json stat inalterado, cleanup owned completo. Sessão vazia permanece sem
+transcript; resume sintético continua somente diagnóstico do leitor, sem comprovar
+conversa genuína. FIX-1/harness e evidências FIX-1/FIX-2 não foram sobrescritos.
+
+DenyAll reaplicado no create/resume, tools vazios, MCP/plugins/extensões/discovery/
+skills/hooks/Git desligados. Fixtures provam reject shell/write/unknown/managed,
+precedência da policy sobre NoResult/panic/pending e falha de create/resume quando
+options.update obrigatório não existe. Não comprovam enforcement completo do CLI.
+
+**FIX-AND-RETEST; A9 BLOCKED, não READY_FOR_A9**: autenticação de menor privilégio,
+egress provider separado de subprocessos e contenção da falha real do worker não
+foram estabelecidos. Nenhum token/config/keyring foi copiado, nenhum login/logout,
+YOLO/Autopilot, update global, serviço ou alteração em produção. Especificação A9
+continua TXT inerte, agora por um request SDK futuro com nova autorização separada.
+
+Evidências permanentes desta execução estão em
+[fix-3-boundary-tests.json](../experiments/lr-10a-sdk-runtime/evidence/fix-3-boundary-tests.json),
+[fix-3-python-regression.json](../experiments/lr-10a-sdk-runtime/evidence/fix-3-python-regression.json),
+[fix-3-rust-tests.txt](../experiments/lr-10a-sdk-runtime/evidence/fix-3-rust-tests.txt),
+[fix-3-real-metadata.json](../experiments/lr-10a-sdk-runtime/evidence/fix-3-real-metadata.json),
+[fix-3-real-sessions.json](../experiments/lr-10a-sdk-runtime/evidence/fix-3-real-sessions.json),
+[fix-3-auth-boundary-blocked.json](../experiments/lr-10a-sdk-runtime/evidence/fix-3-auth-boundary-blocked.json)
+e [fix-3-verification.json](../experiments/lr-10a-sdk-runtime/evidence/fix-3-verification.json).
+O [relatório reutilizável](LR-10-LATEST-EXECUTION-REPORT.md) contém a matriz de ameaças,
+G1–G12, comandos, limitações, recomendações e referências de auditoria desta FIX.
+
+**LR-10A FIX-3 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.

@@ -1,0 +1,105 @@
+test_G10_mount_failure_does_not_execute_target (__main__.BoundaryTests.test_G10_mount_failure_does_not_execute_target) ... ok
+test_G10_symlink_mount_source_and_external_data_rejected (__main__.BoundaryTests.test_G10_symlink_mount_source_and_external_data_rejected) ... ok
+test_G10_unknown_policy_non_elf_and_missing_dependency_fail_closed (__main__.BoundaryTests.test_G10_unknown_policy_non_elf_and_missing_dependency_fail_closed) ... ok
+test_G12_no_executable_inference_route (__main__.BoundaryTests.test_G12_no_executable_inference_route) ... ok
+test_G1_authorized_fixture_read_and_private_writes (__main__.BoundaryTests.test_G1_authorized_fixture_read_and_private_writes) ... FAIL
+test_G2_external_canary_and_personal_roots_hidden (__main__.BoundaryTests.test_G2_external_canary_and_personal_roots_hidden) ... FAIL
+test_G3_symlink_and_traversal_cannot_expose_host (__main__.BoundaryTests.test_G3_symlink_and_traversal_cannot_expose_host) ... FAIL
+test_G4_environment_allowlist_discards_sensitive_names (__main__.BoundaryTests.test_G4_environment_allowlist_discards_sensitive_names) ... FAIL
+test_G5_external_shell_absent_kernel_keyring_denied (__main__.BoundaryTests.test_G5_external_shell_absent_kernel_keyring_denied) ... FAIL
+test_G6_plan_has_no_host_mcp_plugin_or_auth_mount (__main__.BoundaryTests.test_G6_plan_has_no_host_mcp_plugin_or_auth_mount) ... ok
+test_G7_no_credential_proxy_or_bus_bypass (__main__.BoundaryTests.test_G7_no_credential_proxy_or_bus_bypass) ... FAIL
+test_G8_timeout_active_tree_external_process_preserved (__main__.BoundaryTests.test_G8_timeout_active_tree_external_process_preserved) ... FAIL
+test_G9_evidence_contains_only_safe_checks (__main__.BoundaryTests.test_G9_evidence_contains_only_safe_checks) ... FAIL
+
+======================================================================
+FAIL: test_G1_authorized_fixture_read_and_private_writes (__main__.BoundaryTests.test_G1_authorized_fixture_read_and_private_writes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 90, in test_G1_authorized_fixture_read_and_private_writes
+    checks = self.checks()
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 84, in checks
+    self.assertEqual(code, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_G2_external_canary_and_personal_roots_hidden (__main__.BoundaryTests.test_G2_external_canary_and_personal_roots_hidden)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 96, in test_G2_external_canary_and_personal_roots_hidden
+    checks = self.checks()
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 84, in checks
+    self.assertEqual(code, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_G3_symlink_and_traversal_cannot_expose_host (__main__.BoundaryTests.test_G3_symlink_and_traversal_cannot_expose_host)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 101, in test_G3_symlink_and_traversal_cannot_expose_host
+    checks = self.checks()
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 84, in checks
+    self.assertEqual(code, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_G4_environment_allowlist_discards_sensitive_names (__main__.BoundaryTests.test_G4_environment_allowlist_discards_sensitive_names)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 108, in test_G4_environment_allowlist_discards_sensitive_names
+    checks = self.checks()
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 84, in checks
+    self.assertEqual(code, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_G5_external_shell_absent_kernel_keyring_denied (__main__.BoundaryTests.test_G5_external_shell_absent_kernel_keyring_denied)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 112, in test_G5_external_shell_absent_kernel_keyring_denied
+    checks = self.checks()
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 84, in checks
+    self.assertEqual(code, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_G7_no_credential_proxy_or_bus_bypass (__main__.BoundaryTests.test_G7_no_credential_proxy_or_bus_bypass)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 126, in test_G7_no_credential_proxy_or_bus_bypass
+    checks = self.checks()
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 84, in checks
+    self.assertEqual(code, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_G8_timeout_active_tree_external_process_preserved (__main__.BoundaryTests.test_G8_timeout_active_tree_external_process_preserved)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 142, in test_G8_timeout_active_tree_external_process_preserved
+    result, code = self.invocation('timeout', 0.2)
+                   ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 68, in invocation
+    self.assertTrue(result['cleanup_complete'], result.get('cleanup_status'))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true : inconclusive
+
+======================================================================
+FAIL: test_G9_evidence_contains_only_safe_checks (__main__.BoundaryTests.test_G9_evidence_contains_only_safe_checks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/tests/test_boundary.py", line 155, in test_G9_evidence_contains_only_safe_checks
+    self.assertEqual(code, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 13 tests in 1.182s
+
+FAILED (failures=8)

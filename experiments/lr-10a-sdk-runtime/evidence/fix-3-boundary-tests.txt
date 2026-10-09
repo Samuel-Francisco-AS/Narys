@@ -1,0 +1,20 @@
+test_G10_missing_kernel_capability_and_wrong_arch_fail_closed (__main__.BoundaryTests.test_G10_missing_kernel_capability_and_wrong_arch_fail_closed) ... ok
+test_G10_mount_failure_does_not_execute_target (__main__.BoundaryTests.test_G10_mount_failure_does_not_execute_target) ... ok
+test_G10_symlink_mount_source_and_external_data_rejected (__main__.BoundaryTests.test_G10_symlink_mount_source_and_external_data_rejected) ... ok
+test_G10_unknown_policy_non_elf_and_missing_dependency_fail_closed (__main__.BoundaryTests.test_G10_unknown_policy_non_elf_and_missing_dependency_fail_closed) ... ok
+test_G12_no_executable_inference_route (__main__.BoundaryTests.test_G12_no_executable_inference_route) ... ok
+test_G12_runtime_rejects_inference_mode_before_cli_start (__main__.BoundaryTests.test_G12_runtime_rejects_inference_mode_before_cli_start) ... ok
+test_G1_authorized_fixture_read_and_private_writes (__main__.BoundaryTests.test_G1_authorized_fixture_read_and_private_writes) ... ok
+test_G2_external_canary_and_personal_roots_hidden (__main__.BoundaryTests.test_G2_external_canary_and_personal_roots_hidden) ... ok
+test_G3_symlink_and_traversal_cannot_expose_host (__main__.BoundaryTests.test_G3_symlink_and_traversal_cannot_expose_host) ... ok
+test_G4_environment_allowlist_discards_sensitive_names (__main__.BoundaryTests.test_G4_environment_allowlist_discards_sensitive_names) ... ok
+test_G5_external_shell_absent_kernel_keyring_denied (__main__.BoundaryTests.test_G5_external_shell_absent_kernel_keyring_denied) ... ok
+test_G6_plan_has_no_host_mcp_plugin_or_auth_mount (__main__.BoundaryTests.test_G6_plan_has_no_host_mcp_plugin_or_auth_mount) ... ok
+test_G7_no_credential_proxy_or_bus_bypass (__main__.BoundaryTests.test_G7_no_credential_proxy_or_bus_bypass) ... ok
+test_G8_timeout_active_tree_external_process_preserved (__main__.BoundaryTests.test_G8_timeout_active_tree_external_process_preserved) ... ok
+test_G9_evidence_contains_only_safe_checks (__main__.BoundaryTests.test_G9_evidence_contains_only_safe_checks) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 1.449s
+
+OK

@@ -10,6 +10,7 @@ use std::{
     time::Duration,
 };
 
+pub mod boundary;
 pub mod persistence;
 
 pub const DEADLINE: Duration = Duration::from_secs(15);
@@ -104,6 +105,16 @@ pub fn session_config(workspace: &Path) -> SessionConfig {
     config.skip_custom_instructions = Some(true);
     config.enable_on_demand_instruction_discovery = Some(false);
     config.enable_session_telemetry = Some(false);
+    config.mcp_servers = Some(Default::default());
+    config.enable_config_discovery = Some(false);
+    config.request_extensions = Some(false);
+    config.enable_mcp_apps = Some(false);
+    config.plugin_directories = Some(vec![]);
+    config.skill_directories = Some(vec![]);
+    config.instruction_directories = Some(vec![]);
+    config.custom_agents = Some(vec![]);
+    config.additional_directories = Some(vec![]);
+    config.hooks = Some(false);
     // Cross-session search/index integration, not a transcript flush guarantee.
     config.enable_session_store = Some(true);
     config
@@ -122,6 +133,16 @@ pub fn resume_config(id: github_copilot_sdk::SessionId, workspace: &Path) -> Res
     config.skip_custom_instructions = Some(true);
     config.enable_on_demand_instruction_discovery = Some(false);
     config.enable_session_telemetry = Some(false);
+    config.mcp_servers = Some(Default::default());
+    config.enable_config_discovery = Some(false);
+    config.request_extensions = Some(false);
+    config.enable_mcp_apps = Some(false);
+    config.plugin_directories = Some(vec![]);
+    config.skill_directories = Some(vec![]);
+    config.instruction_directories = Some(vec![]);
+    config.custom_agents = Some(vec![]);
+    config.additional_directories = Some(vec![]);
+    config.hooks = Some(false);
     config
 }
 

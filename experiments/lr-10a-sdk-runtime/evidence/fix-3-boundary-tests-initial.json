@@ -1,0 +1,447 @@
+{
+  "phase": "LR-10A FIX-3",
+  "tests": [
+    {
+      "test": "__main__.BoundaryTests.test_G10_mount_failure_does_not_execute_target",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G10_symlink_mount_source_and_external_data_rejected",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G10_unknown_policy_non_elf_and_missing_dependency_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G12_no_executable_inference_route",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G1_authorized_fixture_read_and_private_writes",
+      "status": "FAIL"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G2_external_canary_and_personal_roots_hidden",
+      "status": "FAIL"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G3_symlink_and_traversal_cannot_expose_host",
+      "status": "FAIL"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G4_environment_allowlist_discards_sensitive_names",
+      "status": "FAIL"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G5_external_shell_absent_kernel_keyring_denied",
+      "status": "FAIL"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G6_plan_has_no_host_mcp_plugin_or_auth_mount",
+      "status": "PASS"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G7_no_credential_proxy_or_bus_bypass",
+      "status": "FAIL"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G8_timeout_active_tree_external_process_preserved",
+      "status": "FAIL"
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G9_evidence_contains_only_safe_checks",
+      "status": "FAIL"
+    }
+  ],
+  "tests_run": 13,
+  "successful": false,
+  "observations": [
+    {
+      "test": "__main__.BoundaryTests.test_G10_mount_failure_does_not_execute_target",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 94.16,
+        "cleanup_ms": 20.29,
+        "peak_process_tree_rss_bytes": 10964992,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 331,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 74219,
+            "start_ticks": 2929810,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "target_not_executed": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G1_authorized_fixture_read_and_private_writes",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 92.63,
+        "cleanup_ms": 21.32,
+        "peak_process_tree_rss_bytes": 11075584,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 331,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 74226,
+            "start_ticks": 2929823,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "harness_exit_code": 1,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G2_external_canary_and_personal_roots_hidden",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 93.51,
+        "cleanup_ms": 20.71,
+        "peak_process_tree_rss_bytes": 11001856,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 331,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 74233,
+            "start_ticks": 2929837,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "harness_exit_code": 1,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G3_symlink_and_traversal_cannot_expose_host",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 91.04,
+        "cleanup_ms": 19.8,
+        "peak_process_tree_rss_bytes": 10997760,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 331,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 74240,
+            "start_ticks": 2929850,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "harness_exit_code": 1,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G4_environment_allowlist_discards_sensitive_names",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 93.85,
+        "cleanup_ms": 20.85,
+        "peak_process_tree_rss_bytes": 11096064,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 331,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 74247,
+            "start_ticks": 2929863,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "harness_exit_code": 1,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G5_external_shell_absent_kernel_keyring_denied",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 90.62,
+        "cleanup_ms": 19.81,
+        "peak_process_tree_rss_bytes": 10899456,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 331,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 74254,
+            "start_ticks": 2929877,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "harness_exit_code": 1,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G7_no_credential_proxy_or_bus_bypass",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 92.7,
+        "cleanup_ms": 21.79,
+        "peak_process_tree_rss_bytes": 10964992,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 331,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 74266,
+            "start_ticks": 2929890,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "harness_exit_code": 1,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    },
+    {
+      "test": "__main__.BoundaryTests.test_G9_evidence_contains_only_safe_checks",
+      "result": {
+        "schema_version": 2,
+        "probe": "metadata",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 91.89,
+        "cleanup_ms": 20.28,
+        "peak_process_tree_rss_bytes": 10891264,
+        "peak_owned_processes": 1,
+        "sampled_cpu_seconds_lower_bound": 0.01,
+        "system_processes_before": 331,
+        "system_processes_after": 331,
+        "observed_owned_processes": 1,
+        "attributed_processes": [
+          {
+            "pid": 74281,
+            "start_ticks": 2929915,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "output": "unrecognized",
+          "stdout_bytes": 0
+        }
+      },
+      "harness_exit_code": 1,
+      "canaries_unchanged": true,
+      "attributed_identities_absent_after": true
+    }
+  ],
+  "inference_calls": 0,
+  "real_copilot_invocations_in_suite": 0,
+  "boundary_fixture_sha256": "9a5c503a542fd40fcc80945c53972bfbc5e3fbbb56ea1a366ecd3122cb9defa9",
+  "boundary_source_sha256": "92a052f7c5ae46911aba96438ef47d2bccb521c7002450c9cf002b322e9d9342"
+}

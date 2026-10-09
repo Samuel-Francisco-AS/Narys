@@ -1,0 +1,43 @@
+{
+  "schema_version": 2,
+  "probe": "metadata",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 1,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_nonzero",
+  "wall_ms": 92.49,
+  "cleanup_ms": 19.83,
+  "peak_process_tree_rss_bytes": 11223040,
+  "peak_owned_processes": 1,
+  "sampled_cpu_seconds_lower_bound": 0.0,
+  "system_processes_before": 334,
+  "system_processes_after": 334,
+  "observed_owned_processes": 1,
+  "attributed_processes": [
+    {
+      "pid": 74420,
+      "start_ticks": 2942109,
+      "basis": "launched_root"
+    }
+  ],
+  "unsampled_attributed_descendants": 0,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 0,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "elapsed_ms": 43,
+    "inference_calls": 0,
+    "start_error": "protocol_error"
+  }
+}

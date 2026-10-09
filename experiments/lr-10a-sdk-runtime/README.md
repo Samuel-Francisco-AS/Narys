@@ -1,6 +1,7 @@
 # LR-10A — SDK/runtime experiments
 
-**Candidate only. FIX-AND-RETEST. A9 BLOCKED_REAL / AWAITING_HUMAN_APPROVAL.**
+**FIX-3 candidate only. FIX-AND-RETEST. A9 BLOCKED, never READY_FOR_A9.**
+See the [latest execution report](../../docs/LR-10-LATEST-EXECUTION-REPORT.md).
 See [implementation/evidence](../../docs/LR-10A-IMPLEMENTATION-AND-EVIDENCE.md).
 This independent Edition 2021 crate never initializes Narys, registers an agent,
 changes execution authority, exposes IPC or sends an inference request.
@@ -32,37 +33,41 @@ not persistent; obtain verified official 1.94 components if it has expired.
 ## Safe manual probes (no inference)
 
 Run through the Linux cleanup/measurement harness, **never the binary alone**.
-`cargo test` builds the executable. Python 3, Linux /proc and, for session probes or existing auth,
-`/usr/bin/bwrap` are required. Use the installation's **native CLI binary** when
-possible, rather than its npm loader. Inspect `--version` first; do not update it.
+Python 3, Linux x86_64, pidfds, memfd/seccomp and `/usr/bin/bwrap` are mandatory.
+The installed native ELF is pinned by SHA-256 in `boundary.py`; npm loaders,
+different binaries and missing libraries fail closed. No runtime is acquired.
+Do not run an unprotected CLI to diagnose authentication or dependencies.
 
 ```sh
-python3 experiments/lr-10a-sdk-runtime/measure.py metadata /absolute/path/to/copilot
-python3 experiments/lr-10a-sdk-runtime/measure.py metadata-existing-auth /absolute/path/to/copilot
-python3 experiments/lr-10a-sdk-runtime/measure.py sessions /absolute/path/to/copilot
-python3 experiments/lr-10a-sdk-runtime/measure.py sessions-existing-auth /absolute/path/to/copilot
+python3 experiments/lr-10a-sdk-runtime/run_fix3.py metadata /absolute/path/to/copilot --output /tmp/fix3-metadata.json
+python3 experiments/lr-10a-sdk-runtime/run_fix3.py sessions /absolute/path/to/copilot --output /tmp/fix3-sessions.json
 ```
 
-- `metadata` uses disposable COPILOT_HOME. Missing auth there says nothing about
-  the user's existing account. It reports auth/catalog/quota errors as safe codes.
-- `metadata-existing-auth` lets the CLI resolve its existing credential store
-  inside a read-only host mount. No credential files are read by the POC or
-  harness; no tokens/logins/status messages are exported. Only disposable
-  workspace/log directories are writable. There is **no unguarded fallback**.
+- `metadata` uses disposable COPILOT_HOME, Empty mode, no auto-login and an
+  offline network namespace. Missing auth says nothing about the user's account.
+  Catalog/quota errors are fixed codes; unknown quota is not zero/unlimited.
+- Both `*-existing-auth` modes now return `BLOCKED_AUTH_BOUNDARY` before Client
+  startup. FIX-2's broad read-only host mount has been retired, with no fallback.
 - `sessions` runs the FIX-2 matrix in private COPILOT_HOME: UUID explicit/generated
   IDs, empty abort, store on/off, detach, restart, fresh state and owned deletion.
   Two separate synthetic disk diagnostics never represent SDK persistence.
   Zero tools, deny-all handler and disabled file hooks/skills/instruction discovery.
-  All session modes now require the read-only host bwrap guard.
-- `sessions-existing-auth` also overlays the existing `~/.copilot/session-state`
-  location with an empty disposable directory. It requires that mount point to
-  exist; it never copies, lists, resumes or deletes a user's sessions.
+  All executable real-CLI modes require the same minimal, offline namespace.
+  Fresh state changes only its private mount source; personal sessions are absent.
 
-Existing-auth guards are **experimental filesystem write protection**, not a
-production sandbox: host data remain readable, devices and network accessible,
-and configured extensions/ambient CLI behavior are not proven isolated.
-An earlier unguarded investigation changed config.json stat metadata; see the
-incident in the evidence. The delivered existing-auth code requires bwrap.
+The namespace starts empty (`--tmpfs /`), mounts one native ELF and individual
+system libraries read-only, `/fixture` read-only, private `/state` and `/logs`,
+tmpfs `/tmp`, namespaced read-only `/proc`, and only `/dev/null`/`urandom`.
+No host home, repository, shell, keyring, D-Bus, certificates or resolver files
+are mounted. The environment is an allowlist; inherited non-stdio FDs are closed.
+Capabilities are dropped; user namespace nesting is disabled; mandatory seccomp
+denies keyring access, selected introspection, namespace/mount and io_uring calls.
+Seccomp is a denylist, not a complete syscall allowlist. Self/generated-code
+execution within private writable paths is not proven impossible.
+Network is entirely private/offline, not restricted by provider destination.
+No safe authenticated online boundary has been established: A9 remains blocked.
+Worker-death/adversarial-supervision limits of FIX-1 remain, without a new supervisor.
+The earlier unguarded config incident and original FIX-2 evidence remain historical.
 
 `measure.py` clears graphical display variables and uses a private, single-threaded
 Linux subreaper per invocation. Its caller never becomes a subreaper and waits
@@ -158,6 +163,10 @@ release-sized bundle benchmark, GUI test, model output or usage event is claimed
 
 ## FIX-2 — persistence investigation (no inference)
 
+This section records the historical FIX-2 procedure. `run_fix2.py` remains
+unchanged for audit, but its existing-auth mode is blocked by the current guard.
+For retesting the current implementation, use `run_fix3.py` and new evidence names.
+
 [Current report](../../docs/LR-10-LATEST-EXECUTION-REPORT.md) distinguishes fixture
 success, local real runtime observations and BLOCKED_REAL for genuine history.
 SDK/CLI remain unchanged. Explicit IDs are random UUIDs; Rust SDK 1.0.17 also
@@ -198,3 +207,30 @@ never follows workspace_path returned by the CLI. The synthetic diagnostics
 read back only their own fixture-authored bytes. Guard configuration requires
 the session overlay source to belong to the invocation's private state root.
 The original FIX-1 ownership/cleanup implementation and tests are untouched.
+
+## FIX-3 — experimental security boundary (no inference)
+
+Code: [boundary.py](boundary.py), [Rust launcher](src/boundary.rs),
+[synthetic native probe](src/bin/boundary-fixture.rs),
+[kernel tests](tests/test_boundary.py), [SDK permission fixtures](tests/security.rs).
+Build the two native binaries first with the pinned toolchain and download opt-out:
+
+```sh
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 cargo build --offline --locked --bins --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml
+python3 experiments/lr-10a-sdk-runtime/tests/test_boundary.py --evidence /tmp/fix3-boundary.json
+python3 experiments/lr-10a-sdk-runtime/tests/test_measure.py --evidence /tmp/fix3-python-regression.json
+```
+
+The unchanged historical Python runner discovers all tests but labels evidence
+FIX-1; the FIX-3 regression evidence explicitly records that source label and
+normalizes provenance. Never overwrite historical evidence with these retests.
+Test names and JSON outcomes distinguish real kernel tests, synthetic SDK RPC,
+real native CLI without authentication, and blocked future provider execution.
+The protocol fixture tests raw absent/NoResult/panicking/pending handlers as
+unsafe to treat as explicit denial; mandatory DenyAll overrides those callbacks.
+`skipCustomInstructions` is checked in acknowledged `session.options.update`,
+not guessed from the initial create payload. Rejection of that required update
+fails session creation/resume. This does not prove every CLI option is enforced.
+A dynamic `libutil.so.1` dependency was observed beyond ldd's static list; it is
+mounted as one file. No general library-directory or personal-directory fallback.
+The [A9 specification](fixtures/A9-COMMAND-NOT-AUTHORIZED.txt) remains inert.
