@@ -1,6 +1,6 @@
 # LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** EM ANDAMENTO — LR-9A/B/C/D encerradas, auditadas e integradas à `main`; próxima subfase: LR-9E.
+**Estado:** EM ANDAMENTO — LR-9A/B/C/D encerradas, auditadas e integradas à `main`; LR-9E IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna; sem PASS final da LR-9.
 **Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
 registrada originalmente durante a PERF-1B em 07/10/2026.  
 **Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
@@ -411,8 +411,18 @@ representativa antes do fechamento final da LR-9.
 
 ### LR-9E — Concurrency, Security & Final Gate
 
+**Estado:** IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna, na branch `lr-9e-concurrency-security-final-gate`.
+
 Consolidar execution + observation + Presentation lifecycle, paralelismo,
-approvals, cancelamento, Headless/reentrada e stress final.
+performance, hardening release, cancelamento, Headless/reentrada e stress final.
+Checkpoints internos: E0 Baseline & invariants; E1 OperationalTraceBus performance
+closure; E2 Release security / IPC hardening; E3 Integrated concurrency & fault
+matrix; E4 Native end-to-end final gate. Não são novas fases do roadmap.
+
+“Approvals” histórico aqui significa provar a fronteira existente: Human com
+HumanLocal é permitido; SpecialistAgent, Worker e CognitiveProvider continuam
+negados. LR-9E não cria requests/grants/authority agentivos, delegated shell,
+workspace grants ou sandbox. Essas capacidades e approvals pertencem à LR-10/11.
 
 Gate mínimo: PTY humana, múltiplas fontes concorrentes, Structured Exec
 controlado, burst alto de STREAM, CRITICAL preservado, UI descartável, zero
@@ -459,11 +469,10 @@ Registro:
 
 ## 16. Próxima ação
 
-LR-9A, LR-9B e LR-9C estão encerradas em PASS, auditadas e integradas.
-A LR-9D é IMPLEMENTAÇÃO CANDIDATA na branch
-`lr-9d-cognitive-agent-trace-adapters`, com gates locais verdes e evidências
-registradas. Próxima ação: auditoria independente da Luna; PASS definitivo
-depende dessa auditoria.
+LR-9A, LR-9B, LR-9C e LR-9D estão encerradas em PASS, auditadas e integradas.
+LR-9E é IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna, na branch `lr-9e-concurrency-security-final-gate`.
+O gate integrado de implementação foi executado; a LR-9 aguarda auditoria independente/final da Luna.
+[Implementação LR-9E e evidências](LR-9E-CONCURRENCY-SECURITY-FINAL-GATE.md).
 
-LR-9E permanece sem implementação. Approvals, sandbox e execution authority
-agentiva continuam nas fases seguintes; LR-9D observa somente fatos existentes.
+Approvals, sandbox e execution authority agentiva continuam nas fases LR-10/11.
+Nenhum registro histórico de A–D foi reescrito para declarar PASS da LR-9 inteira.

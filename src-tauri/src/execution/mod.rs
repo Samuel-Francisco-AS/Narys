@@ -15,7 +15,7 @@ pub use pty::*;
 #[cfg(all(feature = "lr9b-probe", target_os = "linux"))]
 pub(crate) mod probe;
 #[cfg(all(test, target_os = "linux"))]
-mod tests;
+pub(crate) mod tests;
 
 #[cfg(target_os = "linux")]
 pub(crate) mod human;

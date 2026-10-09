@@ -8,7 +8,7 @@ Esta etapa protege a fronteira antes de qualquer API key real. O React apresenta
 
 `devCsp` acrescenta apenas WebSocket HMR do Vite em localhost e `style-src 'unsafe-inline'` para estilos injetados pelo Vite em desenvolvimento. Isso não é aplicado ao build distribuído. O navegador comum executa via Vite, sem IPC Tauri.
 
-`main-window.json` limita a janela `main` a comandos específicos, sem API genérica de keyring, Stronghold, filesystem ou shell. Os comandos diagnósticos LR-3/LR-4/LR-5 ficam fora do `invoke_handler` release e da lista release no `AppManifest`. A capability estática ainda contém permissões declarativas diagnósticas; a separação dessa ACL por perfil exige configuração Tauri adicional e permanece registrada como superfície residual sem handler executável.
+`main-window.json` limita a janela `main` a comandos específicos, sem API genérica de keyring, Stronghold, filesystem ou shell. Na implementação LR-9E, commands exclusivamente DEV/fixture ficam fora do handler, do `AppManifest` declarado e da capability estática de release, incluindo `start_mock_task`. O setup `cfg(debug_assertions)` instala `debug-diagnostics.json` dinamicamente apenas para `main`; settings não recebem essa ACL. O relatório `perf1c_ui_report` existe somente no build opt-in de probe. Probes funcionais de configuração Codex/Groq continuam produto. A distinção handler/manifest/ACL/bundle é verificada por `scripts/test-lr9e-release-security.py`; registros históricos abaixo preservam o estado de suas datas.
 
 ## Chave de desbloqueio Stronghold
 
@@ -124,3 +124,44 @@ Não há persistência da PTY após restart, execução agentiva, handoff ou san
 Tauri Isolation Pattern permanece possibilidade de hardening futuro, sem ser
 implementado nesta fase. Contratos, budgets, gates e limites:
 [LR-9C — Terminal Surface & Streams](LR-9C-TERMINAL-SURFACE-STREAMS.md).
+
+## LR-9E · release IPC e hygiene final
+
+O hardening candidato consolida handler, AppManifest e ACL release separadamente.
+Os nove commands exclusivamente DEV ficam somente no handler/manifest debug e
+na capability dinâmica `debug-diagnostics-only`, instalada sob `cfg(debug_assertions)`
+para `main`. `settings-general` e `settings-ai` não recebem essa ACL nem terminal
+permissions. `perf1c_ui_report` é exclusivamente opt-in probe. As permissions
+autogeradas podem descrever um command sem conceder acesso: definição conhecida,
+registro do handler e permissão concedida são superfícies distintas.
+
+Probes de configuração Codex/Groq, credenciais tipadas, operational status,
+Conversation, cancelamento real e o terminal humano continuam produto. CSP,
+remote origins e dependency graph não foram relaxados. O gate derivado
+`scripts/test-lr9e-release-security.py --bundle` verifica as três superfícies,
+settings, bundle production e contratos sensíveis frente à base autorizada.
+
+HumanLocal é constructor nativo privado e não desserializável. Somente Human
+é admitido; SpecialistAgent/Worker/CognitiveProvider com essa mesma authority
+são negados. Origin declarada, TaskId, PID e correlation não cunham authority.
+ExecutionRequest/Result internos continuam sem serde; nenhum DTO serializa
+args, environment ou internals de workspace indiscriminadamente. WorkspaceScope
+valida canonical cwd/raízes/symlinks e não é sandbox.
+
+A fixture integrada usa markers distintos para input/context, Summary,
+provider interno, environment, reasoning bruto, payload Codex proibido e PTY.
+Conversation ProviderText permitido continua visível; payload interno não é
+copiado pelo adapter. PTY impressa é uma saída humana bruta, não publicação de
+OperationalTrace nem input de Conversation/provider. Evidências, matriz de
+authority/faults e limites em
+[LR-9E — Final Gate](LR-9E-CONCURRENCY-SECURITY-FINAL-GATE.md).
+
+O fechamento formal da LR-9 depende da auditoria independente da Luna.
+Approvals/grants agentivos e sandbox permanecem nas fases futuras; não foram
+implementados para preparar esse gate. Os registros anteriores mantêm as
+superfícies residuais existentes nas datas das respectivas auditorias.
+
+O controle visual LR-9E `set_terminal_activity` é permitido somente em `main`,
+com attachment vigente. Ele suspende/retoma a assinatura de OperationalTrace,
+sem mudar a sessão humana ou sua authority. Epochs descartam ACKs de entregas
+antigas; settings-general/settings-ai não recebem essa permission.

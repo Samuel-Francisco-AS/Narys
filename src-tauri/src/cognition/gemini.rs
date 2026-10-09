@@ -220,7 +220,7 @@ fn diag_http_unavailable(
         );
     }
 }
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, test))]
 fn rate_limit_diagnostic(
     status: StatusCode,
     code: Option<&str>,

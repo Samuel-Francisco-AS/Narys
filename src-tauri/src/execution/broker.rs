@@ -118,6 +118,12 @@ impl ExecutionBroker {
         Arc::new(Self::new())
     }
     #[cfg(test)]
+    pub(crate) fn isolated_with_trace(trace: Arc<OperationalTraceBus>) -> Arc<Self> {
+        let mut broker = Self::new();
+        broker.trace = trace;
+        Arc::new(broker)
+    }
+    #[cfg(test)]
     pub(crate) fn seed_test_id(&self, id: u64) {
         self.ids.0.store(id, Ordering::Relaxed);
     }

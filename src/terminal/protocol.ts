@@ -1,6 +1,6 @@
 export interface Session { sessionId: string; shell: string; startingDirectory: string; state: string; rows: number; cols: number; exitCode: number | null; reaped: boolean }
 export interface TraceEvent { sequence: string; lastSequence: string; fragments: number; observedAtUnixMs: number; lastObservedAtUnixMs: number; class: 'STREAM' | 'STATE' | 'CRITICAL'; sourceType: string; sourceId: string; sourceInstance: string | null; taskId: number | null; subtaskId: string | null; correlationId: string | null; kind: string; code: string | null; channel: string | null; text: string }
-export interface TraceBatch { cursor: string; missingEvents: string; liveDeliveryDropped: string; replayComplete: boolean; events: TraceEvent[] }
+export interface TraceBatch { cursor: string; deliveryEpoch?: string; missingEvents: string; liveDeliveryDropped: string; replayComplete: boolean; events: TraceEvent[] }
 export const RAW_HEADER_BYTES = 24
 export function decodePtyFrame(buffer: ArrayBuffer) {
   if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < RAW_HEADER_BYTES) throw new Error('Frame PTY inválido')

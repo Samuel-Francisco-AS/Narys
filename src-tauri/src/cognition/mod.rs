@@ -37,7 +37,7 @@ pub mod task_graph;
 pub(crate) mod task_graph_handoff;
 pub mod task_graph_runtime;
 #[cfg(test)]
-mod task_graph_runtime_tests;
+pub(crate) mod task_graph_runtime_tests;
 mod task_graph_worker;
 pub mod telemetry;
 #[cfg(test)]

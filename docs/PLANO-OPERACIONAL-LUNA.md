@@ -473,7 +473,7 @@ mutável é hardcoded no Luna Core.
 
 ## 12.5. LR-8.5 — Cognitive Resource Economy & Allocation
 
-**Estado: PASS TÉCNICO — LR-8.5A/B/C concluídas e integradas à `main` em 06/10/2026. PERF-1 concluiu em 07/10; LR-9 está em andamento na LR-9A candidata.**
+**Estado: PASS TÉCNICO — LR-8.5A/B/C concluídas e integradas à `main` em 06/10/2026. PERF-1 concluiu em 07/10; LR-9 está em andamento: A–D PASS/integradas; LR-9E IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna.**
 
 A LR-8 fecha capacidade operacional de cada provider; a LR-8.5 passa a decidir
 qual recurso cognitivo vale consumir entre opções heterogêneas.
@@ -507,7 +507,7 @@ Plano detalhado: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURC
 
 ## 13. LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado: EM ANDAMENTO — LR-9A/B/C/D encerradas em PASS técnico + auditoria independente em 08/10/2026; próxima subfase: LR-9E.**
+**Estado: EM ANDAMENTO — LR-9A/B/C/D encerradas em PASS técnico + auditoria independente em 08/10/2026; LR-9E IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna; LR-9 aguarda auditoria independente/final.**
 
 LR-9A estabeleceu o Observation Plane com contratos tipados,
 OperationalTraceBus process-wide, retenção priority-aware/bounded, live
@@ -526,6 +526,11 @@ Codex planner ao Observation Plane por adapters passivos, com deduplicação,
 minimização de conteúdo, raw reasoning fail-closed e zero nova inference/prompt.
 O overhead síncrono observado sob burst foi elevado a dívida obrigatória da LR-9E
 para profiling e eventual otimização antes do fechamento final da LR-9.
+
+LR-9E consolidou A–D, contadores de retenção incrementais, suspensão visual da
+Activity, hardening DEV/release e gates concorrentes/nativos debug/release.
+A implementação é candidata; somente auditoria independente encerrará a LR-9.
+[Gate LR-9E e evidências](LR-9E-CONCURRENCY-SECURITY-FINAL-GATE.md).
 
 Agents continuam sem execution authority e não existe generic shell IPC.
 

@@ -29,10 +29,21 @@ pub(crate) const CONSUMER_WAIT: Duration = Duration::from_millis(250);
 pub(crate) const BATCH_WINDOW: Duration = Duration::from_millis(32);
 pub(crate) const ACK_DEADLINE: Duration = Duration::from_secs(5);
 pub(crate) const MAX_BRIDGE_WORKERS: usize = 4; // two active + two retiring
-#[derive(Default)]
 struct Delivery {
     stopped: bool,
     pending: [Option<String>; 2],
+    trace_enabled: bool,
+    trace_epoch: u64,
+}
+impl Default for Delivery {
+    fn default() -> Self {
+        Self {
+            stopped: false,
+            pending: [None, None],
+            trace_enabled: true,
+            trace_epoch: 0,
+        }
+    }
 }
 pub(crate) struct Attachment {
     pub id: String,
@@ -97,6 +108,73 @@ impl Attachment {
             })
             .unwrap_or_else(|p| p.into_inner());
         if d.pending[stream].is_some() {
+            d.stopped = true;
+            self.wake.notify_all();
+        }
+        !d.stopped
+    }
+    fn trace_mode(&self) -> (bool, u64) {
+        let d = self.delivery.lock().unwrap_or_else(|p| p.into_inner());
+        (d.trace_enabled, d.trace_epoch)
+    }
+    fn set_trace_enabled(&self, enabled: bool) -> Result<String, String> {
+        let mut d = self.delivery.lock().unwrap_or_else(|p| p.into_inner());
+        if d.stopped {
+            return Err("attachment_closed".into());
+        }
+        if d.trace_enabled != enabled {
+            let epoch = d
+                .trace_epoch
+                .checked_add(1)
+                .ok_or("trace_epoch_exhausted")?;
+            d.trace_enabled = enabled;
+            d.trace_epoch = epoch;
+            d.pending[1] = None;
+            self.wake.notify_all();
+        }
+        Ok(d.trace_epoch.to_string())
+    }
+    fn wait_trace_enabled(&self) -> bool {
+        let d = self.delivery.lock().unwrap_or_else(|p| p.into_inner());
+        !self
+            .wake
+            .wait_while(d, |d| !d.stopped && !d.trace_enabled)
+            .unwrap_or_else(|p| p.into_inner())
+            .stopped
+    }
+    fn prepare_trace(&self, epoch: u64, cursor: String) -> bool {
+        let mut d = self.delivery.lock().unwrap_or_else(|p| p.into_inner());
+        if d.stopped || !d.trace_enabled || d.trace_epoch != epoch || d.pending[1].is_some() {
+            return false;
+        }
+        d.pending[1] = Some(cursor);
+        true
+    }
+    fn ack_trace(&self, epoch: Option<&str>, cursor: &str) -> Result<(), String> {
+        let mut d = self.delivery.lock().unwrap_or_else(|p| p.into_inner());
+        let epoch = epoch.unwrap_or("0");
+        if !d.trace_enabled || epoch != d.trace_epoch.to_string() {
+            return Err("stale_trace_ack".into());
+        }
+        if d.stopped || d.pending[1].as_deref() != Some(cursor) {
+            return Err("stale_ack".into());
+        }
+        d.pending[1] = None;
+        self.wake.notify_all();
+        Ok(())
+    }
+    fn trace_delivered(&self, epoch: u64) -> bool {
+        let d = self.delivery.lock().unwrap_or_else(|p| p.into_inner());
+        let (mut d, _) = self
+            .wake
+            .wait_timeout_while(d, ACK_DEADLINE, |d| {
+                !d.stopped && d.trace_enabled && d.trace_epoch == epoch && d.pending[1].is_some()
+            })
+            .unwrap_or_else(|p| p.into_inner());
+        if !d.trace_enabled || d.trace_epoch != epoch {
+            return false;
+        }
+        if d.pending[1].is_some() {
             d.stopped = true;
             self.wake.notify_all();
         }
@@ -281,6 +359,7 @@ pub(crate) fn acknowledge_terminal_batch(
     attachment_id: String,
     stream: String,
     cursor: String,
+    trace_epoch: Option<String>,
 ) -> Result<(), String> {
     main_only(&window)?;
     let index = match stream.as_str() {
@@ -288,7 +367,23 @@ pub(crate) fn acknowledge_terminal_batch(
         "trace" => 1,
         _ => return Err("invalid_stream".into()),
     };
-    hub.attached(&attachment_id)?.ack(index, &cursor)
+    let a = hub.attached(&attachment_id)?;
+    if index == 1 {
+        a.ack_trace(trace_epoch.as_deref(), &cursor)
+    } else {
+        a.ack(index, &cursor)
+    }
+}
+/// Presentation-only subscription control. Never changes PTY/input ownership.
+#[tauri::command]
+pub(crate) fn set_terminal_activity(
+    window: WebviewWindow,
+    hub: State<SurfaceHub>,
+    attachment_id: String,
+    enabled: bool,
+) -> Result<String, String> {
+    main_only(&window)?;
+    hub.attached(&attachment_id)?.set_trace_enabled(enabled)
 }
 fn session_for_attachment(hub: &SurfaceHub, id: &str) -> Result<String, String> {
     hub.attached(id)?
@@ -385,13 +480,35 @@ pub(crate) fn run_pty_bridge(
 pub(crate) fn run_trace_bridge(
     a: &Attachment,
     bus: Arc<OperationalTraceBus>,
-    mut live: LiveSubscriber,
+    live: LiveSubscriber,
     mut send: impl FnMut(TraceBatchDto) -> bool,
 ) {
     let mut cursor = 0;
     let mut initial = true;
     let mut last_loss = 0;
+    let mut live = Some(live);
+    let mut epoch = 0;
     while !a.stopped() {
+        let (enabled, current_epoch) = a.trace_mode();
+        if !enabled {
+            drop(live.take());
+            if !a.wait_trace_enabled() {
+                break;
+            }
+            continue;
+        }
+        if live.is_none() || current_epoch != epoch {
+            drop(live.take());
+            live = bus.subscribe().ok();
+            if live.is_none() {
+                break;
+            }
+            epoch = current_epoch;
+            cursor = 0;
+            initial = true;
+            last_loss = 0;
+        }
+        let live = live.as_mut().unwrap();
         let Ok(b) = bus.replay(cursor, BatchLimits::default()) else {
             break;
         };
@@ -399,11 +516,20 @@ pub(crate) fn run_trace_bridge(
         let next = b.next_after;
         let loss = live.status().delivery_dropped;
         if initial || next != cursor || loss != last_loss {
-            if !a.prepare(1, next.to_string())
-                || !send(trace_batch(cursor, b, loss))
-                || !a.delivered(1)
-            {
+            if !a.prepare_trace(epoch, next.to_string()) {
+                continue;
+            }
+            let mut batch = trace_batch(cursor, b, loss);
+            batch.delivery_epoch = epoch.to_string();
+            if !send(batch) {
                 break;
+            }
+            if !a.trace_delivered(epoch) {
+                if a.stopped() {
+                    break;
+                } else {
+                    continue;
+                }
             }
             initial = false;
             cursor = next;

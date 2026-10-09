@@ -138,6 +138,10 @@ impl TaskRegistry {
             .map_err(|_| "task_id_exhausted".to_string())?;
         Ok(TaskId(last + 1))
     }
+    #[cfg(feature = "lr9e-probe")]
+    pub(crate) fn register_lr9e_probe(&self) -> Result<(TaskId, Arc<AtomicBool>), String> {
+        self.register_with_policy(TaskAttachmentPolicy::HeadlessSafe)
+    }
     pub fn register(&self) -> Result<(TaskId, Arc<AtomicBool>), String> {
         self.register_with_policy(TaskAttachmentPolicy::UiBound)
     }
@@ -1573,7 +1577,7 @@ mod headless_registry_tests {
 
 #[cfg(test)]
 #[test]
-fn lr9d_trace_publication_is_independent_of_failed_functional_channel() {
+pub(crate) fn lr9d_trace_publication_is_independent_of_failed_functional_channel() {
     let bus = crate::operational_trace::OperationalTraceBus::process_wide();
     let after = bus.stats().latest_sequence;
     let id = TaskId(9_007_199_254_740_990);

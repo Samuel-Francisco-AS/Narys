@@ -137,6 +137,7 @@ impl TraceDto {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct TraceBatchDto {
     pub cursor: String,
+    pub delivery_epoch: String,
     pub missing_events: String,
     pub live_delivery_dropped: String,
     pub replay_complete: bool,
@@ -151,6 +152,7 @@ pub(crate) fn trace_batch(after: u64, b: ReplayBatch, live_dropped: u64) -> Trac
         .saturating_sub(b.events.len() as u64);
     TraceBatchDto {
         cursor: b.next_after.to_string(),
+        delivery_epoch: "0".into(),
         missing_events: missing.to_string(),
         live_delivery_dropped: live_dropped.to_string(),
         replay_complete: b.replay_complete,

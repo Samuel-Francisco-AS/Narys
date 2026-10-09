@@ -1740,3 +1740,59 @@ fn c4_fix1_a_b_initial_path_history_failures_roll_back_terminal_and_history() {
         fs::remove_dir_all(dir).unwrap();
     }
 }
+
+/// Fixed real TaskGraph runtime fixture prepared before the concurrency barrier.
+/// Both workers enter concurrently; cancellation of this root cannot affect the
+/// independent Scheduler tasks/PTY/Exec in the matrix.
+pub(crate) fn lr9e_graph_fixture(
+) -> impl FnOnce(Arc<std::sync::Barrier>, mpsc::Receiver<()>) -> usize + Send {
+    let (entry_tx, entry_rx) = mpsc::channel();
+    let (db, runtime, store, active, max_active, dir) =
+        fixture_with_worker_control("lr9e-matrix", 2, 0, Some(entry_tx));
+    move |gate, release| {
+        let registry = Arc::new(TaskRegistry::default());
+        let (sink, receiver) = channel();
+        let id = start_task(
+            registry.clone(),
+            db.clone(),
+            runtime,
+            store,
+            "LR9E deterministic graph".into(),
+            sink,
+        )
+        .unwrap();
+        let first = entry_rx.recv_timeout(Duration::from_secs(20));
+        let second = entry_rx.recv_timeout(Duration::from_secs(20));
+        // Release the other producers even if fixture startup fails, so failure
+        // cannot strand the matrix on a Barrier forever.
+        gate.wait();
+        let first = first.unwrap();
+        let second = second.unwrap();
+        assert!(max_active.load(Ordering::Acquire) >= 2);
+        assert_ne!(first.0, second.0);
+        release.recv_timeout(Duration::from_secs(20)).unwrap();
+        assert!(registry.cancel(id));
+        drop(first.1);
+        drop(second.1);
+        let events = collect(&receiver);
+        assert!(events.iter().any(|e| e.contains("\"task_cancelled\"")));
+        assert!(!events.iter().any(|e| e.contains("\"task_completed\"")));
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while registry.worker_count() != 0 {
+            assert!(std::time::Instant::now() < deadline);
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(active.load(Ordering::Acquire), 0);
+        assert_eq!(registry.active_count(), 0);
+        let planner_calls = events
+            .iter()
+            .filter(|e| e.contains("\"provider_selected\""))
+            .count();
+        assert_eq!(planner_calls, 1);
+        // Each distinct WorkerEntry is sent inside GraphProvider::execute;
+        // worker selections are not root provider_selected TaskEvents.
+        let calls = planner_calls + 2;
+        fs::remove_dir_all(dir).unwrap();
+        calls
+    }
+}

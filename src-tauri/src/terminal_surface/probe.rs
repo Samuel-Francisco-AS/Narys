@@ -41,7 +41,7 @@ pub(crate) fn action(app: &AppHandle, action: &str) -> Option<Result<(), String>
                 bus.publish(EventDraft::new(p,kind).unwrap()).map_err(|_|"fixture publish")?;
             } Ok(())
         },
-        "lr9c_frontend"=>eval(app,"window.__TAURI_INTERNALS__.invoke('perf1c_ui_report',{report:{terminal:document.querySelector('.terminal-workspace')?.dataset,view:document.querySelector('.economy-shell')?.dataset.view,rows:document.querySelectorAll('[data-trace-row]').length,traceUpdates:document.querySelector('[data-trace-updates]')?.dataset.traceUpdates,body:document.body.innerText.slice(-12000),ptyText:document.querySelector('.xterm-rows')?.innerText.slice(-1000),resources:performance.getEntriesByType('resource').map(r=>r.name),width:innerWidth,height:innerHeight,atMs:performance.now()}})"),
+        "lr9c_frontend"=>eval(app,"window.__TAURI_INTERNALS__.invoke('perf1c_ui_report',{report:{terminal:document.querySelector('.terminal-workspace')?.dataset,view:document.querySelector('.economy-shell')?.dataset.view,rows:document.querySelectorAll('[data-trace-row]').length,ptyGap:document.querySelector('[data-pty-gap]')?.textContent,traceGap:document.querySelector('[data-trace-gap]')?.textContent,traceUpdates:document.querySelector('[data-trace-updates]')?.dataset.traceUpdates,traceSources:[...document.querySelectorAll('.trace-filters select')[1]?.options??[]].map(o=>o.value),body:document.body.innerText.slice(-12000),ptyText:document.querySelector('.xterm-rows')?.innerText.slice(-1000),resources:performance.getEntriesByType('resource').map(r=>r.name),width:innerWidth,height:innerHeight,atMs:performance.now()}})"),
         "lr9c_snapshot"=>Ok(()),
         _=>Err("unknown fixed LR-9C action".into()),
     }

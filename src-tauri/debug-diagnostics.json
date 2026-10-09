@@ -1,0 +1,18 @@
+{
+  "identifier": "debug-diagnostics-only",
+  "description": "Only debug native setup installs this main-only fixture ACL. Never static release authority.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "allow-start-mock-task",
+    "allow-security-test-store-secret",
+    "allow-security-test-delete-secret",
+    "allow-lr4-status",
+    "allow-lr4-import-private-bootstrap",
+    "allow-lr4-create-diagnostic-conversation",
+    "allow-lr4-get-recent-conversation",
+    "allow-start-mock-cognition-task",
+    "allow-cognition-provider-status"
+  ]
+}

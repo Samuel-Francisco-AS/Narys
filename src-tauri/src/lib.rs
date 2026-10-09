@@ -14,6 +14,8 @@ mod perf1d_probe;
 #[cfg(feature = "perf1c-probe")]
 mod perf1c_probe;
 mod security;
+#[cfg(all(feature = "lr9e-probe", target_os = "linux"))]
+mod lr9e_probe;
 
 use tauri::Manager;
 
@@ -32,6 +34,8 @@ pub fn run() {
         .manage(execution::human::HumanTerminal::process_wide())
         .manage(terminal_surface::SurfaceHub::default());
     let builder = builder.setup(|app| {
+            #[cfg(debug_assertions)]
+            app.add_capability(include_str!("../debug-diagnostics.json"))?;
             let directory = app.path().app_local_data_dir()?;
             let db = persistence::database::Database::new(directory.clone());
             if let Ok(conn) = db.open() {
@@ -224,6 +228,8 @@ pub fn run() {
         #[cfg(target_os = "linux")]
         terminal_surface::acknowledge_terminal_batch,
         #[cfg(target_os = "linux")]
+        terminal_surface::set_terminal_activity,
+        #[cfg(target_os = "linux")]
         terminal_surface::send_terminal_input,
         #[cfg(target_os = "linux")]
         terminal_surface::resize_terminal,
@@ -306,6 +312,8 @@ pub fn run() {
         #[cfg(target_os = "linux")]
         terminal_surface::acknowledge_terminal_batch,
         #[cfg(target_os = "linux")]
+        terminal_surface::set_terminal_activity,
+        #[cfg(target_os = "linux")]
         terminal_surface::send_terminal_input,
         #[cfg(target_os = "linux")]
         terminal_surface::resize_terminal,
@@ -315,7 +323,6 @@ pub fn run() {
         presentation::quit_narys,
         luna::get_current_interaction,
         luna::attach_conversation_events,
-        luna::start_mock_task,
         luna::cancel_task,
         security::security_status,
         cognition::settings::open_general_settings_window,

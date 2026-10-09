@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-terminal-activity"
+description = "Enables the set_terminal_activity command without any pre-configured scope."
+commands.allow = ["set_terminal_activity"]
+
+[[permission]]
+identifier = "deny-set-terminal-activity"
+description = "Denies the set_terminal_activity command without any pre-configured scope."
+commands.deny = ["set_terminal_activity"]

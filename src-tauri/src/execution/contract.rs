@@ -69,6 +69,15 @@ pub enum ExecutionOrigin {
 /// Opaque, non-deserializable capability. No public constructor; only the native
 /// execution boundary can mint HumanLocal. Neither PID nor declared origin mints it.
 /// LR-9C human registry uses this natively, never forwards an IPC authority enum.
+/// Serialized IDs, declared origins and trace correlations cannot mint authority.
+/// ```compile_fail
+/// use assistente_3d_lib::execution::ExecutionAuthority;
+/// let _: ExecutionAuthority = serde_json::from_str(r#"{"origin":"Human","taskId":1,"pid":123,"correlation":"agent-call-1"}"#).unwrap();
+/// ```
+/// ```compile_fail
+/// use assistente_3d_lib::execution::ExecutionAuthority;
+/// let _ = ExecutionAuthority::human_local();
+/// ```
 pub struct ExecutionAuthority(AuthorityKind);
 enum AuthorityKind {
     HumanLocal,

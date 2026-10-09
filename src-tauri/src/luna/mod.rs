@@ -22,6 +22,7 @@ use crate::security::{
 use runtime::TaskRegistry;
 use task::{TaskEvent, TaskId};
 
+#[cfg(debug_assertions)]
 #[tauri::command]
 pub fn start_mock_task(
     registry: State<'_, Arc<TaskRegistry>>,

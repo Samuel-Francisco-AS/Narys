@@ -71,6 +71,8 @@ pub struct TraceStats {
     pub dropped: ClassCounts,
     /// Delivery attempts (one event can be dropped for multiple observers).
     pub live_delivery_dropped: u64,
+    /// Removed registrations, including normal subscriber Drop/detach. This is
+    /// a lifecycle total, not a count of unexpected failures or a health signal.
     pub subscribers_disconnected: u64,
     pub active_subscribers: usize,
     pub retained_events: usize,
@@ -111,6 +113,8 @@ struct Observer {
 #[derive(Default)]
 struct Storage {
     events: VecDeque<Arc<OperationalEvent>>,
+    retained_count: [usize; 3],
+    retained_class_bytes: [usize; 3],
     observers: Vec<Observer>,
     next_observer_id: u64,
     stats: TraceStats,
@@ -271,13 +275,10 @@ impl Storage {
     fn retain_event(&mut self, event: Arc<OperationalEvent>) -> bool {
         let class = event.retention_class();
         let bytes = event.estimated_bytes();
-        let mut counts = [0_usize; 3];
-        let mut sizes = [0_usize; 3];
-        for retained in &self.events {
-            let index = retained.retention_class() as usize;
-            counts[index] += 1;
-            sizes[index] += retained.estimated_bytes();
-        }
+        // Virtual occupancy includes the incoming event. Persistent counters
+        // contain only the deque; even a rejected event can evict old entries.
+        let mut counts = self.retained_count;
+        let mut sizes = self.retained_class_bytes;
         counts[class as usize] += 1;
         sizes[class as usize] += bytes;
         loop {
@@ -322,6 +323,8 @@ impl Storage {
                 let index = victim.retention_class() as usize;
                 counts[index] -= 1;
                 sizes[index] -= victim.estimated_bytes();
+                self.retained_count[index] -= 1;
+                self.retained_class_bytes[index] -= victim.estimated_bytes();
                 self.stats.retained_bytes -= victim.estimated_bytes();
                 self.stats.evicted.increment(victim.retention_class());
                 self.stats.highest_lost_sequence =
@@ -329,10 +332,16 @@ impl Storage {
             }
         }
         self.stats.retained_bytes += bytes;
+        self.retained_count[class as usize] += 1;
+        self.retained_class_bytes[class as usize] += bytes;
         self.events.push_back(event);
         true
     }
 }
+
+#[cfg(test)]
+#[path = "invariants.rs"]
+mod invariants;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LiveStatus {

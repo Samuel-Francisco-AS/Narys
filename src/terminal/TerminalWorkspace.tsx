@@ -17,16 +17,19 @@ export default function TerminalWorkspace() {
   const [ptyGap, setPtyGap] = useState('')
   const [revision, setRevision] = useState(0)
   const [activityOpen, setActivityOpen] = useState(true)
+  const activityVisible = useRef(true)
+  const activityControl = useRef<((enabled: boolean) => void) | null>(null)
   const [narrowTab, setNarrowTab] = useState<'shell' | 'activity'>('shell')
   const [busy, setBusy] = useState(false)
   const [store, setStore] = useState(() => new TraceStore())
+  useEffect(() => { activityVisible.current = activityOpen; activityControl.current?.(activityOpen) }, [activityOpen])
   useEffect(() => {
     if (!isTauri()) { setConnection('indisponível'); return }
     let disposed = false, attachment = '', term: Terminal | undefined, observer: ResizeObserver | undefined, resize: ResizeCoalescer | undefined
     let running = false, measure = () => {}
-    const trace = new TraceStore(); setStore(trace); setError(''); setPtyGap(''); setConnection('consultando')
+    let trace = new TraceStore(), traceEpoch = 0n; setStore(trace); setError(''); setPtyGap(''); setConnection('consultando')
     const fail = (message: string) => { if (!disposed) setError(message) }
-    const ack = (stream: string, cursor: string) => invoke('acknowledge_terminal_batch', { attachmentId: attachment, stream, cursor }).catch(e => { if (!disposed) { setConnection('desconectado'); fail(`Attachment interrompida: ${String(e)}. Reconecte para recuperar o replay.`) } })
+    const ack = (stream: string, cursor: string, epoch?: string) => invoke('acknowledge_terminal_batch', { attachmentId: attachment, stream, cursor, traceEpoch: epoch }).catch(e => { if (stream === 'trace' && String(e) === 'stale_trace_ack') return; if (!disposed) { setConnection('desconectado'); fail(`Attachment interrompida: ${String(e)}. Reconecte para recuperar o replay.`) } })
     let ready: () => void = () => {}
     const tokenReady = new Promise<void>(resolve => { ready = resolve })
     const pty = new Channel<ArrayBuffer>()
@@ -46,7 +49,29 @@ export default function TerminalWorkspace() {
     const status = new Channel<Session>()
     status.onmessage = dto => { if (!disposed) { running = dto.state === 'running'; setSession(dto); if (running) measure() } }
     const activity = new Channel<TraceBatch>()
-    activity.onmessage = batch => { void tokenReady.then(() => { if (!disposed) trace.ingest(batch, () => { void ack('trace', batch.cursor) }) }) }
+    activity.onmessage = batch => { void tokenReady.then(() => {
+      if (disposed || !activityVisible.current) return
+      const epoch = BigInt(batch.deliveryEpoch ?? '0')
+      if (epoch < traceEpoch) return
+      if (epoch > traceEpoch) { trace.dispose(); trace = new TraceStore(); setStore(trace); traceEpoch = epoch }
+      trace.ingest(batch, () => { if (!disposed && activityVisible.current && epoch === traceEpoch) void ack('trace', batch.cursor, epoch.toString()) })
+    }) }
+    // One operation at a time, coalescing rapid toggles into the latest desired
+    // state. No polling or queue of toggle requests; PTY/attachment stay intact.
+    let desiredActivity = true, actualActivity = true, activityBusy = false
+    const syncActivity = async () => {
+      if (activityBusy) return
+      activityBusy = true
+      try {
+        while (!disposed && desiredActivity !== actualActivity) {
+          const enabled = desiredActivity
+          const epoch = await invoke<string>('set_terminal_activity', { attachmentId: attachment, enabled })
+          actualActivity = enabled
+          if (BigInt(epoch) > traceEpoch) { traceEpoch = BigInt(epoch); trace.dispose(); trace = new TraceStore(); if (!disposed) setStore(trace) }
+        }
+      } catch (e) { desiredActivity = actualActivity; fail(`Activity interrompida: ${String(e)}. Reconecte para recuperar o replay.`) }
+      finally { activityBusy = false }
+    }
     const connect = async () => {
       try {
         const existing = await invoke<Session | null>('terminal_session_status')
@@ -68,12 +93,14 @@ export default function TerminalWorkspace() {
           attachment = result.attachmentId; ready()
         }
         if (disposed) { void invoke('detach_terminal_surface', { attachmentId: attachment }); return }
+        activityControl.current = enabled => { desiredActivity = enabled; if (!enabled) trace.dispose(); void syncActivity() }
+        activityControl.current(activityVisible.current)
         setConnection('conectado')
       } catch (e) { ready(); if (!disposed) { setConnection('desconectado'); fail(String(e)) } }
     }
     void connect()
     return () => {
-      disposed = true; ready(); observer?.disconnect(); resize?.dispose(); input.current?.dispose(); input.current = null
+      disposed = true; activityControl.current = null; ready(); observer?.disconnect(); resize?.dispose(); input.current?.dispose(); input.current = null
       trace.dispose(); term?.dispose()
       if (attachment) void invoke('detach_terminal_surface', { attachmentId: attachment }).catch(() => {})
     }

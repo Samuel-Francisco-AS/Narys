@@ -934,6 +934,9 @@ async fn scheduler_zero_extra_inference_requests_attempts_usage_output_and_failu
 
 #[test]
 fn multi_source_stress_and_reproducible_overhead_gate() {
+    let representative = std::env::var_os("NARYS_LR9E_REPRESENTATIVE").is_some();
+    let burst = if representative { 150 } else { 3000 };
+    let agent_burst = if representative { 75 } else { 1500 };
     // Two Conversation tasks, four workers, Summary, and two actual Codex fakes.
     // Compare no-op / headless / full slow live queue. No timing pass/fail limit.
     let mut baseline = None;
@@ -1014,7 +1017,7 @@ fn multi_source_stress_and_reproducible_overhead_gate() {
                         role,
                         id,
                         subtask.as_deref(),
-                        3000,
+                        burst,
                         true,
                     ));
                     if let Some(id) = id {
@@ -1058,7 +1061,7 @@ fn multi_source_stress_and_reproducible_overhead_gate() {
                 agents.push(scope.spawn(move || {
                     barrier.wait();
                     crate::agents::codex::backend::lifecycle_tests::lr9d_fake_trace_operation(
-                        publisher, 1500,
+                        publisher, agent_burst,
                     )
                 }));
             }
@@ -1095,7 +1098,7 @@ fn multi_source_stress_and_reproducible_overhead_gate() {
         assert!(stats.retained_events <= MAX_RETAINED_EVENTS);
         assert!(stats.retained_bytes <= MAX_RETAINED_BYTES);
         if mode > 0 {
-            assert!(stats.evicted.stream > 0);
+            if representative { assert_eq!(stats.evicted.stream, 0); } else { assert!(stats.evicted.stream > 0); }
             assert_eq!(stats.evicted.state, 0);
             assert_eq!(stats.evicted.critical, 0);
             assert_eq!(stats.dropped.state, 0);
@@ -1154,12 +1157,13 @@ fn multi_source_stress_and_reproducible_overhead_gate() {
         // reduces 3000 provider chunks to one Scheduler OutputObserved upstream:
         // three routing events + that fact + two Summary lifecycle events.
         let source_events = outcomes.0.iter().map(|(_, _, n)| *n).sum::<usize>()
-            + 2 * (3000 + 4)
+            + 2 * (2 * agent_burst + 4)
             + 2 * 3
             + 4 * 2
             + 2
             + 6;
         println!("LR9D overhead mode={mode} source_events={source_events} operational_events={} retained={} bytes={} evicted_stream={} dropped_stream={} live_dropped={} elapsed_ms={} provider_calls=22 agent_turn_starts=2",stats.published,stats.retained_events,stats.retained_bytes,stats.evicted.stream,stats.dropped.stream,stats.live_delivery_dropped,started.elapsed().as_millis());
+        println!("LR9E_TRACE {}", serde_json::json!({"mode":mode,"workload":if representative {"representative"} else {"extreme"},"sourceEvents":source_events,"operationalEvents":stats.published,"elapsedUs":started.elapsed().as_micros(),"retainedEvents":stats.retained_events,"retainedBytes":stats.retained_bytes,"evicted":{"stream":stats.evicted.stream,"state":stats.evicted.state,"critical":stats.evicted.critical},"dropped":{"stream":stats.dropped.stream,"state":stats.dropped.state,"critical":stats.dropped.critical},"liveDeliveryDrops":stats.live_delivery_dropped,"producers":10,"providerCalls":22,"agentTurnStarts":2,"inputTokens":outcomes.0.iter().map(|(r,_,_)|r.usage.input_tokens).sum::<u32>(),"outputTokens":outcomes.0.iter().map(|(r,_,_)|r.usage.output_tokens).sum::<u32>()}));
         drop(subscriber);
         // Reopen sees only the bounded retained window; publishing remains valid.
         if mode > 0 {
@@ -1278,4 +1282,28 @@ async fn conservative_worker_accounting_and_requests_match_noop_trace() {
     assert!(events(&bus)
         .iter()
         .all(|e| !matches!(e.kind(), OperationalKind::TextDelta { .. })));
+}
+
+#[test]
+fn lr9e_adapter_allocation_cost_probe() {
+    // Adapter-only construction/projection, with no retention/lock/timestamp.
+    // Includes formatting, bounded Box/ID allocations and passive dispatch;
+    // does not claim to isolate allocator syscall time.
+    let mut trace = SchedulerTraceAdapter::new(
+        PassiveTracePublisher::new(Arc::new(NoopPublisher)),
+        SchedulerTraceContext::new(Some(TaskId(17)), None, CognitiveRole::Conversation),
+    );
+    trace.observe(&selected(1));
+    let event = SchedulerEvent::Chunk {
+        provider_id: "p".into(),
+        text: "Exposed 🦀\n".into(),
+    };
+    let started = Instant::now();
+    for _ in 0..30000 {
+        trace.observe(std::hint::black_box(&event));
+    }
+    println!(
+        "LR9E_ADAPTER {}",
+        serde_json::json!({"events":30000,"elapsedUs":started.elapsed().as_micros(),"scope":"adapter provenance/ID/text allocations and projection + no-op passive dispatch; excludes timestamp/retention/observers"})
+    );
 }

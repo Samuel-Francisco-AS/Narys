@@ -621,3 +621,375 @@ fn activity_fixture_uses_real_adapters_and_existing_lr9c_dto() {
         .iter()
         .any(|e| e["sourceType"] == "specialist_agent" && e["sourceId"] == "codex"));
 }
+
+/// Native deterministic matrix: OS effects and real Scheduler/Summary/Codex
+/// fakes overlap. Consumer callbacks deliberately reenter locks to prove sends
+/// happen after locks have been released. No commercial network or generic IPC.
+#[test]
+fn lr9e_integrated_concurrency_fault_and_hygiene_matrix() {
+    use crate::cognition::policy::CognitiveRole;
+    use crate::operational_trace::adapters::{tests as fixtures, PassiveTracePublisher};
+    struct RejectAfterPublish(Arc<OperationalTraceBus>);
+    impl crate::operational_trace::adapters::TracePublisher for RejectAfterPublish {
+        fn publish(&self, draft: EventDraft) -> Result<(), crate::operational_trace::TraceError> {
+            self.0.publish(draft)?;
+            Err(crate::operational_trace::TraceError::SequenceExhausted)
+        }
+    }
+    let bus = OperationalTraceBus::isolated();
+    let broker = ExecutionBroker::isolated_with_trace(bus.clone());
+    let rt = Runtime {
+        human: Arc::new(HumanTerminal::new(broker.clone())),
+        broker,
+        hub: Arc::new(SurfaceHub::default()),
+    };
+    let s = rt.shell();
+    let sid = s.id().get().to_string();
+    let pid = s.process_id().unwrap();
+    let slow = bus.subscribe().unwrap();
+    let request = |script: &str, timeout| ExecutionRequest {
+        program: "/usr/bin/python3".into(),
+        args: vec!["-c".into(), script.into()],
+        cwd: std::env::temp_dir(),
+        origin: ExecutionOrigin::Human,
+        task_id: Some(crate::luna::task::TaskId(91)),
+        correlation: Some(TraceId::new("matrix-exec").unwrap()),
+        workspace: None,
+        environment: EnvironmentPolicy::Controlled(vec![(
+            "LR9E_ENV".into(),
+            "ENVIRONMENT-PRIVATE-MARKER".into(),
+        )]),
+        timeout,
+        capture: CapturePolicy::default(),
+    };
+    // Native human boundary, never serialized or passed to agents/providers.
+    // Access via execution test helper: fixed controlled request only.
+    let a = rt.hub.create(Some(sid.clone())).unwrap();
+    let aa = a.clone();
+    let bb = bus.clone();
+    let trace_live = bus.subscribe().unwrap();
+    rt.hub
+        .spawn(a.clone(), move || {
+            run_trace_bridge(&aa, bb.clone(), trace_live, |_| {
+                // Would deadlock if either producer or Attachment lock crossed send.
+                bb.stats();
+                aa.stopped();
+                true // intentionally no ACK
+            })
+        })
+        .unwrap();
+    let aa = a.clone();
+    let ss = s.clone();
+    let live = s.subscribe().unwrap();
+    rt.hub
+        .spawn(a, move || {
+            run_pty_bridge(
+                &aa,
+                ss.clone(),
+                live,
+                |_| {
+                    ss.state();
+                    aa.stopped();
+                    true // pending PTY frame, detach wakes deadline
+                },
+                |_| true,
+            )
+        })
+        .unwrap();
+    let graph_fixture = crate::cognition::task_graph_runtime_tests::lr9e_graph_fixture();
+    let barrier = Arc::new(std::sync::Barrier::new(9));
+    let (graph_release, graph_wait) = std::sync::mpsc::channel();
+    let started = Instant::now();
+    let (normal, cancel, timed, pids) = std::thread::scope(|scope| {
+        let mut producers = Vec::new();
+        for n in 0..4 {
+            let (b, gate) = (bus.clone(), barrier.clone());
+            producers.push(scope.spawn(move || {
+                gate.wait();
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+                let publisher = if n == 3 {
+                    PassiveTracePublisher::new(Arc::new(fixtures::RejectPublisher))
+                } else {
+                    PassiveTracePublisher::new(b)
+                };
+                runtime.block_on(fixtures::provider_run(
+                    publisher,
+                    if n == 0 || n == 3 {
+                        CognitiveRole::Conversation
+                    } else {
+                        CognitiveRole::Worker
+                    },
+                    Some(crate::luna::task::TaskId(51 + n)),
+                    if n == 0 { None } else { Some("matrix-worker") },
+                    1500,
+                    true,
+                ))
+            }));
+        }
+        let (b, gate) = (bus.clone(), barrier.clone());
+        let summary = scope.spawn(move || {
+            gate.wait();
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            runtime.block_on(crate::cognition::summary::lr9d_tests::stress_summary(
+                PassiveTracePublisher::new(b),
+            ))
+        });
+        let mut agents = Vec::new();
+        for n in 0..2 {
+            let (b, gate) = (bus.clone(), barrier.clone());
+            agents.push(scope.spawn(move || {
+                gate.wait();
+                crate::agents::codex::backend::lifecycle_tests::lr9d_fake_trace_operation(
+                    if n == 0 {
+                        PassiveTracePublisher::new(b)
+                    } else {
+                        PassiveTracePublisher::new(Arc::new(RejectAfterPublish(b)))
+                    },
+                    750,
+                )
+            }));
+        }
+        let gate = barrier.clone();
+        let graph = scope.spawn(move || graph_fixture(gate, graph_wait));
+        barrier.wait();
+        crate::luna::runtime::lr9d_trace_publication_is_independent_of_failed_functional_channel();
+        let normal = crate::execution::tests::lr9e_submit(
+            &rt.broker,
+            &request(
+                "import os,time; time.sleep(.3); os.write(1,b'EXEC-ALLOWED')",
+                Duration::from_secs(10),
+            ),
+        );
+        let cancel = crate::execution::tests::lr9e_submit(
+            &rt.broker,
+            &request("import time; time.sleep(30)", Duration::from_secs(10)),
+        );
+        let timed = crate::execution::tests::lr9e_submit(
+            &rt.broker,
+            &request("import time; time.sleep(30)", Duration::from_millis(180)),
+        );
+        until(|| {
+            normal.process_id().is_some()
+                && cancel.process_id().is_some()
+                && timed.process_id().is_some()
+        });
+        let pids = [
+            normal.process_id().unwrap(),
+            cancel.process_id().unwrap(),
+            timed.process_id().unwrap(),
+        ];
+        rt.human.input(&sid,b"stty -echo; /usr/bin/python3 -c \"import os; [os.write(1,b'x'*8192) for _ in range(768)]\"; printf '%s%s\\n' PTY_PRIVATE_ MARKER\n").unwrap();
+        assert!(cancel.cancel());
+        rt.hub.detach_main(); // both batches pending during multi-source burst
+        marker(&s, "PTY_PRIVATE_MARKER");
+        graph_release.send(()).unwrap();
+        let results: Vec<_> = producers.into_iter().map(|h| h.join().unwrap()).collect();
+        assert_eq!(
+            results
+                .iter()
+                .map(|(r, _, _)| r.usage.provider_calls)
+                .sum::<u32>(),
+            12
+        );
+        assert_eq!(
+            results.iter().map(|(r, _, _)| r.usage.retries).sum::<u32>(),
+            4
+        );
+        assert_eq!(
+            results
+                .iter()
+                .map(|(r, _, _)| r.usage.fallbacks)
+                .sum::<u32>(),
+            4
+        );
+        assert_eq!(results[0].0.text, results[3].0.text);
+        assert_eq!(results[0].0.usage, results[3].0.usage);
+        assert_eq!(results[0].1, results[3].1); // passive rejection during real concurrent load
+        assert_eq!(graph.join().unwrap(), 3);
+        assert_eq!(summary.join().unwrap().0, 1);
+        assert_eq!(
+            agents.into_iter().map(|h| h.join().unwrap()).sum::<usize>(),
+            2
+        );
+        (normal, cancel, timed, pids)
+    });
+    marker(&s, "PTY_PRIVATE_MARKER");
+    assert_eq!(s.process_id(), Some(pid));
+    assert_eq!(s.state(), ExecutionState::Running);
+    let replay = s.replay(0, 1, READ_CHUNK_BYTES).unwrap();
+    assert!(replay.total_bytes > 6 * 1024 * 1024 && replay.gap);
+    rt.human.resize(&sid, 37, 109).unwrap();
+    rt.human
+        .input(&sid, b"stty size; printf '%s%s\\n' AFTER_OVERFLOW_ INPUT\n")
+        .unwrap();
+    marker(&s, "37 109");
+    marker(&s, "AFTER_OVERFLOW_INPUT");
+    for (h, expected) in [
+        (&normal, ExecutionState::Completed),
+        (&cancel, ExecutionState::Cancelled),
+        (&timed, ExecutionState::TimedOut),
+    ] {
+        let result = h.wait(Duration::from_secs(10)).unwrap();
+        assert_eq!(result.state, expected);
+        assert!(result.reaped && !result.cleanup_pending);
+    }
+    assert_eq!(s.state(), ExecutionState::Running); // Exec cleanup preserved PTY
+    for p in pids {
+        assert!(!std::path::Path::new(&format!("/proc/{p}")).exists());
+    }
+    let stats = bus.stats();
+    assert!(stats.live_delivery_dropped > 0);
+    assert!(
+        stats.retained_events <= MAX_RETAINED_EVENTS && stats.retained_bytes <= MAX_RETAINED_BYTES
+    );
+    assert_eq!(
+        stats.evicted.state + stats.evicted.critical + stats.dropped.state + stats.dropped.critical,
+        0
+    );
+    let payload = fixtures::payloads(&bus);
+    assert!(!payload.contains("SECRET"));
+    for marker in [
+        "USER-INPUT-SECRET",
+        "MEMORY-SECRET",
+        "CONTEXT-CONTENT-SECRET",
+        "RECENT-CONTEXT-SECRET",
+        "SUMMARY-TRANSCRIPT-SECRET",
+        "SUMMARY-INTERNAL-SECRET",
+        "ENVIRONMENT-PRIVATE-MARKER",
+        "PRIVATE-REASONING-SECRET",
+        "FORBIDDEN-SECRET",
+        "PTY_PRIVATE_MARKER",
+    ] {
+        assert!(!payload.contains(marker), "{marker}");
+    }
+    drop(slow);
+    until(|| rt.hub.worker_count() == 0);
+    assert_eq!(bus.stats().active_subscribers, 0);
+    // Replay/live cycles during ongoing PTY: every consumer tears down exactly.
+    for _ in 0..10 {
+        let a = rt.hub.create(Some(sid.clone())).unwrap();
+        let aa = a.clone();
+        let b = bus.clone();
+        let live = b.subscribe().unwrap();
+        rt.hub
+            .spawn(a, move || {
+                run_trace_bridge(&aa, b.clone(), live, |batch| {
+                    b.stats();
+                    aa.ack(1, &batch.cursor).is_ok()
+                })
+            })
+            .unwrap();
+        rt.hub.detach_main();
+        until(|| rt.hub.worker_count() == 0);
+        assert_eq!(bus.stats().active_subscribers, 0);
+    }
+    rt.human.close(&sid).unwrap();
+    assert!(s.wait(Duration::from_secs(10)).unwrap().reaped);
+    rt.idle();
+    assert!(!std::path::Path::new(&format!("/proc/{pid}")).exists());
+    println!(
+        "LR9E_MATRIX {}",
+        serde_json::json!({"pass":true,"elapsedMs":started.elapsed().as_millis(),"providerCalls":16,"schedulerCalls":12,"summaryCalls":1,"graphCalls":3,"codexTurnStarts":2,"execStates":["completed","cancelled","timed_out"],"ptyBytes":replay.total_bytes,"ptyDroppedBytes":replay.dropped_bytes,"retainedEvents":stats.retained_events,"retainedBytes":stats.retained_bytes,"liveDrops":stats.live_delivery_dropped,"surfaceWorkers":rt.hub.worker_count(),"brokerActive":rt.broker.active_count(),"brokerWorkers":rt.broker.worker_count(),"activeSubscribers":bus.stats().active_subscribers,"reconnectCycles":10,"remainingManagedPids":[]})
+    );
+}
+
+#[test]
+fn lr9e_activity_suspend_replays_without_changing_human_attachment_or_blocking_quit() {
+    let rt = Runtime::new();
+    let s = rt.shell();
+    let sid = s.id().get().to_string();
+    let pid = s.process_id();
+    let bus = OperationalTraceBus::isolated();
+    bus.publish(stream("activity", "initial")).unwrap();
+    let a = rt.hub.create(Some(sid.clone())).unwrap();
+    let sent = Arc::new(AtomicUsize::new(0));
+    let auto_ack = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let first = Arc::new(Mutex::new(None));
+    let (aa, bb, ss, ack, ff) = (
+        a.clone(),
+        bus.clone(),
+        sent.clone(),
+        auto_ack.clone(),
+        first.clone(),
+    );
+    let live = bus.subscribe().unwrap();
+    rt.hub
+        .spawn(a.clone(), move || {
+            run_trace_bridge(&aa, bb.clone(), live, |b| {
+                bb.stats();
+                aa.stopped();
+                ss.fetch_add(1, Ordering::AcqRel);
+                if ack.load(Ordering::Acquire) {
+                    let _ = aa.ack_trace(Some(&b.delivery_epoch), &b.cursor);
+                    true // send success; a concurrent mode transition may reject its ACK
+                } else {
+                    *ff.lock().unwrap() = Some((b.delivery_epoch, b.cursor, b.missing_events));
+                    true
+                }
+            })
+        })
+        .unwrap();
+    until(|| sent.load(Ordering::Acquire) > 0);
+    assert_eq!(a.set_trace_enabled(false).unwrap(), "1");
+    until(|| bus.stats().active_subscribers == 0);
+    assert!(!a.stopped());
+    assert_eq!(session_for_attachment(&rt.hub, &a.id).unwrap(), sid);
+    rt.human
+        .input(&sid, b"printf '%s%s\\n' COLLAPSED_ ALIVE\n")
+        .unwrap();
+    marker(&s, "COLLAPSED_ALIVE");
+    let before = sent.load(Ordering::Acquire);
+    for _ in 0..6000 {
+        bus.publish(stream("activity", "bounded invisible delta"))
+            .unwrap();
+    }
+    assert_eq!(sent.load(Ordering::Acquire), before);
+    assert_eq!(bus.stats().active_subscribers, 0);
+    assert_eq!(a.set_trace_enabled(true).unwrap(), "2");
+    until(|| first.lock().unwrap().as_ref().is_some_and(|v| v.0 == "2"));
+    let (_, cursor, missing) = first.lock().unwrap().clone().unwrap();
+    assert!(missing.parse::<u64>().unwrap() > 0);
+    assert_eq!(
+        a.ack_trace(Some("0"), &cursor),
+        Err("stale_trace_ack".into())
+    );
+    assert!(!a.stopped());
+    auto_ack.store(true, Ordering::Release);
+    a.ack_trace(Some("2"), &cursor).unwrap();
+    for _ in 0..10 {
+        a.set_trace_enabled(false).unwrap();
+        until(|| bus.stats().active_subscribers == 0);
+        a.set_trace_enabled(true).unwrap();
+        until(|| bus.stats().active_subscribers == 1);
+        assert_eq!(s.process_id(), pid);
+        assert_eq!(session_for_attachment(&rt.hub, &a.id).unwrap(), sid);
+    }
+    a.set_trace_enabled(false).unwrap();
+    until(|| bus.stats().active_subscribers == 0);
+    // The consumer parks without polling; stop must wake it and reap the worker.
+    rt.hub.detach_main();
+    until(|| rt.hub.worker_count() == 0);
+    assert_eq!(bus.stats().active_subscribers, 0);
+    rt.human.close(&sid).unwrap();
+    assert!(s.wait(Duration::from_secs(10)).unwrap().reaped);
+    rt.idle();
+}
+#[test]
+fn lr9e_activity_epoch_exhaustion_fails_closed_without_wrapping_or_affecting_pty_ack() {
+    let a = Attachment::new("main-attachment".into(), Some("human-session".into()));
+    a.delivery.lock().unwrap().trace_epoch = u64::MAX;
+    assert_eq!(
+        a.set_trace_enabled(false),
+        Err("trace_epoch_exhausted".into())
+    );
+    assert_eq!(a.trace_mode(), (true, u64::MAX));
+    assert!(a.prepare(0, "9".into()));
+    assert_eq!(a.ack(0, "9"), Ok(()));
+    assert!(!a.stopped());
+}

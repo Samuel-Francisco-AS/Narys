@@ -74,6 +74,14 @@ pub fn request_quit(app: &AppHandle) {
             && tokio::time::Instant::now() < deadline {
             tokio::time::sleep(std::time::Duration::from_millis(25)).await;
         }
+        if handle.state::<Arc<TaskRegistry>>().active_count() > 0
+            || handle.state::<Arc<TaskRegistry>>().worker_count() > 0
+            || !handle.state::<Arc<SummaryWorker>>().stopped()
+            || execution_pending(&handle) {
+            eprintln!("[Quit] cooperative deadline exceeded: tasks={} task_workers={} summary_stopped={} execution_pending={}", handle.state::<Arc<TaskRegistry>>().active_count(), handle.state::<Arc<TaskRegistry>>().worker_count(), handle.state::<Arc<SummaryWorker>>().stopped(), execution_pending(&handle));
+        }
+        #[cfg(all(feature = "lr9e-probe", target_os = "linux"))]
+        crate::perf1c_probe::record("lr9e_shutdown", crate::lr9e_probe::snapshot(&handle));
         handle.exit(0);
     });
 }

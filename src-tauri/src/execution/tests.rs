@@ -1049,3 +1049,45 @@ fn pty_job_control_cleanup_preserves_separate_structured_process() {
     reaped(&done(&separate));
     rt.idle();
 }
+
+// Native-only bridge for the LR-9E integrated test. No IPC constructor.
+pub(crate) fn lr9e_submit(
+    broker: &Arc<ExecutionBroker>,
+    request: &ExecutionRequest,
+) -> ExecutionHandle {
+    broker
+        .submit(request, &ExecutionAuthority::human_local())
+        .unwrap()
+}
+
+#[test]
+fn lr9e_replaced_workspace_root_fails_closed_and_ids_never_grant_authority() {
+    let root = Directory::new();
+    let outside = Directory::new();
+    let scope = WorkspaceScope::confined(&[root.0.clone()]).unwrap();
+    let original = root.0.with_extension("original");
+    std::fs::rename(&root.0, &original).unwrap();
+    std::os::unix::fs::symlink(&outside.0, &root.0).unwrap();
+    assert_eq!(
+        scope.validate(&root.0).unwrap_err(),
+        ExecutionError::CwdOutsideScope
+    );
+    std::fs::remove_file(&root.0).unwrap();
+    std::fs::rename(&original, &root.0).unwrap();
+    let human = ExecutionAuthority::human_local();
+    let mut r = human_request("/usr/bin/python3", &["-c", "pass"]);
+    r.task_id = Some(crate::luna::task::TaskId(1));
+    r.correlation = Some(TraceId::new("agent-call-1").unwrap());
+    assert_eq!(human.authorize(&r, ExecutionMode::Structured), Ok(()));
+    for origin in [
+        ExecutionOrigin::SpecialistAgent(TraceId::new("codex").unwrap()),
+        ExecutionOrigin::Worker(TraceId::new("worker").unwrap()),
+        ExecutionOrigin::CognitiveProvider(TraceId::new("provider").unwrap()),
+    ] {
+        r.origin = origin;
+        assert_eq!(
+            human.authorize(&r, ExecutionMode::Structured),
+            Err(ExecutionError::AuthorityDenied)
+        );
+    }
+}
