@@ -1,0 +1,42 @@
+{
+  "gate": "A9_HOST_ASSISTED",
+  "retrieved_at": "2026-10-09T23:29:33.814623+00:00",
+  "sdk": "github-copilot-sdk 1.0.17",
+  "cli_version_reference": "1.0.91 with unchanged SHA",
+  "rpc_observed": "1.0.90 / protocol 3",
+  "sdk_current_docs_not_equivalent_to_pinned_crate": true,
+  "sources": [
+    {
+      "url": "https://docs.github.com/en/copilot/concepts/billing-and-usage/individuals/billing",
+      "finding": "Current billing uses AI credits/token prices; Student uses Auto; legacy request numbers do not establish current cost."
+    },
+    {
+      "url": "https://github.com/github/copilot-sdk/blob/main/docs/features/usage-and-billing.md",
+      "finding": "Runtime model billing/quota are factual metadata; missing pricing or snapshots never admit send."
+    },
+    {
+      "url": "https://github.com/github/copilot-sdk/blob/main/docs/features/session-limits.md",
+      "finding": "Session limits are post-call/soft, not pre-send hard spend caps."
+    },
+    {
+      "url": "https://github.com/github/copilot-sdk/blob/main/docs/auth/authenticate.md",
+      "finding": "Logged-in-user fallback permits stored CLI/gh credentials; disabling auto-login disables that path, not just a GUI."
+    }
+  ],
+  "pinned_sdk_sources_sha256": {
+    "src/lib.rs": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+    "src/session.rs": "c358f0f773c7687947f89a9be7cc2c988db279cd33993d7024b40ce1f0a3b196",
+    "src/generated/api_types.rs": "4a53a05f892662c1611c23cf50121bebcad75875419c8f038b6fc00f6f404343"
+  },
+  "credentials_inspected": false,
+  "gui_requirement_proven": false,
+  "live_send_linked": false,
+  "reason": "Live auth/catalog/quota gates failed; no executable override can force inference.",
+  "private_authenticated_persistence_tested": false,
+  "public_help_private_home_probe": {
+    "exit_code": 0,
+    "session_state_dir_option_present": false,
+    "log_dir_option_present": true,
+    "help_contains_no_proof_of_private_authenticated_state": true
+  }
+}

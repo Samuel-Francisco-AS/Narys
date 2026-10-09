@@ -537,3 +537,48 @@ A POC exige ACK positivo explícito antes das consultas; a fixture prova que
 false aceito pelo SDK é negado pela POC, e o CLI real confirmou true no reteste.
 Callbacks durante startup e contenção adversarial não foram universalmente
 comprovados; o probe real mantém gateway sem endpoint/credencial desde o início.
+
+## Adendo — A9-HOST-ASSISTED (09/10/2026): BLOCKED_PRE_SEND
+
+Nova autorização humana: uma tentativa SDK real na cota Student, assistida no
+host, aceitando ausência de isolamento completo. Não autoriza pagamentos/overage,
+YOLO/Autopilot, ferramentas agentivas, alterações pessoais, login/credenciais,
+segunda inferência, retries ou fallback. A9_HOST_ASSISTED é distinto de A9_ISOLATED.
+Este adendo não modifica evidências/conclusões históricas das FIXes 1–4.
+
+Um executável/runner independentes realizaram metadata pelo SDK 1.0.17 e CLI
+nativo pinado. O probe inicial desabilitava o fallback de credenciais por
+--no-auto-login; foi corrigido e preservado como evidência inicial. O preflight
+final, com resolução normal habilitada, informou authenticated=false; modelos
+indisponíveis e quota_unknown por erros RPC sanitizados. Não se conclui logout,
+necessidade de GUI ou causa da falha do keyring; nenhuma tentativa de desbloqueio,
+login, inspeção ou cópia de credenciais foi realizada. Não reusar quota/modelos
+históricos como snapshot atual. [Preflight final](../experiments/lr-10a-sdk-runtime/evidence/a9-host-real-preflight.json).
+
+**BLOCKED_PRE_SEND: zero envios reais**, nenhuma sessão/conversa genuína criada,
+nenhum teste real de persistência. Custo/elegibilidade do modelo, unidades de
+cobrança e ausência de paid fallback permanecem não verificados. Documentação
+atual usa AI credits por tokens; o snapshot de requests não demonstra o custo.
+Não se implementou bypass financeiro nem live-send entry point. O marcador
+persistente foi preparado como diretório privado; ATTEMPTED não foi consumido.
+
+46 testes Rust (38 anteriores + 8 novos) e 47 Python (44 anteriores + 3 novos)
+passaram com Rust/Cargo 1.98.1 preinstalados, offline/locked, opt-out de download,
+jobs=2 e harness FIX-1 intacto. Testes de SDK send/error/timeout/restart/resume são
+somente peers sintéticos; não PASS operacional. A claim atômica/fsync impede
+segunda tentativa inclusive após corrupção/crash. Controles DenyAll/zero tools e
+isolamento das FIXes continuam sendo retestados sem alteração.
+[Regressões owned](../experiments/lr-10a-sdk-runtime/evidence/a9-host-owned-tests.json),
+[verificação/preservação](../experiments/lr-10a-sdk-runtime/evidence/a9-host-verification.json).
+
+Headless, nenhum GNOME/GDM ativado, sem atualização SDK/CLI/deps ou mudanças de
+produção; config somente stat, inalterado; zero sinais de recuperação no preflight,
+ECHILD e nenhuma identidade conhecida sobrevivente. Isso não resolve morte do
+worker/adversarial containment. Bloqueios AUTH/NETWORK/SUPERVISOR do modo isolado
+permanecem. Não se observou quota autenticada/delta/fatura; zero SDK sends reais
+não é uma medição inventada de saldo. Uma chamada SDK pode gerar múltiplas chamadas
+internas faturáveis. Não avançar à LR-10B automaticamente.
+
+**LR-10A A9-HOST-ASSISTED — BLOCKED_PRE_SEND; IMPLEMENTAÇÃO/EXECUÇÃO CANDIDATA,
+AGUARDANDO AUDITORIA INDEPENDENTE**. [Relatório atual](LR-10-LATEST-EXECUTION-REPORT.md)
+e [perfil/reprodução](../experiments/lr-10a-sdk-runtime/HOST-ASSISTED.md).

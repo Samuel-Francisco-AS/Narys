@@ -1,192 +1,222 @@
-# NARYS — LR-10A FIX-4 — Auth & Network Boundary Feasibility
+# NARYS — LR-10A A9-HOST-ASSISTED
 
-## 1. Identificação, branch, base e commits
+## Identificação e conclusão
 
-- Data: 09/10/2026; Fedora 44, SSH/headless, sem interface gráfica.
-- Branch: `lr-10a-sdk-runtime-feasibility`.
-- Base local/remota inicial: `b74cc2eeccbd4d859632a1a4453380fd6cf20bcb`; workspace limpo.
-- Main local/remota verificada: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, preservada.
-- Implementação testada: [2b88fff65563501135794574dee26e8b3a73de59](https://github.com/Samuel-Francisco-AS/Narys/commit/2b88fff65563501135794574dee26e8b3a73de59); código, testes e evidências da execução. O commit documental de fechamento altera somente esta referência.
-- HEAD documental final/remoto: [histórico verificável da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). O próprio SHA documental não é inserido circularmente no arquivo.
-- Estado: **LR-10A FIX-4 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
-- Decisão: **FIX_AND_RETEST**, com **BLOCKED_AUTH_BOUNDARY**, **BLOCKED_NETWORK_BOUNDARY** e A9 bloqueado. Sem PASS definitivo da LR-10A.
+**BLOCKED_PRE_SEND. Zero tentativas reais de inferência.**
 
-Sem merge, PR, rebase, reset, force-push, alteração humana descartada ou mudança na main. Este relatório substitui exclusivamente o relatório reutilizável da FIX-3; documentos/evidências permanentes continuam preservados.
+**LR-10A A9-HOST-ASSISTED — IMPLEMENTAÇÃO/EXECUÇÃO CANDIDATA,
+AGUARDANDO AUDITORIA INDEPENDENTE.** Sem PASS definitivo da LR-10A.
 
-## 2. Objetivo e alterações por arquivo
+- Data: 09/10/2026, Fedora 44 / SSH/headless.
+- Branch: `lr-10a-sdk-runtime-feasibility`; base local/remota inicial limpa: `4216ba2a6a0e75822587bf9032782ddc454338fa`.
+- Main local/remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, preservada.
+- Implementação testada: **IMPLEMENTATION_COMMIT_REFERENCE**.
+- HEAD documental/remoto: [histórico verificável da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). Referência fechada em commit documental, sem SHA circular.
+- Nenhum merge, PR, rebase, reset, force-push ou avanço à LR-10B.
 
-Investigar autenticação e conectividade controlada mantendo o sandbox offline e a supervisão aprovada. Encontrou-se na crate efetivamente utilizada um ponto oficial de interceptação HTTP/WebSocket; não foi necessário construir um proxy genérico.
+A autorização recebida permite uma tentativa real na cota Student, executada no
+host sob o usuário Linux, aceitando ausência de isolamento completo. Não permite
+cobrança adicional/overage/contratação, inferências adicionais ou retry, paid
+fallback, YOLO/Autopilot, ferramentas agentivas perigosas/shell, alterações
+pessoais ou credenciais. A condição expressa exige interromper antes do envio
+se não for possível comprovar custo dentro da franquia e ausência de cobrança.
+Essa condição foi aplicada; a autorização não foi convertida em tentativa.
 
-| Arquivo | Mudança / finalidade |
+## Objetivo e implementação
+
+O perfil HOST_ASSISTED é separado do ISOLATED. A primeira prova deveria estabelecer
+auth/entitlement/modelo/custo antes de permitir uma única mensagem pelo SDK.
+A autenticação atual não ficou disponível e os dados de quota/modelos não foram
+obtidos. A execução parou no preflight, sem criar sessão real.
+
+| Arquivo | Implementação |
 | --- | --- |
-| [src/auth_network.rs](../experiments/lr-10a-sdk-runtime/src/auth_network.rs) | Handler de uma operação sintética fixa, credencial sintética host-only, limite de uma tentativa, I/O bounded, ambos defaults de rede substituídos |
-| [src/bin/network-fixture.rs](../experiments/lr-10a-sdk-runtime/src/bin/network-fixture.rs) | Peer RPC nativo sintético; pedidos de metadata, tentativas TCP pai/filho, flags sanitizados e negação de métodos desconhecidos |
-| [fix4_boundary.py](../experiments/lr-10a-sdk-runtime/fix4_boundary.py) | Reutiliza o plano FIX-3; substitui apenas o ELF sintético aprovado com a mesma closure de bibliotecas; valida flags SDK estritamente |
-| [src/bin/auth-network-probe.rs](../experiments/lr-10a-sdk-runtime/src/bin/auth-network-probe.rs) | Registro do handler e metadata no CLI real offline, sem credenciais/endpoint; somente modo metadata e harness obrigatório |
-| [run_fix4.py](../experiments/lr-10a-sdk-runtime/run_fix4.py) | Runner owned/subreaper para Cargo/testes e probe real; stat de configuração, hashes, cleanup e diretório de artefatos separado para reprodução |
-| [tests/auth_network.rs](../experiments/lr-10a-sdk-runtime/tests/auth_network.rs) / [tests/test_fix4.py](../experiments/lr-10a-sdk-runtime/tests/test_fix4.py) | 12 testes Rust / 4 Python novos, determinísticos e sem inferência |
-| [Cargo.toml](../experiments/lr-10a-sdk-runtime/Cargo.toml) / [Cargo.lock](../experiments/lr-10a-sdk-runtime/Cargo.lock) | bytes=1.12.1 e futures-util=0.3.34 tornam-se deps diretas da POC para o DTO; já eram transitivas/cacheadas; nenhuma versão de package foi alterada |
-| [README](../experiments/lr-10a-sdk-runtime/README.md), [adendo permanente](LR-10A-IMPLEMENTATION-AND-EVIDENCE.md), este relatório | Reprodução, contrato, limites, impacto no release e fechamento da execução |
-| [evidence/fix-4-*](../experiments/lr-10a-sdk-runtime/evidence/fix-4-verification.json) | Inspeção, testes positivos/negativos, medições e verificação sanitizada; evidências finais e falhas exploratórias selecionadas |
+| [src/bin/a9-host-assisted.rs](../experiments/lr-10a-sdk-runtime/src/bin/a9-host-assisted.rs) | Executável independente, owned-harness obrigatório, somente metadata preflight; rejeita modos send/A9 antes de iniciar CLI |
+| [src/host_assisted.rs](../experiments/lr-10a-sdk-runtime/src/host_assisted.rs) | Options de auth normal, projeção sanitizada, bloqueios financeiros explícitos, primitive atômica de claim/fsync |
+| [run_a9_host.py](../experiments/lr-10a-sdk-runtime/run_a9_host.py) | CLI pinado, env de processo filtrado, diretório estável seguro, measure.py sem alteração, stat/hashes e evidência sem overwrite |
+| [verify_a9_host.py](../experiments/lr-10a-sdk-runtime/verify_a9_host.py) | Cargo e regressões Python dentro do subreaper; paths novos para logs/observações |
+| [fixtures/a9_host_cli.py](../experiments/lr-10a-sdk-runtime/fixtures/a9_host_cli.py) | Peer RPC sintético sem rede/auth/provedor, para envio e persistência de fixture |
+| [tests/host_assisted.rs](../experiments/lr-10a-sdk-runtime/tests/host_assisted.rs), [tests/test_a9_host.py](../experiments/lr-10a-sdk-runtime/tests/test_a9_host.py) | 8 testes Rust e 3 Python novos |
+| [HOST-ASSISTED.md](../experiments/lr-10a-sdk-runtime/HOST-ASSISTED.md) | Perfil, limites, comandos e diferença frente ao A9 isolado |
+| [adendo permanente](LR-10A-IMPLEMENTATION-AND-EVIDENCE.md), [evidências](../experiments/lr-10a-sdk-runtime/evidence/a9-host-verification.json), este relatório | Histórico preservado e resultados novos identificados |
 
-Não foram implementados auth loader real, proxy de credenciais, sandbox/approval engine de produção, supervisor LR-10B, integração ao Broker, A9 ou release. measure.py, boundary.py, run_fix2.py/run_fix3.py, src/lib.rs, src/main.rs, src/persistence.rs e testes/evidências históricos permanecem iguais à base. Nenhum código/dependência de produção foi alterado.
+Não há live-send entry point nesta candidata: ligá-lo com auth/custo desconhecidos
+introduziria um caminho não admitido. Não há flag/booleano que force admissão,
+retry/fallback, nem enumere/descarte sessões pessoais. SDK send está somente nos
+testes contra o peer sintético. Isso é preparação bloqueada, não implementação
+completa de inferência real. O procedimento A9 isolado TXT foi preservado, sem
+executar ou reinterpretar sua autorização.
 
-## 3. Evidências de autenticação — FIX-4A
+## Preflight real e modelo escolhido
 
-**Resultado: BLOCKED_AUTH_BOUNDARY. Prova com credencial real: AWAITING_HUMAN_AUTHORIZATION.**
+[Resultado final SDK/CLI](../experiments/lr-10a-sdk-runtime/evidence/a9-host-real-preflight.json):
 
-A autoridade versionada é o conteúdo efetivamente consumido da crate 1.0.17, com checksum do archive cacheado e hashes das fontes. `.cargo_vcs_info.json` marca dirty=true; não se assume identidade com uma tag/árvore Git upstream. Os [trechos de contrato](../experiments/lr-10a-sdk-runtime/evidence/fix-4-upstream-contract-excerpts.txt) permitem auditar no GitHub o ponto de injeção, redaction e defaults sem depender do terminal. [Inspeção completa de provenance/versões](../experiments/lr-10a-sdk-runtime/evidence/fix-4-contract-inspection.json).
+| Sinal | Observação real |
+| --- | --- |
+| SDK | 1.0.17, runtime não bundled, default-features=false; Cargo/lock intactos |
+| CLI | Hash idêntico ao CLI 1.0.91 verificado antes; RPC 1.0.90 / protocol 3 reobservado |
+| Auth | authenticated=false; identidade/statusMessage omitidos |
+| Entitlement / quota | account.getQuota: quota_unknown / rpc_error_unknown; nenhum saldo ou overage atual conhecido |
+| Modelos | models.list: rpc_error_unknown; catálogo indisponível |
+| Modelo escolhido | Nenhum; Auto não escolhido nem presumido elegível/barato |
+| Envios SDK reais | 0 |
+| Sessões reais create/resume | 0; nunca apontou sessão pessoal para consulta |
+| Shutdown | SDK reportou graceful; harness confirmou kernel children exhausted/cleanup completo, sem sinais |
+| Config global | Stat antes/depois iguais; conteúdo nunca lido pela POC ou restaurado |
 
-| Hipótese / mecanismo | Evidência efetiva | Resultado / limite |
+O [probe inicial](../experiments/lr-10a-sdk-runtime/evidence/a9-host-real-preflight-auth-disabled-initial.json)
+incorretamente acrescentava --no-auto-login, que também desabilita fallback de
+credenciais existentes. Foi removido; o probe final usa use_logged_in_user=true
+sem token explícito/base_directory. Mesmo assim auth permaneceu false. Não se
+atribui a causa ao keyring, conta deslogada, serviço, versão ou GUI sem prova.
+**BLOCKED_GUI_REQUIRED não foi demonstrado**; não se abriu janela, desbloqueou
+keyring, reiniciou GNOME/GDM ou fez login/logout.
+
+Ambiente allowlisted do processo: HOME, PATH=/usr/bin, LANG, existentes
+DBUS_SESSION_BUS_ADDRESS/XDG_RUNTIME_DIR para resolução normal do CLI e opt-out de
+download. Sem valores de token lidos/copiados; overrides de token removidos;
+DISPLAY/WAYLAND removidos. O host oferece filesystem/rede normais ao CLI; isso
+**não é sandbox nem auth boundary de menor privilégio**. Há keyring daemon
+existente e gh disponível, mas sua presença não prova auth acessível. Nenhuma
+inspeção de armazenamento, configs ou sessões pessoais foi usada para diagnóstico.
+
+Documentação atual consultada: [billing para indivíduos](https://docs.github.com/en/copilot/concepts/billing-and-usage/individuals/billing)
+descreve AI credits/token pricing e modelos Student por Auto; [usage SDK](https://github.com/github/copilot-sdk/blob/main/docs/features/usage-and-billing.md)
+expõe preços/quota do runtime. A crate 1.0.17 tem AccountQuotaSnapshot em requests,
+flags de overage e ModelBilling com preços opcionais. Dados ausentes ou de outra
+execução não demonstram custo atual. [Session limits](https://github.com/github/copilot-sdk/blob/main/docs/features/session-limits.md)
+são soft/post-call e podem ultrapassar o limite em uma resposta. Não foram usados
+como teto rígido. [Auth SDK](https://github.com/github/copilot-sdk/blob/main/docs/auth/authenticate.md)
+distingue fallback de credenciais e tokens explícitos. Essas páginas atuais não
+são prova de comportamento idêntico à versão instalada; [contrato/provenance](../experiments/lr-10a-sdk-runtime/evidence/a9-host-contract.json)
+registra hashes das fontes efetivamente utilizadas e as referências.
+
+Quota 200/used 52/Auto das FIXes anteriores permanece histórica, não snapshot
+atual nem admissão financeira. A candidata falha fechada mesmo se um mock declarar
+multiplier=0: unidades, máximo de gasto e paid fallback ainda exigem contrato
+verificado. Não se tentou habilitar orçamento, comprar créditos ou atualizar CLI.
+
+## Matriz H1–H10
+
+| Gate | Estado | Evidência e limite |
 | --- | --- | --- |
-| A1 Token explícito oficial | ClientOptions.github_token injeta COPILOT_SDK_AUTH_TOKEN e flags --auth-token-env / --no-auto-login; teste com SDK real e peer sintético | PASS transporte SDK; NÃO autenticação no CLI/provedor real. Marker alcança runtime e filho, sem aparecer como valor no argv |
-| A2 Permissões exigidas | Documentação atual: PAT fine-grained de usuário, permissão de conta Copilot Requests; página de PAT consultada apresenta copilot_requests=write | Requisito documental atual; permissões/entitlement aceitos pelo CLI instalado não comprovados. Não confundir com repo contents ou gestão de seats |
-| A3 Fine-grained PAT no par instalado | SDK repassa String; não valida localmente escopo/formato/entitlement. Documentação atual inclui github_pat_ e OAuth gho_/ghu_; classic PAT não é caminho atual suportado | Compatibilidade autenticada 1.0.17/CLI 1.0.91 permanece BLOCKED. Nenhum token/PAT criado ou fornecido |
-| A4 keyring/libsecret/D-Bus | Empty/keytar off, sem bus/home/config e seccomp nega APIs de keyring; regressões kernel passam | Não se investigou armazenamento pessoal. Expor bus/serviço pode ampliar acesso a credenciais/serviços; não montado |
-| A5 Mediação host | GitHubTokenProvider retorna access_token por RPC ao runtime; aquisição no host não equivale a contenção. Handler HTTP oficial permite injeção apenas no conector host sintético | PASS operação finita host-only; auth GitHub/Copilot completa não implementada/comprovada |
-| A6 Escopo e duração limitados | PAT tem política/expiração documentada; provider SDK representa lifetime, mas não emite nem reduz escopo de um token | Nenhuma credencial criada/renovada. Projeto futuro precisa aprovação de emissão, duração, revogação e billing |
-| A7 Vazamentos | Token direto herdado por filho sintético; Debug do campo github_token redigido; gateway não exporta segredo ao runtime/filho/log/JSON, inclusive quando servidor o ecoa | Redaction não protege memória/env/RPC. Debug de ClientOptions imprime env; erros de provider podem incluir prose. Não colocar credenciais em env/erro/debug da aplicação |
+| H1 Auth e entitlement | BLOCKED | RPC auth executado: false; entitlement/quota indisponíveis. Não PASS com base na autenticação histórica |
+| H2 Modelo/quota sem cobrança | BLOCKED | Catálogo e quota indisponíveis; nenhum modelo/custo escolhido; ausência de overage/fallback pago não comprovada |
+| H3 Workspace, DenyAll, zero tools | INCONCLUSIVE | Workspace 0700/fixture 0400 preparada e intacta; configurações DenyAll/zero tools/MCP/hooks/skills/extensions testadas no peer. Nenhuma sessão real criada para atestar enforcement do CLI |
+| H4 Single-attempt guard | PASS | 8 claims concorrentes: uma vence; arquivo 0600/fsync; entries existentes/corruptas/symlinks bloqueiam. Estado estável live preparado, sem ATTEMPTED porque não houve envio; PASS é da primitive/testes, não de inferência |
+| H5 Inferência SDK real | BLOCKED | sdk_send_calls=0; nenhuma mensagem ao Copilot |
+| H6 Resposta final correta | NOT_RUN | Nenhuma resposta real; "5" aparece somente como valor esperado e dado de teste |
+| H7 Persistência/retomada genuína | BLOCKED | Depende de H5; nenhum transcript real criado/consultado ou events.jsonl fabricado. Persistência do peer não prova Copilot |
+| H8 Quota/uso observados | INCONCLUSIVE | RPC foi executado, mas quota_unknown; nenhuma delta/fatura/assistant.usage real. Saldo/consumo informado pelo provedor desconhecidos |
+| H9 Shutdown/processos | PASS | SDK graceful e exhaustion real no preflight; regressões de timeout/adoção/setsid/external-control passam; zero identidades conhecidas sobreviventes |
+| H10 Segurança/headless/produção | PASS | Scope experimental, configs somente stat iguais, sem GUI/serviços/credenciais/produção alterados; ausência de isolamento do host continua declarada |
 
-Fontes atuais consultadas em 09/10, separadas da prova versionada: [autenticação CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli), [auth SDK](https://github.com/github/copilot-sdk/blob/main/docs/auth/authenticate.md), [permissões e expiração de PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens). Nenhum link de criação/login foi executado. Escopo reduzido limita danos; não impede copiar/transmitir a credencial nem estabelece orçamento.
+PASS descreve somente a propriedade observada na coluna. Não torna H5/H6/H7
+PASS operacional a partir de mocks, nem aprova LR-10A ou A9_ISOLATED.
 
-**Condições distintas:** indisponível no sandbox (CLI real desta FIX); fornecida ao runtime (controle negativo sintético); mediada pelo host (operação local finita); protegida contra exfiltração em geral (NÃO demonstrada). O gateway só aceita marker público sintético e tem endereço de loopback fixado pelo host, sem função de adquirir credenciais reais. Mantém-se intacta a rejeição de token/env/flags de auth na fronteira CLI FIX-3.
+## Tentativa, resposta e persistência
 
-A inspeção de substrings do ELF instalado foi inconclusiva para vários contratos; ausência de literal não prova ausência de feature. O próprio literal setProvider não foi encontrado, embora seu registro tenha funcionado via RPC real. Não se utilizou grep do binário como prova de suporte a PAT.
+- Envio aceito: **NOT_RUN**; zero operações SDK send reais.
+- Resposta recebida: **NOT_RUN**; nenhuma resposta de modelo publicada.
+- Estado terminal: **BLOCKED_PRE_SEND**, operação de metadata terminada; nenhum session.idle usado como sucesso de tarefa.
+- Resultado validado: **NOT_RUN**; não atribuir a soma sintética a Copilot real.
+- Consumo informado pelo provedor: **indisponível**; sem quota autenticada antes/depois ou billing delta.
+- Duas execuções reais de **metadata**, inicial/final, sem mensagem; não são duas tentativas de inferência.
 
-## 4. Alternativas de rede — FIX-4B
+Diretório estável `~/.local/state/narys` preparado 0700. Nenhum arquivo ATTEMPTED
+criado no host: a tentativa não foi consumida. A primitive create_new/O_EXCL abre
+relativamente a um FD de diretório validado, grava ATTEMPTED, fsynca arquivo e
+diretório ANTES do send. Qualquer entry preexistente bloqueia sem ler seu conteúdo;
+crash/timeout/erro não autorizam nova claim. Os testes usam apenas diretórios
+sintéticos privados; esse arquivo fica fora do repositório/Git.
 
-**Resultado para Copilot real: BLOCKED_NETWORK_BOUNDARY.** Caminho finito sintético por stdio demonstrado; transporte/autenticação do provedor não demonstrados.
+Testes fizeram três SDK sends sintéticos por suíte (sucesso, erro, timeout), sem
+rede/provedor/quota. A fixture verifica o prompt exato, DenyAll/zero tools e
+options.update; restart/resume do mesmo ID ocorre sem create ou segundo send na
+sessão retomada. O histórico é exclusivamente do peer. FIX-2 session_not_found
+permanece observação real histórica sem reteste de conversa genuína.
 
-| Alternativa | Análise / prova permitida | Decisão e custo |
-| --- | --- | --- |
-| B1 Proxy host de saída | HTTP CONNECT deixa payload TLS opaco e pode ser utilizado por runtime e filhos com acesso ao proxy; não distingue intenção/processo. A POC não o implementa | Proxy genérico não satisfaz este boundary; acrescentaria política, transporte para namespace e auditoria |
-| B2 Gateway allowlist | Domínio/IP/SNI isoladamente não restringe dados enviados ao destino permitido. URLs, redirects, DNS rebinding, CDNs e endpoints de conta precisam validação independente | Promissor somente com operações/payloads restritos e TLS host; não configurado para provedores reais |
-| B3 IPC estreito | SDK 1.0.17 já fornece handler model-layer HTTP/WebSocket, registrado por llmInference.setProvider; stdio owned já existe, sem socket host exposto | Escolhido para fixture. Override explícito dos DOIS métodos; não é proxy genérico nem autoridade agentiva |
-| B4 Encaminhamento rootless | pasta está instalado; slirp4netns não foi localizado. User-mode networking pode encaminhar a rede de um namespace sem sudo, mas não separa runtime/filhos por si | NOT_RUN encaminhamento; nenhum helper ativado/serviço/firewall alterado. Nova stack/política não justificadas frente ao seam existente |
-| B5 Controles oficiais | Fonte da crate documenta escopo model-layer CAPI/BYOK. Defaults fazem pass-through. CLI real aceitou registro do handler offline | PASS registro; cobertura de auth/telemetria/downloads/ferramentas e tráfego autenticado NÃO comprovada; offline continua mandatory |
+**Uma operação SDK send não garante uma requisição interna/faturável única.**
+Não há prova do número de chamadas internas de uma inferência real nesta execução.
+Zero SDK sends reais não é um saldo/fatura medido nem afirma franquia ilimitada.
 
-[Documentação oficial de proxy/certificados](https://docs.github.com/en/copilot/concepts/security-governance-and-network-settings/network-settings) descreve conectividade, não isolamento por ferramenta. A [allowlist oficial geral](https://docs.github.com/en/copilot/reference/copilot-allowlist-reference) inclui domínios de API/auth/telemetria e serviços/CDNs; não foi adotada como lista mínima do CLI 1.0.91. [pasta/passt](https://passt.top/passt/about/) documenta a tradução rootless; a conclusão de que isso não autentica a intenção de um filho é análise arquitetural, não benchmark executado.
-
-Arquitetura testada: root vazio/namespace offline FIX-3 → peer RPC sintético → SDK host/handler finito → listener HTTP de loopback do teste. O namespace não recebe proxy, socket host, CA store, resolv.conf, D-Bus ou share-net. Pai e filho falham ao conectar diretamente mesmo ao listener permitido. O destino proibido é outro listener REAL ativo; após parar/join e drenar accepts pendentes, zero conexões aceitas — não apenas ausência de header autenticado.
-
-A URL lógica https://fixture.invalid/metadata é reconhecida como operação fixa e não é resolvida/encaminhada. O host usa TCP/HTTP local, injetando marker sintético. Sem DNS, TLS ou SNI nesta fixture; **HTTP local não serve como transporte de credenciais reais**. CONNECT, mudança de método, host/path/query/traversal/header/body e WebSocket são negados. Resposta limitada e validada byte a byte para DTO {value:5}; 302/401/echo/timeout/unavailable não causam retries/fallback. Orçamentos de socket de 250 ms e deadline de leitura; código bloqueante e parser finito são somente experimentais.
-
-Para transporte real faltam: HTTPS host com validação de certificado/hostname/SNI, origens/path/protocolos mínimos verificados, DNS controlado/rebinding, redirects negados ou auditados, política explícita de CDN e dados/custo. Não se mede nem alega CPU/RAM de alternativas não implementadas. Não houve contato da POC com destinos externos do Copilot.
-
-## 5. Testes T1–T10 e resultados
-
-| ID | Classe | Evidência observada e alcance |
-| --- | --- | --- |
-| T1 | PASS fixture; auth real BLOCKED | Sem auth/gateway e auth inválida: erro fixo/502, sem operação externa; CLI real auth_required; handler indisponível impede startup; ACK negativo aceito por Client::start é bloqueado pela POC antes de metadata, sem fallback |
-| T2 | PASS sintético | Host-only marker ausente no runtime/filho e artefatos; echo negado. Controle negativo de token explícito prova exposição deliberada ao runtime/filho, não design aceito |
-| T3 | PASS kernel/regressão | Canários/roots pessoais/symlinks/env da FIX-3 continuam inacessíveis; novo plano conserva exatamente mounts/ambiente/seccomp/network, alterando ELF aprovado com libs idênticas |
-| T4 | PASS kernel + SDK/fixture | TCP direto pai/filho bloqueado; sem gateway genérico/share-net; URLs alternativas/CONNECT/body/headers/WS negados antes de conector autorizado |
-| T5 | PASS sintético; provedor BLOCKED | Operação finita retorna 200/DTO pelo host; marker recebido somente pelo listener permitido e não pelo runtime; nenhum catálogo real inferido da fixture |
-| T6 | PASS sintético | Destino local proibido ativo aceita zero conexões, assim como listener permitido no caso rejeitado; fila kernel drenada/join para prova independente da scheduling race |
-| T7 | PASS fixture | Gateway ausente/unavailable/timeout/401/302/echo, auth inválida e segunda operação negados; no retry/open fallback; capacidades desconhecidas impedem startup |
-| T8 | PASS controlado; contenção adversarial BLOCKED | Subreaper/pidfd/ECHILD/recovery/external-control retestados; owned runtime/filhos reclamados; não se simulou morte real do worker com árvore adversarial |
-| T9 | PASS protocolo; cobertura interna real BLOCKED | DenyAll/zero tools/MCP/extensões/hooks/skills/ambiente negados nos testes create/resume/update herdados; nenhuma ferramenta agentiva real disparada |
-| T10 | PASS | 38 Rust = 26 herdados + 12 novos; 44 Python = 40 herdados + 4 novos; syntax/rustfmt/JSON/diff/preservação verificados |
-
-[38 testes Rust](../experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-tests.txt), [execução owned](../experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-owned-run.json), [23 observações do gateway](../experiments/lr-10a-sdk-runtime/evidence/fix-4-gateway-observations.jsonl), [44 Python](../experiments/lr-10a-sdk-runtime/evidence/fix-4-python-final-ack.json), [wire de permissões retestado](../experiments/lr-10a-sdk-runtime/evidence/fix-4-permission-regression.jsonl), [consolidação](../experiments/lr-10a-sdk-runtime/evidence/fix-4-verification.json).
-
-PASS identifica somente o teste e superfície indicados. Não converte mocks em PASS operacional.
-
-## 6. Fixtures versus SDK/CLI real
-
-- **SDK real 1.0.17 / peer sintético:** despacho HTTP/WebSocket pelo protocolo oficial, flags/env de token, redaction, registros/acks, decisões de gateway e cleanup. O peer retorna catálogo vazio por construção; esse dado não descreve modelos da conta.
-- **Kernel real Bubblewrap:** mesma política de mounts/namespace/seccomp; parent/child sem TCP externo. Servidores/providers são fixtures locais, não Copilot.
-- **SDK + CLI local reais:** [probe final](../experiments/lr-10a-sdk-runtime/evidence/fix-4-real-offline-metadata.json) iniciou e registrou handler; RPC runtime 1.0.90/protocol 3, auth_required, catalog unavailable/rpc_error_unknown, quota_unknown/account.getQuota. Zero tentativas do conector host. Registro aceito com ACK positivo explícito não comprova request autenticado interceptado.
-- **Inferência/persistência genuína:** BLOCKED_REAL; nenhum transcript de conversa foi criado. Resultados de FIX-2 não foram convertidos em prova de conversa real.
-
-Outra descoberta versionada: `Client::start` da 1.0.17 descarta `setProvider.success`. A fixture devolveu false e o SDK iniciou mesmo assim. `require_registered` agora realiza **uma validação explícita com ACK positivo**, sem loop/retry/fallback; false impede as consultas de metadata e o Client é encerrado. O CLI real confirmou success=true no reteste final. Os probes intermediários anteriores a essa guarda inferiam registro pelo término de start e não são prova de ACK positivo. A guarda valida o caller antes das consultas; callbacks podem existir durante startup. No probe real o gateway permanece sem endpoint/credencial em todo o ciclo, incluindo esse intervalo. Uma contenção geral de startup/identidade adversarial não foi demonstrada.
-
-Descoberta negativa relevante: o dispatcher SDK envia um head **101** antes de chamar o override WebSocket. A fixture observa 101 seguido de erro terminal, com zero conexão upstream. Não interpretar esse head como permissão, handshake real ou conectividade bem-sucedida.
-
-Rodadas exploratórias preservadas: [initial](../experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-tests-initial.txt) falhou em 5 testes por import local com Python -I; [diagnostic](../experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-tests-diagnostic.txt) encontrou flags não repassados ao peer; corrigidos sem ampliar policy. [budget diagnostic](../experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-tests-budget-diagnostic.txt) demonstrou cache de list_models: segunda chamada não fazia RPC. O teste passou a forçar somente o segundo models.list no peer sintético, sem inferência, para provar o budget. Todos os três harnesses recuperaram seus processos; falhas não foram relatadas como shutdown gracioso do SDK. Duplicatas internas de rodadas PASS foram arquivadas localmente fora do diff para reduzir a revisão; as três rodadas falhas e a rodada final permanecem auditáveis aqui. Não se reinterpretam resultados históricos de FIX-1–3 como retestes.
-
-## 7. Segurança, processos, comandos e regressões
-
-Comandos a partir da raiz; reprodução usa diretório novo para não sobrescrever observações publicadas:
+## Testes, comandos e evidências
 
 ```sh
 COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 RUSTC=/usr/bin/rustc RUSTDOC=/usr/bin/rustdoc \
-  /usr/bin/cargo build --offline --locked --bins --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml
-python3 experiments/lr-10a-sdk-runtime/run_fix4.py rust-tests --artifacts-dir /tmp/narys-fix4-retest --output /tmp/fix4-owned.json
-python3 experiments/lr-10a-sdk-runtime/tests/test_measure.py --evidence /tmp/fix4-python.json
-python3 experiments/lr-10a-sdk-runtime/run_fix4.py metadata --cli /absolute/path/to/pinned/native/copilot --output /tmp/fix4-metadata.json
+  /usr/bin/cargo build --offline --locked --bin a9-host-assisted --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml
+python3 experiments/lr-10a-sdk-runtime/verify_a9_host.py --artifacts-dir /tmp/narys-a9-host-tests-release-candidate
+python3 experiments/lr-10a-sdk-runtime/run_a9_host.py /absolute/path/to/pinned/native/copilot --output /new/path/preflight.json
 ```
 
-Na execução final, os outputs foram evidence/fix-4-rust-owned-run.json, fix-4-python-final-ack.json e fix-4-real-offline-metadata.json. O runner Rust executou `/usr/bin/cargo test --offline --locked -- --test-threads=1` dentro do subreaper, com env de build explícito, sem copiar o ambiente pessoal para os testes. Opt-out de download em TODAS as invocações Cargo. Build inicialmente recompilou deps cacheadas por mudança do toolchain efetivo; sem downloads/install/update. Nenhum cargo bundle/preview ou benchmark prolongado.
+Na execução, o caminho CLI foi o ELF existente sob a instalação fnm/npm validado
+pelo SHA; driver emite códigos/booleans, não stderr/protocolo ou credenciais. Os
+paths publicados de output são os JSONs acima. Verify executou Cargo test
+--offline --locked -- --test-threads=1 e unittest discover de todos test_*.py.
 
-Rust/Cargo **1.98.1 preinstalados**; /tmp toolchain 1.94 expirou. Crate POC mantém rust-version=1.94.0/Edition 2021; SDK 1.0.17/runtime/non-bundled. Não afirmar que os testes novos foram executados em 1.94. CLI --version 1.0.91 é referência histórica com SHA atual idêntico; RPC 1.0.90 reobservado. Referência runtime da crate 1.0.93 não substitui versão instalada nem prova incompatibilidade geral. Nenhuma versão atualizada.
+- [Rust: 46 PASS / 0 FAIL](../experiments/lr-10a-sdk-runtime/evidence/a9-host-rust-tests.txt): 38 herdados, 8 novos.
+- [Python: 47 PASS / 0 FAIL](../experiments/lr-10a-sdk-runtime/evidence/a9-host-python-tests.txt): 44 herdados, 3 novos.
+- [Harness da suíte](../experiments/lr-10a-sdk-runtime/evidence/a9-host-owned-tests.json), [gateway retestado](../experiments/lr-10a-sdk-runtime/evidence/a9-host-test-gateway.jsonl), [permissões retestadas](../experiments/lr-10a-sdk-runtime/evidence/a9-host-test-permissions.jsonl).
+- Rustfmt --edition 2021 --check nos três Rust novos; py_compile nos quatro Python novos; JSON/JSONL, hashes, sintaxe, diff e escopo verificados.
+- SDK/CLI/deps/lock/MSRV/Edition intactos. Rust/Cargo **1.98.1 preinstalados**; não afirmar reteste destes arquivos em 1.94 exato. Sem bundle/download/update global.
+- Suíte Tauri completa NOT_RUN: nenhuma alteração de produção; regressões dirigidas da POC cobrem FIXes 1–4. [Verificação de preservação](../experiments/lr-10a-sdk-runtime/evidence/a9-host-verification.json).
 
-Checks executados: rustfmt 1.9.0 --edition 2021 --check nos quatro arquivos Rust novos; py_compile nos três Python novos; parsing de todos JSON/JSONL da FIX-4; verificação de segredo sintético/encoded marker nos artefatos; git diff --check, hashes de fontes/arquivos históricos e identidades PID/start-time. Tentativa de rerun no mesmo diretório foi recusada ANTES de Cargo pelo guard de evidências existentes; não sobrescreveu resultados.
+Antes da última suíte, duas rodadas sintéticas também passaram (44 Rust/47 Python)
+na preparação da primeira versão e após a correção de auth options; a rodada
+final acrescenta dois testes negativos e contém a candidata revisada. Não se
+converte o probe inicial com auth desabilitada em evidência da configuração final.
 
-Não se repetiu a suíte Tauri de 1.107 testes: nenhum src-tauri/produção/contrato/Cargo de produção foi alterado. Regressões relevantes da POC cobrem protocolo, auth/errors/quota, lifecycle/persistência, permissões, FS/network, cancelamento/timeout/cleanup. Não alegar execução da suíte de produção.
+| Medição (uma amostra/cache quente) | Preflight final | Suíte owned final |
+| --- | ---: | ---: |
+| Wall ms | 1946.52 | 14553.52 |
+| Pico RSS somado bytes | 301416448 | 733794304 |
+| CPU amostrada (s, lower bound) | 1.41 | 7.26 |
+| Cleanup harness ms | 14.78 | 32.76 |
+| Recovery signals / survivors finais | 0 / 0 | 0 / 0 |
 
-| Medição final (uma amostra; não benchmark) | CLI real offline | Cargo + 38 testes Rust cacheados |
-| --- | --- | --- |
-| Startup SDK (ms) | 2429 | Não isolado |
-| Shutdown SDK (ms) | 37 | Cada fixture verificada; não agregado como SDK único |
-| Parede do harness (ms) | 3093.49 | 9757.8 |
-| Pico RSS somado da árvore (bytes) | 438140928 | 725614592 |
-| CPU amostrada, limite inferior (s) | 3.46 | 5.5 |
-| Cleanup worker (ms) | 28.0 | 31.04 |
-| Recovery signals / sobreviventes atribuídos finais | 0 / 0 | 0 / 0 |
+Startup SDK final: 1630 ms; stop: 29 ms. Métricas /proc a 50 ms podem perder
+processos curtos e contar páginas compartilhadas várias vezes; não são PSS/RAM
+incremental física ou benchmark. Exhaustion de children e PID/start-time, não
+contagem global, sustentam cleanup. Recursos reais de inferência não medidos.
 
-Metodologia FIX-1: intervalos de 50 ms, RSS somado pode duplicar páginas compartilhadas e perder processos curtos; CPU é lower bound, não RAM incremental exata. A coluna de testes inclui Cargo, SDK/peers e threads de listeners. **Overhead isolado do gateway, TLS remoto e alternativas B1/B2/B4: NOT_RUN/inconclusivo**, sem atribuir os totais somente ao gateway. Artefatos/tamanhos e fontes estão na consolidação. Process counts globais não sustentam ownership; a prova usa kernel children, pidfd/start-time e ECHILD.
+## Segurança e limites residuais
 
-ExecutionAuthority/HumanLocal, planner read-only, Execution Broker, AgentRegistry, IPC release, OperationalTraceBus, TaskGraph/Scheduler/LR-8.5, UI e runtime 3D intactos. Nenhum shell genérico à WebView, executor Copilot de produção ou autoridade agentiva criada.
+94 arquivos históricos do experimento permanecem byte a byte iguais à base,
+inclusive README, lib.rs/persistence.rs/measure.py/boundary.py, A9 TXT e evidências
+FIX1–4. Documento permanente apenas recebeu adendo; este relatório foi substituído.
+Nenhum src-tauri, Cargo de produção, authority/Broker/registry, IPC/UI, TaskGraph,
+LR-8.5 ou serviço Fedora foi modificado. Não se usa a POC como executor Narys.
 
-## 8. Credenciais e configuração preservadas
+O CLI normal pode resolver credenciais internamente e possui acesso do usuário ao
+host. A POC não lê/exporta tokens/keyring/config ou sessões particulares; não
+promete impedir que um runtime comprometido acesse esses recursos. Diretório de
+trabalho e fixture RO não são isolamento. Raw logs são privados/temporários e não
+publicados; somente projeções/códigos e evidências de testes sintéticos são entregues.
+Config stat igual não é prova por comparação de conteúdo, que não foi permitida.
 
-Somente stat de config.json antes/depois, inalterado nas execuções owned/metadata; nenhum conteúdo lido. Sem home/config/SSH/Git/keyring/D-Bus montados; nenhum token real extraído/copiado/exportado, sessão pessoal inspecionada, PAT/login/logout ou configuração global alterados. Sem sudo, firewall/serviço persistente/pacote/toolchain atualizado.
+Timeout/startup/shutdown/cancel/cleanup são experimentais. Morte inesperada do
+worker, descendentes adversariais/reparenting/namespaces e tarefas presas no kernel
+não receberam contenção definitiva. Sinais ficam restritos aos filhos atribuídos
+por pidfd; processos externos são preservados. Não foi implementado supervisor
+LR-10B ou approval engine LR-10C.
 
-Marker sintético é public test data, usado exclusivamente nos controles locais. Nenhum valor/encoded marker apareceu nos logs/evidências; só flags/códigos/contagens. Servidores/threads/filhos encerrados, identidades conhecidas reclamadas, canários preservados. Não se enviaram sinais a Codex/tmux/SSH/GNOME ou processos apenas parecidos.
+A9_ISOLATED continua com BLOCKED_AUTH_BOUNDARY, BLOCKED_NETWORK_BOUNDARY e
+BLOCKED_SUPERVISOR_FAILURE_CONTAINMENT; inferência/persistência isoladas não
+executadas. A aceitação humana do host-assisted não resolve esses gates.
 
-## 9. Inferência e quota
+## Recomendação e auditoria
 
-**Zero chamadas de inferência realizadas nesta FIX. Zero ferramentas agentivas reais.** Sem session.send/send_and_wait, prompts ao Copilot, CLI -p, YOLO/Autopilot, paid fallback ou A9. A chamada HTTP sintética é metadata local; identificadores llmInference.* pertencem ao protocolo mockado e não representam inferência enviada ao serviço.
+**Não avançar automaticamente à LR-10B.** Entregar BLOCKED_PRE_SEND para auditoria:
+verificar por que a auth normal não está disponível em headless, sem ler/copy
+credenciais ou forçar login; estabelecer metadata atual de modelo/quota/unidades,
+limite de custo/no overage/paid fallback e estado de sessão privado autenticado.
+Só depois desses gates poderá existir um sender real guardado pela claim persistente.
+A tentativa real permanece não consumida; este relatório não amplia a autorização.
 
-Não se mediu saldo/delta autenticado da conta. quota_unknown não é zero nem ilimitada. Nenhum consumo por request de inferência da POC; não inventar cobrança/saldo/unidades a partir disso. A [spec A9 inerte](../experiments/lr-10a-sdk-runtime/fixtures/A9-COMMAND-NOT-AUTHORIZED.txt) foi preservada e não executada; o novo código continua sem caminho de inferência.
+O prazo 17/10 não muda a condição financeira nem permite publicar um PASS de
+resposta/persistência sintéticas como Copilot real. O experimento permanece separado
+da produção, sem implementação de release. Luna auditará os resultados pelo GitHub
+antes da decisão de próximos passos. Nenhum PASS definitivo da LR-10A.
 
-## 10. Bloqueios e riscos remanescentes para A9
-
-| Gate | Causa / tentativas permitidas / evidência | Próxima prova e risco de prosseguir |
-| --- | --- | --- |
-| BLOCKED_AUTH_BOUNDARY | Transporte explícito/provider entrega token ao runtime; host-only demonstrado só em metadata sintética; real auth ausente | Aprovação humana futura para credencial dedicada/escopo/lifetime/entitlement e contrato que contenha auth no host. Expor bus/token para PASS permitiria leitura/exfiltração |
-| BLOCKED_NETWORK_BOUNDARY | Registro real aceito, mas cobertura completa/auth/TLS/URLs não testadas; offline sem conectividade ao provedor | Conector HTTPS host estrito e rotas mínimas auditadas, sem generic tunnel/fallback; impedir exfiltração de bodies/headers mesmo em destino permitido |
-| BLOCKED_SUPERVISOR_FAILURE_CONTAINMENT | Harness passa árvores controladas; worker-death real/adversarial não contido por prova desta FIX | Gate separado de arquitetura/auditoria: worker morto pode deixar root/descendentes vivos. Reparenting/namespaces adversariais e tarefas presas no kernel não cobertos |
-| Identidade/canais e recursos | Context/session/agent IDs vêm do runtime; filho pode herdar stdio. SDK reassembla bodies antes da policy; não se implementou limite global pré-parser | Auditar canais/FDs/rate/memory e falha do host antes de aceitar payload de inferência. Seccomp denylist/root namespace não é isolamento completo |
-| BLOCKED_REAL / enforcement / billing | Sem conversa genuína, tool interno real ou snapshot autenticado; A9 não autorizado | Nova autorização após todos gates/auditoria, orçamento/overage/Auto validados e uma única operação SDK; sem recriar sessão como resume nem aceitar session.idle como sucesso |
-
-Nenhuma dessas lacunas foi escondida por retry, sleeps de persistência, acesso amplo ao host, credencial fake apresentada como auth real ou atualização do SDK/CLI.
-
-## 11. Decisão técnica fundamentada
-
-**FIX_AND_RETEST**. O caminho é promissor e tratável: seam oficial já existe na crate e seu registro tem ACK positivo verificado no CLI instalado; operação finita pelo host passa com sandbox offline e negativas efetivas. Isso evita desenhar um proxy genérico prematuramente.
-
-Não se escolhe GO_CONDITIONAL: autenticação contida e transporte real ainda carecem de provas, e sucesso de mocks não supre esses gates. Não se conclui NO_GO_CURRENT_DESIGN global: registro real contradiz a hipótese de ausência do mecanismo; porém proxy CONNECT/domain allowlist genéricos não atendem aos requisitos. Não se conclui DEFER apenas pelo calendário, sem estimativa objetiva do trabalho restante.
-
-Saídas: **BLOCKED_AUTH_BOUNDARY**, **BLOCKED_NETWORK_BOUNDARY**. Auth_path/network_path operacionais não recebem FEASIBLE com base somente na fixture. A POC finita é viável como experimento; não é READY_FOR_A9 nem sandbox/supervisor de produção.
-
-## 12. Relação com o prazo de 17/10/2026
-
-Restam oito dias de calendário desde esta execução. O custo de oportunidade inclui implementar/verificar HTTPS/auth de menor privilégio, fechar contenção do supervisor e obter auditoria/autorização antes de A9; sem estimativa validada de horas ou promessa de conclusão desses gates.
-
-Manter o experimento separado reduz impacto sobre a estabilidade da Narys 0.1. Recomenda-se que a decisão humana de escopo/cronograma avalie gates separados e critérios de aceite, sem usar o prazo como autorização de credenciais/inferência. Esta FIX não implementou release nem condicionou a estabilidade do core a callbacks experimentais. [Adendo permanente](LR-10A-IMPLEMENTATION-AND-EVIDENCE.md) registra esse impacto.
-
-## 13. Próximos passos recomendados
-
-1. Luna auditar sources, evidências finais/negativas e limites do seam model-layer versus auth/outros endpoints.
-2. Definir desenho de auth host/credential exposure aceitável, escopo e lifetime; qualquer credencial real depende de autorização humana separada, não solicitada aqui.
-3. Planejar conector HTTPS mínimo com destinos/headers/payloads aprovados e testes TLS/DNS/SNI/redirects/bypass, mantendo runtime e filhos offline.
-4. Tratar o gate de morte do worker/canais herdados/limites de recursos separadamente; não substituir auditoria por supervisor LR-10B improvisado.
-5. Só considerar A9 após gates e autorização/budget independentes; persistência genuína continua dependente dessa futura chamada. Não avançar automaticamente.
-
-## 14. Auditoria independente pendente
-
-A conclusão pertence à execução FIX-4, preservando resultados históricos. Os PASS são preparatórios e limitados às superfícies testadas. Luna deverá auditar diretamente o GitHub antes de decisões de autorização/priorização. Nenhum PASS definitivo da LR-10A/LR-10, nenhuma autorização para A9 e nenhum avanço para LR-10B/LR-10C.
-
-**LR-10A FIX-4 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
+**LR-10A A9-HOST-ASSISTED — BLOCKED_PRE_SEND; IMPLEMENTAÇÃO/EXECUÇÃO CANDIDATA,
+AGUARDANDO AUDITORIA INDEPENDENTE.**

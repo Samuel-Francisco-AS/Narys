@@ -1,0 +1,122 @@
+{
+  "schema_version": 2,
+  "probe": "preflight",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 1,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_nonzero",
+  "wall_ms": 1946.52,
+  "cleanup_ms": 14.78,
+  "peak_process_tree_rss_bytes": 301416448,
+  "peak_owned_processes": 3,
+  "sampled_cpu_seconds_lower_bound": 1.41,
+  "system_processes_before": 235,
+  "system_processes_after": 259,
+  "observed_owned_processes": 7,
+  "attributed_processes": [
+    {
+      "pid": 19794,
+      "start_ticks": 842256,
+      "basis": "launched_root"
+    }
+  ],
+  "unsampled_attributed_descendants": 0,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 0,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "attempt_marker_claimed": false,
+    "blockers": [
+      "authentication_unavailable",
+      "included_quota_unverified",
+      "model_catalog_unavailable",
+      "billing_units_and_maximum_cost_unverified",
+      "no_paid_fallback_enforcement_unverified",
+      "private_authenticated_session_state_unverified"
+    ],
+    "fixture_unchanged": true,
+    "gate": "A9_HOST_ASSISTED",
+    "gui_started": false,
+    "host_assisted_not_sandbox": true,
+    "model_selected": null,
+    "persistence": "NOT_RUN_pre_send_blocked",
+    "preflight": {
+      "auth": {
+        "authenticated": false,
+        "identity_omitted": true
+      },
+      "catalog": {
+        "code": "rpc_error_unknown",
+        "models": null,
+        "source": "models.list"
+      },
+      "quota": {
+        "error": "rpc_error_unknown",
+        "snapshots": null,
+        "source": "account.getQuota",
+        "state": "quota_unknown"
+      }
+    },
+    "response_received": false,
+    "runtime": {
+      "protocol_version": 3,
+      "version": "1.0.90"
+    },
+    "sdk": "1.0.17",
+    "sdk_send_calls": 0,
+    "shutdown": "graceful",
+    "start_ms": 1630,
+    "state": "BLOCKED_PRE_SEND",
+    "stop_ms": 29,
+    "task_result_validated": false,
+    "workspace_private": true
+  },
+  "host_assisted_provenance": {
+    "gate": "A9_HOST_ASSISTED",
+    "base": "4216ba2a6a0e75822587bf9032782ddc454338fa",
+    "observed_at": "2026-10-09T23:26:42.730323+00:00",
+    "cli_sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+    "binary_sha256": "9f1d6389e79e947507556078804b80ae8e7a9a6d014e3e32dcda6d47fac852c1",
+    "sources_sha256": {
+      "src/host_assisted.rs": "24d736206ecf977354a18f43f7f035edf0a131fd35d4cfae686ed2d6b446cb47",
+      "src/bin/a9-host-assisted.rs": "9a9cbda9b85c163b15333b93f991912c95430c0765aa0a458e87e849c0afdd26",
+      "run_a9_host.py": "0a9446a9874bb088d1c013f521d7bde51530e9979e74c761149c91c6e1e5affe",
+      "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+      "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+      "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+    },
+    "config_stat_before": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_after": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_unchanged": true,
+    "config_contents_read": false,
+    "owned_identities_absent_after": true,
+    "marker_present_before": false,
+    "marker_present_after": false,
+    "marker_directory_mode": "0700",
+    "marker_file_claimed": false,
+    "mode": "HOST_ASSISTED_NOT_SANDBOX",
+    "sdk_send_calls": 0,
+    "driver_exit_code": 1
+  }
+}
