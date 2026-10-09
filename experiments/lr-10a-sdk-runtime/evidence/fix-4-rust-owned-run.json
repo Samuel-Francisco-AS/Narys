@@ -1,0 +1,182 @@
+{
+  "schema_version": 2,
+  "probe": "metadata",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 0,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_zero",
+  "wall_ms": 9757.8,
+  "cleanup_ms": 31.04,
+  "peak_process_tree_rss_bytes": 725614592,
+  "peak_owned_processes": 24,
+  "sampled_cpu_seconds_lower_bound": 5.5,
+  "system_processes_before": 220,
+  "system_processes_after": 220,
+  "observed_owned_processes": 79,
+  "attributed_processes": [
+    {
+      "pid": 14894,
+      "start_ticks": 448551,
+      "basis": "launched_root"
+    },
+    {
+      "pid": 15150,
+      "start_ticks": 448949,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15165,
+      "start_ticks": 448955,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15181,
+      "start_ticks": 448961,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15198,
+      "start_ticks": 448968,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15213,
+      "start_ticks": 448973,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15228,
+      "start_ticks": 448979,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15243,
+      "start_ticks": 448985,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15258,
+      "start_ticks": 448991,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15273,
+      "start_ticks": 448997,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15288,
+      "start_ticks": 449003,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15309,
+      "start_ticks": 449009,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15326,
+      "start_ticks": 449015,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15342,
+      "start_ticks": 449021,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15358,
+      "start_ticks": 449027,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15373,
+      "start_ticks": 449059,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15388,
+      "start_ticks": 449065,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15403,
+      "start_ticks": 449071,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15418,
+      "start_ticks": 449079,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15433,
+      "start_ticks": 449085,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 15447,
+      "start_ticks": 449090,
+      "basis": "subreaper_child"
+    }
+  ],
+  "unsampled_attributed_descendants": 0,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 20,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "cargo_exit_code": 0,
+    "inference_calls": 0,
+    "real_provider": false
+  },
+  "fix4_provenance": {
+    "phase": "LR-10A FIX-4",
+    "mode": "rust-tests",
+    "observed_at": "2026-10-09T22:21:13.496723+00:00",
+    "config_stat_before": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_after": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_unchanged": true,
+    "config_contents_read": false,
+    "owned_identities_absent_after": true,
+    "sources_sha256": {
+      "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+      "boundary.py": "81db8452342a95a0f02be3c569e175811cc72ec12b7fe30883c9f9db839fbf39",
+      "fix4_boundary.py": "57f988bb62170378687ed4e0b02797a9f80ddb939ac5094babb061c480a4f67b",
+      "run_fix4.py": "5afed5bc504b09a90efb140df4a9af74eb5ed6eb3615eae367d63d01f8112240",
+      "src/auth_network.rs": "60947e31c7897eaa7a89c37d7beaa9fa5d9244c4e55a27640868bc290b7baa58",
+      "src/bin/auth-network-probe.rs": "8d680a195e96dc607f2b729ee7dbe1b9b9ee0cb3ffc571711eb8831abe22578c",
+      "src/bin/network-fixture.rs": "73217c1f8b3a7ca3c23b239c22c33d9a3ede71b0e2ab9a12d455080a8c35015f",
+      "tests/auth_network.rs": "510c66bf1c8233fc61e5bd40ed1502390ef1187ca060f3780928119f7cb1fadc",
+      "tests/test_fix4.py": "89b11c439fd9b9a0ef39c0423f7d49b3aa531ff41fecadf910846888df63372a",
+      "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+      "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+    },
+    "binary_sha256": "8d2cf1ed25165424a86641afe6109d0a95b1d63a053b67ae5bf1128b66c4c4c6",
+    "cli_sha256": null,
+    "inference_requests": 0,
+    "real_tokens_loaded": false,
+    "a9": "BLOCKED_REAL",
+    "driver_exit_code": 0
+  }
+}

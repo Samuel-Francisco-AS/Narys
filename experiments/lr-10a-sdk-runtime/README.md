@@ -1,6 +1,6 @@
 # LR-10A — SDK/runtime experiments
 
-**FIX-3 candidate only. FIX-AND-RETEST. A9 BLOCKED, never READY_FOR_A9.**
+**FIX-4 candidate only. FIX_AND_RETEST. A9 BLOCKED, never READY_FOR_A9.**
 See the [latest execution report](../../docs/LR-10-LATEST-EXECUTION-REPORT.md).
 See [implementation/evidence](../../docs/LR-10A-IMPLEMENTATION-AND-EVIDENCE.md).
 This independent Edition 2021 crate never initializes Narys, registers an agent,
@@ -234,3 +234,73 @@ fails session creation/resume. This does not prove every CLI option is enforced.
 A dynamic `libutil.so.1` dependency was observed beyond ldd's static list; it is
 mounted as one file. No general library-directory or personal-directory fallback.
 The [A9 specification](fixtures/A9-COMMAND-NOT-AUTHORIZED.txt) remains inert.
+
+## FIX-4 — finite host mediation, not authenticated provider connectivity
+
+The actual SDK 1.0.17 contains `ClientOptions::request_handler`. Its
+`CopilotRequestHandler` defaults forward HTTP AND WebSocket traffic to upstream.
+The experimental [handler](src/auth_network.rs) overrides BOTH; it never uses the
+SDK forwarders. It accepts only an empty-header/body GET for the exact synthetic
+metadata operation, maps it to one host-owned IPv4 loopback fixture endpoint,
+injects a public synthetic secret in host memory, enforces a one-attempt budget,
+uses bounded socket I/O and returns only a fixed validated DTO. Unknown paths,
+query strings, methods, headers, bodies, CONNECT and WebSocket fail closed.
+Redirects, 401, timeout, unavailability and a provider echoing the fake secret
+fail closed. The provider fixture uses local HTTP, NOT remote TLS.
+
+[network-fixture](src/bin/network-fixture.rs) is a synthetic JSON-RPC peer, not
+Copilot. [fix4_boundary.py](fix4_boundary.py) reuses the FIX-3 mount/seccomp/env/net
+plan byte-for-byte except substituting the one approved locally built ELF with
+the SAME dependency closure and selecting the strict SDK argv validator. No host
+socket, home, DNS, certificate store or network namespace is exposed. Parent AND
+child direct TCP attempts fail while the host-mediated operation succeeds.
+The new binary must be built along with `boundary-fixture` before testing.
+
+SDK 1.0.17 start discards setProvider.success; the POC requires a separate positive
+ACK validation before explicit metadata calls. A false ACK accepted by the SDK
+blocks POC admission, without retries/fallback. The real offline probe confirmed
+success=true; startup callbacks in a general authenticated design remain unproven.
+
+The protocol is the SDK's existing owned stdio connection, NOT a general HTTP
+proxy. It authenticates no provider/account. Runtime-claimed request/session/
+agent IDs do not prove caller identity; a child inheriting the runtime's stdio
+could impersonate requests. This finite operation limits that channel but does
+not prove a general inference or per-agent security boundary. A compromised host
+process of the same UID, SDK buffering before policy, worker death and adversarial
+children remain outside the proven containment.
+
+Reproduction from repository root (existing Rust/Cargo >=1.94; this FIX actually
+used the preinstalled Fedora Rust/Cargo 1.98.1 because the prior /tmp toolchain
+expired; NO production MSRV/Edition change):
+
+```sh
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 RUSTC=/usr/bin/rustc RUSTDOC=/usr/bin/rustdoc \
+  /usr/bin/cargo build --offline --locked --bins --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml
+python3 experiments/lr-10a-sdk-runtime/run_fix4.py rust-tests --artifacts-dir /tmp/narys-fix4-retest --output /tmp/fix4-rust-owned.json
+python3 experiments/lr-10a-sdk-runtime/tests/test_measure.py --evidence /tmp/fix4-python.json
+python3 experiments/lr-10a-sdk-runtime/run_fix4.py metadata --cli /absolute/path/to/pinned/native/copilot --output /tmp/fix4-offline-metadata.json
+```
+
+The Rust runner protects its observation paths from overwrites; if these already
+exist, it deliberately stops. Preserve them and select a fresh `--artifacts-dir` and output path
+for reproduction rather than deleting historical evidence. It runs Cargo/tests
+inside the unmodified FIX-1 subreaper and clears the test environment to fixed
+build/evidence variables. The real metadata probe uses the unchanged FIX-3 CLI
+boundary, no auth token, and a handler with NEITHER endpoint NOR credential. It
+proves registration compatibility only; unauthenticated models/quota remain
+unavailable. A missing/unsupported handler is not permission to open networking.
+
+The separate explicit-token fixture deliberately demonstrates SDK token delivery
+and inheritance by a synthetic child OUTSIDE the kernel sandbox. It is a negative
+control, not an accepted auth design. The injected marker is public test data,
+never a real PAT. The sandbox's token-filtering/CLI argv rejection is not widened.
+Callbacks returning GitHub tokens also return the token to the CLI over RPC;
+credential acquisition on the host does not imply credential containment.
+
+`bytes = 1.12.1` and `futures-util = 0.3.34` are now explicit POC dependencies to
+construct the bounded synthetic SDK response; both were already locked/cached
+transitively. No package version, SDK/CLI, bundled runtime or production dependency
+was updated/acquired. New [evidence](evidence/fix-4-verification.json) links the
+current tests separately from prior results. The [latest report](../../docs/LR-10-LATEST-EXECUTION-REPORT.md)
+characterizes auth, TLS/DNS and provider integration blockers. A9 remains an
+[inert specification](fixtures/A9-COMMAND-NOT-AUTHORIZED.txt), without a send mode.

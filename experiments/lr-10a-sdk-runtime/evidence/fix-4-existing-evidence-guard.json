@@ -1,0 +1,10 @@
+{
+  "phase": "LR-10A FIX-4",
+  "command": "run_fix4.py rust-tests with published evidence paths",
+  "expected_exit": 1,
+  "observed_exit": 1,
+  "fixed_error": "new evidence path already exists; preserve it or choose a fresh run",
+  "cargo_started": false,
+  "status": "PASS",
+  "inference_requests": 0
+}

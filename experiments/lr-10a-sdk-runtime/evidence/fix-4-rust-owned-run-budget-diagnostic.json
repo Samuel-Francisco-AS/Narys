@@ -1,0 +1,171 @@
+{
+  "schema_version": 2,
+  "probe": "metadata",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 101,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_nonzero",
+  "wall_ms": 6903.49,
+  "cleanup_ms": 30.92,
+  "peak_process_tree_rss_bytes": 1292210176,
+  "peak_owned_processes": 21,
+  "sampled_cpu_seconds_lower_bound": 10.02,
+  "system_processes_before": 230,
+  "system_processes_after": 231,
+  "observed_owned_processes": 50,
+  "attributed_processes": [
+    {
+      "pid": 7338,
+      "start_ticks": 229773,
+      "basis": "launched_root"
+    },
+    {
+      "pid": 7926,
+      "start_ticks": 230330,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 7940,
+      "start_ticks": 230336,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 7955,
+      "start_ticks": 230342,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 7971,
+      "start_ticks": 230347,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 7985,
+      "start_ticks": 230353,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 7999,
+      "start_ticks": 230358,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8013,
+      "start_ticks": 230364,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8027,
+      "start_ticks": 230370,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8041,
+      "start_ticks": 230376,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8055,
+      "start_ticks": 230382,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8075,
+      "start_ticks": 230390,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8090,
+      "start_ticks": 230395,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8105,
+      "start_ticks": 230400,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8119,
+      "start_ticks": 230433,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8133,
+      "start_ticks": 230439,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8148,
+      "start_ticks": 230444,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8162,
+      "start_ticks": 230451,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8176,
+      "start_ticks": 230457,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 8165,
+      "start_ticks": 230452,
+      "basis": "subreaper_child"
+    }
+  ],
+  "unsampled_attributed_descendants": 1,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 19,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "cargo_exit_code": 101,
+    "inference_calls": 0,
+    "real_provider": false
+  },
+  "fix4_provenance": {
+    "phase": "LR-10A FIX-4",
+    "mode": "rust-tests",
+    "observed_at": "2026-10-09T21:44:42.858144+00:00",
+    "config_stat_before": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_after": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_unchanged": true,
+    "config_contents_read": false,
+    "owned_identities_absent_after": true,
+    "sources_sha256": {
+      "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+      "boundary.py": "81db8452342a95a0f02be3c569e175811cc72ec12b7fe30883c9f9db839fbf39",
+      "fix4_boundary.py": "311c9c70b665d628b971f2075bf79fb09e3f12e24023301ec51ba7199ef6f8a7",
+      "run_fix4.py": "7d0834b8fbe50fdc0c02e64c2bb1783e61809181438c5f0b315bf17b4eef19c3",
+      "src/auth_network.rs": "5f128f600506643606f21c0a16cd9a874a28ef218b8cfe76ce8bfe7731a81370",
+      "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+      "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+    },
+    "inference_requests": 0,
+    "real_tokens_loaded": false,
+    "a9": "BLOCKED_REAL",
+    "driver_exit_code": 1
+  }
+}

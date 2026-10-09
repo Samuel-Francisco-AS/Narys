@@ -760,6 +760,8 @@ dependencies = [
 name = "narys-lr10a-poc"
 version = "0.1.0"
 dependencies = [
+ "bytes",
+ "futures-util",
  "github-copilot-sdk",
  "serde_json",
  "tempfile",

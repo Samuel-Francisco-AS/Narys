@@ -1,0 +1,365 @@
+{
+  "phase": "LR-10A FIX-4",
+  "observed_at": "2026-10-09T22:38:39.670219+00:00",
+  "git_base": "b74cc2eeccbd4d859632a1a4453380fd6cf20bcb",
+  "branch": "lr-10a-sdk-runtime-feasibility",
+  "main": "6603a78bd34cfffbd019ced8fa870d9bea02a7fb",
+  "scope_only_experiment_and_two_docs": true,
+  "preserved_all_other_tracked_files": true,
+  "permanent_document_base_prefix_preserved": true,
+  "preserved_experiment_files": [
+    {
+      "path": "experiments/lr-10a-sdk-runtime/.gitignore",
+      "sha256": "1141064ed2630abfb4a4b52385d7e6c5676a9a51c3c01a4884a7cdaf05609a74"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/boundary.py",
+      "sha256": "81db8452342a95a0f02be3c569e175811cc72ec12b7fe30883c9f9db839fbf39"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/baseline.json",
+      "sha256": "39b81997ee6ea8996302cacca6ee08c94f019d16d6a8c7f41a47258ff3ad5a08"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/checks.json",
+      "sha256": "af1cddb0a5fde97fd42307d85650e84fcb2812ff1c22f673f4abbe443d7eba6c"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.json",
+      "sha256": "69795fb586cb9143ae9aa777540b6753fc747e432a9b188bbf1ce6556277239b"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.txt",
+      "sha256": "3d0b36bd945d93a25f7d09af2867976a8069be52518430de0dbbe6c1c6fe6fad"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-baseline-real-existing-auth.json",
+      "sha256": "ecda897dd7ef82ed947a03a955909df23efa8e6adfadd743da2f66042a916f1b"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-installed-versions.json",
+      "sha256": "09e929557c3e35378ad53d2af241363ba384067c63548d562fac771ee049df38"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-python-regression.json",
+      "sha256": "760315abe903eada40d7a752c91eb9e9faef8b90fbe39cbd121d17d857502a54"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-python-regression.txt",
+      "sha256": "60078e2eba14d801e3e76da9924b66d2b76e32ba50749e914855b7b520d1a705"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-real-existing-auth-final.json",
+      "sha256": "1e031c1b9a33e7a6a2fc83dd7c60b4d24703d011abcb8906ac851dad84c49c1e"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-real-existing-auth-initial-matrix.json",
+      "sha256": "2a090735b8df93a27b3c395ba3f15045db6e1960d0c5cf74a2a50791dce93155"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-real-existing-auth-uuid-diagnostic.json",
+      "sha256": "ea03d8d9453a20da51bc694d5160f04be39caf1e0311f3134862c4c65d16e39c"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-real-isolated-final.json",
+      "sha256": "566f26d4920ca153ae8fff8de5701e31928b88c137e4fb8d381a5bb238cfd489"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-rust-tests.txt",
+      "sha256": "90fad6e3380e34a6a94d8feae3a7501e8b29d88ef22f1b2bdddd06f592b04119"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-upstream.json",
+      "sha256": "86456e90812f150a5f08388e4d9f2f308ac64ad639dd303afee991270041a739"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-2-verification.json",
+      "sha256": "6d551c7f704d2116b89549b9ddddc54b697e2729a8963a02e323619543457cef"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-auth-boundary-blocked.json",
+      "sha256": "42c1e6c3c271a4fabaa8bdce6d202ea684fb2c75dee5aa1823e4706323f61468"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-boundary-manifest.json",
+      "sha256": "1ddea02e391822fc1455da6936bcbd4e037dc3129c159fa0a7b89b781b7c05c5"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-boundary-tests-initial.json",
+      "sha256": "d4f8114ef152581cca1167824ed7f8b0b22621e7fcfb11e2f21a4aa6028df3de"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-boundary-tests-initial.txt",
+      "sha256": "96a21cbac921589ee413b2ed8e200f0f1659b6961beae811d57838d5a3576a24"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-boundary-tests.json",
+      "sha256": "1b55f21158539dacb5b4b2c87b8a4414ef9ca1989b3f742b3f613e3087f5473a"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-boundary-tests.txt",
+      "sha256": "86bd3a7f42e77bd7596344cacd1370926ff29c39d501e46825deff19b9ea90df"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-build.txt",
+      "sha256": "a41051563a4cb5fc1b1bcdd9aa0ba28ca80f7736d629d90cc138218756e8e3a9"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-permission-observations.jsonl",
+      "sha256": "9bc4ed9e9bb3ca4cf00b427ff9e639c278f6f5892c6df2a73c10d78ca8496b7c"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-python-regression.json",
+      "sha256": "690f5013879dc5ff7130718aecad9ec1efbd076f318ad564d90c8a65ea1a816c"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-python-regression.txt",
+      "sha256": "22e8d0866b8f86c24bbbd70a8325ea2337d864e1ce7637f4b148cbf3534c987b"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-real-metadata-diagnostic.json",
+      "sha256": "8f78ea1bccc4ab5f3c67d946b1067512948c32c0f33fc0e19f0e58fc3d388be5"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-real-metadata-initial.json",
+      "sha256": "85346a860c4cc20452cdc6c3300e9818f0f9c19a41bbac12975730ed078ccad2"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-real-metadata-preflight.json",
+      "sha256": "0078f5524fca6cdc5da568ee2532bcd7e9d21327735f2c127d8d1f0d0febfcdd"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-real-metadata.json",
+      "sha256": "8668b862c3a891f3b4c8eaa088b7d648e6134cd9494333383c3ab0b242513d97"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-real-sessions.json",
+      "sha256": "f877463e96bc90e6195e0b3beb4e558e8f73a5bd3bef2d8ee07f5612ecd34e17"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-rust-tests.txt",
+      "sha256": "eacacb4ed11a65d934c0d03fc491992e4ec086891f48d240d4ebe9d1c4e8f614"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/fix-3-verification.json",
+      "sha256": "eea08031cbb3185fdc120c54b1ecf0df274183bd6091f44761d9197291d0901e"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/global-config-stat-protected.json",
+      "sha256": "abec03730d2fdf473819b556661aa53c49c21cb7b1db1a2dd88154fbc37a7c0c"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/global-config-stat.json",
+      "sha256": "6dc1df77205e52e5426ecbc2ae9956b56841d70ccf6c6150e20b74561d048563"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/runtime-existing-auth-protected.json",
+      "sha256": "db79d3cab5d3a3e382e0bdd97fa31bcff8d7ad75a5f4b4939daeef72c33bb7b6"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/runtime-existing-auth.json",
+      "sha256": "9879791603d9efeb4a8413814a4d327fabfa71112dfeee26ce7267b91cbd12d9"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/runtime-metadata-1.json",
+      "sha256": "e188f7ea46760f9156275b11e4c10b5ef463e35f71b546de705604ab7308caff"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/runtime-metadata-final-protected.json",
+      "sha256": "e1f7634161be94bbdda64273226a2b8aa801a5bef19d13428aa02c77f23da637"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/runtime-sessions-final-staged.json",
+      "sha256": "dc1d0f00d0cd4c87500d4ca7403d3867885120f66085e572ab4b1d7745c5f1fd"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/runtime-sessions-native-protected.json",
+      "sha256": "7e4218c804494f46f681b8d7728f99624b3539476867eb9879727d5993d8ca32"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/runtime-sessions-protected.json",
+      "sha256": "631463afefd666881518e7c01fd51ce0931b9d79669b036ab5da57ca6fd75d6c"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/evidence/runtime-sessions-wrapper-final-protected.json",
+      "sha256": "27493f6e2b4af7a75059c16d891cd4bb884883cdb2eb81f7a821e06ee4fd30f2"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/fixtures/A9-COMMAND-NOT-AUTHORIZED.txt",
+      "sha256": "2bc72a31ea1543006d62d071119ce124870662a07fe6b624c1d6dfe78e276958"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/fixtures/a9-read-only.txt",
+      "sha256": "8589d48fcb7ddcf6998b355aee47df33793e754dab75489eef1dca1dfadd9db7"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/fixtures/mock_cli.py",
+      "sha256": "8911015a6a52244485f6ea43d0f2151fad3ac4bd29e140116e491e00aea502d7"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/fixtures/permission_cli.py",
+      "sha256": "f0e8103c249b2870500c4c8abc5e69f09b19bead4b606d8f9b3438cfcd298d8f"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/fixtures/persistence_cli.py",
+      "sha256": "3b9a03a2b26fcade4ae0e9cf314b4a8e8dcd94d294af57ee38a61fe3adf2990c"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/measure.py",
+      "sha256": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/run_fix2.py",
+      "sha256": "be59d6673de151daaa9908ed0d39237259390f02407645f7f6e02acd96a706c8"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/run_fix3.py",
+      "sha256": "ebb8817c11eef42ad62044ee2651eb9fa8e25dad8c9c91f1b3e98d25705ed92d"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/src/bin/boundary-fixture.rs",
+      "sha256": "290d16e8a0d30a23e874d9784239aede3662f5d131b4cd9f8bb2ad165460951e"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/src/boundary.rs",
+      "sha256": "1c333ce9eff5ff38b5461e44d2537f9947709550c64a63059c3d8f43e87dd841"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/src/lib.rs",
+      "sha256": "d3daa4edc6a0eba6dc7ac4cff3545937f50ba98e12df3951efe17f5e12881e99"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/src/main.rs",
+      "sha256": "168a2ba69cd37d67052307ec35bb9118995871d05cb01625e08d29970e835f69"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/src/persistence.rs",
+      "sha256": "0891b8122b86ad19d7a18a82fa3c6c1e1cb2a852c42a6612bcc4b4d9ee430729"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/tests/persistence.rs",
+      "sha256": "0a6bd623476ab75d4246e086cda979f0de58a1283c9ecb6ae63ed9fb444878a2"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/tests/protocol.rs",
+      "sha256": "a8887b812d69b441312531e12290722dd5b752352980ac9f7c8e00f88e7597a3"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/tests/security.rs",
+      "sha256": "a377bfdafc30046bc4c041e5b08e79e35cd1376fe1e789e8cfdd14a31288be4b"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/tests/test_boundary.py",
+      "sha256": "fdf2d8596b21846469e9aa5f5ea8de7ba68088035db5f2277d5aa991eae22526"
+    },
+    {
+      "path": "experiments/lr-10a-sdk-runtime/tests/test_measure.py",
+      "sha256": "9e6d967e116d897f24eaef6592b7847af562bfb284941c013839524ac388c733"
+    }
+  ],
+  "historical_evidence_mutated": false,
+  "package_versions_unchanged": true,
+  "sdk_archive_matches_lock_checksum": true,
+  "python_tests": 44,
+  "rust_tests": 38,
+  "gateway_observation_rows": 23,
+  "json_jsonl_validated": [
+    "fix-4-contract-inspection.json",
+    "fix-4-existing-evidence-guard.json",
+    "fix-4-gateway-observations-budget-diagnostic.jsonl",
+    "fix-4-gateway-observations-diagnostic.jsonl",
+    "fix-4-gateway-observations-initial.jsonl",
+    "fix-4-gateway-observations.jsonl",
+    "fix-4-permission-regression.jsonl",
+    "fix-4-python-final-ack.json",
+    "fix-4-real-offline-metadata.json",
+    "fix-4-rust-owned-run-budget-diagnostic.json",
+    "fix-4-rust-owned-run-diagnostic.json",
+    "fix-4-rust-owned-run-initial.json",
+    "fix-4-rust-owned-run.json"
+  ],
+  "synthetic_marker_or_base64_in_artifacts": false,
+  "known_pid_start_identities_checked": 87,
+  "known_survivors": [],
+  "fixture_pids_checked_without_signals": 41,
+  "numeric_fixture_pids_present": [],
+  "source_sha256": {
+    "src/auth_network.rs": "60947e31c7897eaa7a89c37d7beaa9fa5d9244c4e55a27640868bc290b7baa58",
+    "src/bin/auth-network-probe.rs": "8d680a195e96dc607f2b729ee7dbe1b9b9ee0cb3ffc571711eb8831abe22578c",
+    "src/bin/network-fixture.rs": "73217c1f8b3a7ca3c23b239c22c33d9a3ede71b0e2ab9a12d455080a8c35015f",
+    "fix4_boundary.py": "57f988bb62170378687ed4e0b02797a9f80ddb939ac5094babb061c480a4f67b",
+    "run_fix4.py": "5afed5bc504b09a90efb140df4a9af74eb5ed6eb3615eae367d63d01f8112240",
+    "tests/auth_network.rs": "510c66bf1c8233fc61e5bd40ed1502390ef1187ca060f3780928119f7cb1fadc",
+    "tests/test_fix4.py": "89b11c439fd9b9a0ef39c0423f7d49b3aa531ff41fecadf910846888df63372a",
+    "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+    "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+  },
+  "artifacts_bytes": {
+    "auth-network-probe": 113170880,
+    "network-fixture": 13282200,
+    "boundary-fixture": 13221152,
+    "narys-lr10a-poc": 120480264
+  },
+  "checks": {
+    "rustfmt_new_rust_files": "PASS",
+    "py_compile_new_python_files": "PASS",
+    "trailing_whitespace_source": "PASS",
+    "git_diff_check": "PASS",
+    "existing_evidence_guard": "PASS",
+    "full_tauri_suite": "NOT_RUN_no_production_change",
+    "real_auth": "AWAITING_HUMAN_AUTHORIZATION",
+    "real_provider_network": "BLOCKED_NETWORK_BOUNDARY",
+    "worker_death_adversarial": "BLOCKED_SUPERVISOR_FAILURE_CONTAINMENT",
+    "inference": "BLOCKED_REAL"
+  },
+  "inference_requests": 0,
+  "real_credentials_read_or_copied": false,
+  "decision": "FIX_AND_RETEST",
+  "a9": "BLOCKED",
+  "positive_registration_ack_verified_real_cli": true,
+  "sdk_negative_registration_ack_fixture_fail_closed": true,
+  "changed_files": [
+    "docs/LR-10-LATEST-EXECUTION-REPORT.md",
+    "docs/LR-10A-IMPLEMENTATION-AND-EVIDENCE.md",
+    "experiments/lr-10a-sdk-runtime/Cargo.lock",
+    "experiments/lr-10a-sdk-runtime/Cargo.toml",
+    "experiments/lr-10a-sdk-runtime/README.md",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-build.txt",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-contract-inspection.json",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-existing-evidence-guard.json",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-gateway-observations-budget-diagnostic.jsonl",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-gateway-observations-diagnostic.jsonl",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-gateway-observations-initial.jsonl",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-gateway-observations.jsonl",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-permission-regression.jsonl",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-python-final-ack-command.txt",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-python-final-ack.json",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-python-final-ack.txt",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-real-offline-metadata.json",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-owned-run-budget-diagnostic.json",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-owned-run-diagnostic.json",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-owned-run-initial.json",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-owned-run.json",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-tests-budget-diagnostic.txt",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-tests-diagnostic.txt",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-tests-initial.txt",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-rust-tests.txt",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-upstream-contract-excerpts.txt",
+    "experiments/lr-10a-sdk-runtime/evidence/fix-4-verification.json",
+    "experiments/lr-10a-sdk-runtime/fix4_boundary.py",
+    "experiments/lr-10a-sdk-runtime/run_fix4.py",
+    "experiments/lr-10a-sdk-runtime/src/auth_network.rs",
+    "experiments/lr-10a-sdk-runtime/src/bin/auth-network-probe.rs",
+    "experiments/lr-10a-sdk-runtime/src/bin/network-fixture.rs",
+    "experiments/lr-10a-sdk-runtime/tests/auth_network.rs",
+    "experiments/lr-10a-sdk-runtime/tests/test_fix4.py"
+  ],
+  "final_evidence": {
+    "python": "fix-4-python-final-ack.json",
+    "rust": "fix-4-rust-owned-run.json",
+    "real_cli": "fix-4-real-offline-metadata.json"
+  },
+  "published_cached_sdk_sources_match_verified_archive": true,
+  "internal_duplicate_pass_snapshots": "archived locally outside diff; not deleted; historical FIX1-3 untouched",
+  "log_whitespace_normalized_only": true
+}

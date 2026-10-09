@@ -1,0 +1,216 @@
+FIX-4 — excerpts from the ACTUALLY CACHED/COMPILED github-copilot-sdk 1.0.17 crate.
+Upstream: https://github.com/github/copilot-sdk ; license MIT (crate manifest).
+Not claimed identical to VCS tree: .cargo_vcs_info.json dirty=true.
+No runtime protocol payload or credential values in this file.
+
+src/lib.rs SHA256 23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23
+lines 555-577:
+555: impl std::fmt::Debug for ClientOptions {
+556:     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+557:         f.debug_struct("ClientOptions")
+558:             .field("program", &self.program)
+559:             .field("prefix_args", &self.prefix_args)
+560:             .field("working_directory", &self.working_directory)
+561:             .field("env", &self.env)
+562:             .field("env_remove", &self.env_remove)
+563:             .field("extra_args", &self.extra_args)
+564:             .field(
+565:                 "builtin_plugin_directories",
+566:                 &self.builtin_plugin_directories,
+567:             )
+568:             .field("transport", &self.transport)
+569:             .field(
+570:                 "github_token",
+571:                 &self.github_token.as_ref().map(|_| "<redacted>"),
+572:             )
+573:             .field("use_logged_in_user", &self.use_logged_in_user)
+574:             .field("log_level", &self.log_level)
+575:             .field(
+576:                 "session_idle_timeout_seconds",
+577:                 &self.session_idle_timeout_seconds,
+lines 2220-2230:
+2220:         // Inject the SDK auth token first so explicit `env` / `env_remove`
+2221:         // entries can override or strip it.
+2222:         if let Some(token) = &options.github_token {
+2223:             command.env("COPILOT_SDK_AUTH_TOKEN", token);
+2224:         }
+2225:         // Inject telemetry env vars before user env so callers can still
+2226:         // override individual variables via `options.env`.
+2227:         if let Some(telemetry) = &options.telemetry {
+2228:             command.env("COPILOT_OTEL_ENABLED", "true");
+2229:             if let Some(endpoint) = &telemetry.otlp_endpoint {
+2230:                 command.env("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint);
+lines 2283-2308:
+2283:     /// Returns the CLI auth flags derived from [`ClientOptions::github_token`]
+2284:     /// and [`ClientOptions::use_logged_in_user`].
+2285:     ///
+2286:     /// When a token is set, adds `--auth-token-env COPILOT_SDK_AUTH_TOKEN`.
+2287:     /// When the effective `use_logged_in_user` is `false` (either explicitly
+2288:     /// or because a token was provided without an override), adds
+2289:     /// `--no-auto-login`.
+2290:     #[cfg(feature = "runtime")]
+2291:     fn auth_args(options: &ClientOptions) -> Vec<&'static str> {
+2292:         let mut args: Vec<&'static str> = Vec::new();
+2293:         if options.github_token.is_some() {
+2294:             args.push("--auth-token-env");
+2295:             args.push("COPILOT_SDK_AUTH_TOKEN");
+2296:         }
+2297:         let use_logged_in = options
+2298:             .use_logged_in_user
+2299:             .unwrap_or(options.github_token.is_none());
+2300:         if !use_logged_in {
+2301:             args.push("--no-auto-login");
+2302:         }
+2303:         args
+2304:     }
+2305:
+2306:     /// Returns `--session-idle-timeout <secs>` when
+2307:     /// [`ClientOptions::session_idle_timeout_seconds`] is `Some(n)` with
+2308:     /// `n > 0`. Otherwise returns an empty vector.
+
+src/github_token.rs SHA256 74abca3623af50c6d36281000c9ba2c76225f5dd6f8a55b3409476faeec203d2
+lines 54-66:
+54:         Self {
+55:             access_token: access_token.into(),
+56:             expires_in_seconds,
+57:             token_type: None,
+58:         }
+59:     }
+60:
+61:     /// Override the OAuth token type. The runtime defaults to `bearer` when unset.
+62:     pub fn with_token_type(mut self, token_type: impl Into<String>) -> Self {
+63:         self.token_type = Some(token_type.into());
+64:         self
+65:     }
+66:
+lines 320-337:
+320:                 respond(
+321:                     client,
+322:                     request.id,
+323:                     GitHubTokenAcquireResult::Token(token.into_wire()),
+324:                 )
+325:                 .await;
+326:             }
+327:             Ok(GitHubTokenProviderResult::Cancelled) => {
+328:                 respond(
+329:                     client,
+330:                     request.id,
+331:                     GitHubTokenAcquireResult::Cancelled(GitHubTokenAcquireResultCancelled {
+332:                         kind: Default::default(),
+333:                     }),
+334:                 )
+335:                 .await;
+336:             }
+337:             Err(error) => {
+
+src/copilot_request_handler.rs SHA256 579488b32aee6ffc880a23ad4f686bb4498fe46355ff0706b864b7c104dde521
+lines 1-20:
+1: //! Connection-level interception of the model-layer HTTP and WebSocket traffic
+2: //! the runtime issues — for both CAPI and BYOK sessions.
+3: //!
+4: //! When [`ClientOptions::request_handler`](crate::ClientOptions::request_handler)
+5: //! is set, the SDK registers itself as the runtime's request handler on
+6: //! [`Client::start`](crate::Client::start). From then on, whenever the runtime
+7: //! would issue a model-layer request (inference, `/models`, `/policy`, …) it
+8: //! asks the registered [`CopilotRequestHandler`] to service it instead of making
+9: //! the call itself.
+10: //!
+11: //! [`CopilotRequestHandler`] is the single seam consumers implement: one HTTP
+12: //! send method and one WebSocket factory, each defaulting to transparent
+13: //! pass-through to the real upstream. Override
+14: //! [`send_request`](CopilotRequestHandler::send_request) to mutate / replace HTTP
+15: //! requests, or [`open_websocket`](CopilotRequestHandler::open_websocket) to
+16: //! mutate the handshake or return a custom [`CopilotWebSocketHandler`].
+17: //!
+18: //! # Cancellation
+19: //!
+20: //! [`CopilotRequestContext::cancel`] fires when the runtime cancels the
+lines 298-333:
+298: /// method to mutate or replace traffic.
+299: #[async_trait]
+300: pub trait CopilotRequestHandler: Send + Sync + 'static {
+301:     /// Service one intercepted HTTP request. Default: forward to the real
+302:     /// upstream via [`forward_http`]. Override to mutate the request before
+303:     /// forwarding, mutate the response after, or replace the call entirely.
+304:     async fn send_request(
+305:         &self,
+306:         request: CopilotHttpRequest,
+307:         _ctx: &CopilotRequestContext,
+308:     ) -> Result<CopilotHttpResponse, CopilotRequestError> {
+309:         forward_http(request).await
+310:     }
+311:
+312:     /// Open a per-connection WebSocket handler. Default: a
+313:     /// [`CopilotWebSocketForwarder`] wired to the real upstream.
+314:     /// Override to mutate the handshake (URL / headers via `ctx`) or return a
+315:     /// custom handler.
+316:     ///
+317:     /// Unlike the other SDKs, Rust passes `response` — the runtime-facing sink
+318:     /// for upstream→runtime messages — as a second argument here rather than
+319:     /// exposing a base-class `send_response_message` helper. A custom handler
+320:     /// must store this `CopilotWebSocketResponse` in the returned handler struct
+321:     /// and call [`CopilotWebSocketResponse::send_message`] on it to push
+322:     /// upstream messages back to the runtime.
+323:     async fn open_websocket(
+324:         &self,
+325:         ctx: &CopilotRequestContext,
+326:         response: CopilotWebSocketResponse,
+327:     ) -> Result<Box<dyn CopilotWebSocketHandler>, CopilotRequestError> {
+328:         let handler = CopilotWebSocketForwarder::builder(ctx.url.clone(), ctx.headers.clone())
+329:             .connect(response)
+330:             .await?;
+331:         Ok(Box::new(handler))
+332:     }
+333: }
+
+
+src/github_token.rs lines 67-80:
+67:     fn into_wire(self) -> GitHubTokenAcquireResultToken {
+68:         GitHubTokenAcquireResultToken {
+69:             access_token: self.access_token,
+70:             expires_in: self.expires_in_seconds,
+71:             kind: Default::default(),
+72:             token_type: self.token_type,
+73:         }
+74:     }
+75: }
+76:
+77: impl std::fmt::Debug for GitHubToken {
+78:     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+79:         f.debug_struct("GitHubToken")
+80:             .field("access_token", &"<redacted>")
+
+src/lib.rs lines 1730-1739:
+1730:         if request_dispatcher.is_some() {
+1731:             let llm_inference_start = Instant::now();
+1732:             client.rpc().llm_inference().set_provider().await?;
+1733:             let llm_inference_elapsed = llm_inference_start.elapsed();
+1734:             timings.llm_handler_ms = Some(StartupTimings::millis(llm_inference_elapsed));
+1735:             debug!(
+1736:                 elapsed_ms = llm_inference_elapsed.as_millis(),
+1737:                 "Client::start Copilot request handler registration complete"
+1738:             );
+1739:         }
+
+Upstream license supplied with the consumed crate:
+MIT License
+
+Copyright GitHub, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

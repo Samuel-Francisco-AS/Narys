@@ -1,0 +1,82 @@
+   Compiling narys-lr10a-poc v0.1.0 (/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.78s
+     Running unittests src/lib.rs (target/debug/deps/narys_lr10a_poc-f9a7b7e36a486142)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/auth-network-probe.rs (target/debug/deps/auth_network_probe-1225708b03978db9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/boundary-fixture.rs (target/debug/deps/boundary_fixture-c0e3b9adc69fedc2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/narys_lr10a_poc-93d15f694fc5227d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/network-fixture.rs (target/debug/deps/network_fixture-5eb1717c85e7b182)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/auth_network.rs (target/debug/deps/auth_network-3f4f468178caddda)
+
+running 7 tests
+test absent_auth_and_absent_gateway_fail_closed ... FAILED
+test allowed_fixed_operation_only_through_host_in_offline_namespace ... FAILED
+test default_handler_is_never_used_and_inference_is_not_implemented ... ok
+test destinations_protocols_headers_bodies_and_paths_rejected ... FAILED
+test explicit_sdk_token_is_runtime_exposure_not_host_containment ... ok
+test timeout_redirect_unauthorized_and_secret_echo_fail_closed ... FAILED
+test unavailable_gateway_has_no_direct_network_fallback ... FAILED
+
+failures:
+
+---- absent_auth_and_absent_gateway_fail_closed stdout ----
+
+thread 'absent_auth_and_absent_gateway_fail_closed' (6684) panicked at tests/auth_network.rs:152:10:
+owned SDK fixture startup: "protocol_error"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- allowed_fixed_operation_only_through_host_in_offline_namespace stdout ----
+
+thread 'allowed_fixed_operation_only_through_host_in_offline_namespace' (6689) panicked at tests/auth_network.rs:152:10:
+owned SDK fixture startup: "protocol_error"
+
+---- destinations_protocols_headers_bodies_and_paths_rejected stdout ----
+
+thread 'destinations_protocols_headers_bodies_and_paths_rejected' (6697) panicked at tests/auth_network.rs:152:10:
+owned SDK fixture startup: "protocol_error"
+
+---- timeout_redirect_unauthorized_and_secret_echo_fail_closed stdout ----
+
+thread 'timeout_redirect_unauthorized_and_secret_echo_fail_closed' (6707) panicked at tests/auth_network.rs:152:10:
+owned SDK fixture startup: "protocol_error"
+
+---- unavailable_gateway_has_no_direct_network_fallback stdout ----
+
+thread 'unavailable_gateway_has_no_direct_network_fallback' (6714) panicked at tests/auth_network.rs:152:10:
+owned SDK fixture startup: "protocol_error"
+
+
+failures:
+    absent_auth_and_absent_gateway_fail_closed
+    allowed_fixed_operation_only_through_host_in_offline_namespace
+    destinations_protocols_headers_bodies_and_paths_rejected
+    timeout_redirect_unauthorized_and_secret_echo_fail_closed
+    unavailable_gateway_has_no_direct_network_fallback
+
+test result: FAILED. 2 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+error: test failed, to rerun pass `--test auth_network`

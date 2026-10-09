@@ -15,6 +15,9 @@ tokio = { version = "=1.52.3", features = ["macros", "rt", "time", "process", "i
 tempfile = "=3.27.0"
 # Already present transitively in the SDK lock; explicit POC IDs must be UUIDs.
 uuid = { version = "=1.27.0", default-features = false, features = ["v4"] }
+# Already locked/cached transitively; only for the synthetic bounded response.
+bytes = "=1.12.1"
+futures-util = "=0.3.34"
 
 [features]
 # Technical comparison only; acquisition must be explicitly enabled by operator.

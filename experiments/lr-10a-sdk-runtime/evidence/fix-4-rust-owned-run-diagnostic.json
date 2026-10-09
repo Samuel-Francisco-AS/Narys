@@ -1,0 +1,106 @@
+{
+  "schema_version": 2,
+  "probe": "metadata",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 101,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_nonzero",
+  "wall_ms": 866.85,
+  "cleanup_ms": 29.98,
+  "peak_process_tree_rss_bytes": 109973504,
+  "peak_owned_processes": 9,
+  "sampled_cpu_seconds_lower_bound": 0.28,
+  "system_processes_before": 232,
+  "system_processes_after": 232,
+  "observed_owned_processes": 13,
+  "attributed_processes": [
+    {
+      "pid": 6759,
+      "start_ticks": 215608,
+      "basis": "launched_root"
+    },
+    {
+      "pid": 6782,
+      "start_ticks": 215634,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6797,
+      "start_ticks": 215639,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6813,
+      "start_ticks": 215645,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6831,
+      "start_ticks": 215652,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6845,
+      "start_ticks": 215684,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6834,
+      "start_ticks": 215678,
+      "basis": "subreaper_child"
+    }
+  ],
+  "unsampled_attributed_descendants": 0,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 6,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "cargo_exit_code": 101,
+    "inference_calls": 0,
+    "real_provider": false
+  },
+  "fix4_provenance": {
+    "phase": "LR-10A FIX-4",
+    "mode": "rust-tests",
+    "observed_at": "2026-10-09T21:42:15.179754+00:00",
+    "config_stat_before": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_after": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_unchanged": true,
+    "config_contents_read": false,
+    "owned_identities_absent_after": true,
+    "sources_sha256": {
+      "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+      "boundary.py": "81db8452342a95a0f02be3c569e175811cc72ec12b7fe30883c9f9db839fbf39",
+      "fix4_boundary.py": "13786f693e506e0bcbb0b3a9444d213fbd682223f3bc9369ae06b009cb94a721",
+      "run_fix4.py": "7d0834b8fbe50fdc0c02e64c2bb1783e61809181438c5f0b315bf17b4eef19c3",
+      "src/auth_network.rs": "b0616e37d4e7561eb87b42ab7f4c61081ecd1db4aaf401fdd57fbf62e765c7ec",
+      "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+      "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+    },
+    "inference_requests": 0,
+    "real_tokens_loaded": false,
+    "a9": "BLOCKED_REAL",
+    "driver_exit_code": 1
+  }
+}

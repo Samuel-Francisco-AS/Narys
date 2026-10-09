@@ -473,3 +473,67 @@ O [relatório reutilizável](LR-10-LATEST-EXECUTION-REPORT.md) contém a matriz 
 G1–G12, comandos, limitações, recomendações e referências de auditoria desta FIX.
 
 **LR-10A FIX-3 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
+
+
+## Adendo permanente — FIX-4: Auth & Network Boundary Feasibility (09/10/2026)
+
+**LR-10A FIX-4 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
+Recomendação **FIX_AND_RETEST**; A9 permanece bloqueado. Este adendo não altera
+as conclusões históricas das FIXes 1–3 nem atribui PASS definitivo à LR-10A.
+
+A crate efetivamente utilizada, SDK Rust 1.0.17, fornece interceptação oficial
+HTTP/WebSocket por `ClientOptions::request_handler`, registrada pelo RPC
+`llmInference.setProvider`. Os defaults encaminham ao upstream: é obrigatório
+substituir ambos para uma política fechada. O CLI local de hash preservado aceitou
+esse registro dentro do sandbox offline; versão RPC observada 1.0.90. Isso não
+prova autenticação nem interceptação de todos os endpoints de auth/telemetria.
+[Inspeção e versões](../experiments/lr-10a-sdk-runtime/evidence/fix-4-contract-inspection.json),
+[trechos da crate consumida](../experiments/lr-10a-sdk-runtime/evidence/fix-4-upstream-contract-excerpts.txt),
+[prova real offline](../experiments/lr-10a-sdk-runtime/evidence/fix-4-real-offline-metadata.json).
+
+A mediação sintética usa stdio/RPC owned, sem proxy genérico nem rede no sandbox.
+Apenas uma operação fixa de metadata pode alcançar um servidor HTTP de loopback
+controlado pelo teste, com segredo sintético retido no host. Runtime e filho
+permanecem sem acesso TCP ao host. Destinos/headers/body/query/traversal/CONNECT/
+WebSocket, ausência de auth/gateway, erros/timeout/redirect/echo e segunda operação
+são negados; nenhuma resposta arbitrária do servidor atravessa o gateway.
+[Implementação](../experiments/lr-10a-sdk-runtime/src/auth_network.rs),
+[testes SDK reais com peer sintético](../experiments/lr-10a-sdk-runtime/tests/auth_network.rs),
+[observações](../experiments/lr-10a-sdk-runtime/evidence/fix-4-gateway-observations.jsonl).
+HTTP local não comprova TLS/DNS/SNI/CDNs ou autenticação Copilot. IDs recebidos do
+runtime não são identidade de segurança; herança de stdio continua uma limitação.
+
+Token explícito do SDK chega por ambiente ao runtime e foi herdado por um filho
+sintético: escopo reduzido não equivale a proteção contra exfiltração. O callback
+GitHubTokenProvider devolve access_token por RPC; não é proxy de credenciais.
+Documentação oficial atual descreve fine-grained PAT user-owned/Copilot Requests,
+mas aceitação/entitlement no CLI instalado não foi testada com credencial real.
+**BLOCKED_AUTH_BOUNDARY / AWAITING_HUMAN_AUTHORIZATION**; sem criação/extração de PAT,
+keyring, D-Bus, login, config ou sessões pessoais. **BLOCKED_NETWORK_BOUNDARY** para
+provedor real; **BLOCKED_SUPERVISOR_FAILURE_CONTAINMENT** e **BLOCKED_REAL** preservados.
+
+Verificação final: 38 Rust (26 herdados + 12 novos), 44 Python (40 herdados + 4 novos).
+Rust/Cargo efetivos 1.98.1 já instalados no Fedora; o toolchain 1.94 temporário expirou,
+sem reinstalação/download. Edition/MSRV de produção intactos. Dois deps já
+transitivos/cacheados tornaram-se explícitos somente na POC para construir o DTO;
+SDK/CLI e versões dos packages do lock permanecem iguais. Sem recompilar Tauri,
+pois nenhum código/dependência de produção foi alterado. FIX-1/subreaper e FIX-3
+namespace/política foram reutilizados sem modificação. Config verificada por stat
+somente; processos atribuídos reclamados, sem sinais a processos externos.
+[Verificação](../experiments/lr-10a-sdk-runtime/evidence/fix-4-verification.json).
+
+**Impacto no release Narys 0.1 (17/10):** foi encontrado um ponto oficial de mediação
+que evita construir nesta etapa um proxy/supervisor de produção. Ainda faltam
+provas de autenticação contida, transporte HTTPS estrito, tráfego completo do CLI,
+contenção de morte do worker e auditoria antes de A9. Não há estimativa validada que
+justifique DEFER_TO_POST_RELEASE somente pelo prazo; priorização/escopo do release
+serão humanos. Recomenda-se manter a POC isolada e não acoplar esses gates ao código
+estável antes da decisão. Nenhuma inferência ou implementação de release nesta FIX.
+O relatório reutilizável descreve somente a execução FIX-4; este documento e as
+outras evidências permanentes continuam preservando o histórico.
+
+Revisão FIX-4: Client::start da crate 1.0.17 descarta setProvider.success.
+A POC exige ACK positivo explícito antes das consultas; a fixture prova que
+false aceito pelo SDK é negado pela POC, e o CLI real confirmou true no reteste.
+Callbacks durante startup e contenção adversarial não foram universalmente
+comprovados; o probe real mantém gateway sem endpoint/credencial desde o início.

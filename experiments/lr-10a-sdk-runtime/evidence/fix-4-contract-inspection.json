@@ -1,0 +1,93 @@
+{
+  "phase": "LR-10A FIX-4",
+  "observed_at": "2026-10-09T21:46:46.691282+00:00",
+  "sdk": {
+    "crate": "github-copilot-sdk",
+    "version": "1.0.17",
+    "features": [
+      "runtime"
+    ],
+    "default_features": false,
+    "bundled_runtime_acquired": false,
+    "published_sources_sha256": {
+      "src/lib.rs": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+      "src/github_token.rs": "74abca3623af50c6d36281000c9ba2c76225f5dd6f8a55b3409476faeec203d2",
+      "src/copilot_request_handler.rs": "579488b32aee6ffc880a23ad4f686bb4498fe46355ff0706b864b7c104dde521",
+      "src/generated/api_types.rs": "4a53a05f892662c1611c23cf50121bebcad75875419c8f038b6fc00f6f404343",
+      "src/session.rs": "c358f0f773c7687947f89a9be7cc2c988db279cd33993d7024b40ce1f0a3b196",
+      "src/types.rs": "e4276d1da838b5d23b7d5c3a76a35d89357bfdcef578d496edd1c5191530ca3f",
+      "build.rs": "4dd44602ca82be0bdb3590658481b931846567f6e0c3e1a5f39c7aaf17a83df4",
+      "Cargo.toml": "5b9bde31055b59d168a7d617f693bf075bf4b49a53173f712ca7b37aee06ce3b"
+    },
+    "vcs": {
+      "git": {
+        "sha1": "0e56b9a0033f48e4358ee027a4077cd6ebd61f32",
+        "dirty": true
+      },
+      "path_in_vcs": "src/sdk/rust"
+    },
+    "explicit_token_transport": "environment COPILOT_SDK_AUTH_TOKEN; --auth-token-env names variable only",
+    "token_provider_transport": "GitHubToken.into_wire access_token returned through JSON-RPC; not host-only credential containment",
+    "request_handler_scope": "model-layer HTTP and WebSocket; registration llmInference.setProvider; defaults forward to upstream",
+    "credential_store_inspected": false,
+    "cached_archive_sha256": "c66d1375ffce624174ffab84f2781225ecd2c5c696ab412bcfabe01794cb0e97",
+    "cached_archive_bytes": 1050685,
+    "cached_sources_match_checksum_verified_archive": true
+  },
+  "cli": {
+    "bytes": 178457408,
+    "sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+    "version_from_fix3_unchanged_hash": "1.0.91",
+    "crate_runtime_reference": "1.0.93",
+    "public_binary_literal_presence": {
+      "--auth-token-env": false,
+      "COPILOT_SDK_AUTH_TOKEN": false,
+      "COPILOT_GITHUB_TOKEN": false,
+      "GH_TOKEN": false,
+      "GITHUB_TOKEN": false,
+      "github_pat_": false,
+      "libsecret": false,
+      "HTTPS_PROXY": true,
+      "HTTP_PROXY": true,
+      "NODE_EXTRA_CA_CERTS": true,
+      "llmInference.setProvider": false
+    },
+    "literal_presence_is_not_auth_compatibility_proof": true,
+    "literal_absence_is_not_unsupported_capability_proof": true
+  },
+  "environment": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Fedora 1.98.1-1.fc44)",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05) (Fedora 1.98.1-1.fc44)",
+    "kernel": "7.2.8-200.fc44.x86_64",
+    "python": "Python 3.14.7",
+    "bwrap": "bubblewrap 0.12.0",
+    "previous_tmp_rust_194_present": false,
+    "toolchain_installed_or_updated": false
+  },
+  "auth_compatibility": "AWAITING_HUMAN_AUTHORIZATION",
+  "network_real_provider": "BLOCKED_NETWORK_BOUNDARY",
+  "sources": [
+    {
+      "url": "https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "url": "https://github.com/github/copilot-sdk/blob/main/docs/auth/authenticate.md",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "url": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "url": "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "url": "https://docs.github.com/en/copilot/concepts/security-governance-and-network-settings/network-settings",
+      "retrieved_at": "2026-10-09"
+    }
+  ],
+  "inference_requests": 0,
+  "real_tokens_read_or_copied": false
+}

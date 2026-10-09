@@ -1,0 +1,64 @@
+   Compiling narys-lr10a-poc v0.1.0 (/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.44s
+     Running unittests src/lib.rs (target/debug/deps/narys_lr10a_poc-f9a7b7e36a486142)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/auth-network-probe.rs (target/debug/deps/auth_network_probe-1225708b03978db9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/boundary-fixture.rs (target/debug/deps/boundary_fixture-c0e3b9adc69fedc2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/narys_lr10a_poc-93d15f694fc5227d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/network-fixture.rs (target/debug/deps/network_fixture-5eb1717c85e7b182)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/auth_network.rs (target/debug/deps/auth_network-3f4f468178caddda)
+
+running 11 tests
+test absent_auth_and_absent_gateway_fail_closed ... ok
+test allowed_fixed_operation_only_through_host_in_offline_namespace ... ok
+test default_handler_is_never_used_and_inference_is_not_implemented ... ok
+test destinations_protocols_headers_bodies_and_paths_rejected ... ok
+test explicit_sdk_token_is_runtime_exposure_not_host_containment ... ok
+test explicit_token_removed_from_environment_does_not_become_ambient_auth ... ok
+test invalid_synthetic_authorization_never_contacts_provider ... ok
+test second_operation_exceeds_fixed_budget_without_retry_or_fallback ... FAILED
+test timeout_redirect_unauthorized_and_secret_echo_fail_closed ... ok
+test unavailable_gateway_has_no_direct_network_fallback ... ok
+test unsupported_runtime_handler_is_a_startup_gate ... ok
+
+failures:
+
+---- second_operation_exceeds_fixed_budget_without_retry_or_fallback stdout ----
+
+thread 'second_operation_exceeds_fixed_budget_without_retry_or_fallback' (8077) panicked at tests/auth_network.rs:189:9:
+assertion `left == right` failed
+  left: Array [Number(200)]
+ right: Array [Number(200), Number(502)]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    second_operation_exceeds_fixed_budget_without_retry_or_fallback
+
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.33s
+
+error: test failed, to rerun pass `--test auth_network`
