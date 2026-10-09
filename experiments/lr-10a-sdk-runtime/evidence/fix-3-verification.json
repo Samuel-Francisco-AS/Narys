@@ -97,7 +97,7 @@
     "src/lib.rs": "d3daa4edc6a0eba6dc7ac4cff3545937f50ba98e12df3951efe17f5e12881e99",
     "src/persistence.rs": "0891b8122b86ad19d7a18a82fa3c6c1e1cb2a852c42a6612bcc4b4d9ee430729",
     "src/bin/boundary-fixture.rs": "290d16e8a0d30a23e874d9784239aede3662f5d131b4cd9f8bb2ad165460951e",
-    "fixtures/permission_cli.py": "aafa43ab9681902ceaccaab130fd7c3a9c8d7c621ca119c5053cf4d9ca98fb51",
+    "fixtures/permission_cli.py": "f0e8103c249b2870500c4c8abc5e69f09b19bead4b606d8f9b3438cfcd298d8f",
     "tests/test_boundary.py": "fdf2d8596b21846469e9aa5f5ea8de7ba68088035db5f2277d5aa991eae22526",
     "tests/security.rs": "a377bfdafc30046bc4c041e5b08e79e35cd1376fe1e789e8cfdd14a31288be4b"
   },
@@ -115,5 +115,8 @@
   ],
   "permission_jsonl_cases": 9,
   "cli_pin_unchanged": true,
-  "global_configuration_stat_unchanged": true
+  "global_configuration_stat_unchanged": true,
+  "permission_fixture_snapshot_publication": "atomic replace; prevents reader seeing truncated JSON",
+  "rust_regression_rerun_after_atomic_snapshot": 26,
+  "post_atomic_retest_recorded_fixture_survivors": []
 }

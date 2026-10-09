@@ -9,7 +9,10 @@ summary = Path(os.environ['MOCK_SUMMARY'])
 report = {'configurations': [], 'decisions': [], 'forbidden_methods': 0}
 
 def save():
-    summary.write_text(json.dumps(report))
+    # Reader polls concurrently: publish whole snapshots, never a truncate window.
+    pending = summary.with_suffix('.pending')
+    pending.write_text(json.dumps(report))
+    pending.replace(summary)
 
 def emit(payload):
     body = json.dumps(payload, separators=(',', ':')).encode()
