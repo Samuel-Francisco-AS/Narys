@@ -483,3 +483,8 @@ A próxima fase formal do roadmap é **LR-10 — GitHub Copilot SpecialistAgent*
 
 Approvals, sandbox e execution authority agentiva permanecem deliberadamente
 fora da LR-9 e pertencem às fases LR-10/LR-11.
+
+O contrato, as decisões e os gates de integração Copilot estão registrados em
+[LR-10 — GitHub Copilot SpecialistAgent](LR-10-COPILOT-SPECIALIST-AGENT.md),
+com entrada pela [LR-10A — Feasibility POC](LR-10A-FEASIBILITY-POC.md).
+Isso não modifica o PASS FINAL da LR-9 nem concede authority agentiva retroativamente.

@@ -585,34 +585,42 @@ Plano: [NARYS-TERMINAL-RUNTIME-TRACK.md](NARYS-TERMINAL-RUNTIME-TRACK.md).
 
 ## 14. LR-10 — GitHub Copilot SpecialistAgent
 
-Aproveitar Copilot Student.
+**Estado: PLANEJADA / DOCUMENTAÇÃO E DECOMPOSIÇÃO REGISTRADAS EM 09/10/2026; nenhuma subfase iniciada ou declarada PASS.**
 
-### POC primeiro
+Objetivo: aproveitar a conta Copilot Student e preservar as capacidades
+operacionais do Copilot CLI (edição, comandos, testes, ferramentas, sessões e
+eventos) **na interface unificada da Narys**. Copilot é `SpecialistAgent` sob
+o Rust Core, não um `CognitiveProvider` de conversa trivial nem TUI paralela.
 
-- validar SDK Rust;
-- login/autenticação;
-- listar capabilities/model behavior;
-- ler account quota;
-- iniciar sessão;
-- stream de eventos;
-- cancelamento.
+Decisões aprovadas para planejamento:
+- POC do SDK **Rust oficial** primeiro; elevar o MSRV atual `1.77.2` para
+  **1.94.0** apenas após validar toolchain, Cargo/Tauri, lockfile e regressões;
+  manter Edition 2021 da Narys;
+- `CopilotAgentAdapter` e supervisor process-wide: runtime sob demanda,
+  sem start no boot e sem processo permanente em idle; cancel/stop/reap;
+- perfis **Assistido (default)**, **Autônomo isolado** (sandbox comprovado)
+  e **YOLO** somente por autorização humana explícita; YOLO não equivale
+  a sandbox nem a Autopilot;
+- authority agentiva separada de provenance/HumanLocal; o CLI SDK possui
+  loop próprio de ferramentas e **não** passa pelo Execution Broker
+  automaticamente;
+- Narys usa TaskGraph, LR-8.5 quotas/usage, LR-9 traces/passive observation,
+  Activity/Conversation, sem raw reasoning e sem leaks de credenciais;
+- modelo Auto por padrão; quotas são fatos consultados, e limites do SDK
+  podem ser soft, não teto rígido garantido.
 
-### Integração
+**Decomposição:** LR-10A — SDK/Runtime POC; LR-10B — Adapter/Supervisor;
+LR-10C — Authority/Approvals/Sandbox/YOLO; LR-10D — TaskGraph/Quota/Trace;
+LR-10E — UI e teste real de engenharia; LR-10F — auditoria independente
+e gate final de regressão/concorrência/segurança.
 
-Criar CopilotAgentAdapter atrás do Luna Core.
+**Gate final:** tarefa real em workspace descartável autorizado; eventos,
+diff/testes e uso observados; approvals efetivos; cancel e reentrada
+comprovados; desligamento do runtime em idle; ausência de bypass no Broker,
+duplicação de efeitos ou custos implícitos.
 
-Nunca chamar diretamente do React.
-
-### Política inicial
-
-- tarefas de desenvolvimento;
-- respeitar auto model selection do Student;
-- considerar quota real no Scheduler;
-- não usar para conversa trivial.
-
-### Gate
-
-Luna despacha uma tarefa de código controlada ao Copilot, recebe eventos, mostra progresso e registra consumo.
+Plano vinculante da fase: [LR-10 — Copilot SpecialistAgent](LR-10-COPILOT-SPECIALIST-AGENT.md).  
+Protocolo de entrada: [LR-10A — SDK & Runtime Feasibility POC](LR-10A-FEASIBILITY-POC.md).
 
 ## 15. LR-11 — OpenAI Codex SpecialistAgent
 

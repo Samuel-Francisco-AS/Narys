@@ -8,16 +8,13 @@ Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
 **Estado:** LR-1 → LR-8.5 e UIP-0 → UIP-7 estão consolidados. **PERF-1 — Adaptive Presence & Economy Mode fechou em PASS completo em 07/10/2026**, com Economy 2D como default, Presence opt-in, Headless real e Adaptive restrito a Economy ↔ Headless.
 
-Em 08/10/2026, NARYS-TERM foi promovida e ampliada para a próxima fase funcional:
-**LR-9 — Operational Terminal & Cognitive Trace Runtime**. Ela prepara PTY humano
-real, Execution Broker, passive trace bounded e a superfície operacional que
-LR-10/Copilot e LR-11/Codex deverão reutilizar. O antigo escopo LR-9/Luna Voice
-foi preservado como NARYS-VOICE, sem posição fixa.
+**LR-9 — Operational Terminal & Cognitive Trace Runtime encerrou em PASS FINAL em 09/10/2026**, após auditoria independente e integração à `main`. Entregou PTY humano, Execution Broker, observabilidade passiva bounded, Terminal/Activity e gates de segurança/concorrência. **Próxima fase: LR-10 — GitHub Copilot SpecialistAgent**, atualmente **PLANEJADA**, com interface operacional unificada da Narys, SDK Rust sujeito a POC e runtime Copilot sob demanda. O antigo escopo Luna Voice continua em NARYS-VOICE sem posição fixa.
 
 Veja [LR-9 / NARYS-TERM](docs/NARYS-TERMINAL-RUNTIME-TRACK.md),
 [NARYS-VOICE](docs/NARYS-VOICE-FUTURE-TRACK.md),
 [PERF-1](docs/PERF-1-ADAPTIVE-PRESENCE.md),
-[LR-8.5](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md) e
+[LR-8.5](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md),
+[LR-10](docs/LR-10-COPILOT-SPECIALIST-AGENT.md) e
 [o plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## LR-7D1 — PASS completo
@@ -57,6 +54,8 @@ Documentos principais:
 - [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
 - [LR-8.5 — Cognitive Resource Economy & Allocation](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md)
 - [LR-9 — Operational Terminal & Cognitive Trace Runtime](docs/NARYS-TERMINAL-RUNTIME-TRACK.md)
+- [LR-10 — GitHub Copilot SpecialistAgent (PLANEJADA)](docs/LR-10-COPILOT-SPECIALIST-AGENT.md)
+- [LR-10A — Feasibility POC (NOT_RUN)](docs/LR-10A-FEASIBILITY-POC.md)
 - [NARYS-VOICE — Unified Voice & Natural Feedback](docs/NARYS-VOICE-FUTURE-TRACK.md)
 - [Narys pós-LR-11 — Cognitive Evolution Track](docs/NARYS-POST-LR11-COGNITIVE-EVOLUTION.md)
 - [Local Cognitive Support — papel dos coprocessadores locais na Luna](docs/LOCAL-COGNITIVE-SUPPORT-LUNA.md)
