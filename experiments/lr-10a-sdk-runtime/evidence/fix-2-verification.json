@@ -1,0 +1,67 @@
+{
+  "phase": "LR-10A FIX-2",
+  "base": "21de782797a46cb81ef66229b07c4e65634a40d2",
+  "validation_stage": "pre-commit final sources",
+  "branch": "lr-10a-sdk-runtime-feasibility",
+  "main_sha": "6603a78bd34cfffbd019ced8fa870d9bea02a7fb",
+  "historical_evidence_unchanged": {
+    "experiments/lr-10a-sdk-runtime/evidence/baseline.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/checks.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.txt": true,
+    "experiments/lr-10a-sdk-runtime/evidence/global-config-stat-protected.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/global-config-stat.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/runtime-existing-auth-protected.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/runtime-existing-auth.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/runtime-metadata-1.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/runtime-metadata-final-protected.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/runtime-sessions-final-staged.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/runtime-sessions-native-protected.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/runtime-sessions-protected.json": true,
+    "experiments/lr-10a-sdk-runtime/evidence/runtime-sessions-wrapper-final-protected.json": true
+  },
+  "fix1_and_old_protocol_sources_unchanged": {
+    "measure.py": true,
+    "tests/test_measure.py": true,
+    "fixtures/mock_cli.py": true,
+    "tests/protocol.rs": true
+  },
+  "json_files_parsed": 22,
+  "final_real_source_hashes_match": {
+    "fix-2-real-existing-auth-final.json": {
+      "src/main.rs": true,
+      "src/lib.rs": true,
+      "src/persistence.rs": true,
+      "Cargo.toml": true,
+      "Cargo.lock": true,
+      "measure.py": true
+    },
+    "fix-2-real-isolated-final.json": {
+      "src/main.rs": true,
+      "src/lib.rs": true,
+      "src/persistence.rs": true,
+      "Cargo.toml": true,
+      "Cargo.lock": true,
+      "measure.py": true
+    }
+  },
+  "rust_tests_passed": 22,
+  "rust_log": "fix-2-rust-tests.txt",
+  "python_tests_passed": 25,
+  "known_real_attributed_identities_checked": 2,
+  "post_verification_known_real_survivors": [],
+  "rust_fixture_cleanup": "assert_reclaimed verifies every fixture manifest PID/start_ticks in successful tests; original tests verify SDK child/descendant absence",
+  "rust_formatter": "rustfmt 1.9.0-stable (48a229ceae 2026-09-01), --check edition 2021 PASS",
+  "python_syntax": "python3 -m py_compile new runner/fixture and unchanged FIX-1 sources PASS",
+  "diff_whitespace": "git diff --check PASS",
+  "production_changes": [],
+  "sha256_new_sources": {
+    "src/persistence.rs": "6cfb945a4837d6d824f363f4f941bd9880994d85a67859f9c85f6d8d55dd2bcd",
+    "tests/persistence.rs": "0a6bd623476ab75d4246e086cda979f0de58a1283c9ecb6ae63ed9fb444878a2",
+    "fixtures/persistence_cli.py": "3b9a03a2b26fcade4ae0e9cf314b4a8e8dcd94d294af57ee38a61fe3adf2990c",
+    "run_fix2.py": "be59d6673de151daaa9908ed0d39237259390f02407645f7f6e02acd96a706c8"
+  },
+  "inference_calls": 0,
+  "runtime_download_bytes": 0,
+  "report_relative_links": "all local report targets exist"
+}

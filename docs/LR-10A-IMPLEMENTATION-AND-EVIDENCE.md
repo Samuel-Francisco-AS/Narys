@@ -402,3 +402,34 @@ Detalhes, limites, resultados individuais, comandos e identificação Git estão
 Este adendo não reclassifica A7 real, aprova LR-10A ou libera LR-10B/A9.
 
 **LR-10A FIX-1 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**
+
+## Adendo FIX-2 — 2026-10-09: persistência de sessões vazias
+
+Investigação exclusiva da FIX-2; resultados anteriores permanecem históricos.
+[Relatório reutilizável da execução](LR-10-LATEST-EXECUTION-REPORT.md),
+[probe final auth existente](../experiments/lr-10a-sdk-runtime/evidence/fix-2-real-existing-auth-final.json),
+[probe final estado isolado](../experiments/lr-10a-sdk-runtime/evidence/fix-2-real-isolated-final.json),
+[regressão FIX-1](../experiments/lr-10a-sdk-runtime/evidence/fix-2-python-regression.json).
+
+SDK 1.0.17/CLI nativo com --version 1.0.91 mantidos, sem inferência. Sessões
+vazias UUID explícitas/geradas criam workspace.yaml, mas não events.jsonl;
+metadata persistida ausente e resume NotFound no mesmo Client e após restart.
+Abort vazio e enable_session_store true/false não alteraram isso. Store trata
+busca/indexação entre sessões, não é comando de flush. A causa imediata observada
+é ausência do transcript; o instante do primeiro flush/internal policy do CLI
+não foi comprovado e não se declara exigência universal de inferência.
+
+Um transcript sintético próprio com apenas session.start pôde ser retomado pelo
+mesmo SDK/CLI, sem mensagem ao modelo. É diagnóstico do leitor de disco, não
+persistência de histórico produzido pelo SDK. Corrupção sintética retorna -32603
+no runtime local, sem rewrite; -32075 da documentação atual é testado somente em
+fixture. Delete de ID sintético previamente resumível torna resume NotFound.
+
+22 testes Rust (10 novos, 12 anteriores) e 25 Python FIX-1 passaram. O harness,
+seus testes e evidências históricas não foram modificados. Ambos os probes reais
+finais comprovaram exhaustion do worker e zero recuperação forçada/sobreviventes,
+com stat de config.json inalterado sob proteção read-only. Nenhum pacote SDK/CLI
+atualizado, nenhum arquivo de produção alterado. Gate de conversa real permanece
+BLOCKED_REAL/AWAITING_HUMAN_APPROVAL; não existe PASS definitivo da LR-10A.
+
+**LR-10A FIX-2 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**

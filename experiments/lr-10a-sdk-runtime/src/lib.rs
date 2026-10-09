@@ -10,6 +10,8 @@ use std::{
     time::Duration,
 };
 
+pub mod persistence;
+
 pub const DEADLINE: Duration = Duration::from_secs(15);
 
 /// Codes only: never expose SDK error messages, RPC payloads, tokens or stderr.
@@ -102,7 +104,8 @@ pub fn session_config(workspace: &Path) -> SessionConfig {
     config.skip_custom_instructions = Some(true);
     config.enable_on_demand_instruction_discovery = Some(false);
     config.enable_session_telemetry = Some(false);
-    config.enable_session_store = Some(true); // Explicit persistence experiment.
+    // Cross-session search/index integration, not a transcript flush guarantee.
+    config.enable_session_store = Some(true);
     config
 }
 

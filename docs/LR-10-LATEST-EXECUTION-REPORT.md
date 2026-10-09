@@ -1,305 +1,193 @@
-# Narys — relatório mais recente da LR-10
+# NARYS — LR-10A FIX-2: Session Persistence & SDK/CLI Compatibility
 
 ## 1. Identificação
 
-- Projeto/fase: **Narys / LR-10A / FIX-1 — Process Ownership & Cleanup Reliability**.
-- Data: **09/10/2026**, America/Fortaleza; desenvolvimento via SSH/headless no Fedora.
+- Projeto: Narys; fase LR-10A; execução exclusiva da FIX-2, em 2026-10-09 (America/Fortaleza).
 - Branch: `lr-10a-sdk-runtime-feasibility`.
-- Commit base local/remoto verificado: `8de5b891c0698db812ea130c65806a1e8671e259`.
-- `main` local e remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, sem alteração.
-- Commit da implementação testada: [`d9441d392866151e8fe6c70fb0dd9cbdb437c676`](https://github.com/Samuel-Francisco-AS/Narys/commit/d9441d392866151e8fe6c70fb0dd9cbdb437c676)
-  — `fix(lr10a): own and reap unsampled descendants with isolated subreaper`.
-  Esse SHA foi publicado e confirmado por `git ls-remote` antes do fechamento.
-- Commit final documental: `docs(lr10a): finalize FIX-1 audit report and Git references`,
-  filho direto do commit da implementação acima; altera somente este relatório.
-- Commit final e HEAD remoto: **a referência da branch que contém esta versão do relatório**,
-  consultável em [HEAD final publicado](https://github.com/Samuel-Francisco-AS/Narys/commit/lr-10a-sdk-runtime-feasibility)
-  e no [histórico deste arquivo](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility/docs/LR-10-LATEST-EXECUTION-REPORT.md).
-  Esta identificação é autorreferente: o SHA literal do commit que contém um
-  relatório não pode ser inserido no próprio conteúdo sem mudar aquele SHA.
-  A referência acima identifica o fechamento documental, separadamente do SHA
-  imutável da implementação testada. HEAD local e remoto coincidem no fechamento
-  documental publicado; o link de HEAD resolve o SHA final, sem confundi-lo com
-  o SHA da implementação. O histórico permite obter o permalink imutável desta
-  versão antes de uma futura substituição do relatório.
-- Estado: **LR-10A FIX-1 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
+- Base verificada, inicialmente limpa e igual ao remoto: `21de782797a46cb81ef66229b07c4e65634a40d2`.
+- `main` local e remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, sem alterações.
+- Implementação testada: o commit de implementação imediatamente anterior ao commit documental que finaliza este relatório; sua referência literal será registrada na finalização documental.
+- HEAD documental final/remoto: [HEAD da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). O histórico identifica o SHA do próprio relatório sem autorreferência impossível.
+- Estado: **LR-10A FIX-2 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
+- Gate de retomada de histórico real: **BLOCKED_REAL / AWAITING_HUMAN_APPROVAL**. Nenhum PASS definitivo da FIX-2, LR-10A ou LR-10.
 
-Este arquivo contém somente esta execução. Documentos permanentes e evidências
-históricas foram preservados; o próximo trabalho substituirá este relatório.
+Este arquivo substitui somente o relatório reutilizável anterior. [Relatório da FIX-1 no histórico](https://github.com/Samuel-Francisco-AS/Narys/blob/21de782797a46cb81ef66229b07c4e65634a40d2/docs/LR-10-LATEST-EXECUTION-REPORT.md) e suas evidências continuam preservados.
 
 ## 2. Objetivo e escopo
 
-Corrigir a perda de ownership quando a raiz cria um descendente, termina antes
-da primeira amostra e deixa esse processo vivo, inclusive após `setsid()`.
-O conjunto de identidades observadas em `/proc` deixava uma lacuna: não observar
-um sobrevivente era insuficiente para afirmar cleanup completo.
+Investigar `session_not_found` em sessões vazias, separar criação em memória de persistência em disco e caracterizar o par SDK/CLI efetivamente instalado. A correção modifica o contrato e a instrumentação da POC; não fabrica durabilidade para obter PASS.
 
-O diff está restrito ao harness experimental Python, suas fixtures, README,
-evidências FIX-1, adendo histórico e este relatório. Não implementa supervisor
-LR-10B, FIX-2/FIX-3, approval engine, sandbox, execution authority, UI ou mudanças
-no Execution Broker. Nenhum arquivo Rust, Cargo manifest/lockfile ou dependência
-foi alterado. Não se executou o Copilot CLI real nem chamadas do SDK nesta FIX.
+Restrições respeitadas: nenhuma inferência, prompt, ferramenta do Copilot, atualização global, login/logout, credencial extraída, inspeção de sessão pessoal, escrita em configuração global, sudo, mudança em produção, alteração do Broker, UI, IPC ou autoridade agentiva. Sem YOLO/Autopilot, PR, merge, rebase, reset ou force-push. Não implementados FIX-3, A9, LR-10B ou um supervisor/sandbox de produção.
 
-Foram lidos integralmente o plano LR-10A, a evidência anterior, a trilha LR-10,
-README, measure.py e test_measure.py. Branch, status, remotes e HEAD foram
-conferidos; `git fetch origin` confirmou a base esperada e workspace inicialmente
-limpo. Nenhum reset, force-push, merge, rebase, sudo ou serviço persistente.
+## 3. Causa investigada e evidências
 
-## 3. Mudanças executadas
+A causa imediata do erro neste fluxo está comprovada: **a sessão vazia criada pelo SDK não possui transcript persistido reconhecido pelo CLI após detach**. O teste anterior pressupunha que `session.create`/`disconnect` garantiam esse transcript.
 
-| Arquivo relativo à raiz | Alteração |
+Nas duas execuções finais, quatro variantes (UUID explícito, UUID gerado pelo SDK, abort vazio e store desabilitado) apresentam:
+
+1. Criação e detach reconhecidos; ID preservado e basename de workspace correspondente ao ID.
+2. Um evento `session.start` em memória, zero mensagens de usuário/modelo.
+3. Diretório privado com `workspace.yaml` de 202 bytes, **sem `events.jsonl`**, metadata persistida ausente.
+4. Resume retorna `session_not_found`, tanto no mesmo Client quanto depois de encerrar e reiniciar efetivamente o CLI, preservando o diretório.
+5. Abort e `enable_session_store` ligado/desligado não mudam essa observação.
+
+Controles causais usam somente arquivos criados pela própria fixture em diretórios descartáveis:
+
+- Um `events.jsonl` sintético com **apenas `session.start`**, sem mensagens ao modelo, é retomado pelo **SDK real + mesmo CLI local**, com o mesmo ID, metadata presente e bytes inalterados. Deletar esse ID torna a retomada `session_not_found`.
+- Um arquivo sintético corrompido falha com RPC **-32603**, permanece byte a byte inalterado e não é recuperado automaticamente. Metadata pode estar presente mesmo nesse caso: sua presença isolada não prova transcript válido.
+
+Portanto, ID gerado, mismatch do par SDK/CLI ou ausência de mensagem ao modelo não são explicações suficientes para toda retomada: o mesmo par retoma o transcript sintético sem inferência. **Isso não demonstra que o SDK persistiu histórico real**, nem justifica escrever transcripts artificialmente como correção. A causa interna de o CLI não gravar uma sessão vazia, o instante do primeiro flush e possível influência adicional da proteção read-only não foram demonstrados no código privado do CLI. Não afirmamos universalmente que toda sessão vazia exige inferência para resume.
+
+Evidências definitivas: [estado com autenticação existente](../experiments/lr-10a-sdk-runtime/evidence/fix-2-real-existing-auth-final.json) e [COPILOT_HOME isolado](../experiments/lr-10a-sdk-runtime/evidence/fix-2-real-isolated-final.json). Ambas identificam hashes dos fontes, lockfile, executável e CLI usados.
+
+### Contrato da versão publicada
+
+A autoridade para Rust é a **crate 1.0.17 publicada**, checksum `c66d1375ffce624174ffab84f2781225ecd2c5c696ab412bcfabe01794cb0e97`, não uma suposição sobre tags ou documentação recente. Seu `.cargo_vcs_info.json` registra árvore dirty; os hashes dos arquivos publicados constam em [upstream/versionamento](../experiments/lr-10a-sdk-runtime/evidence/fix-2-upstream.json).
+
+| Contrato | Fonte versionada e interpretação utilizada |
 | --- | --- |
-| [measure.py](../experiments/lr-10a-sdk-runtime/measure.py) | Worker privado, ownership por filhos do kernel, pidfds, reap iterativo e schema 2 |
-| [test_measure.py](../experiments/lr-10a-sdk-runtime/tests/test_measure.py) | 25 testes, sincronização, inventário independente e coletor reproduzível de evidências |
-| [README.md](../experiments/lr-10a-sdk-runtime/README.md) | Requisitos, semântica, limites e comando de reprodução |
-| [fix-1-verification.json](../experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.json) | Resultados individuais, medições de fixtures, identidades e hashes SHA-256 |
-| [fix-1-verification.txt](../experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.txt) | Log completo da execução final da suíte |
-| [LR-10A-IMPLEMENTATION-AND-EVIDENCE.md](LR-10A-IMPLEMENTATION-AND-EVIDENCE.md) | Adendo FIX-1; evidência anterior preservada sem reinterpretação |
-| LR-10-LATEST-EXECUTION-REPORT.md | Novo ponto de referência reutilizável da entrega |
+| ID omitido | [session.rs 1.0.17](https://docs.rs/crate/github-copilot-sdk/1.0.17/source/src/session.rs), linhas 1697–1712: SDK Rust gera UUID localmente antes do RPC. ID explícito é encaminhado; retorno diferente produz erro tipado. IDs explícitos UUID funcionaram no CLI observado. |
+| Store | [README 1.0.17](https://docs.rs/crate/github-copilot-sdk/1.0.17/source/README.md), seção Infinite sessions: integração de busca/recuperação entre sessões; não é API de flush do transcript. |
+| Estado e diretórios | [lib.rs 1.0.17](https://docs.rs/crate/github-copilot-sdk/1.0.17/source/src/lib.rs), ClientOptions/build_command: `base_directory` define `COPILOT_HOME`. `cwd` define contexto; não é isolamento de filesystem. CLI usa session-state por ID. |
+| Disconnect | [session.rs](https://docs.rs/crate/github-copilot-sdk/1.0.17/source/src/session.rs), implementação a partir da linha 1275: `session.detach`, encerramento do roteamento local; não há flush explícito nem delete. Preservar um histórico existente não implica criar histórico ausente. |
+| Abort | [session.rs](https://docs.rs/crate/github-copilot-sdk/1.0.17/source/src/session.rs), `abort`: RPC para interromper turno; não é delete nem prova de conclusão/persistência. Abort vazio foi executado. |
+| Delete | [lib.rs](https://docs.rs/crate/github-copilot-sdk/1.0.17/source/src/lib.rs), linha 2884: `session.delete`. Usado somente para IDs próprios. |
+| Stop | [lib.rs](https://docs.rs/crate/github-copilot-sdk/1.0.17/source/src/lib.rs), a partir da linha 3054: detach de sessões registradas, shutdown do runtime/transporte e espera do filho. Não equivale a flush garantido de sessão vazia. Harness verifica árvore independentemente. |
+| Resume e falhas | SDK envia `session.resume`; não tem operação separada para memória versus disco. Runtime decide. O SDK converte texto upstream contendo `Session not found` em SessionErrorKind::NotFound; a POC exporta somente tipo seguro e, quando mantido pelo SDK, código RPC numérico. |
 
-### Decisões técnicas
+A [documentação oficial atual de persistência](https://github.com/github/copilot-sdk/blob/main/docs/features/session-persistence.md) demonstra históricos após envio de mensagens, distingue sessão ativa de histórico em disco e descreve recuperação de transcript. **Não garante durabilidade de uma sessão vazia na crate utilizada.** Sua orientação sobre IDs gerados não substitui a implementação UUID do Rust 1.0.17. Também há divergência no README publicado: exemplo cita `InfiniteSessionConfig.workspace_path`, mas [types.rs 1.0.17](https://docs.rs/crate/github-copilot-sdk/1.0.17/source/src/types.rs), linhas 963–977, não oferece esse campo. A POC não adotou esse exemplo incompatível.
 
-1. **Isolar adoção e reap por invocação.** `measure()` cria um worker por fork e
-   aguarda somente aquele PID. O worker habilita PR_SET_CHILD_SUBREAPER e inicia
-   somente a raiz controlada. O processo chamador preserva seu estado de subreaper
-   e SIGCHLD; seus filhos externos não entram no domínio de recuperação. O kernel
-   reparenteia órfãos ao subreaper ancestral vivo mais próximo, independentemente
-   de sessão ou process group. [Linux PR_SET_CHILD_SUBREAPER](https://man7.org/linux/man-pages/man2/PR_SET_CHILD_SUBREAPER.2const.html).
-2. **Separar métricas de autoridade para sinais.** O inventário de filhos diretos
-   vem de `/proc/self/task/<worker>/children`. PPID e start_ticks são validados
-   antes e depois de abrir o pidfd; não ocorre reap entre essas duas leituras.
-   O worker usa SIGCHLD default. Um filho terminado permanece reclamável, sem
-   reutilização de PID antes do reap. Identidades divergentes ou inacessíveis
-   não recebem sinais. [Linux pidfd_open](https://man7.org/linux/man-pages/man2/pidfd_open.2.html).
-3. **Sinalizar apenas handles estáveis.** Todas as interrupções usam
-   `signal.pidfd_send_signal`; não existem killpg nem kill por PID numérico.
-   A validação repetida protege a atribuição; o handle mantém o alvo estável
-   mesmo entre validação e sinalização. [Linux pidfd_send_signal](https://man7.org/linux/man-pages/man2/pidfd_send_signal.2.html).
-4. **Recuperar até esgotar filhos do kernel.** Após a saída da raiz ou timeout,
-   coletar filhos, sinalizar somente atribuídos, reclamar e repetir. Isso cobre
-   netos revelados após a morte de um filho adotado. `waitpid` usa WNOHANG e
-   `__WALL`, incluindo filhos clone; ECHILD precisa coincidir com inventário de
-   filhos vazio. Cleanup completo também exige ausência de sobreviventes
-   atribuídos e de erros. O orçamento nominal de recuperação é dois segundos.
-   [Linux waitpid](https://man7.org/linux/man-pages/man2/waitpid.2.html).
-5. **Falhar com evidência explícita.** Recursos ausentes, caller multithread ou
-   SIGCHLD não default são recusados antes da invocação. Erros de atribuição e
-   sinalização permanecem registrados mesmo após uma recuperação posterior.
-   Falha inesperada do worker não gera declaração de cleanup completo.
+Nenhuma exigência universal de mensagem/transcript mínimo foi comprovada. Um evento start sintético bastou ao leitor de disco local. Para testar persistência **genuinamente produzida em uma conversa**, os exemplos oficiais dependem de send; esse caminho continua proibido e vinculado à autorização separada de A9.
 
-### Semântica do schema 2
+## 4. Comparação SDK/CLI e decisões de versão
 
-`operation_outcome` distingue timeout, saída zero, saída não zero e estado
-desconhecido. `cleanup_status` descreve separadamente a responsabilidade do harness:
+[Metadados oficiais e comparação de fontes](../experiments/lr-10a-sdk-runtime/evidence/fix-2-upstream.json) consultados em 2026-10-09; [instalação efetiva](../experiments/lr-10a-sdk-runtime/evidence/fix-2-installed-versions.json).
 
-| Estado | Interpretação |
+| Componente | Versão/observação |
 | --- | --- |
-| graceful_no_recovery | Saída dos processos sem sinais do harness; não atesta client.stop() |
-| descendants_recovered | Descendentes detectados e recuperados; esgotamento comprovado |
-| timeout_recovered | Timeout operacional e recuperação comprovada pelo harness |
-| recovery_incomplete | Prazo/esgotamento/inventário não permitem comprovar cleanup |
-| inconclusive | Falha de atribuição, recuperação, capability ou worker |
+| SDK mantido | `github-copilot-sdk = 1.0.17`, crates.io, default-features=false, runtime, MSRV 1.94.0 |
+| Runtime de referência da crate 1.0.17 | `cli-version.txt`: **1.0.93**; isso não é pin imposto ao CLI explícito já instalado |
+| CLI executado | `--version`: **1.0.91**; SHA256 `be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8`, 178457408 bytes; mesmo hash histórico |
+| Informação RPC do mesmo binário | `status.get.version`: **1.0.90**, protocolo 3 |
+| Manifests npm locais | Loader e pacote nativo: **1.0.89**; discrepância registrada, não resolvida nem substituída por uma versão presumida |
+| SDK 1.0.18 já em cache | Referência CLI 1.0.94; lib.rs idêntico a 1.0.17. session.rs contém mudanças em encerramento de subscriptions/tool handlers; não demonstram correção de flush vazio. Não executado outro par real. |
+| Estáveis atuais consultadas | SDK **1.0.19** e CLI **1.0.95**; SDK release descreve atualização do snapshot CLI, sem correção de persistência vazia comprovada |
+| Ferramentas efetivas | Rust/Cargo **1.94.0**, crate POC Edition 2021; Python 3.14.7, Fedora 44, kernel 7.2.8-200.fc44.x86_64; execução SSH/headless |
 
-`cleanup_complete=true` pode coexistir com retorno **1** quando houve recuperação
-forçada ou timeout. Saída zero da raiz não promove a operação a sucesso se restar
-descendente. `sdk_shutdown_verified=false` em todos os resultados desta FIX.
-`external_not_attributed` é erro seguro de atribuição; processos externos são
-excluídos e nunca sinalizados. Uma lista vazia de sobreviventes conhecidos não
-substitui `kernel_children_exhausted`, inventário vazio e ausência de erros.
+Handshake protocolo 3, lifecycle vazio, leitura de transcript sintético e shutdown funcionam nesse par. Isso caracteriza compatibilidade **desses caminhos**, não inferência, durabilidade completa nem suporte formal universal entre versões.
 
-## 4. Testes e evidências
+Não houve atualização do SDK/CLI, bundle, preview ou download de runtime. Arquivos oficiais linux-x64 seriam aproximadamente 112,3 MB (CLI 1.0.93), 114,4 MB (1.0.94) e 114,5 MB (1.0.95), comprimidos. Sem uma correção confirmada que exija outro runtime, não há justificativa para esse download. A matriz com esses pares permanece **NOT_RUN**. O MSRV/Edition da aplicação Narys não mudou.
 
-Ambiente observado: Fedora Linux 44 Workstation, kernel
-`7.2.8-200.fc44.x86_64`, Python **3.14.7**, Git **2.55.0**.
-`os.pidfd_open` e `signal.pidfd_send_signal` disponíveis; probes de capability
-também executados em cada worker antes de lançar a raiz.
+## 5. Implementação realizada
 
-### Comandos executados e resultados
+Arquivos alterados/criados exclusivamente para FIX-2:
+
+- [src/persistence.rs](../experiments/lr-10a-sdk-runtime/src/persistence.rs): matriz de observações, IDs UUID próprios, namespace de estado explícito, factory de ClientOptions para cada CLI novo, metadata de um ID próprio, verificação de arquivos por stat e controles sintéticos identificados como fixtures.
+- [src/main.rs](../experiments/lr-10a-sdk-runtime/src/main.rs): modos de sessões encaminham à matriz protegida; remove fluxo antigo inacessível; gate de histórico real mantém exit 1. Metadata existente mantém proteção read-only e remove COPILOT_HOME ambiente ao usar auth existente.
+- [src/lib.rs](../experiments/lr-10a-sdk-runtime/src/lib.rs): exporta módulo experimental e corrige comentário de enable_session_store; lifecycle anterior permanece para regressões.
+- [Cargo.toml](../experiments/lr-10a-sdk-runtime/Cargo.toml) e [Cargo.lock](../experiments/lr-10a-sdk-runtime/Cargo.lock): UUID 1.27.0 torna-se dependência direta, default-features=false, v4; já existia transitivamente. Lockfile só acrescenta UUID à lista da POC; nenhuma versão de pacote mudou.
+- [fixtures/persistence_cli.py](../experiments/lr-10a-sdk-runtime/fixtures/persistence_cli.py): protocolo determinístico separado da fixture antiga, storage persistido/vazio/falho, metadata indisponível, ID divergente, detach falho/tardio e corrupção moderna/legada. RPC inesperado registra violação; nenhum acesso a conta ou rede.
+- [tests/persistence.rs](../experiments/lr-10a-sdk-runtime/tests/persistence.rs): dez testes, incluindo verificação independente de PID/start_ticks de todas as instâncias de fixture e ausência de RPC proibido.
+- [run_fix2.py](../experiments/lr-10a-sdk-runtime/run_fix2.py): reprodução via harness FIX-1 inalterado, hashes em streaming, stat de config e JSON sanitizado.
+- [README](../experiments/lr-10a-sdk-runtime/README.md), adendo ao [documento permanente](LR-10A-IMPLEMENTATION-AND-EVIDENCE.md), este relatório e novas evidências `evidence/fix-2-*`.
+
+Sem retries, sleeps para forçar persistência, recriação silenciosa ou tratamento de sessão recriada como retomada. `allow_transcript_recovery=false`; ID divergente, detach falho, storage inseguro e erro de metadata permanecem distintos. Factory é necessária porque ClientOptions 1.0.17 não é Clone. O guard exige que a origem do overlay esteja dentro do estado privado; stat recusa traversal e symlinks e nunca segue um workspace_path arbitrário retornado pelo CLI.
+
+## 6. Matriz S1–S9
+
+**PASS fixture** valida lógica/protocolo simulado. **SDK/CLI real** abaixo usa o binário local, sem inferência; transcripts sintéticos continuam identificados separadamente. FAIL observado não foi convertido em PASS de persistência.
+
+| Caso | Fixture determinística | SDK real / CLI local | Limitação/gate |
+| --- | --- | --- | --- |
+| S1 ID explícito | PASS: ID UUID preservado, resume próprio | Create/detach PASS; resume vazio FAIL `session_not_found`, sem transcript | Durabilidade real BLOCKED_REAL |
+| S2 ID gerado | PASS: UUID SDK, correlação preservada | Mesmo resultado de S1 | ID gerado não explica a falha sozinho |
+| S3 reinício Client | PASS: persistido retoma; namespace novo não | Novo Client inicia novo CLI; vazio continua ausente/NotFound | Histórico genuíno BLOCKED_REAL |
+| S4 reinício CLI | PASS: processos anteriores reclamados, fixture disk retoma | Encerramento real e restart executados; vazio NotFound. Novo CLI lê transcript sintético criado antes dele | Não comprova histórico SDK/provider |
+| S5 estado preservado/novo | PASS: controle positivo preservado versus NotFound em novo estado | Vazio NotFound nos dois; store privado preservado até o teste de delete | Nenhum diretório pessoal recriado/limpo |
+| S6 abort vazio | PASS: ack não é sucesso/persistência | Abort ack; continua sem events.jsonl e sem resume | Não houve operação de modelo a cancelar |
+| S7 inexistente/excluída | PASS: negativos tipados, sem fallback | UUID nunca criado NotFound; delete próprio ack/NotFound. Controle sintético previamente resumível também vira NotFound após delete | Delete vazio sozinho não comprovaria destruição de histórico existente |
+| S8 versões | PASS da caracterização estática; pin/protocolo registrados | Par instalado executado com resultados acima | Outros pares oficiais NOT_RUN; nenhuma atualização justificada |
+| S9 falhas | PASS: storage/metadata indisponíveis, mismatch, detach tardio/falho, unsafe paths, corrupção -32075 e -32603 | Sintético válido retoma; corrompido falha -32603, sem rewrite; stat da configuração estável | Storage inacessível e detach tardio no CLI real NOT_RUN; não se arriscou estado pessoal |
+
+## 7. Testes, comandos e evidências
+
+Comandos executados a partir da raiz; variáveis aplicadas somente à invocação, sem instalação global:
 
 ```sh
-git status --short --branch
-git rev-parse HEAD
-git remote -v
-git fetch origin
-git rev-parse origin/lr-10a-sdk-runtime-feasibility main origin/main
-git ls-remote origin refs/heads/lr-10a-sdk-runtime-feasibility refs/heads/main
-python3 --version
-git --version
-cat /etc/os-release
-python3 -m unittest discover -s experiments/lr-10a-sdk-runtime/tests -p 'test_*.py' -v
-python3 experiments/lr-10a-sdk-runtime/tests/test_measure.py --evidence experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.json
-python3 -m py_compile experiments/lr-10a-sdk-runtime/measure.py experiments/lr-10a-sdk-runtime/tests/test_measure.py
-git diff --check
-git diff --stat
-git diff -- src-tauri src package.json package-lock.json
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 \
+RUSTC=/tmp/narys-lr10a-rust-1.94.0/bin/rustc \
+RUSTDOC=/tmp/narys-lr10a-rust-1.94.0/bin/rustdoc \
+/tmp/narys-lr10a-rust-1.94.0/bin/cargo test --offline --locked \
+--manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml -- --test-threads=2
+
+python3 experiments/lr-10a-sdk-runtime/tests/test_measure.py \
+--evidence experiments/lr-10a-sdk-runtime/evidence/fix-2-python-regression.json
+
+python3 experiments/lr-10a-sdk-runtime/run_fix2.py sessions-existing-auth \
+/home/sam/.local/share/fnm/node-versions/v24.18.0/installation/lib/node_modules/@github/copilot/node_modules/@github/copilot-linux-x64/copilot \
+--output experiments/lr-10a-sdk-runtime/evidence/fix-2-real-existing-auth-final.json
+
+python3 experiments/lr-10a-sdk-runtime/run_fix2.py sessions \
+/home/sam/.local/share/fnm/node-versions/v24.18.0/installation/lib/node_modules/@github/copilot/node_modules/@github/copilot-linux-x64/copilot \
+--output experiments/lr-10a-sdk-runtime/evidence/fix-2-real-isolated-final.json
 ```
 
-- Descoberta completa durante desenvolvimento: 19/19, depois 21/21, 23/23 e 24/24 PASS,
-  conforme a cobertura evoluiu. São execuções intermediárias, não o artefato final.
-- Execução final, por **unittest discovery** dentro do coletor: **25/25 PASS**;
-  `Ran 25 tests in 2.983s`, elapsed externo **2.992s**. Nenhum skip/erro/falha.
-- Sintaxe/compilação Python: PASS. Formatação: `git diff --check` e validação de
-  whitespace/indentação por tokenize: PASS; sem instalação de formatter novo.
-- Todos os **13 JSONs** do diretório de evidências parseados; nenhum histórico
-  reescrito. SHA-256 dos três arquivos de harness/README corresponde ao código
-  testado; quantidade/status de testes e ausência de survivors validados.
-- Diff de produção vazio; escopo revisto arquivo a arquivo.
+| Verificação | Resultado/evidência |
+| --- | --- |
+| Rust POC | **22/22 PASS**: 10 novos + 12 anteriores; zero doctests existentes. [Log completo por teste](../experiments/lr-10a-sdk-runtime/evidence/fix-2-rust-tests.txt). Timeout, handshake cancelado, shutdown e descendente continuam cobertos. |
+| Python FIX-1 | **25/25 PASS**, 36 identidades de fixtures/controle verificadas no fim, zero sobreviventes. [JSON](../experiments/lr-10a-sdk-runtime/evidence/fix-2-python-regression.json), [log por teste](../experiments/lr-10a-sdk-runtime/evidence/fix-2-python-regression.txt). Nenhum CLI real chamado nessa suíte. |
+| CLI local protegido | Dois probes finais executados. Exit **1 intencional**, porque real_history_resume_gate=BLOCKED_REAL; cleanup completo nos dois. Auth existente authenticated; home isolado authentication_required, que não representa estado da conta do usuário. |
+| Sintaxe/formatação | py_compile dos dois Python novos e dos dois arquivos FIX-1; rustfmt --check de todos os Rust da POC; git diff --check, aprovados. Formatter host 1.9.0-stable, exclusivamente formatação; compilador/testes 1.94.0. |
+| Consistência e escopo | [Verificações sanitizadas](../experiments/lr-10a-sdk-runtime/evidence/fix-2-verification.json): hashes, JSONs, branch/main, preservação dos arquivos FIX-1/históricos e ausência das identidades conhecidas. |
 
-### Entrega Git
+O writer Python histórico hardcodeia os rótulos FIX-1/comando antigo. Só os rótulos da **nova** evidência foram corrigidos após a execução, mantendo testes/observações originais; a alteração é identificada no JSON. O hash README naquela evidência corresponde ao instante do teste, anterior ao adendo documental; measure.py e test_measure.py permanecem idênticos.
 
-A implementação e todas as evidências foram publicadas no commit
-`d9441d392866151e8fe6c70fb0dd9cbdb437c676`; esse HEAD remoto foi confirmado
-antes do commit documental final. O fechamento altera somente este arquivo,
-para registrar o SHA da implementação e tornar explícita a autorreferência
-do HEAD final. Os arquivos testados e seus hashes permanecem idênticos.
+Etapas intermediárias não representam o reteste final:
 
-Comandos de publicação e conferência (somente a branch autorizada):
+- [Baseline reproduzido](../experiments/lr-10a-sdk-runtime/evidence/fix-2-baseline-real-existing-auth.json) usou o executável original após a primeira tentativa de compilação falhar; rotulado explicitamente assim.
+- [Matriz inicial](../experiments/lr-10a-sdk-runtime/evidence/fix-2-real-existing-auth-initial-matrix.json): IDs explícitos com prefixo não UUID falharam no create. UUID explícito resolveu **essa rejeição**, sem resolver a ausência de transcript. Não generalizamos que toda versão do CLI aceita somente UUID.
+- [Diagnóstico UUID anterior à finalização](../experiments/lr-10a-sdk-runtime/evidence/fix-2-real-existing-auth-uuid-diagnostic.json) registrou o controle sintético, antes de adicionar código RPC numérico/delete negativo final.
+- Compilações iniciais falharam por import de Session, tentativa de Clone de ClientOptions e API env dos testes; a primeira execução da fixture falhou por assert de nome de permission callback. Corrigidos de acordo com a API efetiva e retestados integralmente; não declarados PASS retrospectivo.
+- Cargo foi executado offline sem --locked durante a inclusão/ajuste da dependência UUID já cacheada; o reteste final foi **offline + locked**, sem mudanças de versões nem runtime download.
 
-```sh
-git commit -m "fix(lr10a): own and reap unsampled descendants with isolated subreaper"
-git push origin lr-10a-sdk-runtime-feasibility
-git ls-remote origin refs/heads/lr-10a-sdk-runtime-feasibility
-git commit -m "docs(lr10a): finalize FIX-1 audit report and Git references"
-git push origin lr-10a-sdk-runtime-feasibility
-git fetch origin
-git rev-parse HEAD origin/lr-10a-sdk-runtime-feasibility
-git ls-remote origin refs/heads/lr-10a-sdk-runtime-feasibility refs/heads/main
-git show origin/lr-10a-sdk-runtime-feasibility:docs/LR-10-LATEST-EXECUTION-REPORT.md
-git diff 8de5b891c0698db812ea130c65806a1e8671e259 HEAD -- src-tauri src package.json package-lock.json
-git status --short --branch
-```
+Não repetida a suíte Tauri de 1.107 testes: diff restrito ao crate independente experimental, fixtures, runner e documentação. Nenhum fonte/manifest/lockfile de produção mudou. Recompilar toda a aplicação não validaria o contrato de persistência do CLI e consumiria recursos sem cobertura adicional pertinente.
 
-Resultado de fechamento: HEAD local/remoto coincidentes, relatório remoto com
-o mesmo conteúdo local, workspace limpo e main preservada. Sem PR ou merge.
-A referência de commit final na identificação aponta para o commit documental
-que contém este texto, enquanto o commit imutável da implementação fica acima.
+### Recursos e processos (amostras únicas, sem benchmark prolongado)
 
-### Resultado de cada teste
+| Probe final | Matriz completa | CPU amostrada, limite inferior | RSS agregado de pico | Cleanup harness | Processos sistema antes/depois |
+| --- | --- | --- | --- | --- | --- |
+| Auth existente | 19835,03 ms | 8,13 s | 286232576 bytes | 35,32 ms | 333 / 333 |
+| Home isolado | 7202,20 ms | 7,93 s | 315076608 bytes | 28,18 ms | 334 / 334 |
 
-Os nomes abaixo estão completos no [log executado](../experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.txt)
-e no [JSON](../experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.json).
-PASS significa que a expectativa do teste foi cumprida, inclusive retornar
-falha/inconclusivo nas provas negativas.
+Esses tempos são da **matriz inteira**, não latência individual de inicialização. RSS soma processos e pode duplicar páginas compartilhadas; CPU ignora atividade entre amostras de 50 ms. Contagens globais são contextuais e incluem processos externos/concomitantes; não são prova de ownership. Prova de recuperação: worker subreaper privado, kernel_children_exhausted=true, cleanup_complete=true, nenhum erro de atribuição/sinal de recuperação/sobrevivente. SDK reportou seis shutdowns graceful por matriz; harness manteve sdk_shutdown_verified=false, sem confundir responsabilidade do SDK com sua própria prova.
 
-| Teste (prefixo `test_`) | Gate/evidência | Resultado |
-| --- | --- | --- |
-| T1_unsampled_child_after_root_exit | Raiz terminou antes de qualquer amostra; filho adotado e reclamado | PASS |
-| T2_unsampled_child_new_session | Filho com setsid, nenhuma amostra prévia, recuperação por kernel | PASS |
-| T3_zero_exit_with_live_child_requires_recovery | Raiz zero, harness retorna 1; sem alegação de SDK shutdown | PASS |
-| T4_timeout_active_tree_new_session | Árvore pronta por handshake; raiz -9, filho recuperado, timeout distinto | PASS |
-| T5_external_child_untouched_and_unreaped | Controle externo vivo e ausente das atribuições; reclamado somente pelo teste | PASS |
-| T6_attribution_failure_remains_inconclusive_after_recovery | Identidade divergente simulada; retry limpa, mas resultado continua inconclusivo | PASS |
-| T6_external_identity_never_opens_handle | PPID externo: nenhum pidfd aberto e nenhum sinal | PASS |
-| T6_failed_recovery_signal_not_reported_complete | Negação simulada de SIGKILL; retry limpa; erro seguro permanece | PASS |
-| T6_inventory_failure_blocks_false_empty_cleanup | Inventário indisponível impede falso cleanup completo | PASS |
-| T6_missing_identity_remains_inconclusive | Identidade inicialmente indisponível; recovery posterior não elimina erro | PASS |
-| T6_pid_identity_change_closes_handle_without_signal | start_ticks muda entre validações; FD fechado, nenhum sinal | PASS |
-| T6_unverifiable_wait_exhaustion_is_incomplete | Esgotamento de wait indisponível; recovery_incomplete explícito | PASS |
-| caller_subreaper_and_sigchld_unchanged | Estado do chamador preservado | PASS |
-| crashed_root_unsampled_child | Raiz SIGKILL; descendente não amostrado recuperado | PASS |
-| inherited_stdout_does_not_block_cleanup | T7: stdout herdado não bloqueia reap | PASS |
-| malformed_evidence_fails_closed_without_echoing_content | T7: saída malformada falha sem eco de conteúdo | PASS |
-| missing_pidfd_fails_before_launch | Capability ausente simulada; manifesto de fixture vazio | PASS |
-| nondefault_sigchld_refused_before_launch | Caller não admissível; nenhuma fixture iniciada | PASS |
-| normal_exit_needs_no_recovery | T7: saída sem intervenção, ECHILD/inventário vazio | PASS |
-| premature_parent_exit_detects_and_reaps_descendant | T7: regressão de recuperação anterior | PASS |
-| repeated_adoption_recovers_previously_hidden_grandchild | Dois descendentes vivos; neto revelado por recuperação do pai | PASS |
-| threaded_caller_refused_before_launch | Caller multithread simulado; nenhuma fixture iniciada | PASS |
-| timeout_kills_owned_group_and_reports_failure | T7: nome histórico preservado; mecanismo atual usa pidfd, não grupo | PASS |
-| unsampled_double_fork_new_session | Double-fork + sessão nova, sem amostragem da árvore | PASS |
-| worker_failure_is_inconclusive | Crash simulado antes do launch; nenhuma alegação de cleanup | PASS |
+## 8. Segurança, credenciais e cleanup
 
-T1/T2/T3 usam readiness via pipe e `after_launch(proc)` substituído por uma
-barreira que aguarda a saída da raiz **antes** da primeira amostra. Não dependem
-da sorte de uma corrida de milissegundos. T4 usa marcador privado depois do
-handshake. A seam é no-op em produção do experimento e não é opção CLI.
+Host montado read-only por bwrap, somente workspace/state privados writable. Auth existente usa o resolvedor do CLI, com session-state pessoal **ocultado por overlay vazio privado**, sem listar/copiar/ler seu conteúdo. No modo isolado, COPILOT_HOME aponta ao estado temporário; no existente, variável ambiente é removida para não desviar o store esperado. Variáveis de tokens/path SDK são removidas sem extrair valores.
 
-### Observações e limites das medições
+Nenhum config.json lido em conteúdo; inode/tamanho/mtime/ctime coincidem antes/depois dos probes, além da proteção de escrita do mount. Apenas transcripts **sintéticos próprios** são lidos para verificar bytes; artifacts de sessões próprias criadas pelo SDK são inspecionados por stat. Não há dumps de environ/cmdline, RPC bruto, credenciais, event payloads reais ou mensagens upstream nas evidências.
 
-| Fixture | Processos amostrados | Descendentes atribuídos sem amostra | cleanup_ms | wall_ms |
-| --- | ---: | ---: | ---: | ---: |
-| T1 | 0 | 1 | 35,14 | 68,46 |
-| T2 setsid | 0 | 1 | 35,25 | 68,51 |
-| T3 saída zero | 0 | 1 | 35,05 | 68,32 |
-| T4 timeout | 2 | 0 | 47,92 | 253,31 |
-| Adoção iterativa de neto | 0 | 2 | 46,33 | 79,61 |
+FIX-1 preservada byte a byte em measure.py/test_measure.py e evidências históricas. Todas as fixtures novas verificam PID+start_ticks e ausência de RPC proibido; antigas mantêm testes de timeout, cancelamento, filhos e kernel adoption. Probes reais finais: nenhum recovery signal, nenhum processo órfão conhecido. Não se enviou sinal a processo externo.
 
-Em T1/T2/T3 e adoção iterativa: `cleanup_complete=true`,
-`kernel_children_exhausted=true`, retorno do harness 1 e recuperação forçada.
-Em T4: `timeout_recovered`, raiz -9 e cleanup comprovado. T6 produz
-`inconclusive` ou `recovery_incomplete` com `cleanup_complete=false`, inclusive
-quando a lista final de sobreviventes observados é vazia.
+ExecutionAuthority/HumanLocal, planner Codex read-only, AgentRegistry, IPC release, OperationalTraceBus, TaskGraph/Scheduler/LR-8.5 e ausência de shell WebView permanecem preservados por ausência de diff em produção. Não houve configuração global alterada ou serviço persistente criado.
 
-As fixtures registram identidades PID/start_ticks independentes, inclusive forks;
-o coletor combina esses manifestos, identidades atribuídas e controle externo.
-**36 identidades distintas verificadas; zero identidades sobreviventes**, inclusive
-zombies, após cada fixture aplicável e novamente depois da suíte. O worker é
-reclamado pelo wait do seu chamador; pidfds e arquivos temporários são fechados.
-O processo externo de T5 permaneceu vivo após o harness e foi interrompido/reclamado
-somente pelo dono do teste. Não se sinalizou qualquer processo encontrado em scan
-global. Identidades reutilizadas são distinguidas por start_ticks, não pelo PID só.
+**Inferências executadas: 0. Consumo de quota por inferência da POC: 0 esperado**, coerente com ausência de send/tool/prompt e zero mensagens nos timelines vazios. Não foi feita uma auditoria remota de cobrança nem inventada uma medição diferencial de quota. Metadata/auth e leitura local de transcript não demonstram capacidade de inferência.
 
-Estes valores são amostras únicas de **fixtures Python**, sem benchmark do SDK.
-cleanup_ms inclui verificação final/snapshot e coleta do relatório; o orçamento
-nominal não é deadline hard contra bloqueios de kernel/I/O. wall_ms começa dentro
-do worker, após snapshot inicial; não mede o custo completo de fork do worker.
-CPU/RSS continuam aproximações amostradas da raiz/árvore, excluindo o worker;
-zero amostras não significa zero uso de recursos. Não houve nova medição de
-startup/memória/quota/sessões/modelos do Copilot. Os JSONs reais antigos usam o
-harness anterior e não constituem reteste desta FIX.
+A proteção bwrap continua experimental: host legível, dispositivos/rede disponíveis e extensões ambientes não provadas isoladas. Isso não concede um especialista em produção nem substitui a fronteira da LR-10C. Limitações do ownership worker da FIX-1 continuam aplicáveis.
 
-## 5. Segurança e regressões
+## 9. Pendências e riscos residuais
 
-Preservados ExecutionAuthority/HumanLocal, Codex planner read-only, AgentRegistry,
-IPC release, OperationalTraceBus, TaskGraph, Scheduler e LR-8.5. Nenhum executor
-registrado, shell genérico, alteração na WebView ou mediação nova pelo Broker.
+- **BLOCKED_REAL**: persistência e retomada de histórico realmente produzido por SDK/provider, incluindo envio inicial e inferência após resume. Exige autorização separada de A9; nenhum comando de envio foi implementado/executado.
+- Não comprovado o instante do primeiro flush de transcript vazio nem se sua ausência é política universal, bug do runtime instalado ou interação adicional com filesystem protegido. Não existe flush público identificado no SDK inspecionado que force durabilidade vazia sem mensagem.
+- Discrepância --version/status.get/npm manifests mantida como risco de provenance. Binário/hash fixos e protocolo observado estão documentados.
+- Pares SDK/CLI alternativos NOT_RUN; nenhuma correção confirmada de release justifica download de runtime nesta FIX.
+- Storage verdadeiramente indisponível, eventos de operações de modelo e disconnect tardio do CLI real permanecem mockados ou não executados. Testes negativos locais não comprovam comportamento de serviço real.
+- -32075 é um contrato documentado atualmente e simulado; CLI local devolveu -32603. Não usar mensagem genérica/RPC unknown para diagnosticar auth/quota ou corrupção automaticamente.
 
-Somente `/proc/*/stat` e o inventário de filhos do worker são lidos. Não há dump
-de environ, cmdline, credenciais ou protocolos brutos. A evidência contém IDs,
-números, estados/códigos e `{}` das fixtures; conteúdo malformado/exception prose
-não é reproduzido. Nenhuma alteração global de configuração ou credenciais;
-nenhum SDK/CLI atualizado, runtime real, inferência ou YOLO. Consumo de quota
-Copilot pela FIX-1: **zero** (nenhum processo Copilot e nenhuma requisição).
+## 10. Recomendação técnica e conclusão
 
-Os cinco testes Python anteriores permanecem aprovados. A suíte de 1.107 testes
-Narys e os testes Rust **não foram repetidos**: o diff não altera Rust, Cargo,
-produção ou integração Tauri. A compatibilidade Rust 1.94 documentada antes não
-foi revalidada nesta FIX; nenhuma nova conclusão de SDK/CLI foi inferida.
+**BLOCKED_REAL para o gate de persistência operacional completa.** A investigação estabeleceu a ausência do transcript no fluxo vazio e eliminou a necessidade de inventar incompatibilidade SDK/CLI como causa exclusiva. A POC agora expressa esse contrato observado, possui controles positivos/negativos reproduzíveis e passou as regressões permitidas.
 
-Riscos residuais: o contrato assume worker íntegro, caller controlado e
-single-threaded, kernel/proc utilizáveis e fixtures com criação de processos
-Linux normal. Não é sandbox ou contenção de processo malicioso. Morte abrupta
-do próprio worker após launch, namespace/reparenting adversarial, tarefas em
-estado kernel não interrompível, fork bomb e uso embutido em runtime multithread
-não foram validados. Se atribuição ou recuperação falhar de forma permanente,
-o harness informa incomplete/inconclusive; não pode prometer recuperação por
-meios sem autoridade. O teste de crash do worker ocorre **antes** da raiz para
-não deixar um órfão deliberadamente. A proteção do worker em produção pertence
-ao futuro supervisor, não foi implementada aqui.
+Recomendação: auditar a implementação candidata e a atribuição limitada dessa causa imediata. Manter bloqueado o aceite de persistência de conversa real; decidir separadamente a autorização de A9 e/ou um reteste futuro com runtime oficial compatível quando houver justificativa verificável. **Não avançar automaticamente para FIX-3 ou LR-10B.** Nenhum workaround de criação sintética de histórico foi integrado ao fluxo de sessões do SDK.
 
-## 6. Pendências
-
-- Auditoria independente da Luna desta FIX-1, inclusive pressupostos de kernel,
-  isolamento do worker e semântica dos estados.
-- FIX-2/FIX-3 e demais lacunas da auditoria anterior permanecem fora desta entrega.
-- Reteste com SDK/CLI real: **NOT_RUN por restrição explícita desta FIX**; a prova
-  apresentada valida o harness, não a responsabilidade de shutdown do SDK.
-- A9: **BLOCKED_REAL / AWAITING_HUMAN_APPROVAL**; não enviado ao Copilot.
-- Stress prolongado, namespace/adversário, morte do worker depois do launch e
-  performance real do overhead adicional: NOT_RUN; exigiriam outro escopo/fixture.
-- Nenhum avanço à LR-10B autorizado. As pendências A2/A4/A6/A7 da evidência
-  histórica não são encerradas globalmente por estes testes locais.
-
-## 7. Conclusão
-
-**PASS técnico candidato da FIX-1 no contrato experimental testado.** T1–T7
-foram satisfeitos: recuperação não depende da primeira amostra nem do grupo
-original, timeout/crash da raiz são tratados, controle externo é preservado e
-ausência de prova gera falha explícita. Recomenda-se auditoria independente desta
-correção; se aprovado esse contrato, prosseguir somente com as FIXes ainda
-pendentes mediante escopo próprio.
-
-**LR-10A permanece FIX-AND-RETEST**, sem PASS definitivo e sem recomendação de
-avanço imediato à LR-10B. Não houve PR, merge ou alteração da main.
-
-**LR-10A FIX-1 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**
+**LR-10A FIX-2 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**

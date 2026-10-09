@@ -1,0 +1,53 @@
+   Compiling narys-lr10a-poc v0.1.0 (/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.24s
+     Running unittests src/lib.rs (experiments/lr-10a-sdk-runtime/target/debug/deps/narys_lr10a_poc-3a81776ff826875a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (experiments/lr-10a-sdk-runtime/target/debug/deps/narys_lr10a_poc-dd5bb2d0ee6dbad9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/persistence.rs (experiments/lr-10a-sdk-runtime/target/debug/deps/persistence-e050759333ebbd9f)
+
+running 10 tests
+test credential_environment_is_removed_without_extracting_values ... ok
+test corrupt_synthetic_transcript_is_not_recovered_or_rewritten ... ok
+test empty_sessions_do_not_fake_persist_or_resume_in_either_state_namespace ... ok
+test ids_are_opaque_unique_uuid_and_storage_paths_fail_closed ... ok
+test invalid_storage_root_prevents_any_runtime_launch ... ok
+test late_disconnect_fails_explicitly_without_recreating_session ... ok
+test fixtures_preserve_explicit_and_generated_ids_across_client_and_cli_restart ... ok
+test legacy_corruption_rpc_code_is_retained_without_guessing_modern_contract ... ok
+test resume_identity_mismatch_and_failed_detach_cannot_be_reported_as_success ... ok
+test storage_and_metadata_failures_remain_distinct_from_missing_sessions ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s
+
+     Running tests/protocol.rs (experiments/lr-10a-sdk-runtime/target/debug/deps/protocol-7838893267f8fd87)
+
+running 12 tests
+test errors_never_echo_secrets_or_guess_auth_and_quota ... ok
+test event_correlation_detects_duplicates_missing_parents_and_bounded_overflow ... ok
+test abort_timeout_late_cancel_and_shutdown_timeout_fail_closed ... ok
+test failed_handshake_and_cancelled_start_reclaim_process ... ok
+test fixture_persistence_resume_after_client_restart_and_delete ... ok
+test graceful_fixture_cleanup_reclaims_owned_descendant ... ok
+test official_deny_handler_rejects_unknown_and_managed_requests ... ok
+test path_resolution_is_explicit_and_fail_closed ... ok
+test quota_absent_invalid_zero_and_unlimited_are_distinct ... ok
+test lifecycle_preserves_opaque_id_and_idle_is_not_success ... ok
+test safe_metadata_distinguishes_unauth_unknown_quota_and_unavailable_method ... ok
+test session_rpc_failure_and_detach_failure_do_not_report_success ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+
+   Doc-tests narys_lr10a_poc
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

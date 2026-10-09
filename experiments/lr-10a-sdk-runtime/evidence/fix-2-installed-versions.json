@@ -1,0 +1,51 @@
+{
+  "protected_version_probe": {
+    "schema_version": 2,
+    "probe": "metadata",
+    "sample_kind": "fresh_process_warm_os_caches",
+    "headless": true,
+    "poll_interval_ms": 50,
+    "exit_code": 0,
+    "stdout_truncated": false,
+    "timed_out": false,
+    "operation_outcome": "main_exit_zero",
+    "wall_ms": 728.24,
+    "cleanup_ms": 29.79,
+    "peak_process_tree_rss_bytes": 180117504,
+    "peak_owned_processes": 3,
+    "sampled_cpu_seconds_lower_bound": 0.86,
+    "system_processes_before": 328,
+    "system_processes_after": 328,
+    "observed_owned_processes": 3,
+    "attributed_processes": [
+      {
+        "pid": 66198,
+        "start_ticks": 2494955,
+        "basis": "launched_root"
+      }
+    ],
+    "unsampled_attributed_descendants": 0,
+    "owned_survivors_before_recovery": [],
+    "owned_survivors_after_recovery": [],
+    "harness_reaped_descendants": 0,
+    "harness_recovery_signals": 0,
+    "ownership_errors": [],
+    "kernel_children_exhausted": true,
+    "cleanup_status": "graceful_no_recovery",
+    "cleanup_complete": true,
+    "ownership_scope": "private_single_invocation_subreaper",
+    "external_process_policy": "not_attributed_never_signalled",
+    "sdk_shutdown_verified": false,
+    "sdk_report": {
+      "exit_code": 0,
+      "cli_version": "1.0.91"
+    }
+  },
+  "harness_exit_code": 0,
+  "native_sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+  "native_bytes": 178457408,
+  "npm_loader_package": "1.0.89",
+  "native_package": "1.0.89",
+  "binary_path_is_existing_installation": true,
+  "runtime_downloaded": false
+}

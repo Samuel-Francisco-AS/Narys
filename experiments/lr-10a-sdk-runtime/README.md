@@ -32,7 +32,7 @@ not persistent; obtain verified official 1.94 components if it has expired.
 ## Safe manual probes (no inference)
 
 Run through the Linux cleanup/measurement harness, **never the binary alone**.
-`cargo test` builds the executable. Python 3, Linux /proc and, for existing auth,
+`cargo test` builds the executable. Python 3, Linux /proc and, for session probes or existing auth,
 `/usr/bin/bwrap` are required. Use the installation's **native CLI binary** when
 possible, rather than its npm loader. Inspect `--version` first; do not update it.
 
@@ -49,9 +49,11 @@ python3 experiments/lr-10a-sdk-runtime/measure.py sessions-existing-auth /absolu
   inside a read-only host mount. No credential files are read by the POC or
   harness; no tokens/logins/status messages are exported. Only disposable
   workspace/log directories are writable. There is **no unguarded fallback**.
-- `sessions` creates, subscribes, aborts an empty turn, detaches, attempts resume
-  and deletes only the POC-created session, in disposable state. Zero tools,
-  deny-all handler and disabled file hooks/skills/instruction discovery.
+- `sessions` runs the FIX-2 matrix in private COPILOT_HOME: UUID explicit/generated
+  IDs, empty abort, store on/off, detach, restart, fresh state and owned deletion.
+  Two separate synthetic disk diagnostics never represent SDK persistence.
+  Zero tools, deny-all handler and disabled file hooks/skills/instruction discovery.
+  All session modes now require the read-only host bwrap guard.
 - `sessions-existing-auth` also overlays the existing `~/.copilot/session-state`
   location with an empty disposable directory. It requires that mount point to
   exist; it never copies, lists, resumes or deletes a user's sessions.
@@ -153,3 +155,46 @@ explicitly labeled in the report; do not compare them as identical builds or
 claim they all used the final harness. Real session resume failed; mocked
 persistence passing does not establish provider persistence. No bundled download,
 release-sized bundle benchmark, GUI test, model output or usage event is claimed.
+
+## FIX-2 — persistence investigation (no inference)
+
+[Current report](../../docs/LR-10-LATEST-EXECUTION-REPORT.md) distinguishes fixture
+success, local real runtime observations and BLOCKED_REAL for genuine history.
+SDK/CLI remain unchanged. Explicit IDs are random UUIDs; Rust SDK 1.0.17 also
+locally generates a UUID when no ID is supplied. `enable_session_store` enables
+cross-session search/indexing; it is not a transcript flush request.
+
+```sh
+python3 experiments/lr-10a-sdk-runtime/run_fix2.py sessions /absolute/path/to/copilot --output /tmp/fix2-isolated.json
+python3 experiments/lr-10a-sdk-runtime/run_fix2.py sessions-existing-auth /absolute/path/to/copilot --output /tmp/fix2-existing-auth.json
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 cargo test --offline --locked --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml -- --test-threads=2
+python3 experiments/lr-10a-sdk-runtime/tests/test_measure.py --evidence /tmp/fix2-python-regression.json
+```
+
+The historical Python evidence writer hardcodes FIX-1 phase/command labels; an
+output filename does not change those labels. The committed FIX-2 regression
+JSON corrects only these labels and retains the runner's observations. Do not
+regenerate historical FIX-1 evidence while retesting FIX-2.
+
+`run_fix2.py` reuses measure.py unchanged, records streamed artifact hashes and
+config stat only. Exit 1 is intentional while the real-history gate is blocked;
+inspect per-case outcomes separately from kernel cleanup. There is no send RPC,
+resume-to-create fallback, retry or delay intended to force persistence.
+
+On the tested local CLI, empty SDK sessions expose an in-memory start event and
+workspace.yaml but no events.jsonl. Detach and restart do not make them resumable.
+The matrix reports this observation instead of claiming durable persistence.
+A fixture-authored events.jsonl containing only session.start can be read by the
+real runtime. That diagnostic has zero model messages and is **not** a workaround
+or a genuine provider history. Corrupt synthetic transcripts are not repaired:
+allow_transcript_recovery remains false and original fixture bytes are checked.
+The local runtime returns -32603, while a current documented -32075 case is
+covered separately in fixtures. Safe numeric codes are retained; RPC prose is
+never exported or interpreted as an authentication/storage diagnosis.
+
+Only randomly owned IDs in private storage are inspected, queried or deleted.
+Storage inspection refuses traversal/symlinks, checks existence/size only, and
+never follows workspace_path returned by the CLI. The synthetic diagnostics
+read back only their own fixture-authored bytes. Guard configuration requires
+the session overlay source to belong to the invocation's private state root.
+The original FIX-1 ownership/cleanup implementation and tests are untouched.

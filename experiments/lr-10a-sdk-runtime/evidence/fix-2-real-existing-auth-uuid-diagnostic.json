@@ -1,0 +1,415 @@
+{
+  "schema_version": 2,
+  "probe": "sessions-existing-auth",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 1,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_nonzero",
+  "wall_ms": 17611.5,
+  "cleanup_ms": 35.55,
+  "peak_process_tree_rss_bytes": 285794304,
+  "peak_owned_processes": 3,
+  "sampled_cpu_seconds_lower_bound": 8.3,
+  "system_processes_before": 330,
+  "system_processes_after": 330,
+  "observed_owned_processes": 13,
+  "attributed_processes": [
+    {
+      "pid": 66702,
+      "start_ticks": 2527510,
+      "basis": "launched_root"
+    }
+  ],
+  "unsampled_attributed_descendants": 0,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 0,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "elapsed_ms": 17533,
+    "inference_calls": 0,
+    "probe": "sessions-existing-auth",
+    "result": {
+      "auth": "authenticated",
+      "cases": [
+        {
+          "abort_empty": "not_requested",
+          "artifacts_active": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "artifacts_detached": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "case": "S1_explicit",
+          "create": "acknowledged",
+          "disconnect": "acknowledged",
+          "explicit_id_preserved": true,
+          "id_kind": "explicit",
+          "message_requests": 0,
+          "metadata_active": {
+            "state": "absent"
+          },
+          "metadata_detached": {
+            "state": "absent"
+          },
+          "same_client_resume": {
+            "code": "session_not_found",
+            "state": "failed"
+          },
+          "store_enabled": true,
+          "timeline": {
+            "assistant_messages": 0,
+            "count": 1,
+            "user_messages": 0
+          },
+          "workspace_path_id_matches": true,
+          "workspace_path_reported": true
+        },
+        {
+          "abort_empty": "not_requested",
+          "artifacts_active": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "artifacts_detached": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "case": "S2_generated",
+          "create": "acknowledged",
+          "disconnect": "acknowledged",
+          "explicit_id_preserved": true,
+          "id_kind": "sdk_generated",
+          "message_requests": 0,
+          "metadata_active": {
+            "state": "absent"
+          },
+          "metadata_detached": {
+            "state": "absent"
+          },
+          "same_client_resume": {
+            "code": "session_not_found",
+            "state": "failed"
+          },
+          "store_enabled": true,
+          "timeline": {
+            "assistant_messages": 0,
+            "count": 1,
+            "user_messages": 0
+          },
+          "workspace_path_id_matches": true,
+          "workspace_path_reported": true
+        },
+        {
+          "abort_empty": "acknowledged",
+          "artifacts_active": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "artifacts_detached": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "case": "S6_abort_empty",
+          "create": "acknowledged",
+          "disconnect": "acknowledged",
+          "explicit_id_preserved": true,
+          "id_kind": "explicit",
+          "message_requests": 0,
+          "metadata_active": {
+            "state": "absent"
+          },
+          "metadata_detached": {
+            "state": "absent"
+          },
+          "same_client_resume": {
+            "code": "session_not_found",
+            "state": "failed"
+          },
+          "store_enabled": true,
+          "timeline": {
+            "assistant_messages": 0,
+            "count": 1,
+            "user_messages": 0
+          },
+          "workspace_path_id_matches": true,
+          "workspace_path_reported": true
+        },
+        {
+          "abort_empty": "not_requested",
+          "artifacts_active": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "artifacts_detached": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "case": "store_disabled_control",
+          "create": "acknowledged",
+          "disconnect": "acknowledged",
+          "explicit_id_preserved": true,
+          "id_kind": "explicit",
+          "message_requests": 0,
+          "metadata_active": {
+            "state": "absent"
+          },
+          "metadata_detached": {
+            "state": "absent"
+          },
+          "same_client_resume": {
+            "code": "session_not_found",
+            "state": "failed"
+          },
+          "store_enabled": false,
+          "timeline": {
+            "assistant_messages": 0,
+            "count": 1,
+            "user_messages": 0
+          },
+          "workspace_path_id_matches": true,
+          "workspace_path_reported": true
+        },
+        {
+          "artifacts_after_restart": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "case": "S3_S4_S1_explicit",
+          "metadata_after_restart": {
+            "state": "absent"
+          },
+          "resume": {
+            "code": "session_not_found",
+            "state": "failed"
+          }
+        },
+        {
+          "artifacts_after_restart": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "case": "S3_S4_S2_generated",
+          "metadata_after_restart": {
+            "state": "absent"
+          },
+          "resume": {
+            "code": "session_not_found",
+            "state": "failed"
+          }
+        },
+        {
+          "artifacts_after_restart": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "case": "S3_S4_S6_abort_empty",
+          "metadata_after_restart": {
+            "state": "absent"
+          },
+          "resume": {
+            "code": "session_not_found",
+            "state": "failed"
+          }
+        },
+        {
+          "artifacts_after_restart": {
+            "events_exists": false,
+            "state": "directory_present",
+            "workspace_bytes": 202,
+            "workspace_exists": true
+          },
+          "case": "S3_S4_store_disabled_control",
+          "metadata_after_restart": {
+            "state": "absent"
+          },
+          "resume": {
+            "code": "session_not_found",
+            "state": "failed"
+          }
+        },
+        {
+          "artifacts_after_delete": {
+            "events_exists": false,
+            "state": "absent"
+          },
+          "case": "S7_delete_S1_explicit",
+          "delete": "acknowledged",
+          "metadata_before_delete": {
+            "state": "absent"
+          },
+          "resume_deleted": {
+            "code": "session_not_found",
+            "state": "failed"
+          }
+        },
+        {
+          "artifacts_after_delete": {
+            "events_exists": false,
+            "state": "absent"
+          },
+          "case": "S7_delete_S2_generated",
+          "delete": "acknowledged",
+          "metadata_before_delete": {
+            "state": "absent"
+          },
+          "resume_deleted": {
+            "code": "session_not_found",
+            "state": "failed"
+          }
+        },
+        {
+          "artifacts_after_delete": {
+            "events_exists": false,
+            "state": "absent"
+          },
+          "case": "S7_delete_S6_abort_empty",
+          "delete": "acknowledged",
+          "metadata_before_delete": {
+            "state": "absent"
+          },
+          "resume_deleted": {
+            "code": "session_not_found",
+            "state": "failed"
+          }
+        },
+        {
+          "artifacts_after_delete": {
+            "events_exists": false,
+            "state": "absent"
+          },
+          "case": "S7_delete_store_disabled_control",
+          "delete": "acknowledged",
+          "metadata_before_delete": {
+            "state": "absent"
+          },
+          "resume_deleted": {
+            "code": "session_not_found",
+            "state": "failed"
+          }
+        }
+      ],
+      "fresh_state_resume": {
+        "code": "session_not_found",
+        "state": "failed"
+      },
+      "inference_calls": 0,
+      "missing_session": {
+        "code": "session_not_found",
+        "state": "failed"
+      },
+      "real_history_resume_gate": "BLOCKED_REAL",
+      "resume_fallback_create": false,
+      "runtime": {
+        "protocol_version": 3,
+        "version": "1.0.90"
+      },
+      "schema_version": 1,
+      "sdk": "1.0.17",
+      "shutdowns": [
+        "graceful",
+        "graceful",
+        "graceful",
+        "graceful"
+      ],
+      "synthetic_disk_controls": [
+        {
+          "case": "S9_synthetic_start_only",
+          "delete": "acknowledged",
+          "message_requests": 0,
+          "metadata": {
+            "same_id": true,
+            "state": "present"
+          },
+          "resume": {
+            "disconnect": "acknowledged",
+            "same_id": true,
+            "state": "resumed"
+          },
+          "shutdown": "graceful",
+          "source": "fixture_authored_not_sdk_persistence",
+          "transcript_bytes_unchanged": true
+        },
+        {
+          "case": "S9_synthetic_corrupt",
+          "delete": "acknowledged",
+          "message_requests": 0,
+          "metadata": {
+            "same_id": true,
+            "state": "present"
+          },
+          "resume": {
+            "code": "rpc_error_unknown",
+            "state": "failed"
+          },
+          "shutdown": "graceful",
+          "source": "fixture_authored_not_sdk_persistence",
+          "transcript_bytes_unchanged": true
+        }
+      ]
+    },
+    "sdk": "1.0.17"
+  },
+  "fix2_provenance": {
+    "phase": "LR-10A FIX-2",
+    "binary_sha256": "36e11b22bdfdcc7c587d2a372c3f02335edcbc5adfd920f1c0cb2c6ccd811171",
+    "sources_sha256": {
+      "src/main.rs": "683a13c9902e48eac339298c21a8efd4d19dedc191cc6d7f3966154f14f13d4f",
+      "src/lib.rs": "7a016681cb1d3233dc8d5ca32823c9b92ed21a59e78fd2f0516d58c7564ded1e",
+      "src/persistence.rs": "0d8af657c3b6d1c8b32d5bc42ecb1969e799dfcca34d791dd5b56c538104313b",
+      "Cargo.toml": "cd92c640fb1bbc5d00816f765e96783cc6ffa4c0caab4a6ea47cc44b025c0120",
+      "Cargo.lock": "5cf2e36e18fb8dd6f9d210b72b97ff9049aa0bd24f82ed936792be8a5cd91713",
+      "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e"
+    },
+    "config_stat_before": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_after": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "config_stat_unchanged": true,
+    "config_contents_read": false,
+    "inference_requests": 0,
+    "driver_exit_code": 1
+  }
+}

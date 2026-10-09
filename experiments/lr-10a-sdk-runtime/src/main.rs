@@ -44,11 +44,37 @@ async fn run() -> i32 {
     )
     .unwrap();
     let start = Instant::now();
+    if args[1].starts_with("sessions") {
+        let session_storage = state.path().join("session-state");
+        std::fs::create_dir(&session_storage).unwrap();
+        let report = persistence::matrix(
+            |root| {
+                persistence::guarded_options(
+                    &cli,
+                    workspace.path(),
+                    state.path(),
+                    root,
+                    args[1].ends_with("existing-auth"),
+                )
+            },
+            workspace.path(),
+            &session_storage,
+        )
+        .await;
+        println!(
+            "{}",
+            json!({"probe":args[1],"sdk":"1.0.17","inference_calls":0,
+            "result":report,"elapsed_ms":start.elapsed().as_millis()})
+        );
+        // Matrix observations do not turn the blocked real-history gate into PASS.
+        return 1;
+    }
     let mut opts = options(cli, workspace.path(), state.path());
     // Manual metadata-only probe against CLI's existing credential store. No login,
     // setters, session creation or config copies. Keep logs in the temporary dir.
     if args[1].ends_with("existing-auth") {
         opts.base_directory = None;
+        opts.env_remove.push("COPILOT_HOME".into());
         // Existing auth can mutate CLI configuration during startup. Enforce a
         // read-only host view for this metadata-only experiment, with only our
         // disposable workspace/log dirs writable. This is not a product sandbox.
@@ -72,25 +98,6 @@ async fn run() -> i32 {
             "--".into(),
             copilot.into_os_string(),
         ];
-        if args[1] == "sessions-existing-auth" {
-            let session_root =
-                Path::new(&std::env::var("HOME").expect("HOME")).join(".copilot/session-state");
-            if !session_root.is_dir() {
-                eprintln!("existing_session_root_missing");
-                return 2;
-            }
-            let disposable_sessions = state.path().join("sessions");
-            std::fs::create_dir(&disposable_sessions).unwrap();
-            let index = opts.prefix_args.len() - 2;
-            opts.prefix_args.splice(
-                index..index,
-                [
-                    "--bind".into(),
-                    disposable_sessions.into_os_string(),
-                    session_root.into_os_string(),
-                ],
-            );
-        }
     }
     let client = match bounded(Client::start(opts)).await {
         Ok(c) => c,
@@ -104,14 +111,7 @@ async fn run() -> i32 {
     };
     let start_ms = start.elapsed().as_millis();
     let pid = client.pid();
-    let result = if args[1].starts_with("metadata") {
-        metadata(&client).await
-    } else {
-        match lifecycle(&client, workspace.path()).await {
-            Ok(v) => v,
-            Err(failure) => json!({"lifecycle_error":{"stage":failure.stage,"code":failure.code}}),
-        }
-    };
+    let result = metadata(&client).await;
     let stop_start = Instant::now();
     let stop = shutdown(&client).await;
     drop(client);

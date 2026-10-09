@@ -1,0 +1,169 @@
+{
+  "observed_at": "2026-10-09T17:00:45.767851+00:00",
+  "source": "official APIs and cached crates.io source",
+  "downloads_runtime_bytes": 0,
+  "sdk_pin_retained": "1.0.17",
+  "cli_not_updated": true,
+  "crates": [
+    {
+      "num": "1.0.19",
+      "created_at": "2026-10-09T16:12:43.272429Z",
+      "yanked": false,
+      "rust_version": "1.94.0",
+      "checksum": "fe6595f455d8b5a7f4672a92d182b2f0746f3ac8ba7c09d938b67d5048cb842f"
+    },
+    {
+      "num": "1.0.18",
+      "created_at": "2026-10-08T20:38:43.796562Z",
+      "yanked": false,
+      "rust_version": "1.94.0",
+      "checksum": "303c71d42f1fc534bd0ea416d266b587933d41cb7f0dce4eee7bd624f5437af0"
+    },
+    {
+      "num": "1.0.17",
+      "created_at": "2026-10-07T14:17:36.740562Z",
+      "yanked": false,
+      "rust_version": "1.94.0",
+      "checksum": "c66d1375ffce624174ffab84f2781225ecd2c5c696ab412bcfabe01794cb0e97"
+    }
+  ],
+  "cli_releases": [
+    {
+      "version": "1.0.91",
+      "published_at": "2026-10-01T17:25:02Z",
+      "prerelease": false,
+      "url": "https://github.com/github/copilot-cli/releases/tag/v1.0.91",
+      "linux_x64_archives": [
+        {
+          "name": "copilot-linux-x64.tar.gz",
+          "bytes": 109315852
+        }
+      ],
+      "release_body_sha256": "edb6b08876907897b8a9609666c46c1b7ff18b3438848ad865abe7a0e98fc30b",
+      "relevant_changes_summary": "Shutdown com flush limitado de telemetria e ajustes de timeline ap\u00f3s interrup\u00e7\u00e3o; sem corre\u00e7\u00e3o confirmada de persist\u00eancia local vazia."
+    },
+    {
+      "version": "1.0.92",
+      "published_at": "2026-10-05T19:42:08Z",
+      "prerelease": false,
+      "url": "https://github.com/github/copilot-cli/releases/tag/v1.0.92",
+      "linux_x64_archives": [
+        {
+          "name": "copilot-linux-x64.tar.gz",
+          "bytes": 110845563
+        }
+      ],
+      "release_body_sha256": "228cb9ec6f704473570a838dc8878dead708c3fa04687abe1410e014773cb10c",
+      "relevant_changes_summary": "Ajustes incluem autentica\u00e7\u00e3o de resume remoto, comandos de configura\u00e7\u00e3o e MCP; n\u00e3o demonstram corre\u00e7\u00e3o do transcript vazio local."
+    },
+    {
+      "version": "1.0.93",
+      "published_at": "2026-10-07T14:06:47Z",
+      "prerelease": false,
+      "url": "https://github.com/github/copilot-cli/releases/tag/v1.0.93",
+      "linux_x64_archives": [
+        {
+          "name": "copilot-linux-x64.tar.gz",
+          "bytes": 112302204
+        }
+      ],
+      "release_body_sha256": "b5495f4fdcb86f6b1e020428adda382b1a907332d0601e32743f3b04580d5497",
+      "relevant_changes_summary": "Ajustes de sandbox/pol\u00edticas e leitura de settings.json; vers\u00e3o de refer\u00eancia da crate 1.0.17. Sem garantia de flush vazio identificada."
+    },
+    {
+      "version": "1.0.94",
+      "published_at": "2026-10-08T20:28:44Z",
+      "prerelease": false,
+      "url": "https://github.com/github/copilot-cli/releases/tag/v1.0.94",
+      "linux_x64_archives": [
+        {
+          "name": "copilot-linux-x64.tar.gz",
+          "bytes": 114446049
+        }
+      ],
+      "release_body_sha256": "e9750a347da0d5fa01316898deff7813915aec9c88ae109ad5126b8a5a90f592",
+      "relevant_changes_summary": "Mudan\u00e7as em MCP, aprova\u00e7\u00e3o assistida, UI e pol\u00edticas; refer\u00eancia da crate 1.0.18. Sem corre\u00e7\u00e3o de persist\u00eancia vazia comprovada."
+    },
+    {
+      "version": "1.0.95",
+      "published_at": "2026-10-09T16:04:26Z",
+      "prerelease": false,
+      "url": "https://github.com/github/copilot-cli/releases/tag/v1.0.95",
+      "linux_x64_archives": [
+        {
+          "name": "copilot-linux-x64.tar.gz",
+          "bytes": 114500539
+        }
+      ],
+      "release_body_sha256": "10f13a69751ebbceabb1930d18210189bf3abdc3768844b5b81e09739bb73439",
+      "relevant_changes_summary": "Ajustes de auth macOS, configura\u00e7\u00e3o e contexto em sess\u00f5es ACP novas/retomadas; n\u00e3o demonstram corre\u00e7\u00e3o de persist\u00eancia do fluxo testado."
+    }
+  ],
+  "registry_max_stable": "1.0.19",
+  "registry_url": "https://crates.io/api/v1/crates/github-copilot-sdk",
+  "cached_sources": {
+    "1.0.17": {
+      "cli_snapshot": "version=1.0.93",
+      "files_sha256": {
+        "Cargo.toml": "5b9bde31055b59d168a7d617f693bf075bf4b49a53173f712ca7b37aee06ce3b",
+        "README.md": "24bb1397d66a6a944708bbfbf20e6cc0a6f9cdd83ffc8a7135a3404199fee860",
+        "src/lib.rs": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+        "src/session.rs": "c358f0f773c7687947f89a9be7cc2c988db279cd33993d7024b40ce1f0a3b196",
+        "src/types.rs": "e4276d1da838b5d23b7d5c3a76a35d89357bfdcef578d496edd1c5191530ca3f",
+        "cli-version.txt": "181388173bea2c2d4d945ce435608d7e675e9db2b468d9312920d8bef774b36b"
+      }
+    },
+    "1.0.18": {
+      "cli_snapshot": "version=1.0.94",
+      "files_sha256": {
+        "Cargo.toml": "0e109d53a9b74221f564174b1c1b20e5c415ff92b069c939cbba07f1a7c14200",
+        "README.md": "617468b664cbc34073be4c8358c25341a71504cb8e46d25edca0b52803f4b662",
+        "src/lib.rs": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+        "src/session.rs": "0e2f6cbf8ab1be99e7f82ad7e0bebcb8e2e10bf3d6f6504fcf381a5daf0dd36c",
+        "src/types.rs": "04bd0f77c3b246185fd49e5c7f9d7f8c481f117f3c1803c80fcd389db75eb291",
+        "cli-version.txt": "eec2d383dc6ae976193e1c88bb16dd01a9109f4dd1bad041357c5210fbf009b2"
+      }
+    }
+  },
+  "latest_sdk_release": {
+    "tag_name": "v1.0.19",
+    "published_at": "2026-10-09T16:17:38Z",
+    "prerelease": false,
+    "html_url": "https://github.com/github/copilot-sdk/releases/tag/v1.0.19",
+    "changes": "Internal dependency updates only (Copilot CLI snapshot updates); no user-visible SDK changes in this release."
+  },
+  "cached_17_18_comparison": [
+    {
+      "file": "src/lib.rs",
+      "bytes_equal": true,
+      "sha256_1_0_17": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+      "sha256_1_0_18": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23"
+    },
+    {
+      "file": "src/session.rs",
+      "bytes_equal": false,
+      "sha256_1_0_17": "c358f0f773c7687947f89a9be7cc2c988db279cd33993d7024b40ce1f0a3b196",
+      "sha256_1_0_18": "0e2f6cbf8ab1be99e7f82ad7e0bebcb8e2e10bf3d6f6504fcf381a5daf0dd36c"
+    },
+    {
+      "file": "src/types.rs",
+      "bytes_equal": false,
+      "sha256_1_0_17": "e4276d1da838b5d23b7d5c3a76a35d89357bfdcef578d496edd1c5191530ca3f",
+      "sha256_1_0_18": "04bd0f77c3b246185fd49e5c7f9d7f8c481f117f3c1803c80fcd389db75eb291"
+    },
+    {
+      "file": "README.md",
+      "bytes_equal": false,
+      "sha256_1_0_17": "24bb1397d66a6a944708bbfbf20e6cc0a6f9cdd83ffc8a7135a3404199fee860",
+      "sha256_1_0_18": "617468b664cbc34073be4c8358c25341a71504cb8e46d25edca0b52803f4b662"
+    }
+  ],
+  "crate_vcs_1_0_17": {
+    "git": {
+      "sha1": "0e56b9a0033f48e4358ee027a4077cd6ebd61f32",
+      "dirty": true
+    },
+    "path_in_vcs": "src/sdk/rust"
+  },
+  "versioned_source_base": "https://docs.rs/crate/github-copilot-sdk/1.0.17/source/"
+}

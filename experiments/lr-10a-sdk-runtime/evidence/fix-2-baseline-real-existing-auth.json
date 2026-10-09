@@ -1,0 +1,72 @@
+{
+  "schema_version": 2,
+  "probe": "sessions-existing-auth",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 1,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_nonzero",
+  "wall_ms": 4097.96,
+  "cleanup_ms": 33.73,
+  "peak_process_tree_rss_bytes": 280006656,
+  "peak_owned_processes": 3,
+  "sampled_cpu_seconds_lower_bound": 1.46,
+  "system_processes_before": 322,
+  "system_processes_after": 322,
+  "observed_owned_processes": 3,
+  "attributed_processes": [
+    {
+      "pid": 65427,
+      "start_ticks": 2461472,
+      "basis": "launched_root"
+    }
+  ],
+  "unsampled_attributed_descendants": 0,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 0,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "inference_calls": 0,
+    "owned_pid_gone": true,
+    "pid": 65428,
+    "probe": "sessions-existing-auth",
+    "result": {
+      "lifecycle_error": {
+        "code": "session_not_found",
+        "stage": "resume"
+      }
+    },
+    "sdk": "1.0.17",
+    "shutdown": "graceful",
+    "start_ms": 2547,
+    "stop_ms": 1295
+  },
+  "driver_exit_code": 1,
+  "global_config_stat": {
+    "before": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "after": {
+      "inode": 3734806,
+      "bytes": 470,
+      "mtime_ns": 1791556078357782432,
+      "ctime_ns": 1791556078357782432
+    },
+    "unchanged": true,
+    "contents_not_read": true
+  },
+  "sample_phase": "baseline_original_binary_before_fix2_successful_build"
+}

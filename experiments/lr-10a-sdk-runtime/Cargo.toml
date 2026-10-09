@@ -13,6 +13,8 @@ github-copilot-sdk = { version = "=1.0.17", default-features = false, features =
 serde_json = "=1.0.150"
 tokio = { version = "=1.52.3", features = ["macros", "rt", "time", "process", "io-util"] }
 tempfile = "=3.27.0"
+# Already present transitively in the SDK lock; explicit POC IDs must be UUIDs.
+uuid = { version = "=1.27.0", default-features = false, features = ["v4"] }
 
 [features]
 # Technical comparison only; acquisition must be explicitly enabled by operator.
