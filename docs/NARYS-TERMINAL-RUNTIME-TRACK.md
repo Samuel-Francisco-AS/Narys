@@ -1,6 +1,6 @@
 # LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** EM ANDAMENTO — LR-9A/B/C em PASS, encerradas, auditadas e integradas; LR-9D IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna.
+**Estado:** EM ANDAMENTO — LR-9A/B/C integradas; LR-9D encerrada em PASS técnico + auditoria independente; próxima subfase: LR-9E.
 **Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
 registrada originalmente durante a PERF-1B em 07/10/2026.  
 **Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
@@ -392,15 +392,22 @@ fechar view não afeta execução.
 
 ### LR-9D — Cognitive / Agent Trace Adapters
 
-**Estado:** IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.
-Gates locais e evidências em [LR-9D-COGNITIVE-AGENT-TRACE-ADAPTERS.md](LR-9D-COGNITIVE-AGENT-TRACE-ADAPTERS.md).
+**Estado:** **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 08/10/2026.**
 
-Adaptar TaskEventKind, Scheduler/TaskGraph/workers, providers quando houver
-evento útil e bridge Codex atual como primeira prova agentiva passiva. Deixar
-contrato pronto para Copilot.
+Task lifecycle, Scheduler/provider routing, TaskGraph/workers, Summary minimization
+e bridge Codex foram conectados ao OperationalTraceBus por adapters passivos.
+Conversation expõe somente ProviderText já funcionalmente exibido; roles internos
+permanecem metadata-only. Raw reasoning Codex não possui caminho textual no trace.
 
-Gate: provenance correta, zero trabalho extra para gerar trace, conteúdo não
-exposto continua não exposto e sanitização não vaza segredo/protocolo bruto.
+A auditoria independente confirmou deduplicação, provenance/correlation,
+failure isolation e zero nova inference/prompt/call/authority. Nenhuma FIX
+bloqueante foi necessária.
+
+Dívida obrigatória da LR-9E: profiling e eventual otimização do overhead síncrono
+do OperationalTraceBus sob burst, com comparação release, CPU/RSS físico e carga
+representativa antes do fechamento final da LR-9.
+
+[Fechamento, mappings, segurança e evidências](LR-9D-COGNITIVE-AGENT-TRACE-ADAPTERS.md).
 
 ### LR-9E — Concurrency, Security & Final Gate
 
