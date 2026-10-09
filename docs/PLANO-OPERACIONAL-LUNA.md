@@ -507,7 +507,7 @@ Plano detalhado: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURC
 
 ## 13. LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado: EM ANDAMENTO — LR-9A/B/C encerradas em PASS técnico + auditoria independente em 08/10/2026; próxima subfase: LR-9D.**
+**Estado: EM ANDAMENTO — LR-9A/B/C/D encerradas em PASS técnico + auditoria independente em 08/10/2026; próxima subfase: LR-9E.**
 
 LR-9A estabeleceu o Observation Plane com contratos tipados,
 OperationalTraceBus process-wide, retenção priority-aware/bounded, live
@@ -519,15 +519,24 @@ drenagem bounded independente da UI, cancellation/reap e shutdown Headless-safe.
 
 LR-9C materializou a Human Operational Surface: Home virou Terminal lazy,
 registry/reattach humano, Channels raw para PTY, Activity bounded/virtualizada,
-input/resize coalescidos e continuidade Close/Headless/Reopen. Agents continuam
-sem execution authority e não existe generic shell IPC.
+input/resize coalescidos e continuidade Close/Headless/Reopen.
+
+LR-9D conectou Task lifecycle, Scheduler/providers, TaskGraph/workers, Summary e
+Codex planner ao Observation Plane por adapters passivos, com deduplicação,
+minimização de conteúdo, raw reasoning fail-closed e zero nova inference/prompt.
+O overhead síncrono observado sob burst foi elevado a dívida obrigatória da LR-9E
+para profiling e eventual otimização antes do fechamento final da LR-9.
+
+Agents continuam sem execution authority e não existe generic shell IPC.
 
 Fechamentos e evidências:
 - [LR-9A — Operational Trace Bus](LR-9A-OPERATIONAL-TRACE-BUS.md)
 - [LR-9B — Execution Broker & Real PTY Runtime](LR-9B-EXECUTION-BROKER-PTY.md)
 - [LR-9B — evidência nativa](LR-9B-NATIVE-EVIDENCE.json)
 - [LR-9C — Terminal Surface & Stream Management](LR-9C-TERMINAL-SURFACE-STREAMS.md)
-- [LR-9C — evidência nativa](LR-9C-NATIVE-EVIDENCE.json).
+- [LR-9C — evidência nativa](LR-9C-NATIVE-EVIDENCE.json)
+- [LR-9D — Cognitive / Agent Trace Adapters](LR-9D-COGNITIVE-AGENT-TRACE-ADAPTERS.md)
+- [LR-9D — gate evidence](LR-9D-GATE-EVIDENCE.json).
 
 O antigo escopo Luna Voice / feedback natural foi adiado para uma trilha futura
 sem posição fixa. LR-9 passa a preparar a infraestrutura operacional que
