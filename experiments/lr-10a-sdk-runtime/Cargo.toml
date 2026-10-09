@@ -1,0 +1,19 @@
+[package]
+name = "narys-lr10a-poc"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94.0"
+publish = false
+
+# Deliberately independent of the production Tauri crate.
+[workspace]
+
+[dependencies]
+github-copilot-sdk = { version = "=1.0.17", default-features = false, features = ["runtime"] }
+serde_json = "=1.0.150"
+tokio = { version = "=1.52.3", features = ["macros", "rt", "time", "process", "io-util"] }
+tempfile = "=3.27.0"
+
+[features]
+# Technical comparison only; acquisition must be explicitly enabled by operator.
+bundle-comparison = ["github-copilot-sdk/bundled-cli"]

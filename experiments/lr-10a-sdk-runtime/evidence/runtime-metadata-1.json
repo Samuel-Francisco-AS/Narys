@@ -1,0 +1,42 @@
+{
+  "probe": "metadata",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_ms": 2961.07,
+  "peak_process_tree_rss_bytes": 386523136,
+  "peak_owned_processes": 4,
+  "sampled_cpu_seconds_lower_bound": 1.91,
+  "system_processes_before": 348,
+  "system_processes_after": 349,
+  "observed_owned_processes": 7,
+  "owned_survivors": [],
+  "sdk_report": {
+    "inference_calls": 0,
+    "owned_pid_gone": true,
+    "pid": 24624,
+    "probe": "metadata",
+    "result": {
+      "auth": {
+        "entitlement": "unknown_until_service_metadata",
+        "identity_omitted": true,
+        "state": "authentication_required"
+      },
+      "catalog": {
+        "error": "rpc_error_unknown",
+        "state": "models_unavailable"
+      },
+      "quota": {
+        "error": "rpc_error_unknown",
+        "source": "account.getQuota",
+        "state": "quota_unknown"
+      }
+    },
+    "sdk": "1.0.17",
+    "shutdown": "graceful",
+    "start_ms": 2695,
+    "stop_ms": 74
+  }
+}

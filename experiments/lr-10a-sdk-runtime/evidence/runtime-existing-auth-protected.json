@@ -1,0 +1,96 @@
+{
+  "probe": "metadata-existing-auth",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_ms": 6301.37,
+  "peak_process_tree_rss_bytes": 339365888,
+  "peak_owned_processes": 5,
+  "sampled_cpu_seconds_lower_bound": 1.8,
+  "system_processes_before": 356,
+  "system_processes_after": 355,
+  "observed_owned_processes": 5,
+  "owned_survivors": [],
+  "sdk_report": {
+    "inference_calls": 0,
+    "owned_pid_gone": true,
+    "pid": 40477,
+    "probe": "metadata-existing-auth",
+    "result": {
+      "auth": {
+        "entitlement": "unknown_until_service_metadata",
+        "identity_omitted": true,
+        "state": "authenticated"
+      },
+      "catalog": {
+        "auto_in_catalog": true,
+        "models": [
+          {
+            "billing": null,
+            "capabilities": {},
+            "id": "auto",
+            "policy": null
+          }
+        ],
+        "state": "observed"
+      },
+      "quota": {
+        "snapshots": [
+          {
+            "kind": "premium_interactions",
+            "snapshot": {
+              "entitlementRequests": 200,
+              "isUnlimitedEntitlement": false,
+              "overage": 0.0,
+              "overageAllowedWithExhaustedQuota": false,
+              "remainingPercentage": 74.2,
+              "resetDate": "2026-10-09T14:27:58.087Z",
+              "usageAllowedWithExhaustedQuota": false,
+              "usedRequests": 52
+            },
+            "state": "quota_available",
+            "unit": "requests_as_reported_by_runtime"
+          },
+          {
+            "kind": "chat",
+            "snapshot": {
+              "entitlementRequests": 0,
+              "isUnlimitedEntitlement": true,
+              "overage": 0.0,
+              "overageAllowedWithExhaustedQuota": false,
+              "remainingPercentage": 100.0,
+              "resetDate": "2026-10-09T14:27:58.086Z",
+              "usageAllowedWithExhaustedQuota": false,
+              "usedRequests": 0
+            },
+            "state": "unlimited_reported",
+            "unit": "requests_as_reported_by_runtime"
+          },
+          {
+            "kind": "completions",
+            "snapshot": {
+              "entitlementRequests": 0,
+              "isUnlimitedEntitlement": true,
+              "overage": 0.0,
+              "overageAllowedWithExhaustedQuota": false,
+              "remainingPercentage": 100.0,
+              "resetDate": "2026-10-09T14:27:58.086Z",
+              "usageAllowedWithExhaustedQuota": false,
+              "usedRequests": 0
+            },
+            "state": "unlimited_reported",
+            "unit": "requests_as_reported_by_runtime"
+          }
+        ],
+        "source": "account.getQuota",
+        "state": "observed"
+      }
+    },
+    "sdk": "1.0.17",
+    "shutdown": "graceful",
+    "start_ms": 3929,
+    "stop_ms": 903
+  }
+}

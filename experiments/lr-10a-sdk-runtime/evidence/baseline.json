@@ -1,0 +1,74 @@
+{
+  "base_sha": "6603a78bd34cfffbd019ced8fa870d9bea02a7fb",
+  "date": "2026-10-09T11:39:30-03:00",
+  "os": "Fedora Linux 44 Workstation x86_64",
+  "kernel": "7.2.8-200.fc44.x86_64",
+  "ram_kib": 8007536,
+  "host_rustc": "1.98.1 (48a229cea 2026-09-01) Fedora",
+  "host_cargo": "1.98.1 (797e8a9bc 2026-08-05) Fedora",
+  "node": "24.18.0",
+  "cli": "1.0.91",
+  "bwrap": "0.12.0",
+  "isolated_rustc": "1.94.0 (4a4ef493e 2026-03-02)",
+  "isolated_cargo": "1.94.0 (85eff7c80 2026-01-15)",
+  "sdk": {
+    "name": "github-copilot-sdk",
+    "version": "1.0.17",
+    "source": "registry+https://github.com/rust-lang/crates.io-index",
+    "checksum": "c66d1375ffce624174ffab84f2781225ecd2c5c696ab412bcfabe01794cb0e97",
+    "dependencies": [
+      "async-trait",
+      "base64",
+      "bytes",
+      "dirs",
+      "flate2",
+      "futures-util",
+      "getrandom 0.4.3",
+      "http",
+      "indexmap",
+      "native-tls",
+      "parking_lot",
+      "regex",
+      "reqwest",
+      "serde",
+      "serde_json",
+      "sha2",
+      "tar",
+      "tokio",
+      "tokio-stream",
+      "tokio-tungstenite",
+      "tokio-util",
+      "tracing",
+      "ureq",
+      "uuid",
+      "windows-sys 0.61.2",
+      "zip"
+    ]
+  },
+  "features": [
+    "runtime"
+  ],
+  "default_features": false,
+  "build_env": "COPILOT_SKIP_CLI_DOWNLOAD=1",
+  "sdk_vcs": {
+    "git": {
+      "sha1": "0e56b9a0033f48e4358ee027a4077cd6ebd61f32",
+      "dirty": true
+    },
+    "path_in_vcs": "src/sdk/rust"
+  },
+  "cli_native_sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+  "cli_native_bytes": 178457408,
+  "poc_debug_binary_bytes": 102990896,
+  "all_target_packages_including_root": 219,
+  "highest_declared_msrv": "1.94.0",
+  "production_lock_highest_declared_msrv": "1.88.0",
+  "narys_manifest_unchanged": true,
+  "bundled_assets_metadata_bytes": {
+    "copilot-linux-x64.tar.gz": 112302204,
+    "github-copilot-1.0.93-linux-x64.tgz": 72741899
+  },
+  "bundle_bytes_downloaded": 0,
+  "inference_calls": 0,
+  "operational_gate": "BLOCKED_REAL"
+}

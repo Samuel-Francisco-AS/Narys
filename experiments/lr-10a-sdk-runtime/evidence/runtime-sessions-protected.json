@@ -1,0 +1,24 @@
+{
+  "probe": "sessions-existing-auth",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 1,
+  "timed_out": false,
+  "wall_ms": 15233.52,
+  "peak_process_tree_rss_bytes": 70328320,
+  "peak_owned_processes": 4,
+  "sampled_cpu_seconds_lower_bound": 0.17,
+  "system_processes_before": 357,
+  "system_processes_after": 358,
+  "observed_owned_processes": 4,
+  "owned_survivors": [
+    41743,
+    41788
+  ],
+  "sdk_report": {
+    "elapsed_ms": 15001,
+    "inference_calls": 0,
+    "start_error": "timeout"
+  }
+}

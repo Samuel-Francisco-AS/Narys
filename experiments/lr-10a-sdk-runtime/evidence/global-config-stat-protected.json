@@ -1,0 +1,6 @@
+{
+  "method": "stat only; content never read",
+  "unchanged": true,
+  "changed_names": [],
+  "probe_exit": 0
+}

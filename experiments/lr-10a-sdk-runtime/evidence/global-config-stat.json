@@ -1,0 +1,8 @@
+{
+  "method": "stat only; no file content read",
+  "unchanged": false,
+  "changed_names": [
+    "config.json"
+  ],
+  "probe_exit": 0
+}

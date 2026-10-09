@@ -1,0 +1,40 @@
+AWAITING_HUMAN_APPROVAL / BLOCKED_REAL
+
+This is inert text. Do not execute without separate human approval for inference
+and quota consumption AND resolution/retest of the A6/A7 runtime failures.
+The POC executable intentionally has no inference command.
+
+Preparation (local only, authorized; no Copilot call):
+FIXTURE_ROOT=$(mktemp -d /tmp/narys-lr10a-a9-fixture.XXXXXX)
+STATE_ROOT=$(mktemp -d /tmp/narys-lr10a-a9-state.XXXXXX)
+cp experiments/lr-10a-sdk-runtime/fixtures/a9-read-only.txt "$FIXTURE_ROOT/fixture.txt"
+mkdir "$STATE_ROOT/sessions" "$STATE_ROOT/logs"
+CLI_NATIVE=/absolute/path/to/version-verified/copilot
+
+Future command (NOT EXECUTED, NOT VALIDATED end-to-end):
+bwrap --ro-bind / / --dev-bind /dev /dev --proc /proc \
+  --bind "$STATE_ROOT" "$STATE_ROOT" \
+  --bind "$STATE_ROOT/sessions" "$HOME/.copilot/session-state" \
+  --chdir "$FIXTURE_ROOT" -- "$CLI_NATIVE" \
+  --no-auto-update --disable-builtin-mcps --log-level none \
+  --log-dir "$STATE_ROOT/logs" --model auto \
+  --available-tools=view --deny-tool=shell --deny-tool=write \
+  -p 'Leia apenas fixture.txt. Informe alpha + beta em uma frase. Não edite arquivos, execute comandos, use rede como ferramenta, delegue ou inicie outra tarefa.'
+
+Run only under an audited owned-process cleanup harness; the raw command above
+is a reviewable specification, not an approved operation. Additional configured
+MCPs/skills/instructions must be excluded before a real run; CLI deny/tool flags
+and a prompt alone do not establish isolation. The read-only host mount prevents
+host writes, but exposes readable host data and devices and allows networking.
+This is not a production sandbox or a proof of least privilege.
+
+Procedure after approval:
+1. Capture safe auth/catalog/quota metadata before; unknown quota blocks admission.
+2. Confirm pinned CLI/SDK, read-only fixture hash, zero configured extension tools,
+   no escaped descendants and a hard timeout/cleanup owner.
+3. Execute at most one explicitly budgeted inference after approval. No fallback,
+   YOLO, Autopilot or paid overage. Auto being listed does not prove model access.
+4. Record exit status, permitted events and provider usage/quota after, with units.
+   Absence of usage is unknown, never zero. session.idle is not task success.
+5. Verify fixture bytes unchanged and all owned processes reaped; verify the answer
+   independently against expected_sum. Audit before assigning any real gate result.

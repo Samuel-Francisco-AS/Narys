@@ -1,0 +1,4 @@
+LR-10A read-only fixture
+alpha = 2
+beta = 3
+expected_sum = 5

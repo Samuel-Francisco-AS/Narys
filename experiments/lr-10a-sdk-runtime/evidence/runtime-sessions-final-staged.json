@@ -1,0 +1,34 @@
+{
+  "probe": "sessions",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 1,
+  "timed_out": false,
+  "wall_ms": 3447.18,
+  "peak_process_tree_rss_bytes": 346943488,
+  "peak_owned_processes": 4,
+  "sampled_cpu_seconds_lower_bound": 1.91,
+  "system_processes_before": 352,
+  "system_processes_after": 358,
+  "observed_owned_processes": 6,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 0,
+  "sdk_report": {
+    "inference_calls": 0,
+    "owned_pid_gone": true,
+    "pid": 49023,
+    "probe": "sessions",
+    "result": {
+      "lifecycle_error": {
+        "code": "session_not_found",
+        "stage": "resume"
+      }
+    },
+    "sdk": "1.0.17",
+    "shutdown": "graceful",
+    "start_ms": 3111,
+    "stop_ms": 31
+  }
+}
