@@ -1,0 +1,35 @@
+[
+  {
+    "type": "environment",
+    "productionFrontend": true,
+    "syntheticIPC": true,
+    "mode": "economy",
+    "url": "http://127.0.0.1:4173/",
+    "session": "wayland",
+    "softwareRendering": "1",
+    "webkit": [
+      2,
+      54,
+      0
+    ]
+  },
+  {
+    "type": "shell-result",
+    "pass": true,
+    "gate": "LR-9D Activity real WebKit / native adapter DTO fixtures",
+    "rows": [
+      "10:04:37 PM\nSTATE\ncore/core\ntask_started",
+      "10:04:37 PM\nSTATE\nscheduler/scheduler\nprovider_selected\nprovider=p model=m attempt=1 reason=fixed score=42",
+      "10:04:37 PM\nSTREAM\ncognitive_provider/p\nprovider_text\nSaída pública 🦀",
+      "10:04:37 PM\nSTATE\ntask_graph/task_graph\ntask_planned\nsteps=2",
+      "10:04:37 PM\nSTATE\nworker/worker\nsubtask_started",
+      "10:04:37 PM\nSTATE\nspecialist_agent/codex\nsession_ready",
+      "10:04:37 PM\nSTREAM\nspecialist_agent/codex\nagent_message\nMensagem natural do planner",
+      "10:04:37 PM\nSTREAM\nspecialist_agent/codex\ndisplay_reasoning_summary\nResumo explicitamente exibível",
+      "10:04:37 PM\nCRITICAL\nspecialist_agent/codex\nagent_completed"
+    ],
+    "width": 640,
+    "providerCalls": 0,
+    "agentRequests": 0
+  }
+]

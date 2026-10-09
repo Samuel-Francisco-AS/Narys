@@ -1,6 +1,6 @@
 # LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** EM ANDAMENTO — LR-9A/B encerradas, auditadas e integradas; LR-9C IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.
+**Estado:** EM ANDAMENTO — LR-9A/B/C em PASS, encerradas, auditadas e integradas; LR-9D IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna.
 **Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
 registrada originalmente durante a PERF-1B em 07/10/2026.  
 **Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
@@ -392,6 +392,9 @@ fechar view não afeta execução.
 
 ### LR-9D — Cognitive / Agent Trace Adapters
 
+**Estado:** IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.
+Gates locais e evidências em [LR-9D-COGNITIVE-AGENT-TRACE-ADAPTERS.md](LR-9D-COGNITIVE-AGENT-TRACE-ADAPTERS.md).
+
 Adaptar TaskEventKind, Scheduler/TaskGraph/workers, providers quando houver
 evento útil e bridge Codex atual como primeira prova agentiva passiva. Deixar
 contrato pronto para Copilot.
@@ -449,9 +452,11 @@ Registro:
 
 ## 16. Próxima ação
 
-LR-9A e LR-9B estão encerradas em PASS, auditadas e integradas.
-A **LR-9C está como implementação candidata**, aguardando auditoria independente
-da Luna. Não há PASS definitivo, PR ou merge nesta entrega.
+LR-9A, LR-9B e LR-9C estão encerradas em PASS, auditadas e integradas.
+A LR-9D é IMPLEMENTAÇÃO CANDIDATA na branch
+`lr-9d-cognitive-agent-trace-adapters`, com gates locais verdes e evidências
+registradas. Próxima ação: auditoria independente da Luna; PASS definitivo
+depende dessa auditoria.
 
-LR-9D/E permanecem sem implementação. Adapters cognitivos/agentivos reais,
-approvals, sandbox e handoff continuam nas fases seguintes.
+LR-9E permanece sem implementação. Approvals, sandbox e execution authority
+agentiva continuam nas fases seguintes; LR-9D observa somente fatos existentes.

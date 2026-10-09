@@ -1,0 +1,219 @@
+{
+  "status": "IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna",
+  "base": "46da34e0cf316fb11f4ed01a0f516b627641991f",
+  "branch": "lr-9d-cognitive-agent-trace-adapters",
+  "date": "2026-10-08",
+  "environment": {
+    "rustc": "1.98.1 Fedora",
+    "cargo": "1.98.1 Fedora",
+    "node": "24.18.0",
+    "npm": "12.0.2",
+    "profile": "debug (overhead)",
+    "session": "Wayland",
+    "network": "no commercial provider"
+  },
+  "gates": {
+    "typecheck": "ok",
+    "build": "ok",
+    "cargoCheck": "ok",
+    "cargoCheckRelease": "ok",
+    "cargoTest": {
+      "passed": 1101,
+      "failed": 0,
+      "ignored": 2,
+      "seconds": 210.66,
+      "testThreads": 4
+    },
+    "adapters": {
+      "passed": 19,
+      "failed": 0
+    },
+    "lr9dIntegration": {
+      "passed": 9,
+      "failed": 0
+    },
+    "activityNativeDto": {
+      "passed": 1,
+      "failed": 0
+    },
+    "dedicatedStress": {
+      "passed": 1,
+      "failed": 0
+    },
+    "security": "ok",
+    "diffCheck": "ok",
+    "scopedRustfmt": "ok",
+    "nodeRegressionScripts": 9,
+    "lr9cWebkit": {
+      "type": "shell-result",
+      "pass": true,
+      "gate": "LR-9C WebKit DOM",
+      "maxRows": 31,
+      "rows": 0,
+      "retained": 1024,
+      "lazyLoads": 1,
+      "width": 1120,
+      "metrics": {
+        "opens": 1,
+        "closes": 1,
+        "attaches": 3,
+        "detaches": 2,
+        "sent": [
+          [
+            195,
+            161,
+            27,
+            91,
+            65,
+            13,
+            116,
+            101,
+            120,
+            116
+          ]
+        ],
+        "session": {
+          "sessionId": "9007199254740993",
+          "shell": "fixture-sh",
+          "startingDirectory": "/fixture",
+          "state": "cancelled",
+          "rows": 18,
+          "cols": 75,
+          "exitCode": null,
+          "reaped": true
+        }
+      }
+    }
+  },
+  "equivalence": {
+    "conversation": {
+      "providerCalls": 3,
+      "retries": 1,
+      "fallbacks": 1,
+      "inputTokens": 11,
+      "outputTokens": 13,
+      "outputTokensAccounted": 13,
+      "equal": [
+        "requests",
+        "attempts",
+        "calls",
+        "output",
+        "usage"
+      ]
+    },
+    "worker": {
+      "providerCalls": 3,
+      "outputTokens": 13,
+      "outputTokensAccounted": 80,
+      "equal": [
+        "requests",
+        "output",
+        "usage"
+      ]
+    },
+    "summary": {
+      "providerCalls": 1,
+      "equal": [
+        "ProcessOutcome",
+        "requestInput",
+        "persistedSummaryStatus",
+        "persistedTitle",
+        "persistedSummary"
+      ]
+    },
+    "codex": {
+      "turnStartPerOperation": 1,
+      "interruptOnSuccess": 0,
+      "interruptOnCancel": 1,
+      "equal": [
+        "requests",
+        "result",
+        "cleanup",
+        "functionalEvents"
+      ]
+    }
+  },
+  "overhead": [
+    {
+      "mode": 0,
+      "source_events": 27086,
+      "operational_events": 0,
+      "retained": 0,
+      "bytes": 0,
+      "evicted_stream": 0,
+      "dropped_stream": 0,
+      "live_dropped": 0,
+      "elapsed_ms": 57,
+      "provider_calls": 22,
+      "agent_turn_starts": 2,
+      "modeName": "noop"
+    },
+    {
+      "mode": 1,
+      "source_events": 27086,
+      "operational_events": 12090,
+      "retained": 922,
+      "bytes": 282788,
+      "evicted_stream": 11168,
+      "dropped_stream": 0,
+      "live_dropped": 0,
+      "elapsed_ms": 3425,
+      "provider_calls": 22,
+      "agent_turn_starts": 2,
+      "modeName": "active_headless"
+    },
+    {
+      "mode": 2,
+      "source_events": 27086,
+      "operational_events": 12090,
+      "retained": 922,
+      "bytes": 282826,
+      "evicted_stream": 11168,
+      "dropped_stream": 0,
+      "live_dropped": 12026,
+      "elapsed_ms": 3488,
+      "provider_calls": 22,
+      "agent_turn_starts": 2,
+      "modeName": "active_full_subscriber"
+    }
+  ],
+  "stressPriority": {
+    "retainedEventBudget": 1024,
+    "retainedByteBudget": 2097152,
+    "stateEviction": 0,
+    "criticalEviction": 0,
+    "stateDrop": 0,
+    "criticalDrop": 0,
+    "retainedCritical": 6
+  },
+  "security": {
+    "extraInference": 0,
+    "extraPrompts": 0,
+    "extraAgentRequests": 0,
+    "newExecutionAuthority": 0,
+    "newTauriCommands": 0,
+    "newPermissions": 0,
+    "newCapabilities": 0,
+    "newMigrations": 0,
+    "newRustDependencies": 0,
+    "newNpmDependencies": 0,
+    "frontendChanges": 0,
+    "rawReasoningExposed": false,
+    "summaryTranscriptExposed": false,
+    "forbiddenPayloadExposed": false
+  },
+  "limits": [
+    "debug overhead material; no causal profiling/release benchmark",
+    "logical budgets are not RSS",
+    "controlled WebKit/IPC fixture, no authenticated end-to-end provider run",
+    "two inherited authenticated Codex tests ignored",
+    "MSRV 1.77.2 not attested",
+    "independent Luna audit pending"
+  ],
+  "warnings": {
+    "debugCheck": 19,
+    "releaseCheck": 42,
+    "testBuild": 3,
+    "viteChunk": "AvatarViewport 634.27 kB (>500 kB)"
+  }
+}

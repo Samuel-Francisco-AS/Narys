@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--url', default='http://127.0.0.1:4173/')
 parser.add_argument('--mode', choices=['economy', 'presence'], default='economy')
 parser.add_argument('--test', action='store_true')
+parser.add_argument('--lr9d', action='store_true', help='LR-9D Activity native adapter DTO fixture')
 parser.add_argument('--lr9c', action='store_true', help='LR-9C synthetic IPC/real xterm DOM suite')
 parser.add_argument('--screenshot')
 parser.add_argument('--width', type=int, default=1120)
@@ -40,7 +41,13 @@ def message(_, result):
     data = json.loads(text)
     if data.get('type') == 'shell-result':
         passed = data.get('pass', False)
-        Gtk.main_quit()
+        if args.lr9d and args.screenshot and passed:
+            def save_activity(view, result):
+                view.get_snapshot_finish(result).write_to_png(args.screenshot)
+                Gtk.main_quit()
+            view.get_snapshot(WebKit2.SnapshotRegion.VISIBLE, WebKit2.SnapshotOptions.NONE, None, save_activity)
+        else:
+            Gtk.main_quit()
 manager.connect('script-message-received::perf', message)
 fixture = Path(__file__).with_name('fixtures').joinpath('perf1a-webkit-interaction.js').read_text()
 fixture = fixture.replace("presentationMode: 'economy'", "presentationMode: '" + args.mode + "'")
@@ -48,6 +55,10 @@ if args.restored_layout:
     fixture = fixture.replace('leftWidth: 208', 'leftWidth: 9999').replace('rightWidth: 272', 'rightWidth: 1')
 if args.lr9c:
     fixture += Path(__file__).with_name('fixtures').joinpath('lr9c-webkit-ipc.js').read_text()
+if args.lr9d:
+    activity = Path(__file__).resolve().parent.parent / 'docs' / 'LR-9D-ACTIVITY-FIXTURE.json'
+    fixture += "\nwindow.__lr9dEvents=" + activity.read_text() + ";\n"
+    fixture += Path(__file__).with_name('fixtures').joinpath('lr9d-webkit-ipc.js').read_text()
 # Count actual context acquisition and delivered animation callbacks, not target FPS.
 fixture += r"""
 window.__graphics = { contexts: 0, frames: 0, frames3D: 0, drawCalls: 0, frameStamp: null, lastDrawStamp: null, bootstrapMs: null };
@@ -87,7 +98,7 @@ window.show_all()
 
 def loaded(view, event):
     if event == WebKit2.LoadEvent.FINISHED and args.test:
-        code = Path(__file__).with_name('fixtures').joinpath('lr9c-webkit-terminal.js' if args.lr9c else 'perf1b-webkit-shell.js').read_text()
+        code = Path(__file__).with_name('fixtures').joinpath('lr9d-webkit-activity.js' if args.lr9d else 'lr9c-webkit-terminal.js' if args.lr9c else 'perf1b-webkit-shell.js').read_text()
         view.evaluate_javascript(code, -1, None, None, None, None)
 view.connect('load-changed', loaded)
 view.load_uri(args.url)
@@ -144,7 +155,7 @@ def check_screenshot():
     view.evaluate_javascript("Boolean(document.querySelector('.economy-shell') && !document.querySelector('.nav-collapse')?.disabled)", -1, None, None, None, screenshot_ready)
     return False
 
-if args.screenshot:
+if args.screenshot and not args.lr9d:
     GLib.timeout_add_seconds(1, check_screenshot)
 GLib.timeout_add_seconds(1,sample)
 Gtk.main()
