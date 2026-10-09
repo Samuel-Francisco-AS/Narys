@@ -1,7 +1,7 @@
 # LR-9E — Concurrency, Security & Final Gate
 
-Estado: **LR-9E IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna**. LR-9A/B/C/D estão
-PASS, auditadas e integradas. A LR-9 inteira aguarda auditoria independente/final.
+Estado: **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 09/10/2026**. LR-9A/B/C/D também estão
+PASS, auditadas e integradas. Com o fechamento desta subfase, a **LR-9 inteira está PASS**.
 Base autorizada: `d11d5834aacaa97bf642a24e6aeee7e1628c4617`.
 Branch: `lr-9e-concurrency-security-final-gate`.
 
@@ -394,3 +394,99 @@ LR-9E IMPLEMENTAÇÃO CANDIDATA
 
 LR-9 aguarda auditoria independente/final da Luna.
 ```
+
+
+## Fechamento independente — 09/10/2026
+
+A auditoria independente da Luna revisou o commit completo contra `main`, o
+profiling/otimização do OperationalTraceBus, os oracles de retenção, o hardening
+de release IPC/ACL, a matriz de authority, Activity suspend/replay, concorrência,
+fault injection, Headless/reentry, Quit race, cleanup/reap e hygiene.
+
+**Veredito:** **PASS TÉCNICO DA AUDITORIA INDEPENDENTE.**
+
+Nenhuma FIX-1 bloqueante foi necessária.
+
+A revisão confirmou:
+
+- a dívida de performance da LR-9D foi investigada causalmente e fechada;
+- o recount O(window) era causa material do hot path;
+- contadores incrementais preservam budgets, prioridade, FIFO, sequence, replay,
+  provenance e loss accounting;
+- o oracle congelado validou 24.000 publicações contra a semântica anterior;
+- stress release de 12.090 OperationalEvents caiu de ~118 ms para ~23–24 ms
+  sem remover observabilidade válida;
+- Activity recolhida remove o subscriber visual e estaciona o consumer sem
+  bloquear publishers, PTY ou Core;
+- release não registra nem concede os nove commands exclusivamente DEV;
+- a ACL dinâmica diagnóstica existe somente em debug e somente para `main`;
+- Human + HumanLocal continua sendo o único caminho de authority aceito nesta
+  fase;
+- SpecialistAgent, Worker e CognitiveProvider continuam AuthorityDenied;
+- nenhuma approval engine, grant ou execution authority agentiva foi criada;
+- PTY, Structured Exec, TaskGraph/workers, Summary, fake Codex e trace coexistem
+  sob carga e fault injection;
+- Headless preserva Core/PTTY sem WebView ou bridge worker;
+- reopen recupera a mesma sessão/PID quando aplicável;
+- Quit concorrente permanece bounded e deixa zero processos/subscribers/workers
+  administrados;
+- raw reasoning, Summary transcript, Worker private output, environment e PTY
+  bytes permanecem contidos segundo suas policies;
+- zero nova inference, prompt, provider call ou Codex turn foi causado pela
+  observabilidade.
+
+### Dívidas remanescentes aceitas/futuras
+
+O fechamento da LR-9 NÃO elimina os seguintes itens, que permanecem registrados:
+
+1. validação Windows/macOS;
+2. PTY persistence após restart completo;
+3. MSRV global 1.77.2 ainda não atestado;
+4. daemonização hostil fora de process groups/sandbox como risco aceito;
+5. Tauri Isolation Pattern como hardening futuro;
+6. Copilot SpecialistAgent, Codex executor e approvals/grants agentivos em
+   LR-10/LR-11;
+7. full sandbox fora do escopo desta trilha;
+8. endurance de muitas horas e comportamento de caches allocator/WebKit;
+9. manutenção futura de warnings, chunk frontend e advisory DEV transitivo.
+
+Nenhum desses itens bloqueia o escopo formal concluído da LR-9.
+
+### Estado de fechamento da subfase
+
+~~~text
+LR-9E — Concurrency, Security & Final Gate
+
+IMPLEMENTAÇÃO                    PASS
+AUDITORIA INDEPENDENTE           PASS
+TRACE PERFORMANCE DEBT           CLOSED
+TRACE SEMANTICS                  PASS
+RELEASE IPC HARDENING            PASS
+AUTHORITY BOUNDARY               PASS
+CONCURRENCY MATRIX               PASS
+FAULT ISOLATION                  PASS
+PTY / EXEC COEXISTENCE           PASS
+HEADLESS / REATTACH              PASS
+QUIT / CLEANUP                   PASS
+SECRET HYGIENE                   PASS
+RAW REASONING PROTECTION         PASS
+ZERO EXTRA INFERENCE             PASS
+BLOCKERS                         0
+FIX-1                            não necessária
+~~~
+
+### Encerramento global da LR-9
+
+~~~text
+LR-9 — Operational Terminal & Cognitive Trace Runtime
+
+LR-9A PASS
+LR-9B PASS
+LR-9C PASS
+LR-9D PASS
+LR-9E PASS
+
+STATUS FINAL: PASS
+~~~
+
+A próxima fase formal é **LR-10 — GitHub Copilot SpecialistAgent**.
