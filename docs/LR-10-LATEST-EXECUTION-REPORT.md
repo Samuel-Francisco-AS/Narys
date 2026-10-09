@@ -6,8 +6,9 @@
 - Branch: `lr-10a-sdk-runtime-feasibility`.
 - Base verificada, inicialmente limpa e igual ao remoto: `21de782797a46cb81ef66229b07c4e65634a40d2`.
 - `main` local e remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, sem alterações.
-- Implementação testada: o commit de implementação imediatamente anterior ao commit documental que finaliza este relatório; sua referência literal será registrada na finalização documental.
-- HEAD documental final/remoto: [HEAD da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). O histórico identifica o SHA do próprio relatório sem autorreferência impossível.
+- Implementação testada: [`323584fdc2a09ca1219464f986c43305e39baa87`](https://github.com/Samuel-Francisco-AS/Narys/commit/323584fdc2a09ca1219464f986c43305e39baa87), `fix(lr-10a): characterize empty-session persistence with protected FIX-2 probes`. Fontes dessa revisão correspondem aos hashes dos probes e às suítes executadas.
+- Commit documental final: `docs(lr-10a): finalize FIX-2 tested revision and delivery references`, identificado no histórico abaixo; altera somente este relatório.
+- HEAD documental final/remoto: [HEAD da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). O histórico identifica o SHA do próprio relatório sem autorreferência impossível. Publicação usa push normal exclusivo desta branch e comparação de HEAD remoto/conteúdo após fetch; nenhum merge ou PR.
 - Estado: **LR-10A FIX-2 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
 - Gate de retomada de histórico real: **BLOCKED_REAL / AWAITING_HUMAN_APPROVAL**. Nenhum PASS definitivo da FIX-2, LR-10A ou LR-10.
 
