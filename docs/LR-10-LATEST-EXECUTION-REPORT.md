@@ -6,7 +6,7 @@
 - Branch: `lr-10a-sdk-runtime-feasibility`.
 - Base local/remota inicial: `b74cc2eeccbd4d859632a1a4453380fd6cf20bcb`; workspace limpo.
 - Main local/remota verificada: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, preservada.
-- Implementação testada: **IMPL_COMMIT_TO_BE_LINKED**.
+- Implementação testada: [2b88fff65563501135794574dee26e8b3a73de59](https://github.com/Samuel-Francisco-AS/Narys/commit/2b88fff65563501135794574dee26e8b3a73de59); código, testes e evidências da execução. O commit documental de fechamento altera somente esta referência.
 - HEAD documental final/remoto: [histórico verificável da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). O próprio SHA documental não é inserido circularmente no arquivo.
 - Estado: **LR-10A FIX-4 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
 - Decisão: **FIX_AND_RETEST**, com **BLOCKED_AUTH_BOUNDARY**, **BLOCKED_NETWORK_BOUNDARY** e A9 bloqueado. Sem PASS definitivo da LR-10A.
