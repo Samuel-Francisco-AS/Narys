@@ -62,14 +62,67 @@ and configured extensions/ambient CLI behavior are not proven isolated.
 An earlier unguarded investigation changed config.json stat metadata; see the
 incident in the evidence. The delivered existing-auth code requires bwrap.
 
-`measure.py` clears graphical display variables, launches a fresh owned group,
-samples /proc every 50 ms, tracks identities by PID/start time and uses a local
-Linux subreaper to reclaim escaped descendants. No cmdline/environ or credential
-contents are collected. CPU is a sampled lower bound; summed RSS can double-count
-shared pages. Unknown/very short-lived descendants can escape sampling, so this
-is not proof against adversarial process escape. Recovery is reported as failure,
-not SDK graceful shutdown. The harness's process cleanup is experimental only.
-The SDK itself has no process-tree ownership on Linux in the pinned version.
+`measure.py` clears graphical display variables and uses a private, single-threaded
+Linux subreaper per invocation. Its caller never becomes a subreaper and waits
+only for that worker. `/proc/self/task/<pid>/children` plus verified PPID identify
+kernel-owned children, including descendants adopted after the root exits or
+after `setsid()`/double-fork. PID/start time is checked before and after opening a
+pidfd. Recovery signals use **only pidfd_send_signal**, never killpg or numeric-PID
+kill. Reaping/adoption uses Linux __WALL (ordinary and clone children) and is
+repeated until waitpid reports ECHILD and the kernel child inventory is empty,
+within a two-second cleanup budget. Missing ownership evidence, failed signals or absent exhaustion
+proof produce failure/inconclusive results; empty observed survivors alone do
+not prove cleanup. There is no process-group-based recovery or external reaping.
+
+CPU/RSS metrics still sample /proc every 50 ms independently of recovery. Short
+processes can escape metrics without escaping kernel adoption. CPU remains a
+lower bound and summed RSS can double-count shared pages. No cmdline/environ or
+credential contents are collected. Requires Linux pidfds, a trusted standalone
+single-threaded caller with default SIGCHLD handling, and readable proc stat/children.
+Unsupported capability/caller state fails before launching the invocation.
+
+Schema 2 adds attributed PID/start-time identities and their basis, unsampled
+adopted descendants, kernel_children_exhausted, cleanup_complete, ownership_errors,
+recovery signal count, cleanup_ms and a separate operation_outcome. Cleanup states:
+
+| cleanup_status | Meaning |
+| --- | --- |
+| graceful_no_recovery | Processes exited without harness signals; not proof of SDK shutdown |
+| descendants_recovered | Harness forced recovery and verified kernel-child exhaustion |
+| timeout_recovered | Operation timed out; harness verified recovery |
+| recovery_incomplete | Deadline reached or kernel-child exhaustion cannot be proved |
+| inconclusive | Ownership/recovery/capability evidence failed, including a later successful retry |
+
+Forced recovery/timeout always return nonzero even when cleanup_complete is true.
+sdk_shutdown_verified remains false: only the fixed SDK report may claim its own
+client lifecycle. External processes are not attributed and never signalled.
+This experimental harness is not a sandbox, malicious-process containment, or
+LR-10B supervisor. A descendant becoming its own nested subreaper, namespace/
+reparenting escape, abrupt worker death or an unkillable kernel task is outside
+the proven fixture contract; unexpected worker exit reports inconclusive, not
+cleanup success. The SDK itself has no process-tree ownership on Linux in the
+pinned version. No SDK/CLI real probe was repeated for FIX-1.
+
+## FIX-1 deterministic cleanup verification
+
+The Python command above runs all harness tests without SDK/CLI/inference.
+To regenerate the sanitized JSON and per-test text log (overwrites these two
+FIX-1 evidence files only):
+
+```sh
+python3 experiments/lr-10a-sdk-runtime/tests/test_measure.py --evidence experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.json
+```
+
+Fixtures synchronize using a pipe readiness handshake and a post-launch barrier
+that waits for root exit before the first metrics sample. PID/start-time manifests
+independently verify fixture absence after each invocation; an external control
+process is checked alive after harness recovery, then reclaimed by its test owner.
+Tests include unsampled children, setsid, live grandchildren revealed by repeated
+adoption, double-fork, crash, timeout, identity mismatch, failed signalling and
+unverifiable wait exhaustion. Negative proofs remain fail-closed.
+See [latest execution report](../../docs/LR-10-LATEST-EXECUTION-REPORT.md) and
+[FIX-1 evidence](evidence/fix-1-verification.json). Historical runtime samples use
+the prior harness and do not prove this fix against the real SDK/CLI.
 
 SDK errors are projected to a fixed code vocabulary; RPC prose is never used to
 guess auth, quota or entitlement. Missing quota is unknown; zero, invalid and

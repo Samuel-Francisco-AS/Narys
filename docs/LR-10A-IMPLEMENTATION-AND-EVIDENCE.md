@@ -380,3 +380,25 @@ Antes de propor LR-10B:
 - [CLI allow/deny/YOLO](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/allowing-tools)
 - [MXC](https://github.com/microsoft/mxc) e `copilot help sandbox` 1.0.91 inspecionado localmente.
 - [Rust 1.94 manifest oficial](https://static.rust-lang.org/dist/channel-rust-1.94.0.toml)
+
+## Adendo — FIX-1 / Process Ownership & Cleanup Reliability (09/10/2026)
+
+Após a auditoria, o harness Python passou a usar um worker/subreaper privado por
+invocação, atribuição por filhos do kernel, pidfds e confirmação de ECHILD com
+inventário vazio. A recuperação independe dos processos vistos na amostragem e
+do grupo/sessão originais. Falhas de identidade, sinalização ou comprovação de
+reap não viram cleanup completo. Código de produção, SDK e CLI não foram alterados.
+
+As 25 fixtures/testes Python passaram, incluindo os cinco testes anteriores;
+36 identidades de fixtures/controle foram verificadas ausentes após a suíte.
+Não houve nova execução do CLI real, inferência nem consumo de quota. As medições
+reais históricas acima permanecem evidência do harness anterior: seus zeros de
+sobreviventes observados não provam recuperação de descendentes não amostrados.
+
+Detalhes, limites, resultados individuais, comandos e identificação Git estão no
+[relatório reutilizável mais recente](LR-10-LATEST-EXECUTION-REPORT.md), no
+[JSON FIX-1](../experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.json) e no
+[log da suíte](../experiments/lr-10a-sdk-runtime/evidence/fix-1-verification.txt).
+Este adendo não reclassifica A7 real, aprova LR-10A ou libera LR-10B/A9.
+
+**LR-10A FIX-1 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**
