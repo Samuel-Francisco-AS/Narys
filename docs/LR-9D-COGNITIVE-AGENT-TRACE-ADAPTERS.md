@@ -1,7 +1,8 @@
 # LR-9D — Cognitive / Agent Trace Adapters
 
-**Estado:** LR-9D IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.
-Os gates locais abaixo estão verdes; não se declara PASS definitivo.
+**Estado:** **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 08/10/2026.**
+Os gates locais e a auditoria independente estão concluídos; nenhuma FIX-1
+bloqueante foi necessária.
 
 Base confirmada após workspace limpo e `git fetch origin --prune`:
 `46da34e0cf316fb11f4ed01a0f516b627641991f`. Branch exclusiva:
@@ -368,3 +369,86 @@ novo, persistência de trace, Copilot ou antecipação LR-9E.
   herdadas; rustfmt restrito aos módulos novos e às inserções.
 - Dois gates autenticados Codex ignored herdados permanecem fora do teste sem
   rede comercial. Auditoria independente da Luna ainda é necessária.
+
+
+## Fechamento independente — 08/10/2026
+
+A auditoria independente da Luna revisou o diff completo contra `main`, os
+adapters passivos, taps nos runtimes, deduplicação Task/Scheduler, exposure
+policy por CognitiveRole, Summary minimization, contrato agent-neutral, bridge
+Codex, raw reasoning policy, gates de equivalência e stress concorrente.
+
+**Veredito:** **PASS TÉCNICO DA AUDITORIA INDEPENDENTE.**
+
+Nenhuma FIX-1 bloqueante foi necessária.
+
+A revisão confirmou:
+
+- adapters acrescentam observabilidade, não trabalho cognitivo novo;
+- trace failure/sequence exhaustion/subscriber cheio não mudam provider calls,
+  retries, fallbacks, cancellation, resultado, usage ou persistência;
+- TaskTraceAdapter não republica fatos provider/Scheduler já autoritativos;
+- Conversation pode expor somente ProviderText já funcionalmente exibido;
+- Orchestrator, Worker e Summary permanecem metadata-only e fail-closed;
+- Summary não copia transcript, prompt, raw provider output, title ou summary;
+- Codex mantém planner read-only, sem tools/shell/web/write;
+- `agentMessage/delta` e `reasoning/summaryTextDelta` são os únicos deltas
+  textuais agentivos permitidos;
+- `reasoning/textDelta` nunca possui variant de conteúdo visível;
+- forbidden Codex items continuam fail-closed e não vazam payload;
+- fragmentação UTF-8 preserva exatamente conteúdo autorizado;
+- correlations locais separam invocations concorrentes sem usar objective,
+  PID ou IDs remotos;
+- zero command/permission/capability/migration/dependency/frontend novo.
+
+### Dívida prioritária obrigatória para LR-9E
+
+O stress debug dedicado mediu aproximadamente:
+
+- publisher no-op: **57 ms**;
+- trace ativo headless: **3425 ms**;
+- trace ativo com subscriber cheio: **3488 ms**.
+
+A auditoria confirmou que esse overhead não altera inferência, calls, tokens,
+resultado ou cleanup, mas é custo síncrono real no caminho produtor sob burst.
+A maior pressão observável está associada ao OperationalTraceBus LR-9A
+(retention/eviction síncronos, lock global e scans bounded), não a trabalho
+cognitivo adicional dos adapters.
+
+Isso **não reabre LR-9D**, mas LR-9E NÃO pode encerrar a LR-9 sem:
+
+1. profiling causal do hot path;
+2. comparação em release;
+3. CPU/RSS físico no hardware alvo;
+4. carga representativa além do stress extremo;
+5. otimização se o custo permanecer material.
+
+Qualquer otimização deve ser orientada por evidência. Não introduzir fila
+assíncrona, novos locks ou mudança de semântica do bus apenas por especulação.
+
+### Estado de fechamento
+
+~~~text
+LR-9D — Cognitive / Agent Trace Adapters
+
+IMPLEMENTAÇÃO                  PASS
+AUDITORIA INDEPENDENTE         PASS
+TASK TRACE                     PASS
+SCHEDULER TRACE                PASS
+PROVIDER EXPOSURE POLICY       PASS
+TASKGRAPH / WORKER TRACE       PASS
+SUMMARY MINIMIZATION           PASS
+CODEX PASSIVE TRACE            PASS
+RAW REASONING PROTECTION       PASS
+DEDUPLICATION                  PASS
+FAILURE ISOLATION              PASS
+ZERO EXTRA INFERENCE           PASS
+PROVIDER CALL DELTA            0
+AGENT REQUEST DELTA            0
+PROMPT DELTA                   0
+EXECUTION AUTHORITY DELTA      0
+BLOCKERS                       0
+FIX-1                          não necessária
+~~~
+
+A próxima etapa é **LR-9E — Concurrency, Security & Final Gate**.
