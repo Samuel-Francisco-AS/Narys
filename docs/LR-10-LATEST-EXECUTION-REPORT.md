@@ -10,7 +10,7 @@ AGUARDANDO AUDITORIA INDEPENDENTE.** Sem PASS definitivo da LR-10A.
 - Data: 09/10/2026, Fedora 44 / SSH/headless.
 - Branch: `lr-10a-sdk-runtime-feasibility`; base local/remota inicial limpa: `4216ba2a6a0e75822587bf9032782ddc454338fa`.
 - Main local/remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, preservada.
-- Implementação testada: **IMPLEMENTATION_COMMIT_REFERENCE**.
+- Implementação testada: [4ec6f577cb2b99083863750bfccf44662db882b7](https://github.com/Samuel-Francisco-AS/Narys/commit/4ec6f577cb2b99083863750bfccf44662db882b7); implementação, testes e evidências. O commit documental de fechamento altera somente esta referência.
 - HEAD documental/remoto: [histórico verificável da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). Referência fechada em commit documental, sem SHA circular.
 - Nenhum merge, PR, rebase, reset, force-push ou avanço à LR-10B.
 
