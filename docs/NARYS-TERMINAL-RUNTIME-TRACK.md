@@ -1,6 +1,6 @@
 # LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado:** EM ANDAMENTO — LR-9A/B/C/D encerradas, auditadas e integradas à `main`; LR-9E IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna; sem PASS final da LR-9.
+**Estado:** **PASS FINAL — LR-9A/B/C/D/E encerradas com PASS técnico + auditoria independente; trilha encerrada em 09/10/2026.**
 **Origem:** promovida em 08/10/2026 a partir da trilha futura NARYS-TERM,
 registrada originalmente durante a PERF-1B em 07/10/2026.  
 **Posição:** pré-SpecialistAgents; deve preparar a infraestrutura comum consumida
@@ -411,23 +411,26 @@ representativa antes do fechamento final da LR-9.
 
 ### LR-9E — Concurrency, Security & Final Gate
 
-**Estado:** IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna, na branch `lr-9e-concurrency-security-final-gate`.
+**Estado:** **PASS TÉCNICO + AUDITORIA INDEPENDENTE — encerrada em 09/10/2026.**
 
-Consolidar execution + observation + Presentation lifecycle, paralelismo,
-performance, hardening release, cancelamento, Headless/reentrada e stress final.
-Checkpoints internos: E0 Baseline & invariants; E1 OperationalTraceBus performance
-closure; E2 Release security / IPC hardening; E3 Integrated concurrency & fault
-matrix; E4 Native end-to-end final gate. Não são novas fases do roadmap.
+Execution + observation + Presentation lifecycle foram consolidados sob
+paralelismo, performance, hardening de release, cancelamento, Headless/reentrada
+e stress final.
 
-“Approvals” histórico aqui significa provar a fronteira existente: Human com
-HumanLocal é permitido; SpecialistAgent, Worker e CognitiveProvider continuam
-negados. LR-9E não cria requests/grants/authority agentivos, delegated shell,
-workspace grants ou sandbox. Essas capacidades e approvals pertencem à LR-10/11.
+O hot path do OperationalTraceBus foi perfilado e otimizado com contadores
+incrementais sem alterar a semântica de retenção/replay; o oracle congelado
+validou 24.000 publicações. Release IPC removeu commands exclusivamente DEV das
+superfícies handler/AppManifest/capability, mantendo diagnostics somente em ACL
+dinâmica debug/main.
 
-Gate mínimo: PTY humana, múltiplas fontes concorrentes, Structured Exec
-controlado, burst alto de STREAM, CRITICAL preservado, UI descartável, zero
-aumento deliberado de provider calls/tokens por observabilidade e nenhum processo
-órfão.
+A matriz final confirmou HumanLocal apenas para Human; SpecialistAgent, Worker e
+CognitiveProvider permanecem negados. PTY, Structured Exec, cognition, Summary,
+TaskGraph/workers, fake Codex e trace coexistiram sob fault injection, Headless,
+reattach e Quit bounded sem processos órfãos.
+
+Nenhuma approval engine, grant ou execution authority agentiva foi criada.
+
+[Fechamento, profiling, matrizes e evidências](LR-9E-CONCURRENCY-SECURITY-FINAL-GATE.md).
 
 ## 13. Fora de escopo
 
@@ -467,12 +470,16 @@ Continua válido, mas sem posição fixa e sem bloquear LR-10/LR-11.
 Registro:
 [NARYS-VOICE — Unified Voice & Natural Feedback](NARYS-VOICE-FUTURE-TRACK.md).
 
-## 16. Próxima ação
+## 16. Encerramento e próxima ação
 
-LR-9A, LR-9B, LR-9C e LR-9D estão encerradas em PASS, auditadas e integradas.
-LR-9E é IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna, na branch `lr-9e-concurrency-security-final-gate`.
-O gate integrado de implementação foi executado; a LR-9 aguarda auditoria independente/final da Luna.
-[Implementação LR-9E e evidências](LR-9E-CONCURRENCY-SECURITY-FINAL-GATE.md).
+**LR-9A/B/C/D/E estão encerradas em PASS técnico + auditoria independente.  
+LR-9 — Operational Terminal & Cognitive Trace Runtime: PASS FINAL.**
 
-Approvals, sandbox e execution authority agentiva continuam nas fases LR-10/11.
-Nenhum registro histórico de A–D foi reescrito para declarar PASS da LR-9 inteira.
+A trilha entregou Observation Plane, Execution Plane, Human Operational Surface,
+adapters cognitivos/agentivos passivos e gate final integrado de
+performance/concorrência/segurança.
+
+A próxima fase formal do roadmap é **LR-10 — GitHub Copilot SpecialistAgent**.
+
+Approvals, sandbox e execution authority agentiva permanecem deliberadamente
+fora da LR-9 e pertencem às fases LR-10/LR-11.
