@@ -507,7 +507,7 @@ Plano detalhado: [LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md](LR-8.5-COGNITIVE-RESOURC
 
 ## 13. LR-9 — Operational Terminal & Cognitive Trace Runtime
 
-**Estado: EM ANDAMENTO — LR-9A/B/C/D encerradas em PASS técnico + auditoria independente em 08/10/2026; LR-9E IMPLEMENTAÇÃO CANDIDATA, aguardando auditoria independente da Luna; LR-9 aguarda auditoria independente/final.**
+**Estado: PASS FINAL — LR-9A/B/C/D/E encerradas em PASS técnico + auditoria independente; trilha concluída em 09/10/2026.**
 
 LR-9A estabeleceu o Observation Plane com contratos tipados,
 OperationalTraceBus process-wide, retenção priority-aware/bounded, live
@@ -527,12 +527,18 @@ minimização de conteúdo, raw reasoning fail-closed e zero nova inference/prom
 O overhead síncrono observado sob burst foi elevado a dívida obrigatória da LR-9E
 para profiling e eventual otimização antes do fechamento final da LR-9.
 
-LR-9E consolidou A–D, contadores de retenção incrementais, suspensão visual da
-Activity, hardening DEV/release e gates concorrentes/nativos debug/release.
-A implementação é candidata; somente auditoria independente encerrará a LR-9.
-[Gate LR-9E e evidências](LR-9E-CONCURRENCY-SECURITY-FINAL-GATE.md).
+LR-9E consolidou A–D, fechou a dívida de performance do OperationalTraceBus com
+profiling + contadores incrementais, suspendeu a assinatura visual de Activity
+quando recolhida, endureceu a superfície DEV/release e concluiu gates
+concorrentes/nativos debug/release. A auditoria independente aprovou a subfase
+sem FIX bloqueante.
+
+**LR-9 — Operational Terminal & Cognitive Trace Runtime está encerrada em PASS.**
 
 Agents continuam sem execution authority e não existe generic shell IPC.
+Copilot/Codex executores, approvals/grants e sandbox permanecem para LR-10/11.
+
+[Gate LR-9E e evidências](LR-9E-CONCURRENCY-SECURITY-FINAL-GATE.md).
 
 Fechamentos e evidências:
 - [LR-9A — Operational Trace Bus](LR-9A-OPERATIONAL-TRACE-BUS.md)
@@ -543,8 +549,8 @@ Fechamentos e evidências:
 - [LR-9D — Cognitive / Agent Trace Adapters](LR-9D-COGNITIVE-AGENT-TRACE-ADAPTERS.md)
 - [LR-9D — gate evidence](LR-9D-GATE-EVIDENCE.json).
 
-O antigo escopo Luna Voice / feedback natural foi adiado para uma trilha futura
-sem posição fixa. LR-9 passa a preparar a infraestrutura operacional que
+O antigo escopo Luna Voice / feedback natural permanece em trilha futura sem
+posição fixa. A LR-9 concluída fornece a infraestrutura operacional que
 LR-10/Copilot e LR-11/Codex deverão reutilizar.
 
 Objetivo: terminal Linux real para o humano, Execution Broker comum para efeitos
