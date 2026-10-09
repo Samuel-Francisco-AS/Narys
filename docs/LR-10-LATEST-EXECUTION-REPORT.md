@@ -7,14 +7,21 @@
 - Branch: `lr-10a-sdk-runtime-feasibility`.
 - Commit base local/remoto verificado: `8de5b891c0698db812ea130c65806a1e8671e259`.
 - `main` local e remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, sem alteração.
-- Commit da implementação testada: identificação literal adicionada no fechamento documental.
+- Commit da implementação testada: [`d9441d392866151e8fe6c70fb0dd9cbdb437c676`](https://github.com/Samuel-Francisco-AS/Narys/commit/d9441d392866151e8fe6c70fb0dd9cbdb437c676)
+  — `fix(lr10a): own and reap unsampled descendants with isolated subreaper`.
+  Esse SHA foi publicado e confirmado por `git ls-remote` antes do fechamento.
+- Commit final documental: `docs(lr10a): finalize FIX-1 audit report and Git references`,
+  filho direto do commit da implementação acima; altera somente este relatório.
 - Commit final e HEAD remoto: **a referência da branch que contém esta versão do relatório**,
   consultável em [HEAD final publicado](https://github.com/Samuel-Francisco-AS/Narys/commit/lr-10a-sdk-runtime-feasibility)
   e no [histórico deste arquivo](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility/docs/LR-10-LATEST-EXECUTION-REPORT.md).
   Esta identificação é autorreferente: o SHA literal do commit que contém um
   relatório não pode ser inserido no próprio conteúdo sem mudar aquele SHA.
   A referência acima identifica o fechamento documental, separadamente do SHA
-  imutável da implementação testada. O HEAD local deve coincidir com `ls-remote`.
+  imutável da implementação testada. HEAD local e remoto coincidem no fechamento
+  documental publicado; o link de HEAD resolve o SHA final, sem confundi-lo com
+  o SHA da implementação. O histórico permite obter o permalink imutável desta
+  versão antes de uma futura substituição do relatório.
 - Estado: **LR-10A FIX-1 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE**.
 
 Este arquivo contém somente esta execução. Documentos permanentes e evidências
@@ -137,6 +144,35 @@ git diff -- src-tauri src package.json package-lock.json
   reescrito. SHA-256 dos três arquivos de harness/README corresponde ao código
   testado; quantidade/status de testes e ausência de survivors validados.
 - Diff de produção vazio; escopo revisto arquivo a arquivo.
+
+### Entrega Git
+
+A implementação e todas as evidências foram publicadas no commit
+`d9441d392866151e8fe6c70fb0dd9cbdb437c676`; esse HEAD remoto foi confirmado
+antes do commit documental final. O fechamento altera somente este arquivo,
+para registrar o SHA da implementação e tornar explícita a autorreferência
+do HEAD final. Os arquivos testados e seus hashes permanecem idênticos.
+
+Comandos de publicação e conferência (somente a branch autorizada):
+
+```sh
+git commit -m "fix(lr10a): own and reap unsampled descendants with isolated subreaper"
+git push origin lr-10a-sdk-runtime-feasibility
+git ls-remote origin refs/heads/lr-10a-sdk-runtime-feasibility
+git commit -m "docs(lr10a): finalize FIX-1 audit report and Git references"
+git push origin lr-10a-sdk-runtime-feasibility
+git fetch origin
+git rev-parse HEAD origin/lr-10a-sdk-runtime-feasibility
+git ls-remote origin refs/heads/lr-10a-sdk-runtime-feasibility refs/heads/main
+git show origin/lr-10a-sdk-runtime-feasibility:docs/LR-10-LATEST-EXECUTION-REPORT.md
+git diff 8de5b891c0698db812ea130c65806a1e8671e259 HEAD -- src-tauri src package.json package-lock.json
+git status --short --branch
+```
+
+Resultado de fechamento: HEAD local/remoto coincidentes, relatório remoto com
+o mesmo conteúdo local, workspace limpo e main preservada. Sem PR ou merge.
+A referência de commit final na identificação aponta para o commit documental
+que contém este texto, enquanto o commit imutável da implementação fica acima.
 
 ### Resultado de cada teste
 
