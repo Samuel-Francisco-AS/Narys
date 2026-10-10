@@ -7,6 +7,7 @@
 - Execução: 10/10/2026, Fedora 44, SSH/tmux, prioridade operacional determinada pelo usuário.
 - Branch exclusiva: `lr-10a-sdk-runtime-feasibility`. Base local/remota verificada: `7a336649e3a359463cecaad4232d6ccb4084c4ce`.
 - Implementação testada/publicada: [`284a31f00c7e5db3bdb728a83bc452ad641270b0`](https://github.com/Samuel-Francisco-AS/Narys/commit/284a31f00c7e5db3bdb728a83bc452ad641270b0).
+- Ajuste final de comando SSH testado/publicado: [`821bfd3e2cb6b09606ba0c5a88906f55f83399e3`](https://github.com/Samuel-Francisco-AS/Narys/commit/821bfd3e2cb6b09606ba0c5a88906f55f83399e3): helper recebe endereço explícito do barramento do mesmo UID, sem alterar senha/daemon. [Regressão Unix final](../narys-core/evidence/control-final.txt): PASS; [artefato instalado](../narys-core/evidence/prepared-final.json).
 - HEAD documental verificável no [histórico da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). Este documento será consolidado com a validação pós-boot; não contém SHA autorreferencial.
 - `main` local/remota preservada: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`. Sem PR, merge, rebase, reset ou force-push. H1/H2/H3 e experimentos históricos preservados.
 
@@ -88,7 +89,7 @@ Falhas iniciais locais de fixtures (permissão temporária, wire `configDir`/res
 
 [Preflight real](../narys-core/evidence/preboot.json): wall15.395s, peak tree RSS270757888 bytes, CPU amostrada >=12.62s, cleanup32.33ms, 3 processos observados, ECHILD=true, zero sinais de recuperação, zero sobreviventes atribuídos. `cleanup_status=graceful_no_recovery`; SDK report.shutdown=graceful. `measure.py.sdk_shutdown_verified=false` permanece por desenho: o harness não atesta o SDK; as duas fontes não devem ser confundidas. GUI ainda presente nesse probe.
 
-Binário instalado final: SHA `1dc0a2c939b1ae38120cad05db292e9ce320465051f3ebb06bb5a35c65978ace`, 34711008 bytes (debug stripped). RSS idle final observado14716KiB/uma thread. MemoryCurrent systemd inclui page cache de binário/CLI, não equivale ao RSS; não apresentar como heap. O probe usou o artefato `eb63090...`; depois houve somente proteção adicional de zeroização de chave no caminho de erro e formatação de assertion sintética. Os hashes/source manifest distinguem as implementações.
+Binário instalado antes do ajuste do helper: SHA `1dc0a2c939b1ae38120cad05db292e9ce320465051f3ebb06bb5a35c65978ace`, 34711008 bytes (debug stripped). Artefato final preparado: SHA `bdf7b1939606d8de6bbbeb132ee3d956ccc860640b4a63d31e747e7c8f9ffba4`, 34711352 bytes; SDK worker inalterado por esse último ajuste. RSS idle final observado14716KiB/uma thread. MemoryCurrent systemd inclui page cache de binário/CLI, não equivale ao RSS; não apresentar como heap. O probe usou o artefato `eb63090...`; depois houve somente proteção adicional de zeroização de chave no caminho de erro e formatação de assertion sintética. Os hashes/source manifest distinguem as implementações.
 
 Timeouts: catálogo30s, send120s, harness240s, parada systemd270s. Core TERM solicita cancelamento e aguarda o harness. FIX1 reutilizado intacto; sinais somente em processos atribuídos com identidade kernel/pidfds. Cgroup limita a unidade Core/workers; Keyring está separado. Morte inesperada do supervisor/descendentes adversariais continuam limites conhecidos; não há supervisor de produção nem proteção contra processos do mesmo UID. Logs de runtime/estado ficam privados, não versionados; journal somente labels fixos.
 
@@ -107,6 +108,8 @@ Config drift não implica corrupção nem escrita legítima: observação estrut
 | Tarefa alpha2+beta3 pela Narys | NOT_RUN, única tentativa autorizada preservada |
 | Resultado/arquivo/task graph/trace/shutdown dessa tarefa | NOT_RUN |
 | Integração operacional concluída | **NÃO declarada** |
+
+Pré-condições finais verificadas: sshd habilitado, linger=yes, target multi-user, Core/Keyring habilitados e ativos; timer antigo H3 inativo/sem próximo disparo. Reboot interromperá SSH/tmux/Codex; reconectar e retomar esta conversa após o boot. Nenhum reboot foi executado pela POC.
 
 Checklist curto, **somente no SSH privado do usuário**:
 
