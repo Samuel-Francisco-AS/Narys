@@ -1,316 +1,284 @@
-# LR-10A / A9-FIX-3 — Configuration Integrity & Controlled Recovery
+# LR-10A / A9-FIX-4 — Operation-Scoped Integrity Gates
 
-## 1. Identificação, Git e resultado
+## 1. Identificação e entrega
 
-Narys, A9-FIX-3 exclusivamente; execução em 10/10/2026 no Fedora 44 via terminal/SSH.
+Narys, exclusivamente A9-FIX-4, 10/10/2026, Fedora44 via SSH/terminal.
 Branch: `lr-10a-sdk-runtime-feasibility`.
-HEAD inicial local/remoto conferido: `4a75c632fc8e69fcd9511cd447489b3c1d3d5fff`.
-Main local/remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, intocada.
-Workspace inicial limpo; nenhum trabalho humano descartado.
+HEAD inicial local/remoto: `499a2c37f4c7d19c62307d824bae122819ff8f0c`.
+Main local/remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, preservada.
+Workspace inicial limpo, sem trabalho humano descartado.
 
-Implementação testada e evidências:
-[783d8693eeb504e8fee2f6fd17d056d310cbd595](https://github.com/Samuel-Francisco-AS/Narys/commit/783d8693eeb504e8fee2f6fd17d056d310cbd595),
-commitado e enviado antes deste relatório. HEAD documental final/local/remoto é o
-commit que publica este arquivo, verificável no
-[histórico da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility/docs/LR-10-LATEST-EXECUTION-REPORT.md),
-sem SHA autorreferencial. Entrega só nessa branch; sem PR/merge/rebase/reset/force-push.
+Implementação testada, evidências e documentação técnica:
+[ac11f1e19f64f38f9ebe3d5f5b180ff3163fc3b5](https://github.com/Samuel-Francisco-AS/Narys/commit/ac11f1e19f64f38f9ebe3d5f5b180ff3163fc3b5),
+commitado e enviado antes deste relatório. Os hashes da implementação usada no
+preflight coincidem com esse commit; nenhum código do diagnóstico mudou depois
+da execução. O HEAD documental final/local/remoto é o commit que publica este
+arquivo, verificável no
+[histórico do relatório](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility/docs/LR-10-LATEST-EXECUTION-REPORT.md),
+sem SHA autorreferencial. Commit final modifica somente o relatório.
+Sem PR, merge, rebase, reset destrutivo, force-push ou alteração da main.
 
-**PASS parcial do contrato e testes sintéticos; CONFIG_WRITER_ATTRIBUTION=INCONCLUSIVE;
-CONFIG_INTEGRITY_VERIFICATION=BLOCKED; recomendação FIX_AND_RETEST.** Não se comprovou
-corrupção, segurança semântica da alteração nem autoria. Nenhum PASS operacional
-foi obtido por mocks, e nenhum gate foi liberado.
+**PASS parcial do contrato/testes offline; confirmação real
+NOT_RUN_CONCURRENCY_UNVERIFIED. Recomendação FIX_AND_RETEST, sem aprovação
+operacional ou avanço à LR-10B.**
 
-**A9-FIX-3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+**A9-FIX-4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
 
-## 2. Escopo e proibições respeitadas
+## 2. Objetivo, autorização e escopo
 
-Investigar estaticamente a mutação já observada e implementar classificação
-proporcional, reutilizável, com fixtures locais. Não houve CLI real nesta FIX,
-sequer --version/help/auth/modelos/quota, nem SDK real contra o provedor. Zero
-sessões reais criadas/retomadas/excluídas, zero mensagens/inferências/ferramentas.
-Não se reclamou/criou/leu o conteúdo do marker A9. A autorização anterior para
-uma futura tentativa continua não consumida, sem retry ou fallback pago.
+Separar acesso estrutural, drift, resposta SDK, proveniência, admissão de sessão/
+ação e segurança financeira. Imutabilidade do config.json não é exigência universal
+para status/auth. Detectar drift não significa corrupção nem escrita legítima.
+O contrato histórico e a mutação desconhecida não foram apagados ou legitimados.
 
-Nenhum conteúdo de config pessoal, token, cookie, sessão particular, item do Keyring,
-memória ou tráfego autenticado foi examinado. Nem mesmo stat da config pessoal foi
-repetido nesta FIX. Nenhum chmod/read-only/lock/rename/copy/restore/delete pessoal;
-nenhum login/logout, serviço/UI, GNOME/GDM/Keyring ou boot manipulado. Apenas fontes
-públicas de software, artefatos Git publicados e arquivos/processos sintéticos foram
-usados. Não se afirma que atividade externa ao experimento não alterou o host.
+Autorização desta FIX: **no máximo uma invocação start → getStatus → auth.getStatus
+→ shutdown**, após pré-condições satisfeitas. Sem catálogo/quota, sessões, send,
+inferência, ferramentas/MCP, login/logout, tokens explícitos, alteração de config/
+serviço, update/download ou retry. A pré-condição de concorrência falhou antes
+do SDK: **zero invocações reais**. Nenhuma tentativa de inferência foi consumida.
 
-HOST_ASSISTED_WITH_GUI, HOST_ASSISTED_HEADLESS e A9_ISOLATED continuam distintos.
-O primeiro é acesso sob o usuário, **não sandbox**. Boundary offline/minimal, DenyAll,
-zero tools, MCP desabilitado, filtros, guard atômico, ownership e contratos anteriores
-não foram enfraquecidos. Nada mudou em produção/Broker/ExecutionAuthority/IPC/UI/
-TaskGraph/LR-8.5 ou MSRV/Edition/dependências. Não avançar à LR-10B.
+HOST_ASSISTED_WITH_GUI continua **não sandbox**, sob o mesmo usuário Linux.
+HOST_ASSISTED_HEADLESS e A9_ISOLATED continuam separados. Não se ampliou filesystem,
+rede, Keyring, D-Bus ou environment para obter PASS. Produção/Broker/ExecutionAuthority/
+AgentRegistry/IPC/UI/TaskGraph/LR-8.5 não mudaram. Financeiro, SDK/CLI pins, Cargo.lock,
+MSRV e Edition preservados. Nada foi instalado ou atualizado globalmente.
 
-## 3. Investigação da origem e limites do coletor histórico
+## 3. Contrato proporcional por operação
 
-Fontes: relatório A9-FIX-2 na base Git, documento permanente, HOST-ASSISTED,
-diagnose_a9_gui_auth.py, diagnose_a9_auth.py, run_a9_host.py, src/host_assisted.rs,
-runtime-gui-candidate.json e evidências/testes anteriores. Inspeção de
-[run_fix2.config_stat](../experiments/lr-10a-sdk-runtime/run_fix2.py) confirma:
-Path.home/.copilot/config.json.stat(), quatro campos, symlink seguido, todos
-OSError agrupados como unavailable. Não lia conteúdo, device/mode/proprietário,
-identidade do escritor ou eventos de escrita. Snapshots não eram ancorados.
+[Contrato](../experiments/lr-10a-sdk-runtime/METADATA-CONFIRMATION.md),
+[política](../experiments/lr-10a-sdk-runtime/metadata_policy.py) e
+[snapshot](../experiments/lr-10a-sdk-runtime/config_integrity.py).
 
-[Evidência histórica original](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-2-gui-sdk-metadata.json),
-SHA256 `1b76b3f4dfdacec1835ba774402897c202813c238c23b17a38500efd77b70916`,
-coletada em 2026-10-10T03:34:13.229631Z, implementation
-`42756450fb8b942fdc2f7ec42b6ece364f3e5c73`:
-
-| Campo | Antes | Depois |
+| Operação | Política implementada | Limite |
 | --- | --- | --- |
-| inode | 3768587 | 3768738 |
-| bytes | 470 | 470 |
-| mtime_ns/ctime_ns | 1791602000869867688 | 1791603250606145370 |
+| METADATA_READ_ONLY | Resposta observada pode ser aceita junto de drift, com estrutura, serviço, protocolo e cleanup verificados. | Não aprova conteúdo/escrita/sessão/billing. Nesta FIX só status/auth; modelos/quota futuros exigem autorização própria. |
+| SESSION_OPERATIONS | BLOCKED | Estado privado autenticado, deny policy e ausência de interferência não comprovados operacionalmente. |
+| INFERENCE | BLOCKED | Modelo, unidades, custo máximo e ausência de fallback pago não verificados. |
+| AGENT_ACTIONS | BLOCKED na POC | Autenticação não concede autoridade, escopo ou aprovação da Narys. |
+| HEADLESS_OPERATION | NOT_PROVEN | GUI não comprova funcionamento sem GNOME. |
 
-Mudança desses campos é fato. Não prova byte equality, corrupção ou rename específico.
-O coletor seguia symlinks e não registrava device: não se exclui mudança de resolução
-ou outras mudanças do filesystem. Não se pode reconstruir a fase exata a partir de
-snapshots abrangendo startup/RPCs/shutdown, nem atribuir o escritor por tempo.
-A estabilidade observada depois de identity/help na FIX-2 não legitima a janela SDK.
+Classificador puro produz AUTH_TRUE_OBSERVED/AUTH_FALSE_OBSERVED, nunca PASS_REAL.
+Somente o driver poderia estabelecer origem SDK real com hashes e cleanup.
+`admission` é verificação observacional de escopo, não dispatcher executável.
+Flags, claims de fixture, auth ou dicionário forjado não liberam sessão/inferência/
+financeiro. Blockers financeiros anteriores não foram alterados.
 
-A crate **1.0.17** instalada foi lida sem executá-la contra CLI real. O código
-[pinado/excertos](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-sdk-contract-excerpts.txt)
-mostra spawn --server/--stdio/--no-auto-update, auth/modelos delegados por RPC,
-shutdown por runtime.shutdown/EOF/reap. O SDK pode disparar comportamentos do CLI
-nessas fases, mas os trechos examinados não oferecem contrato de imutabilidade
-ou prova de escrita legítima de config.json. --no-auto-update é controle de update
-do executável, não garantia de config read-only. POC não adicionava setters de
-config ou login; ausência deles não prova ausência de escrita interna do CLI.
+Snapshot opt-in exige regular file, UID próprio, mode0600, link único e ancestrais
+sem symlink, directories root/usuário sem group/world write. Exceção apenas /tmp
+root-owned sticky para fixtures privadas. O_PATH/no-follow/stat ancorado verifica
+identidade e acesso dos pais antes/depois do open. Missing/EACCES/interrupção/falha
+bloqueiam verificação dependente. Nenhum conteúdo pessoal é aberto ou hashed.
+Snapshot e classificação histórica por padrão mantêm comportamento anterior.
 
-No pacote nativo instalado, o README público descreve JavaScript/addons embutidos
-no ELF; o npm-loader público apenas encaminha ao pacote nativo. Não havia fonte
-standalone do escritor nos arquivos legíveis examinados. Não se extraiu o bundle,
-instrumentou o runtime ou inspecionou arquivos pessoais. Portanto não há call graph
-verificado do escritor 1.0.95. Version/hash de SDK e CLI citados são os pins/identidade
-históricos, não resultado de uma nova execução do CLI. Nada foi instalado/atualizado.
+PASS_METADATA_ACCESS é pontual, não conteúdo seguro nem proteção contra mesmo UID.
+Inode/tamanho/timestamps distintos podem coexistir com auth positiva e acesso
+estrutural compatível. Igual tamanho/metadados não prova equivalência criptográfica;
+auth não prova integridade, e estabilidade posterior não legitima mutação anterior.
+Writer attribution continua INCONCLUSIVE, sem contrato de escrita real legítima.
 
-A [documentação oficial atual](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference)
-explica config.json como estado interno gerenciado e COPILOT_HOME como realocação
-da configuração. Isso torna atualizações legítimas plausíveis, mas não prova a
-operação desta versão ou seus bytes. O
-[relato upstream de concorrência](https://github.com/github/copilot-cli/issues/1307)
-refere-se a outra versão/plataforma (0.0.402, Windows); não reproduz Fedora1.0.95.
-As [notas 1.0.95](https://github.com/github/copilot-cli/releases/tag/v1.0.95) não
-atribuem a mutação aqui observada. Nenhuma dessas fontes concede aprovação da escrita.
+## 4. Implementação do diagnóstico restrito
 
-| Hipótese | Estado desta investigação |
+[Fluxo Rust](../experiments/lr-10a-sdk-runtime/src/metadata_confirmation.rs) e
+[binário](../experiments/lr-10a-sdk-runtime/src/bin/a9-metadata-confirm.rs) só usam
+start/status/auth/shutdown, sem APIs de modelos/quota/sessões/send. Start inclui
+handshake normal; stop usa runtime.shutdown/EOF e bounded timeout anterior.
+Cinco snapshots previstos: before_start/after_start/after_status/after_auth/
+after_shutdown. Falha estrutural ou versão/protocolo incompatível interrompe RPCs
+opcionais e entra em shutdown limitado. Auth observada sobrevive a falha posterior,
+mas a verificação dependente continua bloqueada.
+
+Helper Python fixo de stat é instrumentação confiável, não tool agentiva. Retorna
+somente JSON sanitizado e descarta stderr. cwd/logs0700, normal credential resolution,
+LogLevel::None, --disable-builtin-mcps e allowlist anteriores mantidos. Sem token,
+base_directory ou COPILOT_HOME override. DenyAll/zero tools/MCP/skills/hooks dos
+contratos anteriores foram preservados e retestados em fixtures. Nenhuma sessão
+real os exercitou; não se declara cobertura de um agente real.
+
+[Driver](../experiments/lr-10a-sdk-runtime/confirm_a9_metadata.py) exige hashes
+offline/binary finais, native SHA, marker seguro, acesso estrutural, GUI/serviço
+já acessível/desbloqueado e ausência de concorrência verificável. Só adquire contexto
+não secreto allowlisted, nunca valores de tokens. Sondas de serviço seriam booleanas
+não ativantes, mas não foram alcançadas no fluxo real desta FIX.
+
+Output fixo/fresco O_EXCL impede rerun. O binário possui reserva separada exclusiva
+`a9-fix-4-runtime-reservation.json` antes de Client start, persistente após erro/
+crash/timeout, sem path/flag alternativo. Não é marker A9. **Binário não alcançado;
+reserva runtime não criada.** Não apagar evidência para rerun; próximo ensaio
+depende de execução revisada e autorização própria.
+
+## 5. Preflight observado e bloqueio real
+
+[Evidência](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-metadata-confirmation.json),
+**2026-10-10T09:25:03.337813+00:00**:
+
+| Pré-condição | Resultado real observado |
 | --- | --- |
-| Substituição atômica ou delete/create | POSSIBLE; forma compatível com metadados. Fixture reproduz tamanho igual com bytes diferentes. Não prova o mecanismo histórico. |
-| Refresh interno legítimo em startup/auth/catálogo/quota/shutdown | POSSIBLE; documentação atual suporta app state mutável. Fase e contrato pinado não demonstrados. |
-| CLI interativo/processo concorrente | POSSIBLE; não foi identificado um escritor na janela histórica. Fixture demonstra a insuficiência de stat para atribuir. |
-| Corrupção, escrita maliciosa ou vazamento | NOT_ESTABLISHED; não há conteúdo/autor/tráfego que prove isso. |
-| Tamanho igual ou auth positiva comprovam integridade | REJECTED como inferência; contraexemplos/testes independentes. |
-| Snapshot posterior estável legitima mudança anterior | REJECTED; não acrescenta proveniência retroativa. |
+| Contrato offline/binary | PASS: hashes e regressões finais correspondentes. |
+| Native pin | PASS SHA/ELF: `9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99`. Manifest independente1.0.95/SDK1.0.17 intacto. |
+| Marker A9 | Ausente; diretório validado sem conteúdo/claim/criação. |
+| Estrutura config | PASS_METADATA_ACCESS: regular/owner/mode/link e caminho ancorado compatíveis. |
+| Concorrência antes do serviço | BLOCKED: Copilot conhecido0, Node/Bun/npm/npx ambíguos0, inspeções same-UID indisponíveis3. |
+| GNOME/serviço/Locked e segunda inspeção | NOT_RUN; fluxo parou antes desses passos. |
+| Client start/status/auth/shutdown | NOT_RUN; zero CLI real iniciado. |
 
-Detalhes sanitizados: [investigação estática](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-static-investigation.json).
+Inspeção lê comm e metadata de executável, nunca cmdline/environ/argumentos,
+config content ou Keyring items. Dev/inode detectaria imagem pinada renomeada;
+Copilot conhecido e Node/Bun ambíguo bloqueiam. Identidade indisponível não é
+presumida segura. Observação pontual não impede lançamento posterior nem exclui
+imagens disfarçadas: não é contenção adversarial ou exclusão mútua.
 
-## 4. Contrato de integridade implementado
+[Verificação independente posterior](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-final-safety.json),
+09:26:25UTC, registrou três EACCES em executable metadata. Sem PIDs publicados ou
+correlação com os três casos anteriores. **Não se estabeleceu que fossem Copilot
+nem quais eram os processos.** Pode bloquear processos legítimos protegidos.
+Não houve strace/ptrace/sudo, mudanças /proc ou sinais a processos externos.
+Ausência de comm Copilot isoladamente não resolve a identidade indisponível.
 
-[Contrato/reprodução](../experiments/lr-10a-sdk-runtime/CONFIG-INTEGRITY.md) e
-[módulo](../experiments/lr-10a-sdk-runtime/config_integrity.py). Não se exige imutabilidade
-de app state de terceiros como regra universal; exige-se evidência de uma transição
-permitida antes de aprová-la no experimento. Detectar metadata diferente não é
-rotular uma corrupção. Quando falta essa evidência, a classificação continua explícita
-sem presumir legitimidade nem bloquear o aplicativo por chmod/locks.
+Não ocorreu auth/status real, CLI help/version, catálogo/quota ou retry.
+Comparação final config foi stat-only e concordou na janela do preflight; isso
+não prova conteúdo nem legitima a mutação histórica. Versão CLI95 é identidade
+do manifest histórico validado pelo SHA, não resultado de novo --version/RPC.
 
-| Classificação | Evidência exigida/observada | Verificação |
+## 6. Gates independentes
+
+| Gate | Resultado | Fonte/limite |
 | --- | --- | --- |
-| OBSERVATIONALLY_STABLE | Campos selecionados iguais em dois snapshots | INCONCLUSIVE para conteúdo/autorização |
-| METADATA_CHANGE_UNATTRIBUTED | Campo(s) diferente(s), escritor/semântica não comprovados | BLOCKED |
-| LEGITIMATE_CHANGE_PROVEN | Revisão sintética fixa com arquivo/FD próprios, inode/device e bytes conhecidos verificados | PASS_SYNTHETIC_CONTRACT, só fixture |
-| METADATA_UNAVAILABLE | Caminho ausente ou acesso a metadata negado | BLOCKED |
-| VERIFICATION_FAILED | Schema/tipo inválido, symlink/tipo inesperado, race detectada ou I/O | BLOCKED |
-| INCONCLUSIVE | Observação interrompida | INCONCLUSIVE, admissão BLOCKED |
+| METADATA_AUTH_OBSERVATION | NOT_RUN_CONCURRENCY_UNVERIFIED | Pré-condição bloqueou antes de Client start; nenhum PASS_REAL novo. |
+| CONFIG_STRUCTURAL_CHECK | PASS_METADATA_ACCESS | Snapshot ancorado pontual, sem conteúdo. |
+| CONFIG_DRIFT_OBSERVED | null no gate SDK não executado | Comparação separada preflight→stat final false; histórico FIX-2 true preservado. |
+| CONFIG_WRITER_ATTRIBUTION | INCONCLUSIVE | Sem comprovar escritor/semântica histórica. |
+| SESSION_ADMISSION | BLOCKED | Zero criação/retomada/exclusão real. |
+| FINANCIAL_ADMISSION | BLOCKED | Models/quota atuais não consultados; units/cost/fallback não resolvidos. |
+| AGENT_ACTION_ADMISSION | BLOCKED | Metadata/auth não concede autoridade. |
+| HEADLESS_AUTH | NOT_PROVEN | Não alterou nem testou ausência de GNOME. |
+| REAL_INFERENCE | NOT_RUN | Zero prompts/envios/inferências/ferramentas reais. |
+| PROCESS_CLEANUP | NOT_RUN SDK real; PASS fixtures owned | Kernel exhaustion/identidades ausentes nas regressões. |
+| ATTEMPT_MARKER | ABSENT_NOT_CLAIMED | Existência antes/depois false; conteúdo não lido. |
 
-**Não existe contrato implementado para aprovar escrita real do Copilot.** A única
-prova de legitimidade cria seu próprio tempdir0700 e arquivo0600, mantém FD da
-substituição durante rename e verifica revisão sintética fixa. Não aceita caminho
-externo, flag legitimate, auth ou alegação/evento do chamador. PASS sintético não
-se transfere ao host. A fixture cooperativa não é contenção contra adversário do
-mesmo UID. As classificações sempre mantêm operational_admission=BLOCKED.
+SDK_AUTHENTICATED_WITH_GUI=OBSERVED_REAL_PASS permanece exclusivamente histórico,
+na [A9-FIX-2 original](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-2-gui-sdk-metadata.json),
+2026-10-10T03:34:13Z. Inode/timestamps alterados com tamanho470 continuam sem
+prova de conteúdo ou autoria. Nenhuma escrita foi declarada legítima/corrupta,
+e não se invalidou a auth historicamente observada.
 
-O snapshot novo só abre diretórios O_PATH/O_DIRECTORY/O_NOFOLLOW, observa metadata
-ancorada sem seguir symlinks e rejeita traversal/relativos/tipos inesperados. Verifica
-device/inode do pai entre stat/open; não abre o leaf para conteúdo. Retorna somente
-campos/reasons controlados; distingue missing/EACCES/interrupção/I/O. Não substituiu
-config_stat ou os wrappers reais: permanecem intactos, sem mudança de admissão.
+Quota200/52 e Auto são históricos, não admissão financeira atual. Não se mediu
+saldo/fatura externa. Zero inferências da POC não é comprovação de cobrança externa
+zero. Uma chamada SDK futura pode envolver mais de uma unidade/requisição interna
+faturável. Nenhuma tentativa autorizada de inferência foi consumida aqui.
 
-Mesmo metadata estendida não é equivalência criptográfica. Há janelas entre os
-pontos, possibilidade de ABA/reuso de inode e pai desanexado após anchoring, além de
-resolução de clock/filesystem. Stat acessível não prova conteúdo legível. Ausência
-de erro não é aprovação. Eventos de write/rename não identificam necessariamente
-PID ou conteúdo seguro; nenhum watcher foi implantado nesta FIX.
+## 7. Testes e comandos
 
-O [replay offline](../experiments/lr-10a-sdk-runtime/review_a9_config.py) aceita somente
-artefato Git fixo por SHA256 e output novo0600/O_EXCL/O_NOFOLLOW. Não possui argumento
-CLI/config pessoal ou imports de subprocess/SDK. Exit0 significa review concluído,
-não integridade PASS. Auth histórica positiva é projetada independentemente da
-integridade bloqueada. Alteração dos bytes da evidência é rejeitada, sem novo probe.
+**52 Rust e100 Python PASS, zero FAIL**, offline/locked/jobs2/test-threads1:
+48+4 Rust, 86+14 Python. Primeiro ciclo incremental também passou; o ciclo final
+após formatação/ajustes é a referência congelada usada no preflight.
 
-## 5. Recuperação e separação de estado
-
-**Nenhuma recuperação de arquivo pessoal foi executada.** A ação correta nesta
-entrega foi preservar evidências e a autenticação histórica sem restaurar, copiar,
-apagar, renomear, mudar permissões ou bloquear config. Atualidade da autenticação
-continua NOT_RETESTED; não se afirma que a conta permaneceu válida sem consulta.
-
-cwd/log-dir privados da POC separam output operacional, não config global. Código
-pinado de base_directory exporta COPILOT_HOME para auth/sessões/telemetria juntos;
-modo Empty também desabilita keytar. Nenhuma dessas opções foi alterada para forçar
-separação. session_fs virtualiza armazenamento de sessões, não é guard de config
-pessoal. Uma estratégia de estado separado exige prova de compatibilidade e não
-pode copiar credenciais ou reconfigurar silenciosamente resolução de auth.
-
-O replay histórico ficou METADATA_CHANGE_UNATTRIBUTED, coverage=historical_four_fields,
-content_equivalence=NOT_VERIFIED, writer=INCONCLUSIVE e verification=BLOCKED.
-[Resultado novo, sem adulteração do original](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-historical-review.json).
-
-## 6. Testes e resultados
-
-48 Rust e **86 Python PASS, zero FAIL**; 68 Python prévios +18 novos. Todos os testes
-executados constam nos [logs Python](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-regressions/a9-host-python-tests.txt),
-[logs Rust](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-regressions/a9-host-rust-tests.txt)
-e [ownership](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-regressions/a9-host-owned-tests.json).
-[Casos sanitizados](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-synthetic-cases.json)
-foram extraídos de observações emitidas pelos testes realmente executados; não são
-resultado inventado de CLI real. Tests SDK usam peers locais sintéticos, não Copilot.
-
-| Caso requerido | Resultado de teste | Observação e limite |
+| Caso obrigatório | Resultado executado | Limite |
 | --- | --- | --- |
-| T1 estável | PASS | Metadata concorda, conteúdo INCONCLUSIVE/admissão BLOCKED. |
-| T2 rename atômico mesmo tamanho | PASS | inode diferente, bytes diferentes sintéticos; tamanho igual não prova equivalência. |
-| T3 tamanho muda | PASS | Campo bytes detectado, escritor não inferido. |
-| T4 timestamps mudam | PASS | utime controlado, mudança explícita sem sleeps/tolerância. |
-| T5 escrita concorrente | PASS | Python próprio sincronizado por pipe/wait; stat não atribui PID, apesar do controle da fixture. |
-| T6 ausente/inacessível | PASS | Ausência real sintética; EACCES injetado para tratamento determinístico. Não prova restrição de acesso ao host. |
-| T7 symlink inesperado | PASS | Leaf/pai symlink e tipo não regular reais sintéticos rejeitados. |
-| T8 falha/interrupção | PASS | I/O/InterruptedError injetados, saída sem exception prose; sem fallback. |
-| T9 revisão legítima conhecida | PASS em fixture | FD próprio/rename/revisão fixa comprovados; nenhuma aprovação Copilot real. |
-| T10 alteração não atribuída | PASS | Não aceita flag legítima nem caminho externo na prova sintética. |
-| T11 auth positiva + integridade inconclusiva | PASS em fixture | Boolean auth independente; financeiro continua bloqueado. |
-| T12 falha + financeiro | PASS em fixture | Finance BLOCKED, sessões/envios/claim zero. |
-| T13 schema/tipos/booleans desconhecidos | PASS | Não aprovados nem exportados como prova. |
-| T14 traversal/relativo | PASS | Rejeitado antes de abrir filesystem. |
-| T15 race de identidade do pai | PASS | Mismatch injetado, VERIFICATION_FAILED. Não prova detectar todas as races. |
-| T16 stat sem abrir leaf | PASS | Diretórios somente O_PATH/no-follow; sem leitura do conteúdo. |
-| T17 estabilidade posterior | PASS | Não reclassifica mutação anterior como legítima. |
-| T18 replay histórico/pin inválido | PASS | Histórico preservado e auth datada; evidência adulterada rejeitada. |
+| Estável | PASS fixture | Metadata aceita; conteúdo NOT_VERIFIED. |
+| Atomic replace mesmo tamanho | PASS fixture | Drift+auth positiva simultâneos; bytes sintéticos distintos, writer não inferido. |
+| Size/mtime/ctime | PASS fixture | Campos detectados sem legitimidade presumida. |
+| Unsafe path/symlink/traversal | PASS fixture | Tipo/UID/mode/link/parent access bloqueiam, sem conteúdo. |
+| Ausente/inacessível/interrompido | PASS fixture | Missing sintético real; EACCES/interrupção injetados, sem exception prose. |
+| Concurrent unknown writer | PASS fixture | Child próprio sincronizado por pipe/wait; stat não atribui autoria. |
+| Auth positiva+drift | PASS fixture | Metadata aceita; escopos sensíveis bloqueados. |
+| Auth negativa+stable | PASS fixture | AUTH_FALSE_OBSERVED, sem falso positivo. |
+| Cleanup/service failure | PASS fixture | Auth independente, verificação dependente bloqueada. |
+| Metadata→session/send | PASS fixture | Não transfere admissão nem oferece dispatcher sensível. |
+| Finance via flag/fixture/auth | PASS fixture | Flag inválida rejeitada, forged dict não admite INFERENCE; blockers Rust anteriores passam. |
+| RPC restrito/version mismatch | PASS SDK peer local | Status/auth uma vez, shutdown; erro/mismatch impede auth e retry, sem provedor. |
+| Ownership/timeout/external preservation | PASS regressões Linux sintéticas | ECHILD/pidfd/PID-start-time, sem prova de contenção adversarial. |
+| Auth/status CLI real | NOT_RUN | Concorrência não verificável; mocks não substituem. |
+| Tauri/UI | NOT_RUN | Sem mudanças de produção/dependências. |
 
-Comandos executados nesta FIX:
+[Casos sanitizados](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-synthetic-cases.json),
+[Rust final](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-final-regressions/a9-host-rust-tests.txt),
+[Python final](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-final-regressions/a9-host-python-tests.txt),
+[ownership final](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-final-regressions/a9-host-owned-tests.json),
+[offline/hashes](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-offline-verification.json).
+Logs incrementais ficam separados, sem reinterpretar como ensaio real. JSONL de
+gateway/permissões são regressões fixtures das etapas anteriores.
+
+Comandos executados:
 
 ```sh
-python3 experiments/lr-10a-sdk-runtime/review_a9_config.py --output experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-historical-review.json
-python3 experiments/lr-10a-sdk-runtime/verify_a9_host.py --artifacts-dir experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-regressions
-python3 -m py_compile experiments/lr-10a-sdk-runtime/config_integrity.py experiments/lr-10a-sdk-runtime/review_a9_config.py experiments/lr-10a-sdk-runtime/tests/test_config_integrity.py
+git status --short --branch
+git rev-parse HEAD main origin/lr-10a-sdk-runtime-feasibility origin/main
+git ls-remote origin refs/heads/lr-10a-sdk-runtime-feasibility refs/heads/main
+python3 experiments/lr-10a-sdk-runtime/verify_a9_host.py --artifacts-dir experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-regressions
+python3 experiments/lr-10a-sdk-runtime/verify_a9_host.py --artifacts-dir experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-final-regressions
+python3 experiments/lr-10a-sdk-runtime/confirm_a9_metadata.py
+git diff --cached --check
+git push origin lr-10a-sdk-runtime-feasibility
 ```
 
-O runner anterior inalterado executa `/usr/bin/cargo test --offline --locked --
---test-threads=1`, COPILOT_SKIP_CLI_DOWNLOAD=1, CARGO_BUILD_JOBS=2 e RUSTC/RUSTDOC locais;
-depois `/usr/bin/python3 -m unittest discover -s tests -p test_*.py -v` sob harness.
-Rust/Cargo1.98.1 e Python3.14.7 preexistentes, sem instalação/download/update. Não se
-atribui esta execução a Rust1.94. Hashes estão na
-[verificação](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-verification.json).
+Também executados AST parse/py_compile, JSON/JSONL parse, rustfmt --edition2021 e
+--check nos três Rust novos via toolchain stable já instalada. /usr/bin/rustfmt
+não existe: tentativa inicial exit127, depois executável local disponível, sem
+instalação. Runner usa /usr/bin/cargo test --offline --locked -- --test-threads=1,
+COPILOT_SKIP_CLI_DOWNLOAD=1/CARGO_BUILD_JOBS=2/RUSTC/RUSTDOC locais. Rust/Cargo1.98.1
+e Python3.14.7 preexistentes; não se atribui essa execução a Rust1.94. Só whitespace
+final dos novos logs txt foi normalizado.
 
-Também executados: leitura estática/rg de fontes públicas locais e browsing oficial,
-AST parse, parse JSON/JSONL novos, revisão diff/escopo/whitespace, comparação de
-blobs/prefixos com a base, revisão de campos e busca limitada de padrões de tokens,
-Bearer/private key (zero matches). Essa busca não garante detectar qualquer segredo.
-Metadados do marker verificados por helper ancorado existente, sem leitura/claim.
-Evidências txt novas tiveram somente whitespace final normalizado.
+Revisão de escopo confirmou121 arquivos históricos evidence byte-idênticos,
+wrappers/pins/Cargo/harness preservados e documentos permanentes só acrescidos.
+Scan limitado token/Bearer/private-key nos novos artefatos: zero matches, sem
+garantia universal de detectar todo segredo. Sources as-executed continuam iguais
+aos hashes publicados. Suíte Tauri completa não repetida: sem produção alterada.
 
-Regressões FIX1–4/A9/FIX1/FIX2 incluem child exhaustion/pidfd/setsid/descendente não
-amostrado, externo preservado, timeout, worker failure inconclusivo, guard race/crash,
-DenyAll/zero tools, negação de callbacks e boundary/gateway sintéticos. Nenhum teste
-iniciou CLI Copilot real. Ownership de fixtures não valida auth/gui/billing reais.
-Tauri/produção/UI: NOT_RUN, justificadamente sem diff Rust ou de produção. Não se
-repetiu a suíte de 1.107 testes nem se declarou UI/headless service testado.
+## 8. Segurança e processos
 
-## 7. Gates preservados e processos
+Nenhum conteúdo pessoal, config, token, keyring item, histórico, env integral,
+/proc/environ, cmdline, memória ou tráfego autenticado examinado. CLI não foi
+iniciado; não há stdout bruto dele. SHA leu só executável público instalado.
+Sem chmod/read-only/lock/restore/copy/rename/delete pessoal ou token store paralelo.
 
-| Gate | Estado | Fonte/limite |
-| --- | --- | --- |
-| SDK_AUTHENTICATED_WITH_GUI | OBSERVED_REAL_PASS | A9-FIX-2/2026-10-10T03:34:13Z, não novo ensaio. |
-| SDK_AUTHENTICATED_HEADLESS | NOT_PROVEN | Não se desligou GUI nem consultou auth nesta FIX. |
-| CONFIG_MUTATION_OBSERVED | histórico true | inode/mtime/ctime diferentes; bytes470 iguais, conteúdo desconhecido. |
-| CONFIG_WRITER_ATTRIBUTION | INCONCLUSIVE | Sem prova do escritor1.0.95 ou processo concorrente histórico. |
-| CONFIG_INTEGRITY_VERIFICATION | BLOCKED | Contrato real de transição/proveniência ausente. |
-| FINANCIAL_ADMISSION | BLOCKED | Preços/custo máximo/paid fallback/estado privado autenticado não resolvidos. |
-| A9_REAL_INFERENCE | NOT_RUN | Zero inferências, sessões e ferramentas agentivas reais. |
-| A9_ATTEMPT_MARKER | ABSENT_NOT_CLAIMED | Existência final false, diretório/arquivo não modificados, conteúdo não lido. |
-| PROCESS_CLEANUP | PASS no escopo sintético owned | ECHILD, survivors vazios, identidades PID/start-time ausentes, ownership errors vazios. |
-| Novo teste real | PENDING_USER_AUTHORIZATION | Somente proposta; nenhuma chamada nesta execução. |
+Não se manipulou GNOME/GDM/Keyring, login/logout, serviços, PAM, boot, rede/firewall
+ou credenciais. Estado atual de serviço/GUI NOT_RUN: bloqueio anterior às sondas.
+Headless e boundary isolado/offline anteriores intactos, sem promover a resolvidos.
 
-Catálogo/quota da FIX-2 são históricos, não observações financeiras atuais. Só Auto
-sem custo conhecido continua insuficiente. Zero inferências da POC não significa
-medição de fatura externa. Uma chamada SDK não é necessariamente uma unidade interna
-faturável. Não foi possível nem permitido retestar inferência/persistência genuínas.
+Regressões do subreaper FIX-1 atingiram kernel child exhaustion, sem ownership
+errors/survivors. Identidades PID/start-time rechecadas ausentes; writer sintético
+esperado/reaped. Externo preservado/timeout/setsid/filho não amostrado retestados.
+Nenhum sinal a processo externo. Recuperação forçada não é chamada shutdown
+gracioso SDK. Preflight bloqueado não criou processo SDK/CLI para encerrar.
 
-O processo concorrente sintético foi esperado/reaped; a suíte inteira usou o
-worker/subreaper FIX1 intacto com pidfds/identidades, bounded timeout e exhaustion.
-Processos externos não atribuídos nunca são sinalizados pelo harness; fixture de
-preservação externa passou. Nenhum runtime real precisou de shutdown nesta FIX;
-cleanup SDK real da FIX-2 continua apenas histórico. Não se equipara recuperação
-forçada a shutdown gracioso nem se proclama contenção adversarial/worker crash/
-namespace/processo ininterruptível resolvida. Esses gates continuam separados.
+Worker death, adversarial reparenting/nested namespace e processos ininterruptíveis
+continuam riscos separados, sem supervisor LR-10B. Snapshots pontuais e mesmo UID
+não garantem filesystem isolation, imutabilidade ou autoria. Nenhum PASS herdado
+de outro gate ou mock foi usado como aprovação operacional.
 
-## 8. Arquivos, preservação e publicação
+## 9. Arquivos e preservação
 
-Mudanças exclusivamente experimentais/documentais:
+Mudanças só experimentais/documentais:
 
-- Novos config_integrity.py, review_a9_config.py, tests/test_config_integrity.py e
-  CONFIG-INTEGRITY.md na POC; HOST-ASSISTED.md recebeu só adendo.
-- Novos evidence/a9-fix-3-historical-review.json, a9-fix-3-static-investigation.json,
-  a9-fix-3-sdk-contract-excerpts.txt, a9-fix-3-synthetic-cases.json,
-  a9-fix-3-verification.json.
-- evidence/a9-fix-3-regressions/: a9-host-owned-tests.json, a9-host-rust-tests.txt,
-  a9-host-python-tests.txt, a9-host-test-gateway.jsonl e a9-host-test-permissions.jsonl.
-- [Documento permanente](LR-10A-IMPLEMENTATION-AND-EVIDENCE.md) recebeu só adendo;
-  este relatório foi substituído integralmente, sem histórico cumulativo.
+- config_integrity.py: acesso opt-in, classificação histórica intacta.
+- metadata_policy.py: operação/projeções independentes e helper stat.
+- confirm_a9_metadata.py: preflight one-shot, pin/hashes/concorrência/gates.
+- src/metadata_confirmation.rs, src/bin/a9-metadata-confirm.rs: fluxo limitado e fases.
+- fixtures/metadata_confirmation_cli.py, tests/metadata_confirmation.rs, tests/test_metadata_policy.py: deterministic peers/testes.
+- METADATA-CONFIRMATION.md; adendos HOST-ASSISTED.md e documento permanente, sem apagar histórico.
+- evidence/a9-fix-4-regressions/ e a9-fix-4-final-regressions/: cinco arquivos cada.
+- evidence/a9-fix-4-offline-verification.json, a9-fix-4-synthetic-cases.json, a9-fix-4-metadata-confirmation.json, a9-fix-4-final-safety.json.
+- Este relatório substitui integralmente A9-FIX-3, preservada no histórico Git.
 
-Históricos de evidence e wrappers/config runtime/gui/headless/Cargo/harness foram
-comparados por blobs Git com a base e estão intactos. Documentos permanentes/HOST
-preservam o conteúdo anterior como prefixo. Nenhum arquivo de produção ou credencial
-foi versionado. O relatório anterior permanece no histórico Git. Commit documental
-final contém apenas este relatório; não requer repetir testes do código já testado.
+## 10. Pendências e recomendação
 
-## 9. Novo ensaio: proposta pendente, não executada
+Contrato offline corrige imutabilidade para METADATA_READ_ONLY sem legitimar
+escrita ou abrir escopos sensíveis. SDK atual não foi confirmado; concorrência
+continua bloqueio. Sem fundamento para PASS_REAL novo, READY_FOR_A9, admissão
+financeira ou avanço LR-10B.
 
-As evidências existentes não contêm fases/writer/bytes, e a implementação do escritor
-nativo não foi demonstrada. Uma nova observação pode reduzir a janela temporal,
-mas **metadata/eventos sozinhos não comprovam autoria ou segurança de conteúdo**.
-Não se propõe um teste real automático para transformar o gate em PASS.
+Próximo passo: auditar a política e determinar não invasivamente se entradas
+indisponíveis podem ser excluídas como CLI concorrente. Se impossível, definir
+condição revisada de execução com autorização própria, sem mudar /proc, encerrar
+processos externos ou criar flag de tolerância. Nenhum novo ensaio executado aqui.
 
-| Item | Proposta sujeita a revisão e autorização humana |
-| --- | --- |
-| Objetivo exato | Observar metadata por fase de um único Client, validar um contrato de update previamente revisado e delimitar a janela sem conteúdo privado. |
-| Risco | Resolução normal de credenciais/cleanup pode atualizar state compartilhado; concorrência e shutdown podem causar novas mudanças. |
-| Limite | Um start/getStatus/auth.getStatus/stop; sem models/quota/sessões/prompts/retry/inferência. |
-| Proteção | Imagem já pinada, harness ownership, allowlist, cwd/logs privados, snapshots metadata-only ancorados; sem locks/read-only/cópias/restore ou mudança de auth. |
-| Pré-condições | Autorização separada e auditoria do contrato/método; usuário confirmar ausência de atividade Copilot concorrente sem POC matar processos. |
-| Interrupção | Metadata ausente, caminho/service/marker inesperado, timeout/cleanup incompleto ou primeira mutação não classificada: suspender fases opcionais e fazer shutdown bounded/evidências. |
-| Limitação | Correlação de fases/eventos ainda não atribui autor ou valida semântica; não basta sozinha para aprovar. |
+Ainda separados: confirmação status/auth GUI, prova headless, estado privado/
+sessões, modelo/unidades/custo máximo/no fallback pago, isolamento auth/rede e
+falha do supervisor. Inferência/persistência genuínas NOT_RUN. A autorização de
+uma tentativa futura não foi consumida nem utilizada como autorização desta FIX.
 
-Estado **PENDING_USER_AUTHORIZATION**. Nenhuma autorização é solicitada durante esta
-FIX, nenhum procedimento executável de novo probe foi incluído no replay. Propostas
-que dependam de conteúdo/credenciais/intervenção sensível não serão implementadas
-como workaround. Nenhuma cópia de token, proxy, alteração de HOME/config auth,
-mount amplo ou restauração cega está prevista como solução.
-
-## 10. Conclusão e operação futura
-
-A mutação foi tratada como uma observação que exige atribuição/contrato, não como
-corrupção presumida nem mudança automaticamente segura. Contrato/testes receberam
-PASS parcial sintético. O gate real permanece **BLOCKED**, autoria **INCONCLUSIVE**,
-com recomendação **FIX_AND_RETEST após auditoria**, sem avanço de etapa.
-
-A operação headless futura não é comprovada por auth com GNOME. Deve validar resolução
-normal de credenciais, dependências de serviço e política de estado mutável própria,
-sem copiar credenciais ou exigir imutabilidade indevida do aplicativo terceiro.
-Permanecem os bloqueios financeiros, de sessão privada/persistência, auth/rede isoladas
-e contenção do supervisor. O prazo Narys0.1 em 17/10/2026 exige priorização humana,
-sem dispensar esses gates; a POC permanece separada da produção.
-
-**A9-FIX-3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+Release0.1 em17/10/2026: manter POC fora de produção e priorização humana. Prazo
+não permite bypass de concorrência, financeiro ou autoridade. Decisão técnica:
+**PASS parcial offline + BLOCKED real / FIX_AND_RETEST.** Entrega candidata,
+auditoria independente da Luna pendente; nenhuma próxima etapa iniciada.
