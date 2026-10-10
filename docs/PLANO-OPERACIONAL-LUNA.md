@@ -1,6 +1,6 @@
 # Plano operacional — construção estrutural da Luna
 
-> **Checkpoint mais recente — 10/10/2026:** LR-10A **PASS FINAL**; LR-10B–F **PAUSADAS**; **NARYS-SERVER-1** é a próxima implementação, com urgência máxima, prazo até 48h após início e quatro etapas no máximo. Meta Narys 0.1: 17/10/2026. [Fechamento LR-10A](LR-10A-FINAL-CLOSURE-2026-10-10.md) · [NARYS-SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md). Seções cronológicas anteriores preservam os estados da data em que foram escritas.
+> **Checkpoint atualizado — 10/10/2026:** LR-10A **PASS FINAL**; LR-10B–F **PAUSADAS SOMENTE DURANTE NARYS-SERVER-1**; a próxima implementação é **NARYS-SERVER-1**, até 48h corridas após início real e no máximo quatro etapas. **Meta de produto até 17/10/2026: Narys 0.1 operacional com agentes que usem ferramentas reais**, incluindo edição/teste em workspace autorizado, approvals, traces e reentrada; não apenas chat. A arquitetura [Core-First](NARYS-CORE-FIRST-ARCHITECTURE-2026-10-10.md) autoriza extrair/refatorar extensivamente Tauri, Conversation, Scheduler e módulos correlatos quando for técnica melhor. [Fechamento LR-10A](LR-10A-FINAL-CLOSURE-2026-10-10.md) · [trilha SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md) · [plano de entrega agentiva 0.1](NARYS-01-AGENT-TOOLS-DELIVERY.md). Seções cronológicas antigas mantêm contexto e não substituem esta decisão posterior.
 
 > Plano de execução derivado da arquitetura definida em 25/09/2026.
 >
