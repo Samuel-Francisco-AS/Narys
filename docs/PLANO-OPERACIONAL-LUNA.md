@@ -1,5 +1,7 @@
 # Plano operacional — construção estrutural da Luna
 
+> **Checkpoint mais recente — 10/10/2026:** LR-10A **PASS FINAL**; LR-10B–F **PAUSADAS**; **NARYS-SERVER-1** é a próxima implementação, com urgência máxima, prazo até 48h após início e quatro etapas no máximo. Meta Narys 0.1: 17/10/2026. [Fechamento LR-10A](LR-10A-FINAL-CLOSURE-2026-10-10.md) · [NARYS-SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md). Seções cronológicas anteriores preservam os estados da data em que foram escritas.
+
 > Plano de execução derivado da arquitetura definida em 25/09/2026.
 >
 > Este é o documento principal para iniciar a refatoração pós-M0. Os trabalhos de avatar/animação e de agente devem avançar em paralelo e se encontrar por contratos, não por dependência temporal.
@@ -585,7 +587,7 @@ Plano: [NARYS-TERMINAL-RUNTIME-TRACK.md](NARYS-TERMINAL-RUNTIME-TRACK.md).
 
 ## 14. LR-10 — GitHub Copilot SpecialistAgent
 
-**Estado: PLANEJADA / DOCUMENTAÇÃO E DECOMPOSIÇÃO REGISTRADAS EM 09/10/2026; nenhuma subfase iniciada ou declarada PASS.**
+**Estado atualizado em 10/10/2026: LR-10A PASS FINAL auditada; LR-10 PAUSADA, B–F não iniciadas; prioridade imediata NARYS-SERVER-1, até 48h e quatro etapas.** O texto de planejamento a seguir permanece como especificação de B–F, com herança/dívidas mapeadas no [documento LR-10](LR-10-COPILOT-SPECIALIST-AGENT.md).
 
 Objetivo: aproveitar a conta Copilot Student e preservar as capacidades
 operacionais do Copilot CLI (edição, comandos, testes, ferramentas, sessões e
@@ -923,6 +925,8 @@ Plano:
 [NARYS-VOICE-FUTURE-TRACK.md](NARYS-VOICE-FUTURE-TRACK.md).
 
 ## 24. Próxima ação recomendada
+
+**Atualização vinculante de 10/10/2026:** a próxima ação NÃO é mais PERF-1/LR-9 nem LR-10B. LR-10A recebeu PASS FINAL e LR-10 ficou pausada por decisão do usuário. A próxima trilha a abrir é **[NARYS-SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md)**, imediatamente, com **até 48 horas corridas desde a abertura real e máximo de quatro etapas**, sem novas FIXes salvo bloqueios reais de confiabilidade. O histórico abaixo corresponde ao checkpoint antigo de 07–08/10.
 
 Com **LR-6 = PASS completo**, **UIP-0 → UIP-7 = PASS funcional**, **LR-7 = PASS
 completo**, **LR-8 = PASS completo**, **LR-8.5A/B/C = PASS técnico** e

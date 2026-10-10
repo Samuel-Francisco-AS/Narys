@@ -1,7 +1,7 @@
 # LR-10 — GitHub Copilot SpecialistAgent
 
-**Estado:** PLANEJADA / DECOMPOSIÇÃO E DECISÕES DOCUMENTADAS — 09/10/2026. **Nenhuma subfase implementada ou aprovada em PASS neste registro.**  
-**Posição:** após LR-9 (PASS FINAL em 09/10/2026), antes de LR-11 (OpenAI Codex SpecialistAgent).  
+**Estado atual (10/10/2026): TRILHA LR-10 PAUSADA por decisão do usuário; **LR-10A PASS FINAL** após auditoria independente. **LR-10B–F permanecem planejadas/não iniciadas**, sem transferência automática de authority. Próxima: [NARYS-SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md), prioridade máxima, até 48h e no máximo quatro etapas.  
+**Posição atual:** LR-9 PASS → LR-10A PASS → **pausa LR-10B–F** → NARYS-SERVER-1 → retomada LR-10 por decisão explícita → LR-11.  
 **Base documental:** `main` em `f4174121a552d1c0cf9ebf8e83c332ca3cb826c8`, sem alteração funcional até o início de uma subfase.  
 **Plano de entrada:** [LR-10A — SDK & Runtime Feasibility POC](LR-10A-FEASIBILITY-POC.md).
 
@@ -27,7 +27,7 @@ A LR-9 fornece:
 - `AgentBackend`, `AgentRegistry` e Codex planner read-only anteriores à LR-10;
 - Scheduler, TaskGraph, políticas LR-8.5 de recursos/quota e safe handoff.
 
-**O que não existe ainda na `main`:** `CopilotAgentAdapter`, autoridade de execução agentiva, sandbox comprovado para Copilot, engine de approvals do Copilot e integração operacional real com Copilot. Em produção, `ExecutionAuthority` permite `HumanLocal` apenas para `ExecutionOrigin::Human`. `WorkspaceScope` verifica cwd, mas **não é sandbox de filesystem**. O Codex de LR-7D0.5 é *planner* read-only; LR-11 permanece responsável pelo executor Codex.
+**Baseline histórico anterior à LR-10A:** faltavam `CopilotAgentAdapter`, autoridade agentiva, sandbox, approvals e integração Copilot. **Após LR-10A:** o crate separado `narys-core/` executou um `CopilotBackend` textual real no Fedora headless, sem integrar a factory de production Tauri; execução de ferramentas, sandbox comprovado, approvals e Supervisor completo continuam pendentes. Em produção, `ExecutionAuthority` permite `HumanLocal` apenas para `ExecutionOrigin::Human`. `WorkspaceScope` verifica cwd, mas **não é sandbox de filesystem**. O Codex de LR-7D0.5 é *planner* read-only; LR-11 permanece responsável pelo executor Codex.
 
 **Invariante central:** `ExecutionOrigin::SpecialistAgent`, TaskId, IDs de sessão, provenance, callbacks da WebView e texto produzido por LLM **não conferem autoridade**. Nunca reutilizar `HumanLocal` nem abrir IPC de shell genérico para agentes.
 
@@ -246,3 +246,23 @@ Cada subfase: branch curta baseada na `main` verificada, implementação/testes/
 - [Plano operacional da Narys](PLANO-OPERACIONAL-LUNA.md)
 
 **Registro autoriza apenas planejamento/documentação; não constitui PASS técnico, teste real, prova de isolamento, instalação do SDK nem autorização permanente de YOLO.**
+
+## 14. Checkpoint obrigatório pós-LR-10A (10/10/2026) — PAUSA
+
+**LR-10A encerrou em PASS FINAL técnico** para servidor headless com Copilot textual e zero tools, conforme [fechamento auditado](LR-10A-FINAL-CLOSURE-2026-10-10.md), [relatório](LR-10-LATEST-EXECUTION-REPORT.md) e [evidência real](../narys-core/evidence/final-integrated-operation.json). Implementado `narys-core/` sem Tauri/GTK/WebKit, systemd --user, Keyring manual, Stronghold existente, SDK1.0.17/CLI1.0.95 pinados, sessão/response real5, TaskGraph/SQLite/artifact/trace e resume real sem send novo. Uma inferência de três autorizadas; duas restantes revogadas. A aprovação é **somente da LR-10A**. Não classificar LR-10 inteira como PASS.
+
+**Decisão atual:** LR-10B, C, D, E e F **PAUSADAS / NÃO INICIADAS**. A próxima prioridade de implementação é [NARYS-SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md), em até 48h da abertura com máximo de quatro etapas. Enquanto ela estiver ativa, não iniciar atividades LR-10B–F por inércia.
+
+### Transferência explícita para retomada B–F
+
+| Etapa posterior | Base que já existe (não reimplementar) | Demanda restante para Copilot operacional futuro |
+| --- | --- | --- |
+| **LR-10B** Adapter/Supervisor | `narys-core/src/{server,worker,authorization}.rs`; SDK real, sessão e resume, Core sob systemd, lifecycle on-demand, harness de ownership | Adapter de produção reunido ao Core servidor/Tauri, leases e concorrência, supervisor com crash recovery e persistência de sessão além de /tmp, processo sem órfãos em falha adversarial, sem duplicar SQLite |
+| **LR-10C** Authority/Approval/Sandbox | DenyAll, zero tools, HOST_ASSISTED_NOT_SANDBOX, sem HumanLocal | Permissões por ferramenta e operação, aprovador humano, sandbox de SO e limites de rede/FS/segredos; perfis Assistido/Isolado/YOLO explícito; ferramentas SDK/CLI não passam automaticamente no ExecutionBroker |
+| **LR-10D** TaskGraph/Quota/Handoff/Trace | Task2 completada, validação por arquivo/SQLite/TaskGraph, usage `totalPremiumRequests`, trace bounded, receipt durável de teste fechado | Unificar contratos de tarefa/reentrada e economia LR-8.5/trace LR-9 para fluxos de produto; unidades AI Credits vs requests, observação de quota e ausência de hard cap; políticas reutilizáveis por sessão, zero extrapolação da autorização encerrada |
+| **LR-10E** UX e tarefa real de engenharia | CLI SSH permite status/prepare/submit/result/cancel; tarefa textual real sem ferramentas | Conversa/Activity/approvals na UI Narys e clientes servidor, progresso de edição/testes/diff em workspace, gates dos perfis, UX sem TUI Copilot |
+| **LR-10F** Audit/Security/Concurrency final | 67 testes direcionados de LR10A, um cold boot, one send, resume e cleanup observados | Stress agentivo com ferramentas, cancel/completed race, crash/orphan, rede/credenciais/approvals, regressões produção; MSRV/Tauri quando de fato modificados |
+
+**Dívidas concretas preservadas:** helper Keyring50 usa API interna não suportada e pede senha manual; CLI tem `RES_OPTIONS=no-aaaa` restrito ao processo; config.json Copilot teve drift sem autoria provada; soft `maxAiCredits` falhou no create e foi omitido; quota externa pode não refletir uso imediatamente; o Core mínimo tem DB separada da GUI, sessões em /tmp e ferramentas desativadas; host-assisted é sem sandbox; rustc1.98.1 foi compilador observado, não prova de MSRV1.94. **Nenhuma dívida é motivo para reabrir a LR-10A**. Enquadramento e destinação: [ledger de fechamento](LR-10A-FINAL-CLOSURE-2026-10-10.md).
+
+**Continuidade de produto:** primeiro tornar toda a versão Narys-servidora utilizável na trilha NARYS-SERVER-1; depois retomar a execução agentiva do Copilot em B–F (e Codex em LR-11), sem confundir o sucesso de texto da LR-10A com edição/comandos. Reabrir a LR-10 exige decisão expressa e checkpoint atualizado; não há permissão permanente para inferência, overage ou YOLO.

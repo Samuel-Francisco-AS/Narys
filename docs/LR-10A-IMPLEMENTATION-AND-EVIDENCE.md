@@ -1,5 +1,7 @@
 # LR-10A — Implementation & Evidence
 
+> **Ratificação posterior — 10/10/2026: LR-10A PASS FINAL após auditoria independente.** O texto inicial e adendos H/FIX/A9 documentam estados históricos intermediários, inclusive “candidata” e “bloqueada”, e não representam o estado atual. Decisão vinculante: [fechamento final](LR-10A-FINAL-CLOSURE-2026-10-10.md) e [relatório final](LR-10-LATEST-EXECUTION-REPORT.md). LR-10B–F PAUSADAS; próxima trilha [NARYS-SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md).
+
 **LR-10A — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**
 
 Data: 09/10/2026. Recomendação: **FIX-AND-RETEST**. O gate operacional completo
@@ -1034,3 +1036,9 @@ approvals e supervisor/sandbox de produção continuam fora do escopo; modo isol
 não foi desbloqueado pelo sucesso host-assisted. Instalação depende desta checkout
 e helper de unlock interno pinado; 1.98.1 foi o compiler executado, não prova nova
 em1.94. A auditoria independente decidirá o fechamento definitivo da LR-10A.
+
+## Ratificação final da auditoria independente — 10/10/2026
+
+**PASS FINAL LR-10A, sem FIXes/complementos adicionais.** Esta seção prevalece para estado de etapa sobre os checkpoints históricos anteriores. Confirmação baseada em código/evidências publicados: uma inferência Copilot enviada e respondida5, arquivo relido, TaskGraph/SQLite completed após restart, resume genuíno sem nova inferência, cold boot sem desktop, credenciais e Stronghold existentes com unlock humano, shutdown e cleanup. **35 Rust +1 integração Unix +6 Python +25 ownership =67 PASS** no conjunto final documentado. A aprovação não cobre ferramentas agentivas, sandbox, UX final nem gastos futuros.
+
+Dívidas e responsabilidade por LR-10B/C/D/E/F ou NARYS-SERVER-1 ficam no [documento de fechamento](LR-10A-FINAL-CLOSURE-2026-10-10.md), sem reabrir a etapa aprovada. A autorização de até três envios foi encerrada após um send; não reutilizar o consentimento. Roadmap: LR-10 PAUSADA; NARYS-SERVER-1 PRÓXIMA, limite 48h/quatro etapas a partir do início efetivo.

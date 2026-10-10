@@ -1,5 +1,7 @@
 # LR-10A — implementação consolidada e validação operacional final
 
+> **AUDITORIA INDEPENDENTE RATIFICADA EM 10/10/2026: LR-10A = PASS FINAL técnico** no escopo servidor headless/Copilot textual host-assisted. A designação “candidata/aguardando auditoria” no corpo abaixo é o estado anterior à ratificação. **LR-10B–F PAUSADAS.** Próxima trilha urgente: [NARYS-SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md), até 48h após início e no máximo quatro etapas. Ver [decisão e dívidas](LR-10A-FINAL-CLOSURE-2026-10-10.md).
+
 ## Identificação e decisão
 
 Narys, Fedora44, 10/10/2026. **Core headless + Copilot textual: PASS_REAL no escopo
@@ -285,3 +287,9 @@ upgrade futuro requer compatibilidade revisada. Limitações de billing units/ca
 filesystem/rede host-assisted e falha do supervisor estão delimitadas; não impedem
 reconhecer a tarefa textual real comprovada, nem justificam atribuir controles ainda
 não implementados. A decisão final de encerramento cabe à auditoria independente.
+
+## Ratificação posterior / controle de versão — 10/10/2026
+
+**PASS FINAL LR-10A** atribuído após revisão independente dos artefatos de inferência, resume, serviços, autorização e regressões direcionadas. O relatório precedente permanece fiel ao estado da candidata no instante de sua publicação; esta ratificação prevalece sobre os marcadores PENDING_INDEPENDENT_AUDIT e “aguardando” históricos. Nenhum novo SDK send, reboot ou test suite foi executado para registrar este fechamento. `main` recebe a integração da branch aprovada por fast-forward; a branch de trabalho fica disponível até sincronização local.
+
+A LR-10 inteira **não** está concluída: B–F pausadas; a NARYS-SERVER-1 é a próxima trilha a iniciar. Dívidas mapeadas em [fechamento](LR-10A-FINAL-CLOSURE-2026-10-10.md).

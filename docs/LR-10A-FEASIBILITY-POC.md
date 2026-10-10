@@ -1,6 +1,6 @@
 # LR-10A — SDK & Runtime Feasibility POC
 
-**Estado:** PLANEJADA — protocolo de investigação definido em 09/10/2026, ainda não executado.  
+**Estado atual:** **PASS FINAL em 10/10/2026 após auditoria independente**, com escopo operacional host-assisted documentado; a matriz abaixo é o protocolo original, preservado historicamente.  
 **Trilha mãe:** [LR-10 — GitHub Copilot SpecialistAgent](LR-10-COPILOT-SPECIALIST-AGENT.md).  
 **Objetivo:** decidir, por evidência, se a integração Rust SDK + Copilot CLI é suportada no Fedora/Tauri da Narys **sem antecipar permissões de filesystem/shell**.
 
@@ -59,3 +59,11 @@ Se A9 não puder rodar por falta de credenciais/quota, registrar `BLOCKED_REAL` 
 Registrar especificamente se manter `edition = "2021"` com dependência Edition 2024 é validado; só então alterar `rust-version` no Cargo.toml de Narys no commit funcional autorizado. **Este documento não altera Rust, quotas nem política operacional por si só.**
 
 Referências: [Rust SDK](https://github.com/github/copilot-sdk/blob/main/rust/README.md), [setup local do CLI](https://github.com/github/copilot-sdk/blob/main/docs/setup/local-cli.md), [limites de sessão](https://github.com/github/copilot-sdk/blob/main/docs/features/session-limits.md), [SDK hooks](https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/hooks), [Copilot CLI perms](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/allowing-tools).
+
+## 6. Resultado final auditado — 10/10/2026
+
+**Decisão GO / PASS_FINAL para a LR-10A exclusivamente.** Cold boot Fedora sem GNOME, Core Rust serviço systemd, Keyring existente desbloqueado manualmente em SSH privado, Stronghold aberto sem migração, SDK Rust1.0.17/CLI1.0.95 com auth/catálogo Auto/quota, sessão criada, uma tarefa textual real concluída com saída5/arquivo/TaskGraph/SQLite e sessão genuinamente retomada sem inferência adicional. Shutdown/cleanup completo e contrato anti-replay. Evidências: [relatório consolidado](LR-10-LATEST-EXECUTION-REPORT.md), [decisão de auditoria e dívidas](LR-10A-FINAL-CLOSURE-2026-10-10.md).
+
+A0/A2/A3–A6/A9 passaram no escopo host-assisted real; A7 cancel/timeout em fixtures e shutdown real; A8 medição proporcional no Fedora, não benchmark frio longo; A10 DenyAll/zero tools e ausência de concessão HumanLocal, **não sandbox de produção**. A1 validou build na toolchain real Rust1.98.1/Edition2021 e compatibilidade de integração isolada; MSRV1.94 específico não foi novamente compilado. O modo `A9_ISOLATED` permanece negado e pertence à LR-10C, não foi reclassificado pela execução host-assisted.
+
+**67 testes PASS** (35 Rust, 1 Unix, 6 Python e 25 ownership), uma inferência real concluída, duas tentativas remanescentes revogadas. O limite soft de AI Credits foi removido por incompatibilidade observada durante `session.create`; isso não significa autorização de cobrança adicional. Não extrapolar resultados para edição/shell, UI integrada, novos providers ou quota USD. LR-10B–F **pausadas** até depois de [NARYS-SERVER-1](NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md), com prioridade e prazo máximo de 48h após início.

@@ -8,13 +8,15 @@ Aplicação desktop incremental com Tauri 2, React, TypeScript e Three.js.
 
 **Estado:** LR-1 → LR-8.5 e UIP-0 → UIP-7 estão consolidados. **PERF-1 — Adaptive Presence & Economy Mode fechou em PASS completo em 07/10/2026**, com Economy 2D como default, Presence opt-in, Headless real e Adaptive restrito a Economy ↔ Headless.
 
-**LR-9 — Operational Terminal & Cognitive Trace Runtime encerrou em PASS FINAL em 09/10/2026**, após auditoria independente e integração à `main`. Entregou PTY humano, Execution Broker, observabilidade passiva bounded, Terminal/Activity e gates de segurança/concorrência. **Próxima fase: LR-10 — GitHub Copilot SpecialistAgent**, atualmente **PLANEJADA**, com interface operacional unificada da Narys, SDK Rust sujeito a POC e runtime Copilot sob demanda. O antigo escopo Luna Voice continua em NARYS-VOICE sem posição fixa.
+**LR-9 — Operational Terminal & Cognitive Trace Runtime: PASS FINAL (09/10/2026)**. **LR-10A — SDK/Runtime e Narys Core headless: PASS FINAL após auditoria independente (10/10/2026)**, incluindo cold boot sem GNOME, Keyring/Stronghold existentes, Copilot textual com uma inferência real correta e resume genuíno. **LR-10 (B–F) PAUSADA**; próxima trilha de prioridade máxima: **NARYS-SERVER-1 — Headless Server Runtime**, até 48h corridas desde o início efetivo e no máximo quatro etapas, rumo à Narys 0.1 até 17/10/2026. A entrega atual não é ainda a Narys-servidora completa nem o Copilot agentivo com ferramentas. O antigo escopo Luna Voice continua em NARYS-VOICE sem posição fixa.
 
 Veja [LR-9 / NARYS-TERM](docs/NARYS-TERMINAL-RUNTIME-TRACK.md),
 [NARYS-VOICE](docs/NARYS-VOICE-FUTURE-TRACK.md),
 [PERF-1](docs/PERF-1-ADAPTIVE-PRESENCE.md),
 [LR-8.5](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md),
-[LR-10](docs/LR-10-COPILOT-SPECIALIST-AGENT.md) e
+[LR-10 (pausada)](docs/LR-10-COPILOT-SPECIALIST-AGENT.md),
+[fechamento LR-10A](docs/LR-10A-FINAL-CLOSURE-2026-10-10.md),
+[NARYS-SERVER-1 (próxima)](docs/NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md) e
 [o plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
 
 ## LR-7D1 — PASS completo
@@ -54,8 +56,8 @@ Documentos principais:
 - [Provedores, SDKs e orquestração de IA](docs/AI-PROVIDERS-ORCHESTRATION.md)
 - [LR-8.5 — Cognitive Resource Economy & Allocation](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md)
 - [LR-9 — Operational Terminal & Cognitive Trace Runtime](docs/NARYS-TERMINAL-RUNTIME-TRACK.md)
-- [LR-10 — GitHub Copilot SpecialistAgent (PLANEJADA)](docs/LR-10-COPILOT-SPECIALIST-AGENT.md)
-- [LR-10A — Feasibility POC (NOT_RUN)](docs/LR-10A-FEASIBILITY-POC.md)
+- [LR-10 — GitHub Copilot SpecialistAgent (PAUSADA; LR-10A PASS)](docs/LR-10-COPILOT-SPECIALIST-AGENT.md)
+- [LR-10A — Feasibility POC (PASS FINAL)](docs/LR-10A-FEASIBILITY-POC.md)
 - [NARYS-VOICE — Unified Voice & Natural Feedback](docs/NARYS-VOICE-FUTURE-TRACK.md)
 - [Narys pós-LR-11 — Cognitive Evolution Track](docs/NARYS-POST-LR11-COGNITIVE-EVOLUTION.md)
 - [Local Cognitive Support — papel dos coprocessadores locais na Luna](docs/LOCAL-COGNITIVE-SUPPORT-LUNA.md)
