@@ -53,7 +53,10 @@ fn private_write(path: &Path, bytes: &[u8]) -> Result<(), &'static str> {
         .map_err(|_| "private_file_create_failed")?;
     f.write_all(bytes)
         .and_then(|_| f.sync_all())
-        .map_err(|_| "private_file_write_failed")
+        .map_err(|_| "private_file_write_failed")?;
+    fs::File::open(path.parent().ok_or("private_file_parent_missing")?)
+        .and_then(|d| d.sync_all())
+        .map_err(|_| "private_directory_sync_failed")
 }
 impl Config {
     pub fn discover() -> Result<Self, &'static str> {
@@ -282,12 +285,15 @@ impl Core {
                     json!({"existing_snapshot_opened":true,"writes":false,"migration":false,"secret_values_returned":false}),
                 )
             }
-            "copilot" => {
+            "copilot" | "session-check" => {
                 let _permit = self.busy.try_acquire().map_err(|_| "runtime_busy")?;
                 if credentials(&self.config).await["login_unlocked"] != true {
                     return Err("manual_unlock_required");
                 }
                 let dir = self.create_job_dir()?;
+                if v["operation"] == "session-check" {
+                    private_write(&dir.join("session-check.json"), b"{\"inference\":false}\n")?;
+                }
                 let evidence = owned_run(&self.config, &dir, None).await?;
                 private_write(
                     &dir.join("metadata-evidence.json"),
@@ -329,13 +335,22 @@ impl Core {
                     .ok_or("invalid_task_id")?;
                 let db = self.config.db()?;
                 let (path,objective,expected):(String,String,String)=db.query_row("SELECT directory,objective,expected FROM headless_tasks WHERE id=?1 AND state='prepared'",[id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|_|"task_not_prepared_or_already_attempted")?;
-                let receipt = self.config.state.join("financial-review.json");
+                let auth_root = crate::authorization::directory(&self.config.home);
+                crate::authorization::check(&auth_root)?;
+                let receipt = auth_root.join("receipts").join(format!("task-{id}.json"));
                 policy::private_file(&receipt)?;
                 let receipt: Value = serde_json::from_slice(
                     &fs::read(receipt).map_err(|_| "financial_review_required")?,
                 )
                 .map_err(|_| "financial_review_invalid")?;
                 policy::reviewed_receipt(&receipt, id)?;
+                if id <= 1
+                    || receipt["authorization_scope"] != crate::authorization::SCOPE
+                    || objective != crate::authorization::PROMPT
+                    || expected != "5"
+                {
+                    return Err("final_consent_task_scope_invalid");
+                }
                 let dir = PathBuf::from(path);
                 policy::private_directory(&dir)?;
                 private_write(
@@ -429,8 +444,20 @@ impl Core {
                     } else if code == Some("result_artifact_verification_failed") {
                         let _ = graph.mark_failed("specialist");
                     }
+                    let completion = json!({"task_id":id,"state":state,"subtask_state":graph.state("specialist"),"task_graph_all_completed":graph.all_completed(),"result_validated_against_human_expected":state=="completed","artifact_written_and_reread":output.is_some()&&code!=Some("result_artifact_verification_failed"),"execution_authority_granted":false});
+                    if private_write(
+                        &dir.join("completion-evidence.json"),
+                        &serde_json::to_vec_pretty(&completion).unwrap(),
+                    )
+                    .is_err()
+                    {
+                        state = "failed";
+                        code = Some("completion_evidence_persist_failed");
+                    }
                     if let Ok(db) = core.config.db() {
-                        let _=db.execute("UPDATE headless_tasks SET state=?1,result=?2,error_code=?3 WHERE id=?4",rusqlite::params![state,output,code,id]);
+                        if db.execute("UPDATE headless_tasks SET state=?1,result=?2,error_code=?3 WHERE id=?4",rusqlite::params![state,output,code,id]).ok()!=Some(1){state="persistence_failed";}
+                    } else {
+                        state = "persistence_failed";
                     }
                     trace(&core.trace, id, state);
                     *core.active.lock().await = None;

@@ -32,7 +32,7 @@ async fn main() {
             return if status.success(){Ok(())}else{Err("manual_unlock_failed")};
         }
         let request=match operation{
-            "status"|"credentials"|"stronghold"|"copilot"|"events"=>json!({"operation":operation}),
+            "status"|"credentials"|"stronghold"|"copilot"|"events"|"session-check"=>json!({"operation":operation}),
             "prepare" if args.len()==4=>json!({"operation":"prepare","task":{"objective":args[2],"model":"auto","included_only_approval":true},"expected":args[3]}),
             "submit"|"cancel"|"result" if args.len()==3=>json!({"operation":operation,"task_id":args[2].parse::<u64>().map_err(|_|"invalid_task_id")?}),
             _=>return Err("invalid_command")

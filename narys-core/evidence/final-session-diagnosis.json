@@ -1,0 +1,374 @@
+{
+  "base": "25fe0b4c2cccbda890b40036bc640e9b84825e24",
+  "inference_sends": 0,
+  "diagnostics": [
+    {
+      "cleanup_complete": true,
+      "evidence": "/tmp/narys-task-aVzdQu/metadata-evidence.json",
+      "financial_admission": "AWAITING_HUMAN_FINANCIAL_REVIEW",
+      "metadata": {
+        "auth": {
+          "authenticated": true
+        },
+        "error_code": "rpc_error_unknown",
+        "host_assisted_not_sandbox": true,
+        "phase": "session_start",
+        "rpc_error_code": -32603,
+        "rpc_error_public_tags": [
+          "session.create"
+        ],
+        "runtime": {
+          "protocol_version": 3,
+          "version": "1.0.95"
+        },
+        "sdk": "1.0.17",
+        "sdk_send_calls": 0,
+        "shutdown": "graceful",
+        "state": "blocked",
+        "tools_executed": 0
+      },
+      "installed_core_sha256": "5b1d9a325796b29c9d00db6167e35bd25b534a16fb547bea9eeec89636d60ecd",
+      "ownership": {
+        "attributed_processes": [
+          {
+            "basis": "launched_root",
+            "pid": 5442,
+            "start_ticks": 349797
+          }
+        ],
+        "cleanup_complete": true,
+        "cleanup_ms": 32.73,
+        "cleanup_status": "graceful_no_recovery",
+        "config_after": {
+          "snapshot": {
+            "metadata": {
+              "bytes": 470,
+              "ctime_ns": 1791650188304635231,
+              "device": 51,
+              "gid": 1000,
+              "inode": 3786180,
+              "links": 1,
+              "mode": 384,
+              "mtime_ns": 1791650188303635270,
+              "uid": 1000
+            },
+            "state": "observed"
+          },
+          "structural_check": "PASS_METADATA_ACCESS"
+        },
+        "config_before": {
+          "snapshot": {
+            "metadata": {
+              "bytes": 470,
+              "ctime_ns": 1791647099201199801,
+              "device": 51,
+              "gid": 1000,
+              "inode": 3785482,
+              "links": 1,
+              "mode": 384,
+              "mtime_ns": 1791647099201199801,
+              "uid": 1000
+            },
+            "state": "observed"
+          },
+          "structural_check": "PASS_METADATA_ACCESS"
+        },
+        "config_writer_attribution": "INCONCLUSIVE",
+        "exit_code": 0,
+        "external_process_policy": "not_attributed_never_signalled",
+        "gui_process_absence_observed": true,
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "headless": null,
+        "kernel_children_exhausted": true,
+        "observed_owned_processes": 2,
+        "operation_outcome": "main_exit_zero",
+        "owned_survivors_after_recovery": [],
+        "owned_survivors_before_recovery": [],
+        "ownership_errors": [],
+        "ownership_scope": "private_single_invocation_subreaper",
+        "peak_owned_processes": 2,
+        "peak_process_tree_rss_bytes": 273227776,
+        "poll_interval_ms": 50,
+        "probe": "/tmp/narys-task-aVzdQu",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "sampled_cpu_seconds_lower_bound": 12.23,
+        "schema_version": 2,
+        "sdk_report": {
+          "auth": {
+            "authenticated": true
+          },
+          "error_code": "rpc_error_unknown",
+          "host_assisted_not_sandbox": true,
+          "phase": "session_start",
+          "rpc_error_code": -32603,
+          "rpc_error_public_tags": [
+            "session.create"
+          ],
+          "runtime": {
+            "protocol_version": 3,
+            "version": "1.0.95"
+          },
+          "sdk": "1.0.17",
+          "sdk_send_calls": 0,
+          "shutdown": "graceful",
+          "state": "blocked",
+          "tools_executed": 0
+        },
+        "sdk_shutdown_verified": false,
+        "stdout_truncated": false,
+        "system_processes_after": 238,
+        "system_processes_before": 235,
+        "timed_out": false,
+        "unsampled_attributed_descendants": 0,
+        "wall_ms": 15206.96,
+        "worker_requests_no_gui": true
+      }
+    },
+    {
+      "cleanup_complete": true,
+      "evidence": "/tmp/narys-task-M6d3jc/metadata-evidence.json",
+      "financial_admission": "AWAITING_HUMAN_FINANCIAL_REVIEW",
+      "metadata": {
+        "auth": {
+          "authenticated": true
+        },
+        "error_code": "rpc_error_unknown",
+        "host_assisted_not_sandbox": true,
+        "phase": "session_start",
+        "rpc_error_code": -32603,
+        "rpc_error_public_tags": [
+          "session.create",
+          "credits",
+          "failed"
+        ],
+        "runtime": {
+          "protocol_version": 3,
+          "version": "1.0.95"
+        },
+        "sdk": "1.0.17",
+        "sdk_send_calls": 0,
+        "shutdown": "graceful",
+        "state": "blocked",
+        "tools_executed": 0
+      },
+      "installed_core_sha256": "e9d4af65a64f2de6edc092575d16badda05d19cd937d673b50e8fc0af262f34f",
+      "ownership": {
+        "attributed_processes": [
+          {
+            "basis": "launched_root",
+            "pid": 6330,
+            "start_ticks": 362937
+          }
+        ],
+        "cleanup_complete": true,
+        "cleanup_ms": 31.71,
+        "cleanup_status": "graceful_no_recovery",
+        "config_after": {
+          "snapshot": {
+            "metadata": {
+              "bytes": 470,
+              "ctime_ns": 1791650318460573112,
+              "device": 51,
+              "gid": 1000,
+              "inode": 3786668,
+              "links": 1,
+              "mode": 384,
+              "mtime_ns": 1791650318460573112,
+              "uid": 1000
+            },
+            "state": "observed"
+          },
+          "structural_check": "PASS_METADATA_ACCESS"
+        },
+        "config_before": {
+          "snapshot": {
+            "metadata": {
+              "bytes": 470,
+              "ctime_ns": 1791650188304635231,
+              "device": 51,
+              "gid": 1000,
+              "inode": 3786180,
+              "links": 1,
+              "mode": 384,
+              "mtime_ns": 1791650188303635270,
+              "uid": 1000
+            },
+            "state": "observed"
+          },
+          "structural_check": "PASS_METADATA_ACCESS"
+        },
+        "config_writer_attribution": "INCONCLUSIVE",
+        "exit_code": 0,
+        "external_process_policy": "not_attributed_never_signalled",
+        "gui_process_absence_observed": true,
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "headless": null,
+        "kernel_children_exhausted": true,
+        "observed_owned_processes": 2,
+        "operation_outcome": "main_exit_zero",
+        "owned_survivors_after_recovery": [],
+        "owned_survivors_before_recovery": [],
+        "ownership_errors": [],
+        "ownership_scope": "private_single_invocation_subreaper",
+        "peak_owned_processes": 2,
+        "peak_process_tree_rss_bytes": 271200256,
+        "poll_interval_ms": 50,
+        "probe": "/tmp/narys-task-M6d3jc",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "sampled_cpu_seconds_lower_bound": 12.16,
+        "schema_version": 2,
+        "sdk_report": {
+          "auth": {
+            "authenticated": true
+          },
+          "error_code": "rpc_error_unknown",
+          "host_assisted_not_sandbox": true,
+          "phase": "session_start",
+          "rpc_error_code": -32603,
+          "rpc_error_public_tags": [
+            "session.create",
+            "credits",
+            "failed"
+          ],
+          "runtime": {
+            "protocol_version": 3,
+            "version": "1.0.95"
+          },
+          "sdk": "1.0.17",
+          "sdk_send_calls": 0,
+          "shutdown": "graceful",
+          "state": "blocked",
+          "tools_executed": 0
+        },
+        "sdk_shutdown_verified": false,
+        "stdout_truncated": false,
+        "system_processes_after": 238,
+        "system_processes_before": 238,
+        "timed_out": false,
+        "unsampled_attributed_descendants": 0,
+        "wall_ms": 12669.67,
+        "worker_requests_no_gui": true
+      }
+    },
+    {
+      "cleanup_complete": true,
+      "evidence": "/tmp/narys-task-7cUovu/metadata-evidence.json",
+      "financial_admission": "AWAITING_HUMAN_FINANCIAL_REVIEW",
+      "metadata": {
+        "auth": {
+          "authenticated": true
+        },
+        "disconnect": "acknowledged",
+        "host_assisted_not_sandbox": true,
+        "phase": "session_start",
+        "runtime": {
+          "protocol_version": 3,
+          "version": "1.0.95"
+        },
+        "sdk": "1.0.17",
+        "sdk_send_calls": 0,
+        "session_created": true,
+        "shutdown": "graceful",
+        "state": "session_check_complete",
+        "tools_executed": 0
+      },
+      "installed_core_sha256": "050cfb24db9feda9f01cc877482efe1153de667271a064d5f6fccdc3e7c56390",
+      "ownership": {
+        "attributed_processes": [
+          {
+            "basis": "launched_root",
+            "pid": 7197,
+            "start_ticks": 373213
+          }
+        ],
+        "cleanup_complete": true,
+        "cleanup_ms": 31.95,
+        "cleanup_status": "graceful_no_recovery",
+        "config_after": {
+          "snapshot": {
+            "metadata": {
+              "bytes": 470,
+              "ctime_ns": 1791650421367570003,
+              "device": 51,
+              "gid": 1000,
+              "inode": 3786860,
+              "links": 1,
+              "mode": 384,
+              "mtime_ns": 1791650421367570003,
+              "uid": 1000
+            },
+            "state": "observed"
+          },
+          "structural_check": "PASS_METADATA_ACCESS"
+        },
+        "config_before": {
+          "snapshot": {
+            "metadata": {
+              "bytes": 470,
+              "ctime_ns": 1791650318460573112,
+              "device": 51,
+              "gid": 1000,
+              "inode": 3786668,
+              "links": 1,
+              "mode": 384,
+              "mtime_ns": 1791650318460573112,
+              "uid": 1000
+            },
+            "state": "observed"
+          },
+          "structural_check": "PASS_METADATA_ACCESS"
+        },
+        "config_writer_attribution": "INCONCLUSIVE",
+        "exit_code": 0,
+        "external_process_policy": "not_attributed_never_signalled",
+        "gui_process_absence_observed": true,
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "headless": null,
+        "kernel_children_exhausted": true,
+        "observed_owned_processes": 2,
+        "operation_outcome": "main_exit_zero",
+        "owned_survivors_after_recovery": [],
+        "owned_survivors_before_recovery": [],
+        "ownership_errors": [],
+        "ownership_scope": "private_single_invocation_subreaper",
+        "peak_owned_processes": 2,
+        "peak_process_tree_rss_bytes": 282501120,
+        "poll_interval_ms": 50,
+        "probe": "/tmp/narys-task-7cUovu",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "sampled_cpu_seconds_lower_bound": 12.36,
+        "schema_version": 2,
+        "sdk_report": {
+          "auth": {
+            "authenticated": true
+          },
+          "disconnect": "acknowledged",
+          "host_assisted_not_sandbox": true,
+          "phase": "session_start",
+          "runtime": {
+            "protocol_version": 3,
+            "version": "1.0.95"
+          },
+          "sdk": "1.0.17",
+          "sdk_send_calls": 0,
+          "session_created": true,
+          "shutdown": "graceful",
+          "state": "session_check_complete",
+          "tools_executed": 0
+        },
+        "sdk_shutdown_verified": false,
+        "stdout_truncated": false,
+        "system_processes_after": 239,
+        "system_processes_before": 240,
+        "timed_out": false,
+        "unsampled_attributed_descendants": 0,
+        "wall_ms": 13109.3,
+        "worker_requests_no_gui": true
+      }
+    }
+  ],
+  "interpretation": "session.create failed with RPC -32603 and public credits category; session creation/options patch succeeded with optional AI Credits soft limit omitted; no RPC payload or error prose published"
+}

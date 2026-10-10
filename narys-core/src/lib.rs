@@ -1,4 +1,5 @@
 pub mod agents;
+pub mod authorization;
 pub mod cognition;
 pub mod operational_trace;
 pub mod persistence;

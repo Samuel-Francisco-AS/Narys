@@ -36,6 +36,7 @@ fn options(cli: &Path, dir: &Path) -> ClientOptions {
         ])
         .with_extra_args([
             "--disable-builtin-mcps",
+            "--no-custom-instructions",
             "--log-dir",
             dir.join("logs").to_str().unwrap(),
         ])
@@ -101,15 +102,46 @@ async fn operation(dir: &Path, cli: &Path, report: &mut Value) -> Result<(), &'s
         policy::private_directory(&dir.join(name))?;
     }
     let client = bounded(Client::start(options(cli, dir))).await?;
-    run_client(client, dir, report).await
+    let home = std::env::var_os("HOME").ok_or("home_unavailable")?;
+    run_client(
+        client,
+        dir,
+        report,
+        &crate::authorization::directory(Path::new(&home)),
+    )
+    .await
 }
-async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<(), &'static str> {
+async fn run_client(
+    client: Client,
+    dir: &Path,
+    report: &mut Value,
+    auth_root: &Path,
+) -> Result<(), &'static str> {
     let outcome=async {
         report["phase"]=json!("runtime_status");
         let s=bounded(client.get_status()).await?;
         if s.version!="1.0.95" || s.protocol_version!=3 {return Err("runtime_protocol_mismatch");}
         report["runtime"]=json!({"version":s.version,"protocol_version":s.protocol_version});
         report["phase"]=json!("metadata_preflight");
+        if dir.join("session-check.json").exists() {
+            policy::private_file(&dir.join("session-check.json"))?;
+            if dir.join("task.json").exists(){return Err("diagnostic_task_conflict");}
+            report["auth"]=json!({"authenticated":bounded(client.get_auth_status()).await?.is_authenticated});
+            if report["auth"]["authenticated"]!=true{return Err("authentication_required");}
+            let prepared=client.prepare_session(task_session_config(dir)).map_err(|_|"prepare_failed")?;
+            let _events=prepared.subscribe();
+            report["phase"]=json!("session_start");
+            let session=match tokio::time::timeout(narys_lr10a_poc::DEADLINE,prepared.start()).await {
+                Ok(Ok(session))=>session,
+                Ok(Err(error))=>{record_rpc_error(report,&error);return Err(narys_lr10a_poc::error_code(&error));},
+                Err(_)=>return Err("timeout"),
+            };
+            report["session_created"]=json!(true);
+            report["workspace_location_safe"]=json!(session.workspace_path().is_none_or(|p|p.starts_with(dir)));
+            report["disconnect"]=json!(bounded(session.disconnect()).await.err().unwrap_or("acknowledged"));
+            report["state"]=json!("session_check_complete");
+            return Ok(());
+        }
         let preflight=preflight(&client).await;
         report["preflight"]=preflight.clone();
         if !dir.join("task.json").exists() {report["state"]=json!("metadata_observed"); return Ok(());}
@@ -123,11 +155,7 @@ async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<()
         policy::reviewed_receipt(&review,id)?;
         let objective_hash=format!("{:x}",Sha256::digest(input.objective.as_bytes()));
         if review["objective_sha256"]!=objective_hash{return Err("reviewed_objective_changed");}
-        let mut cfg=session_config(&dir.join("workspace")).with_permission_handler(Arc::new(github_copilot_sdk::handler::DenyAllHandler));
-        cfg.config_directory=Some(dir.join("session-state"));
-        cfg.enable_session_store=Some(false);
-        let mut limit=github_copilot_sdk::session_events::SessionLimitsConfig::default(); limit.max_ai_credits=Some(0.5); cfg.session_limits=Some(limit);
-        cfg.infinite_sessions=Some(github_copilot_sdk::types::InfiniteSessionConfig::new().with_enabled(false));
+        let cfg=task_session_config(dir);
         let prepared=client.prepare_session(cfg).map_err(|_|"prepare_failed")?;
         let mut events=prepared.subscribe();
         // Prepared.start includes session.create and the SDK's post-create
@@ -136,7 +164,7 @@ async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<()
         let session=match tokio::time::timeout(narys_lr10a_poc::DEADLINE,prepared.start()).await {
             Ok(Ok(session))=>session,
             Ok(Err(error))=>{
-                if let github_copilot_sdk::ErrorKind::Rpc{code}=error.kind(){report["rpc_error_code"]=json!(code);}
+                record_rpc_error(report,&error);
                 return Err(narys_lr10a_poc::error_code(&error));
             },
             Err(_)=>return Err("timeout"),
@@ -145,6 +173,7 @@ async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<()
         if session.workspace_path().is_some_and(|p|!p.starts_with(dir)){let _=bounded(session.disconnect()).await;return Err("session_storage_outside_private_root");}
         let inference=async {
             if dir.join("cancel").exists() {return Err("cancelled_before_send");}
+            report["global_attempt_slot"]=json!(crate::authorization::claim(auth_root,id,&review)?);
             claim_task(dir)?;
             report["phase"]=json!("single_send");
             report["sdk_send_calls"]=json!(1);
@@ -156,6 +185,15 @@ async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<()
             loop {
                 tokio::select! {
                     result=&mut send=> {
+                        // A final reply can make both select branches ready.
+                        // Account for already queued events before publishing
+                        // the sanitized summary; never wait for extra turns.
+                        while let Ok(Ok(e))=tokio::time::timeout(Duration::ZERO,events.recv()).await{
+                            let kind=e.event_type.to_string();
+                            observe_event(&kind,&e.data,&mut seen,report);
+                            if kind=="tool.execution_start" {return Err("unexpected_tool_execution");}
+                            if kind=="session.error" {return Err("session_error_observed");}
+                        }
                         report["events"]=json!(seen);
                         let message=result.map_err(|e|narys_lr10a_poc::error_code(&e))?.ok_or("no_final_response")?;
                         let output=message.data.get("content").and_then(Value::as_str).ok_or("invalid_final_response")?;
@@ -167,15 +205,7 @@ async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<()
                         let e=event.map_err(|_|"event_stream_incomplete")?;
                         let kind=e.event_type.to_string();
                         // Fixed event labels, no raw payload, hidden reasoning or IDs.
-                        if matches!(kind.as_str(),"assistant.turn_start"|"assistant.turn_end"|"assistant.message"|"assistant.usage"|"session.idle"|"session.error"|"tool.execution_start") {
-                            *seen.entry(kind.clone()).or_default()+=1;
-                        }
-                        if kind=="assistant.usage" {
-                            let mut usage=serde_json::Map::new();
-                            for key in ["inputTokens","outputTokens","cacheReadTokens","cacheWriteTokens","cost","duration"]{if e.data[key].is_number(){usage.insert(key.into(),e.data[key].clone());}}
-                            report["provider_usage_numeric_fields"]=Value::Object(usage);
-                            report["cost_field_unit"]=json!("model_multiplier_as_sdk_schema_not_USD");
-                        }
+                        observe_event(&kind,&e.data,&mut seen,report);
                         if kind=="tool.execution_start" {return Err("unexpected_tool_execution");}
                         if kind=="session.error" {return Err("session_error_observed");}
                     },
@@ -197,25 +227,171 @@ async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<()
     }
     outcome
 }
+fn observe_event(
+    kind: &str,
+    data: &Value,
+    seen: &mut std::collections::BTreeMap<String, u32>,
+    report: &mut Value,
+) {
+    if matches!(
+        kind,
+        "assistant.turn_start"
+            | "assistant.turn_end"
+            | "assistant.message"
+            | "assistant.usage"
+            | "session.idle"
+            | "session.error"
+            | "tool.execution_start"
+            | "session.usage_checkpoint"
+    ) {
+        *seen.entry(kind.into()).or_default() += 1;
+    }
+    if kind == "assistant.usage" || kind == "session.usage_checkpoint" {
+        let mut usage = serde_json::Map::new();
+        for key in [
+            "inputTokens",
+            "outputTokens",
+            "cacheReadTokens",
+            "cacheWriteTokens",
+            "cost",
+            "duration",
+            "totalNanoAiu",
+            "totalPremiumRequests",
+        ] {
+            if data[key].is_number() {
+                usage.insert(key.into(), data[key].clone());
+            }
+        }
+        report[if kind == "assistant.usage" {
+            "provider_usage_numeric_fields"
+        } else {
+            "provider_usage_checkpoint_numeric_fields"
+        }] = Value::Object(usage);
+        report["cost_field_unit"] = json!("model_multiplier_as_sdk_schema_not_USD");
+    }
+    if kind == "tool.execution_start" {
+        report["tools_executed"] = json!(seen.get(kind).copied().unwrap_or(0));
+    }
+}
+fn task_session_config(dir: &Path) -> github_copilot_sdk::SessionConfig {
+    let mut cfg = session_config(&dir.join("workspace"))
+        .with_permission_handler(Arc::new(github_copilot_sdk::handler::DenyAllHandler));
+    cfg.config_directory = Some(dir.join("session-state"));
+    cfg.enable_session_store = Some(false);
+    // The installed legacy-request runtime rejects session.create when the
+    // optional AI-Credits soft cap is supplied. It is not a hard billing guard:
+    // use provider no-overage checks + explicit consent + durable send cap.
+    cfg.session_limits = None;
+    cfg.infinite_sessions =
+        Some(github_copilot_sdk::types::InfiniteSessionConfig::new().with_enabled(false));
+    cfg
+}
+fn record_rpc_error(report: &mut Value, error: &github_copilot_sdk::Error) {
+    if let github_copilot_sdk::ErrorKind::Rpc { code } = error.kind() {
+        report["rpc_error_code"] = json!(code);
+    }
+    // Only fixed, public protocol vocabulary. Never store the error prose,
+    // paths, user identities, arguments, credentials or arbitrary words.
+    let message = error.message().unwrap_or("").to_ascii_lowercase();
+    let tags = [
+        "session.create",
+        "session.options.update",
+        "method not found",
+        "invalid params",
+        "configdir",
+        "maxaicredits",
+        "skipcustominstructions",
+        "unauthorized",
+        "auto",
+        "not supported",
+        "not implemented",
+        "cannot read properties",
+        "undefined",
+        "not a function",
+        "enoent",
+        "eacces",
+        "enotdir",
+        "authentication",
+        "credential",
+        "sessionlimits",
+        "permission",
+        "config",
+        "directory",
+        "path",
+        "model",
+        "memory",
+        "mode",
+        "billing",
+        "invalid",
+        "require",
+        "sessionid",
+        "tool",
+        "schema",
+        "validat",
+        "array",
+        "string",
+        "number",
+        "boolean",
+        "object",
+        "is not iterable",
+        "keyring",
+        "token",
+        "not found",
+        "initialize",
+        "initialization",
+        "workspace",
+        "store",
+        "credits",
+        "reasoning",
+        "mcp",
+        "auto",
+        "failed",
+        "limit",
+        "ai credits",
+        "fetch",
+        "remaining",
+        "not enabled",
+        "enabled",
+        "only",
+        "support",
+        "positive",
+        "integer",
+    ];
+    report["rpc_error_public_tags"] = json!(tags
+        .into_iter()
+        .filter(|tag| message.contains(tag))
+        .collect::<Vec<_>>());
+}
 #[cfg(test)]
 mod tests {
     use super::*;
     async fn synthetic(mode: &str) -> (Result<(), &'static str>, Value, Value) {
         use std::os::unix::fs::PermissionsExt;
         let d = tempfile::tempdir().unwrap();
+        let authorization = tempfile::tempdir().unwrap();
+        crate::authorization::tests::fixture(authorization.path());
         fs::set_permissions(d.path(), fs::Permissions::from_mode(0o700)).unwrap();
         for n in ["workspace", "logs", "session-state"] {
             fs::create_dir(d.path().join(n)).unwrap();
         }
-        let input = json!({"objective":"Responda 5.","model":"auto","included_only_approval":true});
+        let input = json!({"objective":crate::authorization::PROMPT,"model":"auto","included_only_approval":true});
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs_f64();
-        let review = json!({"authorized_task_id":1,"max_additional_usd":0,"provider_additional_usage_disabled":true,"billing_unit_uncertainty_explicitly_accepted":true,"max_sdk_send_calls":1,"human_reviewed_at_unix":now,"objective_sha256":format!("{:x}",Sha256::digest(b"Responda 5."))});
+        let review = json!({"authorized_task_id":2,"authorization_scope":crate::authorization::SCOPE,"max_additional_usd":0,"provider_additional_usage_disabled":true,"billing_unit_uncertainty_explicitly_accepted":true,"max_sdk_send_calls":1,"human_reviewed_at_unix":now,"objective_sha256":crate::authorization::objective_hash()});
         for (name, value) in [("task.json", input), ("financial-reviewed.json", review)] {
             fs::write(d.path().join(name), serde_json::to_vec(&value).unwrap()).unwrap();
             fs::set_permissions(d.path().join(name), fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        if mode == "diagnostic" {
+            fs::remove_file(d.path().join("task.json")).unwrap();
+            fs::write(d.path().join("session-check.json"), b"{}").unwrap();
+            fs::set_permissions(
+                d.path().join("session-check.json"),
+                fs::Permissions::from_mode(0o600),
+            )
+            .unwrap();
         }
         let opts = ClientOptions::new()
             .with_program(CliProgram::Path("/usr/bin/python3".into()))
@@ -227,7 +403,7 @@ mod tests {
         let client = Client::start(opts).await.unwrap();
         let pid = client.pid().unwrap();
         let mut report = json!({"sdk_send_calls":0});
-        let result = run_client(client, d.path(), &mut report).await;
+        let result = run_client(client, d.path(), &mut report, authorization.path()).await;
         assert!(!Path::new(&format!("/proc/{pid}")).exists());
         if report["sdk_send_calls"] == 1 {
             assert_eq!(claim_task(d.path()), Err("attempt_already_claimed"));
@@ -237,6 +413,28 @@ mod tests {
         let summary =
             serde_json::from_slice(&fs::read(d.path().join("summary.json")).unwrap()).unwrap();
         (result, report, summary)
+    }
+    #[tokio::test]
+    async fn session_diagnostic_cannot_send_or_consume_budget() {
+        let (r, e, s) = synthetic("diagnostic").await;
+        assert_eq!(r, Ok(()));
+        assert_eq!(e["state"], "session_check_complete");
+        assert_eq!(e["sdk_send_calls"], 0);
+        assert_eq!(s["send"], 0);
+        assert_eq!(s["detach"], 1);
+        assert_eq!(e["global_attempt_slot"], Value::Null);
+    }
+    #[test]
+    fn compatibility_keeps_controls_without_ai_credits_soft_cap() {
+        let d = tempfile::tempdir().unwrap();
+        let cfg = task_session_config(d.path());
+        assert!(cfg.session_limits.is_none());
+        assert_eq!(cfg.skip_custom_instructions, Some(true));
+        assert_eq!(cfg.config_directory, Some(d.path().join("session-state")));
+        assert_eq!(cfg.available_tools, Some(vec![]));
+        assert_eq!(cfg.enable_config_discovery, Some(false));
+        assert!(cfg.mcp_servers.as_ref().is_some_and(|m| m.is_empty()));
+        assert!(cfg.permission_handler.is_some());
     }
     #[tokio::test]
     async fn synthetic_send_validates_response_without_retry() {
