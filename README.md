@@ -18,7 +18,8 @@ Veja [LR-9 / NARYS-TERM](docs/NARYS-TERMINAL-RUNTIME-TRACK.md),
 [LR-8.5](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md),
 [LR-10 (pausada)](docs/LR-10-COPILOT-SPECIALIST-AGENT.md),
 [fechamento LR-10A](docs/LR-10A-FINAL-CLOSURE-2026-10-10.md),
-[NARYS-SERVER-1 (PASS servidor)](docs/NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md),
+[NARYS-SERVER-1 (PASS e integrada à main)](docs/NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md),
+[fechamento final SERVER-1](docs/NARYS-SERVER-1-FINAL-CLOSURE-2026-10-10.md),
 [arquitetura Core-First](docs/NARYS-CORE-FIRST-ARCHITECTURE-2026-10-10.md),
 [meta Narys 0.1 com agentes e ferramentas](docs/NARYS-01-AGENT-TOOLS-DELIVERY.md) e
 [o plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).
