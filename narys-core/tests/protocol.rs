@@ -297,3 +297,117 @@ fn product_crash_recovery_keeps_input_and_does_not_reuse_ids_or_replay() {
         s.call(json!({"operation":"conversation","session_id":session,"text":"after-recovery"}));
     assert!(accepted["data"]["task_id"].as_u64().unwrap() > 711);
 }
+
+impl Server {
+    fn cli(&self, args: &[&str]) -> std::process::Output {
+        std::fs::set_permissions(
+            self.runtime.path(),
+            std::os::unix::fs::PermissionsExt::from_mode(0o700),
+        )
+        .unwrap();
+        Command::new(env!("CARGO_BIN_EXE_narys"))
+            .args(args)
+            .env_clear()
+            .env("HOME", self.home.path())
+            .env("XDG_RUNTIME_DIR", self.runtime.path())
+            .output()
+            .unwrap()
+    }
+}
+#[test]
+fn official_cli_human_json_pages_permissions_and_unlock_denial() {
+    let s = Server::start();
+    for args in [
+        vec!["status"],
+        vec!["doctor"],
+        vec!["models"],
+        vec!["providers"],
+        vec!["sessions"],
+        vec!["tasks"],
+        vec!["events"],
+        vec!["credentials", "status"],
+    ] {
+        let human = s.cli(&args);
+        assert!(
+            human.status.success(),
+            "{:?} {}",
+            args,
+            String::from_utf8_lossy(&human.stderr)
+        );
+        assert!(!human.stdout.starts_with(b"{"));
+        let mut json_args = args.clone();
+        json_args.push("--json");
+        let structured = s.cli(&json_args);
+        assert!(structured.status.success());
+        assert_eq!(
+            serde_json::from_slice::<Value>(&structured.stdout).unwrap()["ok"],
+            true
+        );
+    }
+    for args in [
+        vec!["sessions", "--limit", "101"],
+        vec!["events", "--limit", "129"],
+        vec!["tasks", "--after", "18446744073709551615"],
+        vec!["provider", "groq", "enable"],
+        vec!["approval", "future", "approve-once"],
+        vec!["credentials", "unlock"],
+        vec!["chat"],
+    ] {
+        let mut args = args;
+        args.push("--json");
+        let out = s.cli(&args);
+        assert!(!out.status.success(), "accepted {:?}", args);
+        let value: Value = serde_json::from_slice(&out.stdout).unwrap();
+        assert_eq!(value["ok"], false);
+        if args[0] == "approval" {
+            assert_eq!(value["error_code"], "capability_not_integrated");
+        }
+    }
+    for operation in ["unlock", "credentials-unlock"] {
+        assert_eq!(
+            s.call(json!({"operation":operation,"password":"synthetic-must-not-be-admitted"}))
+                ["ok"],
+            false
+        );
+    }
+    assert_eq!(
+        s.call(json!({"operation":"status"}))["data"]["graphical_environment_present"],
+        false
+    );
+}
+#[test]
+fn official_cli_disconnected_clients_recover_cancelled_task_without_replay() {
+    let mut s = Server::start();
+    let created = s.cli(&["session", "new", "--json"]);
+    let session: Value = serde_json::from_slice(&created.stdout).unwrap();
+    let id = session["data"]["session_id"].as_i64().unwrap();
+    // Synthetic product execution is admitted directly: no production keyring involved.
+    let admitted = s
+        .call(json!({"operation":"conversation","session_id":id,"text":"synthetic-cli-reconnect"}));
+    let task = admitted["data"]["task_id"].as_u64().unwrap().to_string();
+    let result = s.cli(&["task", &task, "--wait", "--timeout", "10", "--json"]);
+    assert!(result.status.success());
+    let before: Value = serde_json::from_slice(&result.stdout).unwrap();
+    let cancel = s.cli(&["cancel", &task, "--json"]);
+    assert!(cancel.status.success());
+    s.restart();
+    let after = s.cli(&["task", &task, "--json"]);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&after.stdout).unwrap()["data"],
+        before["data"]
+    );
+    let listed = s.cli(&["tasks", "--limit", "1", "--json"]);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&listed.stdout).unwrap()["data"]["tasks"][0]["task_id"],
+        task.parse::<u64>().unwrap()
+    );
+    let history = s.cli(&["session", &id.to_string(), "--json"]);
+    assert_eq!(
+        serde_json::from_slice::<Value>(&history.stdout).unwrap()["data"]["messages"][0]["content"],
+        "synthetic-cli-reconnect"
+    );
+    assert_eq!(
+        s.call(json!({"operation":"status"}))["data"]["product_active_tasks"],
+        0
+    );
+}

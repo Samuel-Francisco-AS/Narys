@@ -9,7 +9,8 @@ class Units(unittest.TestCase):
         self.assertIn('RuntimeDirectoryMode=0700',s);self.assertIn('LimitCORE=0',s)
     def test_password_uses_existing_human_helper_only(self):
         s=(ROOT/'src/main.rs').read_text()
-        self.assertIn('h2_manual_unlock.py',s)
+        self.assertIn('narys_core::credentials::unlock(false)',s)
+        self.assertNotIn('h2_manual_unlock.py',s)
         self.assertNotIn('read_password',s);self.assertNotIn('UnlockWithMasterPassword',s)
     def test_install_does_not_restart_keyring_or_change_boot(self):
         s=(ROOT/'ops/install_user.py').read_text()

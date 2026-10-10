@@ -11,3 +11,9 @@ pub mod vault;
 pub mod worker;
 
 pub mod conversation;
+
+pub mod cli;
+pub mod client;
+pub mod credentials;
+
+pub mod operations;

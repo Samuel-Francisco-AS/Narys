@@ -81,3 +81,31 @@ printf '%s' '{"operation":"provider-configure","provider_id":"groq","enabled":tr
 ```
 
 O subcomando `ipc` lê somente um Command JSON tipado de stdin com limite, acrescenta envelope/correlação e não repete mutações. Conteúdo de conversa pode ser passado por stdin para evitar argumentos do processo/histórico do shell. Resultados só são impressos quando solicitados pelo cliente local autenticado.
+
+## SERVER-1C — CLI oficial e consultas operacionais
+
+O binário Rust `narys` reutiliza `client.rs` com o cliente legado; [CLI.md](CLI.md)
+contém a UX humana/JSON, chat e instalação de usuário. Uma tentativa por request,
+sem replay em qualquer falha incerta. O cliente verifica UID, versão/correlação,
+limites e diretório runtime privado; funciona com fallback `/run/user/UID` quando
+SSH não exporta XDG_RUNTIME_DIR. Não abre banco nem possui estado operacional.
+
+Novas consultas v1, compatíveis e estritas:
+
+| Operação | Campos | Resultado |
+|---|---|---|
+| `tasks` | `namespace` product/lr10a obrigatório, `after` ID default0, `limit` 1–100 default50 | Resumos `{namespace,task_id,state}`, cursor `next_task`, `has_more`; inclui histórico/run sem duplicar ID nem carregar prompts/resultados |
+| `models` | nenhum | Catálogo local de defaults integrados e adapters registrados; `remote_catalog_verified=false`, nenhuma chamada remota |
+
+Cursors de tasks/events devem caber em i64 SQLite. Estado de credentials agora
+inclui `state=locked|unlocked|unavailable`, compatibilidade do backend e erro seguro;
+status não abre sessão Secret Service nem solicita senha. **Unlock não é operação
+IPC**: comandos `unlock`/`credentials-unlock`, password/authority/origin são recusados.
+`narys credentials unlock` entra exclusivamente no adapter humano incorporado,
+com TTY/SSH/logind, serviço GNOME existente e transporte cifrado verificados.
+
+JSON preserva o envelope IPC nas operações únicas. Doctor é uma composição local
+de consultas, com envelope v1 e checks; erros locais usam category=cli. Unlock
+usa envelope local v1 e category=credentials. Nenhum desses envelopes locais dá
+autoridade ao servidor. Os contratos approve_once/deny permanecem recusados com
+`capability_not_integrated`, sem execução simulada.

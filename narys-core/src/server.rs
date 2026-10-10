@@ -179,19 +179,7 @@ impl AgentBackend for CopilotBackend {
     }
 }
 pub async fn credentials(c: &Config) -> Value {
-    let output = tokio::time::timeout(
-        Duration::from_secs(8),
-        tokio::process::Command::new("/usr/bin/python3")
-            .arg(c.root.join("ops/credential_status.py"))
-            .stderr(std::process::Stdio::null())
-            .kill_on_drop(true)
-            .output(),
-    )
-    .await;
-    match output {
-        Ok(Ok(o)) => serde_json::from_slice(&o.stdout).unwrap_or(json!({"login_unlocked":false})),
-        _ => json!({"login_unlocked":false,"code":"credential_status_unavailable"}),
-    }
+    crate::credentials::status(c.runtime.parent().unwrap()).await
 }
 async fn owned_run(
     c: &Config,
@@ -265,8 +253,20 @@ impl Core {
         }
         match command {
             Command::Capabilities {} => Ok(
-                json!({"protocol_version":ipc::VERSION,"authority":"narys-core","persistence":"core/db/luna.sqlite3","task_namespaces":["lr10a","product"],"implemented":["status","credentials","events","prepare","result","cancel","conversation","sessions","session-create","session-get","session-resume","session-close","providers","provider-configure","conversation-policy","task-get","task-cancel"],"conversation":true,"provider_configuration":true,"approvals":false,"agent_tools":false,"execution_authority_from_ipc":false}),
+                json!({"protocol_version":ipc::VERSION,"authority":"narys-core","persistence":"core/db/luna.sqlite3","task_namespaces":["lr10a","product"],"implemented":["status","credentials","events","prepare","result","cancel","conversation","sessions","session-create","session-get","session-resume","session-close","providers","provider-configure","conversation-policy","task-get","task-cancel","tasks","models"],"conversation":true,"provider_configuration":true,"approvals":false,"agent_tools":false,"execution_authority_from_ipc":false}),
             ),
+            Command::Models {} => {
+                let status = self.services.providers.scheduler.status();
+                let models: Vec<_> = crate::cognition::catalog::INTEGRATIONS.iter().map(|i| json!({"provider_id":i.id,"default_model":i.default_model,"registered":status.iter().any(|p|p.id==i.id),"remote_catalog_verified":false})).collect();
+                Ok(
+                    json!({"models":models,"source":"integrated_local_catalog","remote_probe":false}),
+                )
+            }
+            Command::Tasks {
+                namespace,
+                after,
+                limit,
+            } => crate::operations::tasks(&self.config.db()?, namespace, after, limit),
             Command::Events { after, limit } => {
                 let db = self.config.db()?;
                 let min: Option<u64> = db

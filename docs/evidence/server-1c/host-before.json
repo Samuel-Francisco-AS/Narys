@@ -1,0 +1,33 @@
+{
+  "snapshot": {
+    "inode": 3134764,
+    "size": 614,
+    "mtime_ns": 1790850680472346601,
+    "ctime_ns": 1791386670010181473,
+    "mode": 33152,
+    "sha256": "5700cf3fda5ee5e775e7c4369ec8570931187e0eb1cb83d4ce2c1082129a8c58"
+  },
+  "counts": {
+    "conversation_sessions": 38,
+    "conversation_messages": 99,
+    "conversation_runs": 3,
+    "task_records": 191
+  },
+  "runs": [
+    {
+      "task_id": 189,
+      "state": "completed",
+      "result_sha256": "34c516fe8267b3231b6f50d74ce054d0314d5e5baa11fb6da74546e8157749cc"
+    },
+    {
+      "task_id": 190,
+      "state": "completed",
+      "result_sha256": "527f808f1866395aa1f05b58f311d88f5386e7f1febc5a34a896ad2a1d03f0de"
+    },
+    {
+      "task_id": 191,
+      "state": "cancelled",
+      "result_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

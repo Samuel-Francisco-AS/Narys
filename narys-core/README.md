@@ -1,3 +1,11 @@
+# CLI operacional SERVER-1C
+
+Use `narys` no shell SSH do host. [Guia completo](CLI.md): instalação sem sudo,
+chat/sessões/tarefas/eventos/providers/modelos, JSON, configuração e desbloqueio
+humano privado integrado. O comando e o diagnóstico/desbloqueio de credenciais
+não precisam dos scripts do checkout. O Core continua o único proprietário do
+estado; fechar o SSH não cancela tarefa admitida. SERVER-1D não iniciada.
+
 # Narys Core — servidor modular (SERVER-1A)
 
 Fundação operacional consolidada em `narys-domain`, independente de Tauri.

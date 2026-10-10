@@ -71,6 +71,14 @@ pub enum Command {
     ConversationPolicy {
         policy: narys_domain::cognition::policy::CognitiveRolePolicy,
     },
+    Tasks {
+        namespace: TaskNamespace,
+        #[serde(default)]
+        after: u64,
+        #[serde(default = "session_limit")]
+        limit: u16,
+    },
+    Models {},
     TaskGet {
         task: TaskRef,
     },
@@ -175,6 +183,14 @@ impl Request {
             | Command::ToolRequest { task, .. }
             | Command::ToolResult { task, .. } => {
                 narys_domain::security::validation::task_id(task.id)?;
+            }
+            Command::Tasks { after, limit, .. }
+                if *after > i64::MAX as u64 || *limit == 0 || *limit > 100 =>
+            {
+                return Err("invalid_task_page");
+            }
+            Command::Events { after, .. } if *after > i64::MAX as u64 => {
+                return Err("invalid_event_cursor");
             }
             Command::Events { limit, .. } if *limit == 0 || *limit > 128 => {
                 return Err("invalid_event_limit")

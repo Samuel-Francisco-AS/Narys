@@ -4,7 +4,7 @@ use narys_core::{
     worker,
 };
 use serde_json::json;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     unsafe {
@@ -27,10 +27,7 @@ async fn main() {
         if args.get(1).map(String::as_str)==Some("serve"){return serve(cfg).await;}
         let operation=args.get(1).map(String::as_str).ok_or("operation_required")?;
         if operation=="unlock"{
-            let status=std::process::Command::new("/usr/bin/python3")
-                .env("DBUS_SESSION_BUS_ADDRESS",format!("unix:path={}/bus",cfg.runtime.parent().unwrap().display()))
-                .arg(cfg.root.join("../experiments/lr-10a-sdk-runtime/h2_manual_unlock.py")).arg("unlock-existing-login").status().map_err(|_|"unlock_helper_unavailable")?;
-            return if status.success(){Ok(())}else{Err("manual_unlock_failed")};
+            return narys_core::credentials::unlock(false);
         }
         let request=match operation{
             "status"|"credentials"|"stronghold"|"copilot"|"events"|"session-check"|"capabilities"|"sessions"|"providers"|"session-create"=>json!({"operation":operation}),
@@ -49,16 +46,7 @@ async fn main() {
             _=>return Err("invalid_command")
         };
         let command:ipc::Command=serde_json::from_value(request).map_err(|_|"invalid_command")?;
-        let request=ipc::Request{version:ipc::VERSION,request_id:format!("cli-{}",std::process::id()),command};
-        request.validate()?;
-        let request_bytes=serde_json::to_vec(&request).map_err(|_|"invalid_command")?;
-        if request_bytes.len()>ipc::MAX_REQUEST_BYTES {return Err("request_limit_or_timeout");}
-        let mut stream=tokio::net::UnixStream::connect(cfg.runtime.join("control.sock")).await.map_err(|_|"core_service_unavailable")?;
-        if stream.peer_cred().map_err(|_|"peer_identity_unavailable")?.uid()!=unsafe{libc::geteuid()}{return Err("server_identity_mismatch");}
-        stream.write_all(&request_bytes).await.map_err(|_|"request_write_failed")?;stream.shutdown().await.map_err(|_|"request_shutdown_failed")?;
-        let mut out=String::new();tokio::time::timeout(std::time::Duration::from_secs(265),stream.take((ipc::MAX_RESPONSE_BYTES+1) as u64).read_to_string(&mut out)).await.map_err(|_|"response_timeout")?.map_err(|_|"response_read_failed")?;
-        if out.len()>ipc::MAX_RESPONSE_BYTES{return Err("response_limit");}
-        let v:serde_json::Value=serde_json::from_str(&out).map_err(|_|"response_invalid")?;if v["version"]!=ipc::VERSION || v["request_id"]!=request.request_id{return Err("response_correlation_mismatch");}
+        let v=narys_core::client::request(command).await?;
         println!("{}",serde_json::to_string_pretty(&v).unwrap());
         if v["ok"]==true{Ok(())}else{Err("operation_blocked")}
     }.await;

@@ -1,0 +1,9 @@
+{
+  "intermediate_failed_test_children_terminated": [
+    62391,
+    62510
+  ],
+  "identity": "pidfd+uid+name+orphan+same_tool_scope",
+  "production_service_untouched": true,
+  "tests_now_raii_cleanup": true
+}
