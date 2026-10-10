@@ -1,6 +1,7 @@
 //! Core's SpecialistAgent adapter and durable lifecycle service (LR-10B).
 pub mod sdk;
 pub mod sdk_policy;
+mod startup;
 pub mod store;
 pub mod supervisor;
 use crate::{
@@ -324,6 +325,7 @@ impl CopilotLifecycle {
                 result: Err("agent_write_failed"),
                 cleanup_verified: true,
                 runtime_ref: None,
+                startup_safety: None,
             }
         } else {
             let observer = self.clone();
@@ -386,6 +388,7 @@ impl CopilotLifecycle {
             &correlation,
             outcome.runtime_ref.as_deref(),
             anchor.as_deref(),
+            outcome.startup_safety,
         );
         *terminal = true;
         drop(terminal);

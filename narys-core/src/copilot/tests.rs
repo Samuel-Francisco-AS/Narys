@@ -9,7 +9,7 @@ struct FakeFactory {
     active: Arc<AtomicUsize>,
     startup: Arc<tokio::sync::Semaphore>,
     work: Arc<tokio::sync::Semaphore>,
-    fail: Option<&'static str>,
+    fail: Option<StartupFailure>,
     stop_fail: Option<&'static str>,
 }
 struct FakeRuntime {
@@ -19,13 +19,13 @@ struct FakeRuntime {
     stop_fail: Option<&'static str>,
 }
 impl RuntimeFactory for FakeFactory {
-    fn start(&self) -> RuntimeFuture<'_, Arc<dyn ManagedRuntime>> {
+    fn start(&self) -> StartupFuture<'_> {
         Box::pin(async move {
             self.starts.fetch_add(1, Ordering::SeqCst);
             let p = self.startup.acquire().await.unwrap();
             p.forget();
-            if let Some(e) = self.fail {
-                return Err(e);
+            if let Some(e) = &self.fail {
+                return Err(e.clone());
             }
             Ok(Arc::new(FakeRuntime {
                 stops: self.stops.clone(),
@@ -252,7 +252,7 @@ async fn concurrent_shutdown_cancels_drains_and_closes_admission() {
 #[tokio::test]
 async fn startup_failure_is_shared_safe_and_explicit_new_demand_can_retry() {
     let mut f = factory();
-    Arc::get_mut(&mut f).unwrap().fail = Some("cli_unavailable");
+    Arc::get_mut(&mut f).unwrap().fail = Some(StartupFailure::no_process("cli_unavailable"));
     f.startup.add_permits(2);
     let s = AgentRuntimeSupervisor::new(f.clone());
     for _ in 0..2 {
@@ -491,7 +491,7 @@ async fn progress_observation_failure_is_a_gap_not_a_functional_failure() {
 async fn actual_failure_is_preserved_when_observation_is_unavailable() {
     let d = tempfile::tempdir().unwrap();
     let mut f = factory();
-    Arc::get_mut(&mut f).unwrap().fail = Some("runtime_died");
+    Arc::get_mut(&mut f).unwrap().fail = Some(StartupFailure::uncertain("runtime_died"));
     let s = service(d.path(), f.clone());
     let admitted = s.admit(AgentLifecycleOperation::Create, None).unwrap();
     let id = admitted["task_id"].as_u64().unwrap();
@@ -551,7 +551,8 @@ async fn panicking_passive_observer_is_counted_without_abandoning_cleanup() {
 #[tokio::test]
 async fn startup_failure_is_not_hidden_by_concurrent_cancellation() {
     let mut f = factory();
-    Arc::get_mut(&mut f).unwrap().fail = Some("runtime_cleanup_incomplete");
+    Arc::get_mut(&mut f).unwrap().fail =
+        Some(StartupFailure::uncertain("runtime_cleanup_incomplete"));
     let supervisor = AgentRuntimeSupervisor::new(f.clone());
     let cancel = Arc::new(Cancellation::default());
     let running = spawn_run(supervisor.clone(), cancel.clone());
@@ -565,4 +566,70 @@ async fn startup_failure_is_not_hidden_by_concurrent_cancellation() {
         supervisor.snapshot().last_error,
         Some("runtime_cleanup_incomplete")
     );
+}
+
+#[tokio::test]
+async fn startup_safety_is_evidence_typed_and_never_classified_by_error_identity() {
+    for safety in [
+        StartupSafety::NoProcessLaunched,
+        StartupSafety::CleanupVerified,
+        StartupSafety::CleanupUnverified,
+        StartupSafety::PersistenceUncertain,
+    ] {
+        let d = tempfile::tempdir().unwrap();
+        let mut f = factory();
+        Arc::get_mut(&mut f).unwrap().fail = Some(StartupFailure {
+            code: "identical_fixture_error",
+            safety,
+            safety_error: None,
+            runtime_ref: None,
+        });
+        f.startup.add_permits(2);
+        let s = service(d.path(), f.clone());
+        let task = s.admit(AgentLifecycleOperation::Create, None).unwrap()["task_id"]
+            .as_u64()
+            .unwrap();
+        until(|| s.status()["active_tasks"] == 0).await;
+        let verified = matches!(
+            safety,
+            StartupSafety::NoProcessLaunched | StartupSafety::CleanupVerified
+        );
+        assert_eq!(s.supervisor.snapshot().cleanup_verified, verified);
+        assert_eq!(
+            s.supervisor.snapshot().startup_failure.unwrap().safety,
+            safety
+        );
+        let conn = s.database.open().unwrap();
+        assert_eq!(
+            store::task(&conn, task).unwrap()["cleanup_verified"],
+            verified
+        );
+        assert_eq!(
+            store::task(&conn, task).unwrap()["error_code"],
+            "identical_fixture_error"
+        );
+        let next = s.admit(AgentLifecycleOperation::Create, None).unwrap()["task_id"]
+            .as_u64()
+            .unwrap();
+        until(|| s.status()["active_tasks"] == 0).await;
+        assert_eq!(
+            store::task(&conn, next).unwrap()["error_code"],
+            if verified {
+                "identical_fixture_error"
+            } else {
+                "cleanup_not_verified"
+            }
+        );
+        assert_eq!(
+            f.starts.load(Ordering::SeqCst),
+            if verified { 2 } else { 1 }
+        );
+        assert_eq!(
+            conn.query_row("SELECT count(DISTINCT task_id) FROM agent_runs", [], |r| {
+                r.get::<_, u32>(0)
+            })
+            .unwrap(),
+            2
+        );
+    }
 }

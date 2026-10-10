@@ -1,6 +1,6 @@
 # LR-10B — Copilot Adapter & On-Demand Supervisor
 
-**IMPLEMENTAÇÃO CANDIDATA — AGUARDANDO AUDITORIA INDEPENDENTE DA LUNA.**
+**LR-10B — CANDIDATA CORRIGIDA, AGUARDANDO REAUDITORIA INDEPENDENTE DA LUNA.**
 Base verificada: `main` / `origin/main` em `21be6382d146c99056d8dc99e6a13e2fa0dbe489`.
 Branch: `lr-10b-copilot-adapter-supervisor`. Sem PR, merge ou PASS definitivo.
 
@@ -212,3 +212,66 @@ tools. LR-10D: integração de tarefas de engenharia, quota/AI Credits/admission
 result/evidence. LR-10E: UX/gate real de engenharia autorizado. LR-10F: stress,
 endurance, falhas simultâneas/adversariais, MSRV exato e portabilidade. LR-11 mantém
 gate independente de executor Codex. Nenhum desses gates recebe PASS por esta entrega.
+
+## LR-10B FIX-1 — Startup Ownership & Recovery Safety
+
+A auditoria da candidata `45bc5ad0cabfd49ccf1967a8ba7fda5a9d4fea75`
+identificou retornos antecipados após INSERT e classificação de cleanup por lista
+negativa de códigos de erro. A FIX-1 remove essa inferência e preserva os demais
+contratos, pins, wrapper, schema021 e política de autoridade.
+
+`RuntimeFactory::start` retorna `StartupFailure`, com erro original sanitizado,
+`runtime_ref`, erro de segurança secundário e `StartupSafety` explícito:
+NoProcessLaunched, CleanupVerified, CleanupUnverified ou PersistenceUncertain.
+Somente as duas primeiras permitem outra geração. O supervisor não consulta o
+nome do erro para decidir a segurança do startup; o mesmo código é testado com
+as quatro classes. O IPC adiciona `runtime.startup_failure` sem alterar intents.
+
+O journal version1 em `owner_json.startup` usa o SQLite autoritativo existente:
+
+| Fronteira | Estado persistido / autorização |
+|---|---|
+| Antes do INSERT | Diretório temporário RAII; nenhum SDK/CLI invocado |
+| preparing | INSERT em transação Immediate, depois de rejeitar ownership pendente |
+| preparação | workspace/logs/sdk-state/options, todas as saídas finalizadas pela guarda |
+| launch_intent | Commit obrigatório antes de invocar Client::start; um crash aqui é incerto |
+| startup parcial | SDK/owner podem existir; falha exige stop, prova kernel e commit terminal |
+| ready | IDs de owner/guardian/CLI válidos, owner principal corresponde ao SDK e commit pronto |
+| failed_before_launch | Prova sdk_launch_not_invoked; stopped/verified após commit válido |
+| failed_after_launch | stopped/verified somente com prova kernel e commit, senão faulted/unverified |
+
+Uma falha de persistência permanece PersistenceUncertain, inclusive se o cleanup
+físico depois funcionar. O erro original não é substituído pelo erro de cleanup.
+A guarda Drop registra faulted/unverified e conserva a última fronteira; nunca
+certifica limpeza em destructor. Quando o banco rejeita também esse registro,
+conserva-se o último journal durável e o diagnóstico no run vinculado/snapshot.
+
+Admissões seguintes validam certificados terminais, e não apenas o bit verified.
+Recibos ausentes/inconsistentes são marcados faulted/verified=false. Artefatos sem
+linha correspondente bloqueiam lançamento e recovery; não são adotados/removidos
+para liberar o serviço. Ownership + atualização dos runs no cleanup são atômicos.
+O finish de tarefa não herda um bit antigo para uma falha de startup incerta.
+
+Recovery valida vínculo ref/path/boot, journal e certificado. Preparing e
+failed_before_launch válidos, sem recibos/IDs contraditórios, provam a barreira
+anterior ao launch e podem ser concluídos sem subprocessos. Launch_intent, ready,
+falhas posteriores e rows legadas sem journal precisam de prova kernel ou de
+outro boot válido. JSON/boot inválidos não ganham prova por conveniência.
+Recovery é idempotente, não sinaliza PID de recibo e não recria sessão, TaskId ou
+inferência. Ao remover uncertainty, apenas permite uma demanda futura explícita.
+
+Não existe migration nova. Campos JSON são compatíveis com schema021; rows antigas
+com prova completa continuam aceitas. Rows legadas incompletas não são presumidas
+prelaunch. Uma intenção interrompida sem prova permanece bloqueante no mesmo boot,
+mesmo se a fixture sabe que não invocou SDK: esse conhecimento não sobrevive ao crash.
+Resultados, testes e operação constam da seção FIX-1 no relatório de entrega.
+
+Recuperação operacional: `narys agent status`, consultar tasks/events, depois
+`narys agent recover` para reconciliar evidência existente, sem launch. Se persistir
+incerteza, manter o especialista parado; reparar armazenamento/recibos somente com
+proveniência e backups verificáveis. Não apagar rows, subir verified nem reenviar
+operações como procedimento de recovery. Não reiniciar host/serviços externos nesta
+FIX. Outro boot legítimo futuro é evidência distinta, não um retry do Core.
+Rollback imediato continua `narys agent stop`, preservando Conversation. O schema
+não mudou; o binário anterior é preservado, mas reinstalar a candidata auditada
+reintroduz o defeito e não deve reabilitar lifecycle Copilot sem a FIX-1.

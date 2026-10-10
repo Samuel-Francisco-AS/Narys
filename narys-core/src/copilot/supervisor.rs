@@ -91,8 +91,58 @@ pub trait ManagedRuntime: Send + Sync {
         None
     }
 }
+/// Positive startup evidence is independent of the sanitized functional error.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StartupSafety {
+    NoProcessLaunched,
+    CleanupVerified,
+    CleanupUnverified,
+    PersistenceUncertain,
+}
+#[derive(Clone, Debug, Serialize)]
+pub struct StartupFailure {
+    pub code: &'static str,
+    pub safety: StartupSafety,
+    pub safety_error: Option<&'static str>,
+    pub runtime_ref: Option<String>,
+}
+impl StartupFailure {
+    pub fn no_process(code: &'static str) -> Self {
+        Self {
+            code,
+            safety: StartupSafety::NoProcessLaunched,
+            safety_error: None,
+            runtime_ref: None,
+        }
+    }
+    pub fn uncertain(code: &'static str) -> Self {
+        Self {
+            code,
+            safety: StartupSafety::CleanupUnverified,
+            safety_error: None,
+            runtime_ref: None,
+        }
+    }
+    pub fn persistence(code: &'static str) -> Self {
+        Self {
+            code,
+            safety: StartupSafety::PersistenceUncertain,
+            safety_error: Some(code),
+            runtime_ref: None,
+        }
+    }
+    pub fn cleanup_verified(&self) -> bool {
+        matches!(
+            self.safety,
+            StartupSafety::NoProcessLaunched | StartupSafety::CleanupVerified
+        )
+    }
+}
+pub type StartupFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<Arc<dyn ManagedRuntime>, StartupFailure>> + Send + 'a>>;
 pub trait RuntimeFactory: Send + Sync {
-    fn start(&self) -> RuntimeFuture<'_, Arc<dyn ManagedRuntime>>;
+    fn start(&self) -> StartupFuture<'_>;
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct SupervisorSnapshot {
@@ -104,6 +154,7 @@ pub struct SupervisorSnapshot {
     pub last_error: Option<&'static str>,
     pub admission_closed: bool,
     pub runtime_ref: Option<String>,
+    pub startup_failure: Option<StartupFailure>,
 }
 struct Inner {
     runtime: Option<Arc<dyn ManagedRuntime>>,
@@ -120,6 +171,7 @@ pub struct RuntimeOutcome {
     pub result: Result<SessionReceipt, &'static str>,
     pub cleanup_verified: bool,
     pub runtime_ref: Option<String>,
+    pub startup_safety: Option<StartupSafety>,
 }
 impl AgentRuntimeSupervisor {
     pub fn new(factory: Arc<dyn RuntimeFactory>) -> Arc<Self> {
@@ -138,6 +190,7 @@ impl AgentRuntimeSupervisor {
                 last_error: None,
                 admission_closed: false,
                 runtime_ref: None,
+                startup_failure: None,
             }),
             closed: AtomicBool::new(false),
             drained: Notify::new(),
@@ -200,6 +253,7 @@ impl AgentRuntimeSupervisor {
             result: Err("runtime_owner_lost"),
             cleanup_verified: false,
             runtime_ref: None,
+            startup_safety: None,
         });
         guard.0 = None;
         outcome
@@ -214,6 +268,7 @@ impl AgentRuntimeSupervisor {
             result: Err(code),
             cleanup_verified: true,
             runtime_ref: None,
+            startup_safety: None,
         };
         let mut inner = tokio::select! { biased; _=cancel.wait()=>return rejected("cancelled"), lock=self.inner.lock()=>lock };
         if cancel.is_cancelled() {
@@ -227,6 +282,7 @@ impl AgentRuntimeSupervisor {
                 result: Err("cleanup_not_verified"),
                 cleanup_verified: false,
                 runtime_ref: None,
+                startup_safety: None,
             };
         }
         if inner.leases >= 2 {
@@ -236,6 +292,7 @@ impl AgentRuntimeSupervisor {
             {
                 let mut v = self.view.lock().unwrap_or_else(|p| p.into_inner());
                 v.generation = v.generation.saturating_add(1);
+                v.startup_failure = None;
             }
             self.view
                 .lock()
@@ -247,24 +304,26 @@ impl AgentRuntimeSupervisor {
             // Client::start at a select boundary and mistake a kill for a reap.
             match contain(self.factory.start())
                 .await
-                .unwrap_or(Err("runtime_owner_panicked"))
+                .unwrap_or(Err(StartupFailure::uncertain("runtime_owner_panicked")))
             {
                 Ok(runtime) => inner.runtime = Some(runtime),
-                Err(code) => {
-                    let verified = !matches!(
-                        code,
-                        "runtime_cleanup_incomplete"
-                            | "runtime_ownership_persist_failed"
-                            | "runtime_owner_panicked"
+                Err(failure) => {
+                    let verified = failure.cleanup_verified();
+                    self.state(
+                        AgentRuntimeState::Faulted,
+                        0,
+                        None,
+                        verified,
+                        Some(failure.code),
                     );
-                    self.state(AgentRuntimeState::Faulted, 0, None, verified, Some(code));
+                    let mut view = self.view.lock().unwrap_or_else(|p| p.into_inner());
+                    view.runtime_ref = failure.runtime_ref.clone();
+                    view.startup_failure = Some(failure.clone());
                     return RuntimeOutcome {
-                        // A real startup failure is not rewritten by a racing
-                        // cancellation; cancellation of a successful start is
-                        // handled below and still drains the lease.
-                        result: Err(code),
+                        result: Err(failure.code),
                         cleanup_verified: verified,
-                        runtime_ref: None,
+                        runtime_ref: failure.runtime_ref,
+                        startup_safety: Some(failure.safety),
                     };
                 }
             }
@@ -359,6 +418,7 @@ impl AgentRuntimeSupervisor {
             result,
             cleanup_verified,
             runtime_ref: runtime.ownership_ref(),
+            startup_safety: None,
         }
     }
     pub fn fault_cleanup(&self, code: &'static str) {
@@ -377,6 +437,7 @@ impl AgentRuntimeSupervisor {
         view.cleanup_verified = true;
         view.state = AgentRuntimeState::Dormant;
         view.last_error = None;
+        view.startup_failure = None;
         Ok(())
     }
     pub fn close_admission(&self) {

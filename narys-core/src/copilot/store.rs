@@ -114,18 +114,29 @@ pub fn finish(
     correlation: &str,
     runtime_ref: Option<&str>,
     anchor: Option<&str>,
+    startup_safety: Option<super::supervisor::StartupSafety>,
 ) -> Result<(), &'static str> {
     let mut conn = db.open().map_err(|e| e.code())?;
     let tx = conn.transaction().map_err(|_| "agent_write_failed")?;
+    // A persistence/ownership startup failure cannot inherit a successful
+    // cleanup bit from an earlier write in a partially completed finalization.
+    let allow_late_cleanup = !matches!(
+        startup_safety,
+        Some(
+            super::supervisor::StartupSafety::PersistenceUncertain
+                | super::supervisor::StartupSafety::CleanupUnverified
+        )
+    );
     let cleanup = cleanup
-        || runtime_ref.is_some_and(|reference| {
-            tx.query_row(
-                "SELECT cleanup_verified FROM agent_runtime_owners WHERE runtime_ref=?1",
-                [reference],
-                |r| r.get::<_, bool>(0),
-            )
-            .unwrap_or(false)
-        });
+        || (allow_late_cleanup
+            && runtime_ref.is_some_and(|reference| {
+                tx.query_row(
+                    "SELECT cleanup_verified FROM agent_runtime_owners WHERE runtime_ref=?1",
+                    [reference],
+                    |r| r.get::<_, bool>(0),
+                )
+                .unwrap_or(false)
+            }));
     let session_state = match state {
         "completed" => "detached",
         "cancelled" => "cancelled",

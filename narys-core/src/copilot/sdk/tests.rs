@@ -116,24 +116,23 @@ async fn sdk_cancel_during_create_aborts_detaches_and_reaps() {
 async fn cli_absent_and_wrong_pin_do_not_launch_runtime() {
     let d = tempfile::tempdir().unwrap();
     let f = fixture(d.path(), "normal");
-    assert!(matches!(f.start().await, Err("cli_pin_mismatch")));
+    assert_eq!(f.start().await.err().unwrap().code, "cli_pin_mismatch");
     assert!(!d.path().join("copilot/runtimes").exists());
     let f = SdkRuntimeFactory::new(
         d.path().join("absent"),
         d.path().join("copilot/runtimes"),
         f.database.clone(),
     );
-    assert!(matches!(f.start().await, Err("cli_unavailable")));
+    assert_eq!(f.start().await.err().unwrap().code, "cli_unavailable");
     assert!(!d.path().join("copilot/runtimes").exists());
 }
 #[tokio::test]
 async fn incompatible_runtime_is_cleaned_before_admission() {
     let d = tempfile::tempdir().unwrap();
     let f = fixture(d.path(), "incompatible");
-    assert!(matches!(
-        f.start_owned().await,
-        Err("runtime_protocol_mismatch")
-    ));
+    let failure = f.start_owned().await.err().unwrap();
+    assert_eq!(failure.code, "runtime_protocol_mismatch");
+    assert_eq!(failure.safety, StartupSafety::CleanupVerified);
     assert_eq!(proofs(d.path())["cleanup_complete"], true);
 }
 #[tokio::test]
@@ -231,7 +230,7 @@ async fn killed_guardian_and_killed_primary_each_recover_descendants_without_tou
             "{stopped:?}"
         );
         assert_eq!(proofs(d.path())["cleanup_complete"], true);
-        assert!(!record_alive(&dir));
+        assert!(!record_alive(&dir).unwrap());
         assert!(external.try_wait().unwrap().is_none());
         external.kill().unwrap();
         external.wait().unwrap();
@@ -400,3 +399,5 @@ async fn resume_requires_matching_durable_history_anchor_without_create_fallback
     assert_eq!(counts(d.path())["send"], 0);
     assert_eq!(counts(d.path())["detach"], 2);
 }
+
+mod startup_safety;
