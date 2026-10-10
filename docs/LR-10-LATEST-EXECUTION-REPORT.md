@@ -1,273 +1,281 @@
-# LR-10A H2 — Headless Credential Unlock & Operational Feasibility
+# NARYS — LR-10A / H3
 
-**LR-10A H2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+**Real Headless Credential Validation — Fedora44 — 10/10/2026**
 
-Decisão: **HEADLESS_PREPARED_PENDING_USER_TRANSITION**. Desbloqueio de coleção
-existente, sem GNOME Shell, e reabertura pelo backend Rust foram comprovados com
-**componentes reais e credenciais inteiramente sintéticas em namespaces privados**.
-O host pessoal continua com GUI. Não é HEADLESS_READY_MANUAL_UNLOCK; auth Copilot
-headless, Stronghold pessoal, serviço user-manager real e cold-start permanecem
-não testados. Nenhuma transição, serviço pessoal, inferência ou claim A9 ocorreu.
+**HEADLESS_MANUAL_UNLOCK_PASS_REAL**, limitado a desbloqueio humano do cofre
+existente e autenticação metadata-only do Copilot **após login gráfico anterior,
+sem reboot**. Não equivale a cold-start, acesso Stronghold pessoal, admissão
+financeira, inferência, sandbox ou integração operacional da Narys.
 
-## 1. Identificação, Git e escopo
+**LR-10A H3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
 
-- Data:10/10/2026, America/Fortaleza; projeto Narys; exclusivamente LR-10A/H2.
-- Branch: `lr-10a-sdk-runtime-feasibility`.
-- HEAD inicial local/remoto: `60f601dbcaf0fb1f6aaf78baf5c7c904e02a8a2c`; workspace limpo.
-- Componentes reais sintéticos/Rust testados: [`887477a631cf519811b357aad5a6407dafaebabd`](https://github.com/Samuel-Francisco-AS/Narys/commit/887477a631cf519811b357aad5a6407dafaebabd).
-- Implementação final do helper/testes: [`e7ea1b60a1ad5992cad6d34c44d084e9fc37afa2`](https://github.com/Samuel-Francisco-AS/Narys/commit/e7ea1b60a1ad5992cad6d34c44d084e9fc37afa2).
-  A revisão só endurece a verificação de contexto GUI; classe encrypted e leitor
-  TTY têm AST idêntica à prova anterior. Ambos commits técnicos publicados antes
-  deste relatório; HEAD remoto confirmado por `git ls-remote` no segundo SHA.
-- HEAD documental final: commit posterior contendo **somente este relatório**, no
+## 1. Identificação e Git
+
+- Branch exclusiva: `lr-10a-sdk-runtime-feasibility`.
+- HEAD inicial local/remoto: `d7d9eb4c4d97ffb19edba2e2015bdb93b849eb66`.
+- Implementação testada e ensaio real: [78392e29dcb20014d12cc808f8207073cdff7477](https://github.com/Samuel-Francisco-AS/Narys/commit/78392e29dcb20014d12cc808f8207073cdff7477).
+  Seus hashes de fontes/binário correspondem à execução; não houve mudança de
+  código depois do ensaio. O commit técnico foi publicado e HEAD remoto conferido.
+- Main local/remota preservada: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`.
+- HEAD documental final: commit mais recente deste arquivo no
   [histórico verificável da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility/docs/LR-10-LATEST-EXECUTION-REPORT.md).
-  Sem SHA autorreferencial; o fechamento verifica HEAD remoto e bytes publicados.
-- Main local/remota preservada em `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`.
-- Sem PR, merge, rebase, reset, force-push, instalações, atualizações, sudo ou linger.
-- Produção, Broker, ExecutionAuthority, IPC, TaskGraph/LR8.5, SDK/CLI pins,
-  Cargo.lock/MSRV/Edition e harness FIX1 não foram alterados.
+  Este commit documental altera **somente este relatório**, sem SHA autorreferencial.
+- Workspace inicial limpo. Alterações intermediárias eram preparação H3 do
+  próprio agente; nenhum trabalho humano foi descartado. Sem PR, merge, rebase,
+  reset, force-push ou alterações em main.
 
-Objetivo: preparar serviço de credenciais sob demanda e desbloqueio humano por
-SSH, sem senha persistida e sem exigir GNOME Shell permanentemente. Não foi
-implementado servidor Narys, aplicativo Android, produção ou LR10B.
+## 2. Autorização e limites
 
-## 2. Arquivos entregues
+O usuário autorizou encerrar a sessão gráfica, depois confirmou especificamente
+parada temporária do GDM, trabalho gráfico salvo e acesso SSH/Termux independente.
+Ele armou rollback administrativo em SSH privado, parou o GDM, desbloqueou a
+coleção no terminal privado e iniciou novamente o GDM. Senhas nunca foram
+solicitadas no chat/capturadas pelo agente. Não houve reboot, target permanente,
+PAM, senha alterada, cofre novo, migração, --replace, token explícito, login/logout
+Copilot, plano/pagamento ou inferência.
 
-- [h2_keyring.py](../experiments/lr-10a-sdk-runtime/h2_keyring.py): launcher
-  sintético-only, Bubblewrap/estado privado, FIX1 intacta, timeout45s, evidência O_EXCL.
-- [h2_keyring_fixture.py](../experiments/lr-10a-sdk-runtime/fixtures/h2_keyring_fixture.py):
-  D-Bus/Keyring reais privados, senha pública sintética, rejeição de senha incorreta,
-  restart da mesma coleção, hashes internos de snapshot/cofre e medições.
-- [h2_stronghold.rs](../experiments/lr-10a-sdk-runtime/fixtures/h2_stronghold.rs):
-  inclui backend/audit de produção **sem modificá-los**, somente sentinel/HOME e
-  caminho de fixture; nenhuma opção de cofre pessoal. Publica resultado/presença,
-  nunca valor de item/chave. Binário debug fica ignorado em target.
-- [h2_manual_unlock.py](../experiments/lr-10a-sdk-runtime/h2_manual_unlock.py):
-  helper humano experimental, TTY privado, eco desativado, encrypted libsecret,
-  existente-only, pin GNOME50, owner/UID/PID/start-time/user-manager e GUI ausente.
-  Não foi usado para desbloquear credenciais pessoais.
-- [test_h2_keyring.py](../experiments/lr-10a-sdk-runtime/tests/test_h2_keyring.py):
-  21 regressões novas, inclusive pseudo-terminal real com senha **sintética**.
-- [Contrato, reprodução e plano humano](../experiments/lr-10a-sdk-runtime/HEADLESS-MANUAL-UNLOCK.md),
-  README e [adendo permanente](LR-10A-IMPLEMENTATION-AND-EVIDENCE.md).
-- Evidências novas `evidence/h2-*`, discriminadas abaixo. Este relatório é a única
-  substituição documental; documentos/evidências históricos permanecem preservados.
+H3 autorizou no máximo **uma** invocação SDK metadata-only, após desbloqueio:
+Client start, getStatus, auth.getStatus e shutdown. A futura autorização A9 não
+foi consumida. Sessões/modelos/quota/ferramentas/send/retry permanecem proibidos.
 
-## 3. Contrato real de desbloqueio
+## 3. Transição, rollback e recuperação observados
 
-GNOME Keyring instalado50.0/libsecret0.21.8.2/systemd259.9; Python3.14.7/GI instalados.
-Binário Keyring SHA256:
+[Pré-condições autorizadas](../experiments/lr-10a-sdk-runtime/evidence/h3-authorized-transition-preconditions.json)
+identificaram a sessão Wayland2, sshd ativo, Codex/tmux fora do scope gráfico.
+O Codex no user manager tinha PartOf apenas no scope remoto, sem BindsTo gráfico;
+exigir PartOf totalmente vazio inicialmente bloqueou a preparação, e a inspeção
+passiva subsequente comprovou a dependência remota segura. Nenhuma sessão foi
+encerrada por essa inspeção.
+
+O primeiro timer foi verificado no system manager: waiting/transient, root,
+oneshot, vínculo e ação exata `/usr/bin/systemctl start gdm.service`, prazo30min.
+[StopUnit sem interação](../experiments/lr-10a-sdk-runtime/evidence/h3-gdm-stop-request.json)
+e [sudo -n restrito](../experiments/lr-10a-sdk-runtime/evidence/h3-gdm-stop-noninteractive-authority.json)
+retornaram exit1; GDM continuou ativo. Não houve prompt/captura de senha.
+O humano efetuou a parada no SSH privado; nenhuma terminação por nome/PID genérico
+foi usada. Ele substituiu o timer por `narys-h3-gui-rollback-2.timer` e desativou o
+anterior. O novo vínculo, autoridade, ação e prazo foram novamente verificados.
+
+[Após parar GDM](../experiments/lr-10a-sdk-runtime/evidence/h3-post-user-gdm-stop-context.json):
+sem Wayland/X11 do usuário, GDM ou GNOME Shell; alvo gráfico inativo; user manager,
+bus, SSH/tmux/Codex presentes. Ambos os daemons Keyring anteriores saíram.
+**Não houve transferência automática do Secret Service.**
+
+[Antes do SDK](../experiments/lr-10a-sdk-runtime/evidence/h3-after-manual-unlock.json)
+restavam1283,30s no rollback. O agente não cancelou nenhum timer.
+[Retorno final](../experiments/lr-10a-sdk-runtime/evidence/h3-gdm-recovery-confirmed.json):
+o usuário informou ativação do GDM; active/running confirmado, identidades
+protegidas preservadas, mesmo owner do Secret Service e metadados do cofre iguais.
+Não houve login gráfico nem inspeção da tela física. Nenhum GNOME Shell, inclusive
+no UID do greeter, foi observado nessa inspeção; pode aparecer posteriormente.
+Restaurar o serviço GDM não comprova uma sessão gráfica autenticada.
+
+## 4. Serviço existente e desbloqueio humano
+
+[Pré-condições do serviço](../experiments/lr-10a-sdk-runtime/evidence/h3-service-start-preconditions.json):
+nenhum owner/daemon ativo; login.keyring preexistente, regular, UID1000,0600,
+sem symlink nos componentes verificados. Conteúdo não lido. Daemon instalado50.0
+confirmado por pacote e SHA
 `c7c5ad270c98fc0c9466031a08a037d650a918786036579003d9bcca4844481e`.
 
-A [fonte GNOME50.0](https://raw.githubusercontent.com/GNOME/gnome-keyring/50.0/daemon/gkd-main.c)
-mostra que `--unlock` lê stdin e aplica a senha **na inicialização** do daemon.
-O [fluxo de login](https://raw.githubusercontent.com/GNOME/gnome-keyring/50.0/daemon/login/gkd-login.c)
-pode criar login ausente/inicializar slots. No teste inicial, executá-lo ao lado
-de um daemon existente retornou0 sem desbloquear/criar a coleção visível no
-bus; não é um dispatcher geral de unlock desse dono. Não foi repetido no host.
-O ensaio correto iniciou o daemon foreground com senha sintética, comprovando
-criação explícita apenas da coleção de teste. Não recomendar --replace/--unlock
-como tentativa cega no cofre pessoal.
+Iniciamos **somente a unidade user instalada** gnome-keyring-daemon.service e
+sua socket, sem enable/linger. [Override somente runtime](../experiments/lr-10a-sdk-runtime/evidence/h3-credential-service-start.json)
+em `/run/user/1000/systemd/user/gnome-keyring-daemon.service.d/90-narys-h3-context.conf`:
 
-O método [UnlockWithMasterPassword](https://raw.githubusercontent.com/GNOME/gnome-keyring/50.0/daemon/dbus/gkd-secret-service.c)
-procura a coleção específica e falha quando ausente, sem criar coleção. Está na
-[interface que o GNOME marca explicitamente como não suportada](https://raw.githubusercontent.com/GNOME/gnome-keyring/50.0/daemon/dbus/org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface.xml).
-A proposta é experimental/versionada, não API pública portátil. Seu uso pessoal
-precisa ser revisado e especificamente aceito; atualizações futuras falham no pin.
+```ini
+[Service]
+UnsetEnvironment=XDG_SESSION_ID DISPLAY WAYLAND_DISPLAY
+LimitCORE=0
+TimeoutStopFailureMode=terminate
+```
 
-O helper reutiliza [encode_dbus_secret da libsecret](https://gnome.pages.gitlab.gnome.org/libsecret/method.Service.encode_dbus_secret.html)
-e verifica o [algoritmo de sessão](https://gnome.pages.gitlab.gnome.org/libsecret/method.Service.get_session_algorithms.html).
-Contra nome D-Bus único não ativável, exige DH/AES; fallback plain é rejeitado
-**antes** da solicitação de senha. Não chama CreateCollection/GetSecrets/Store/Prompt.
-A sessão criptográfica Secret Service não é uma sessão Copilot.
+Não altera ambiente global do user manager, HOME/COPILOT_HOME, armazenamento,
+PAM ou unidade em /usr. Remove dependência de contexto gráfico herdado; não se
+inspecionou environ do daemon para alegar qual variável anterior ele possuía.
+LimitCORE impede core dumps desta unidade; não constitui proteção integral de RAM.
+Override permanece em /run; serviço/socket intencionalmente ativos não são órfãos.
 
-## 4. Evidências reais sintéticas e observação do host
+[Pré-unlock](../experiments/lr-10a-sdk-runtime/evidence/h3-before-manual-unlock.json):
+owner PID21550/start1642719 no user manager, fora de scope gráfico, alias login
+existente e Locked=true. Helper H2 pinado, inalterado, sem coleção nova/replace.
+O humano executou em outro SSH privado:
 
-[Ensaio final](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-synthetic.json):
+```sh
+cd /home/sam/Projetos/Narys
+python3 experiments/lr-10a-sdk-runtime/h2_manual_unlock.py unlock-existing-login
+```
 
-1. Serviço privado sem GNOME; coleção ausente foi rejeitada pelo guard.
-2. Criação **deliberadamente sintética** por startup --unlock; coleção desbloqueada.
-3. Backend Narys criou snapshot/chave de teste usando SystemCredentialStore real.
-4. Coleção bloqueada, senha incorreta negada, senha correta aceita pelo método
-   existente-only usando libsecret DH/AES. Nenhum password em argv/env/logs.
-5. Backend consultou presença; reinício do daemon recuperou a mesma coleção
-   bloqueada; novo desbloqueio e reabertura do mesmo snapshot passaram.
-6. Bytes do login.keyring e snapshot sintéticos permaneceram iguais depois de
-   unlock/restart/presença; keyring files0600 e diretórios privados. Nenhum legacy
-   plaintext foi criado. Nenhum conteúdo/chave foi publicado.
+Informou `LOGIN_UNLOCKED`; verificamos Locked=false sem itens/segredos.
+A extensão GNOME é interna **não suportada**, versionada50.0; helper exige
+libsecret DH/AES e nega plain. Esse contrato não vira API pública estável.
+Não gravamos/capturamos senha e não afirmamos zeroização/swap seguro de Python.
+Metadados do login.keyring mantiveram-se iguais após startup/unlock/SDK/retorno;
+isso não prova equivalência criptográfica do conteúdo.
 
-O namespace começa vazio e usa /usr read-only para software instalado confiável
-**desse teste**, etc sintético, /proc e /dev privados, estado0700, sem rede, home,
-/run/user ou bus pessoal. Não é o boundary do Copilot, não amplia FIX3/4 e não é
-uma prova universal contra host/root/processos adversariais do mesmo UID.
+## 5. Implementação e arquivos
 
-[Contexto passivo atual](../experiments/lr-10a-sdk-runtime/evidence/h2-context.json),
-11:47:46UTC, reutiliza H1 sob FIX1, **sem executar CLI**: GNOME/GDM ativos, socket
-user-bus acessível, login Locked=false. Secret Service dono PID2602/start_ticks3099
-no scope gráfico, fora do user manager; outro daemon PID2800 no user manager.
-sshd ativo; tmux/Codex fora do scope gráfico; user manager ativo, Linger=no.
-Não foi comprovada transferência de nome/credenciais/desbloqueio entre daemons.
+No [commit técnico](https://github.com/Samuel-Francisco-AS/Narys/commit/78392e29dcb20014d12cc808f8207073cdff7477):
 
-Fonte50.0 observa fechamento logind se houver XDG_SESSION_ID: pode sair ao fechar
-sessão, apesar de PAM close_session no-op. Não lemos /proc/environ nem afirmamos
-que o daemon atual herdou essa variável. Não assumimos sobrevivência ao logout.
-Logout simples pode deixar GNOME Shell do greeter ativo; não equivale a headless.
+- [h3_recovery.py](../experiments/lr-10a-sdk-runtime/h3_recovery.py): classificador
+  passivo do rollback inicial; para o segundo, vinculamos explicitamente a unidade
+  `-2.service` antes de aplicar o mesmo contrato de ação/root. Identidade efetiva
+  preservada nas evidências; não há force ou concessão de autoridade SDK.
+- [h3_headless.py](../experiments/lr-10a-sdk-runtime/h3_headless.py): contexto real,
+  ausência GUI, owner/PID/start/UID/SHA, alias existente, Locked e marker.
+- [h3_metadata.py](../experiments/lr-10a-sdk-runtime/h3_metadata.py) e
+  [entrypoint Rust](../experiments/lr-10a-sdk-runtime/src/bin/h3-metadata-confirm.rs):
+  reutilizam opções, protocolo e harness existentes; identidade H3 independente,
+  duas reservas fixas O_EXCL, sem argumentos de retry/force. Corrige somente o
+  rótulo GUI do confirmer compartilhado para o perfil headless qualificado.
+- [Testes headless](../experiments/lr-10a-sdk-runtime/tests/test_h3_headless.py)
+  e [recuperação](../experiments/lr-10a-sdk-runtime/tests/test_h3_recovery.py): nove
+  casos novos; GUI/erro não viram ausência, pin/marker negam acesso, one-shot
+  permanece consumido após falha, ação/autoridade/timer inválidos bloqueiam.
+- [Guia H3](../experiments/lr-10a-sdk-runtime/HEADLESS-HOST-VALIDATION.md), README,
+  adendo permanente e evidências novas `evidence/h3-*`.
 
-## 5. Matriz independente de gates
+Não alteramos FIX1–H2, suas evidências, produção, Broker/ExecutionAuthority,
+AgentRegistry, TaskGraph/LR8.5, IPC, UI, MSRV/Edition ou dependências.
+[Verificação](../experiments/lr-10a-sdk-runtime/evidence/h3-delivery-verification.json)
+comparou552 arquivos históricos experimentais/produção: somente README mudou;
+os demais permaneceram byte a byte iguais. Documentos permanentes receberam adendo.
 
-| Gate | Resultado e alcance |
-| --- | --- |
-| HEADLESS_KEYRING_SERVICE | PASS componentes reais em namespace sintético; user-manager/cofre pessoal sem GUI NOT_TESTED. |
-| MANUAL_UNLOCK_METHOD | PASS sintético: existente-only, libsecret encrypted, TTY sem eco; uso pessoal PENDING_HUMAN_SETUP, extensão não suportada. |
-| DBUS_USER_SESSION | PASS_REAL no host com GUI; bus privado headless PASS sintético. Bus de usuário real sem GUI NOT_TESTED. |
-| STRONGHOLD_ACCESS | PASS backend real em fixture; snapshot pessoal NOT_TESTED. |
-| COPILOT_SDK_AUTH | NOT_TESTED nesta H2; GUI conserva PASS_REAL histórico A9-FIX4R, sem novo ensaio. Headless não comprovado. |
-| GUI_ABSENT_VERIFIED | PASS no namespace sintético; host pessoal NOT_TESTED, GUI permaneceu ativa. |
-| COLD_START_HEADLESS | NOT_TESTED; nenhum reboot/boot target modificado. |
-| SERVICE_PERSISTENCE | PASS restart sintético com mesmo armazenamento; logout/boot/user-manager reais NOT_TESTED. |
-| PROCESS_CLEANUP | PASS observado nas fixtures/probes passivos sob FIX1; limite do debug isolado abaixo. |
-| FINANCIAL_ADMISSION | BLOCKED, preservado; nenhum novo catálogo/quota/modelo consultado. |
-| REAL_INFERENCE | NOT_RUN, zero SDK/send/sessões Copilot reais, marker ausente/não consumido. |
+## 6. Única execução SDK real
 
-Nenhum PASS sintético concede autorização operacional ou comprova autenticação
-pessoal. Sessões privadas, agentes e limites do A9_ISOLATED permanecem bloqueados.
+[Evidência](../experiments/lr-10a-sdk-runtime/evidence/h3-metadata-real.json),
+concluída **2026-10-10T13:35:47.432477Z**, contém hashes exatos de fontes/binário.
+SDK `github-copilot-sdk=1.0.17`, CLI nativo1.0.95 SHA
+`9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99`;
+protocolo3 esperado. Binário H3 SHA
+`e4a39f123ff97cf5341e4b1e619a5a6f59aa01e6b20c60535a0bf1aad77b748f`.
 
-## 6. Testes, comandos e falhas preservadas
+Uma inicialização, um status, um auth status: **authenticated=true**, shutdown
+Rust graceful. SDK pode fazer connect/ping internos; não se alegam somente quatro
+pacotes RPC nem equivalência a unidades faturáveis. Zero inferências/sessões,
+modelos/quota/tools; sem retry. Estado/autenticação por resolução normal do host,
+sem token explícito ou cópia de credenciais. Não isolamos qual armazenamento
+interno o CLI utilizou; o sucesso combinado não prova exclusividade causal do
+Keyring. Não introduzimos fallback plaintext.
 
-[Verificação consolidada](../experiments/lr-10a-sdk-runtime/evidence/h2-verification.json):
+Config apresentou drift inode/mtime/ctime em after_start; tamanho permaneceu
+estável, estrutura PASS_METADATA_ACCESS. Autoria INCONCLUSIVE e conteúdo
+NOT_VERIFIED; não lemos/restauramos config nem declaramos legítima a escrita.
+Metadata pode ser aceito observacionalmente com drift; nenhuma admissão sensível
+herda esse resultado. O HEADLESS_AUTH da política genérica continua NOT_PROVEN:
+o gate H3 é confirmado separadamente por contexto real antes/depois e SDK.
 
-- Compilação standalone de `fixtures/h2_stronghold.rs`, Edition2021, com rustc1.98.1
-  instalado e rlibs **compatíveis previamente em cache**. [Argv/hashes](../experiments/lr-10a-sdk-runtime/evidence/h2-rust-fixture-build.json)
-  e [build final](../experiments/lr-10a-sdk-runtime/evidence/h2-rust-fixture-final-build.json).
-  Cache inicialmente selecionado1.94 retornou E0514; nenhum download/rebuild
-  global para resolver. Sem alteração de toolchain, deps ou produção. Reprodução
-  fica BLOCKED se o cache compatível faltar, não baixa/recompila Tauri automaticamente.
-- `python3 experiments/lr-10a-sdk-runtime/h2_keyring.py`: PASS_SYNTHETIC_ONLY,
-  binário/source SHA identificados no JSON. Evidência fixa O_EXCL já ocupada;
-  não apagar, sobrescrever ou introduzir retry arbitrário.
-- `python3 .../verify_a9_host.py --artifacts-dir .../evidence/h2-regressions`:
-  **52 Rust/148 Python PASS**, incluindo20H2; [logs Rust](../experiments/lr-10a-sdk-runtime/evidence/h2-regressions/a9-host-rust-tests.txt),
-  [Python](../experiments/lr-10a-sdk-runtime/evidence/h2-regressions/a9-host-python-tests.txt),
-  [ownership](../experiments/lr-10a-sdk-runtime/evidence/h2-regressions/a9-host-owned-tests.json).
-  Executa Cargo `test --offline --locked -- --test-threads=1`,
-  COPILOT_SKIP_CLI_DOWNLOAD=1/CARGO_BUILD_JOBS=2, depois unittest discover sob FIX1.
-- Testes novos: fixture fora do namespace negada; job/permissões/binário inválidos;
-  sem HOME/bus/rede pessoal; GUI/contexto desconhecido/owner incompatível negados;
-  sem senha em argumentos/pipeline/worker; crypto fallback negado; método sem
-  criação/retry; eco/restauração/erro; PTY **real com senha pública sintética**.
-- Revisão final: falha da consulta ps não pode ser interpretada como GUI ausente;
-  exige exit1. [149 Python PASS sob FIX1](../experiments/lr-10a-sdk-runtime/evidence/h2-python-final-regressions.json),
-  [log final](../experiments/lr-10a-sdk-runtime/evidence/h2-python-final-tests.txt),
-  incluindo21H2; uma nova regressão testa erros/unknown. AST demonstra classe
-  encrypted/leitor TTY idênticos à execução sintética no primeiro commit. Rust
-  não mudou e não foi repetido gratuitamente depois desta revisão Python.
-- AST de todos os Python novos, rustfmt --check Edition2021/skip_children,
-  JSON/JSONL e git diff --cached --check PASS. Um newline redundante no novo log
-  Rust foi removido; hashes original/publicado e bytes removidos estão no JSON.
-- 215 arquivos experimentais históricos permaneceram byte a byte; só README
-  recebeu adendo. Documentos permanentes preservam conteúdo anterior. Produção
-  não mudou: suíte completa Tauri/UI NOT_RUN, justificada pelo escopo experimental.
+Reserva [h3-runtime-reservation.json](../experiments/lr-10a-sdk-runtime/evidence/h3-runtime-reservation.json)
+consumida, evidência O_EXCL também. **Não repetir/apagar reservas.** Marker de
+inferência A9 não criado/lido/consumido: somente existência verificada.
 
-Falhas de desenvolvimento não são reclassificadas como PASS: [D-Bus inicial](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-initial-setup-failure.json),
-[segunda tentativa](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-second-setup-failure.json),
-[NoReply](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-dbus-identity-failure.json),
-[criação](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-create-failure.json),
-[startup descoberto](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-startup-unlock-discovery.json),
-[construtor libsecret abortado](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-libsecret-constructor-failure.json).
-A infraestrutura privada passwd/group/machine-id/NSS corrigiu conexão, sem provar
-isoladamente qual arquivo causou NoReply. Usar o construtor público open_sync da
-libsecret eliminou o aborto na prova posterior. [Transporte plain exclusivamente
-sintético](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-plain-transport-synthetic.json)
-não foi promovido a método pessoal; foi substituído por encrypted libsecret.
-[Desenvolvimento encrypted](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-encrypted-transport-development.json)
-e [antes do check adicional dos bytes](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-encrypted-pre-snapshot-check.json)
-identificam suas implementações separadas. Essas repetições foram fixtures locais,
-nunca Copilot ou credenciais pessoais.
+## 7. Gates H3
 
-## 7. Recursos, cleanup e segurança
+| Gate | Resultado | Evidência/limite |
+|---|---|---|
+| USER_GUI_SESSION_ABSENT | PASS_REAL durante ensaio | logind sem Wayland/X11 do usuário |
+| GNOME_SHELL_PROCESS_ABSENT | PASS_REAL durante ensaio | ps exit1, GDM parado; não DISPLAY filtrado |
+| SSH_ACCESS_PRESERVED | PASS_REAL | SSH/tmux/Codex e identidades preservados |
+| RECOVERY_PATH_VERIFIED | PASS_REAL | timer root registrado; retorno GDM active/running observado |
+| USER_DBUS_AVAILABLE | PASS_REAL | socket/bus acessíveis, sem ativação arbitrária |
+| HEADLESS_SECRET_SERVICE | PASS_REAL | mesma unidade instalada, owner no user manager |
+| EXISTING_LOGIN_COLLECTION | PASS_REAL | alias existente; identidade/metadados do arquivo preservados |
+| MANUAL_UNLOCK | PASS_REAL | humano informou sucesso; Locked true→false observado |
+| STRONGHOLD_PERSONAL_ACCESS | NOT_TESTED | secret_presence pode escrever/ajustar/migrar; não chamado |
+| COPILOT_SDK_HEADLESS_AUTH | PASS_REAL | única invocação real authenticated=true |
+| PROCESS_CLEANUP | PASS_REAL | ECHILD, PID/start ausentes, sem recuperação forçada |
+| COLD_START_HEADLESS | NOT_TESTED | nenhuma reinicialização; cenário pós-login gráfico |
+| FINANCIAL_ADMISSION | BLOCKED | nenhum modelo/quota/custo/fallback novo comprovado |
+| REAL_INFERENCE | NOT_RUN | zero send, prompts, inferências ou ferramentas |
+| A9_ATTEMPT_MARKER | PASS_REAL preservação | ausente/não reclamado; conteúdo não lido |
 
-Ensaio final:5.180,09ms, cleanup32,80ms; RSS agregada amostrada640.958.464bytes
-(~611,27MiB), CPU amostrada4,84s como limite inferior. Daemon Keyring amostrado
-9.748.480–10.383.360bytes; readiness10,72–11,41ms em três starts. Não é benchmark
-frio, RAM incremental de produção ou atribuição de consumo a uma KDF específica.
-Binário debug162.290.248bytes ignorado em target, não publicado/downloadado.
+SESSION_ADMISSION e AGENT_ACTION_ADMISSION **BLOCKED**. Gates de A9_ISOLATED
+(auth/rede/contenção) não foram resolvidos por HOST_ASSISTED.
 
-13 registros sob harness têm ECHILD, identidades PID/start-time ausentes e cleanup
-completo; não há sobrevivente conhecido de fixture. Nenhum processo externo
-recebeu sinal. Daemons privados são encerrados somente por pidfd de filho
-atribuído; timeout/recovery dos testes anteriores continuam separados de shutdown
-SDK. H2 não iniciou SDK contra CLI real: sdk_shutdown_verified=false não é falha
-de SDK novo. Testes Rust exercitam SDK somente contra fixtures controladas.
+## 8. Testes, comandos e recursos
 
-Uma execução adicional de desenvolvimento, somente no namespace sintético, usou
-contenção PID do Bubblewrap fora do harness antes da correção D-Bus. Não há medida
-pidfd/ECHILD para essa invocação; não se inventa essa verificação. Nenhum sinal
-externo/credencial/serviço foi envolvido. Preservamos limites de morte do worker,
-adversariais/reparenting/namespaces e tarefas kernel não interrompíveis; não é o
-supervisor de produção nem alegação de contenção adversarial completa.
+[Verificação offline](../experiments/lr-10a-sdk-runtime/evidence/h3-offline-verification.json)
+e [harness de regressão](../experiments/lr-10a-sdk-runtime/evidence/h3-regressions/a9-host-owned-tests.json):
+**52 Rust +158 Python PASS**, incluindo nove novos H3, zero CLI real nessas fixtures.
+Quatro testes Rust direcionados de metadata passaram antes da regressão completa;
+21 H2 também passaram. Nove H3 retestados após formatação final do novo entrypoint.
+Formatação, py_compile, JSON/JSONL e diff check aprovados. /usr/bin/rustfmt não
+existia; utilizamos rustfmt da toolchain stable já instalada, sem download.
+Uma quebra vazia extra no final do log Rust novo foi removida para diff check,
+sem alterar testes/resultados. Logs [Rust](../experiments/lr-10a-sdk-runtime/evidence/h3-regressions/a9-host-rust-tests.txt)
+e [Python](../experiments/lr-10a-sdk-runtime/evidence/h3-regressions/a9-host-python-tests.txt).
 
-Nenhuma leitura de conteúdo de configurações/keyring/itens/sessões Copilot pessoais,
-/proc/environ, tokens, PAM ou senha humana; apenas propriedades de contexto permitidas.
-Nenhuma cópia de credenciais, plaintext fallback,
-config global, keyring pessoal, serviços, GNOME/GDM ou boot alterados. Marker
-verificado **só por existência**, ausente antes/depois/final; não criado/consumido.
-Não se afirma saldo/cobrança externa medidos: **zero inferências enviadas pela POC**.
+Comandos principais executados:
 
-Helper humano é host-assisted, não sandbox. Desativa core/dumpability e restaura
-TTY em interrupções tratáveis; Python mantém dados transitoriamente em RAM sem
-zeroização garantida. SSH privado não gravado/capturado pelo Codex é obrigatório.
-Senha não deve aparecer no chat, argv, env persistente, histórico, echo ou logs.
-SIGKILL/host comprometido e protocolo Secret Service MODP1024 têm limitações
-explícitas no contrato; não se promete segurança universal.
+```sh
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 RUSTC=/usr/bin/rustc RUSTDOC=/usr/bin/rustdoc /usr/bin/cargo build --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml --bin h3-metadata-confirm --offline --locked
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 RUSTC=/usr/bin/rustc RUSTDOC=/usr/bin/rustdoc /usr/bin/cargo test --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml --test metadata_confirmation --offline --locked -- --test-threads=1
+python3 experiments/lr-10a-sdk-runtime/verify_a9_host.py --artifacts-dir experiments/lr-10a-sdk-runtime/evidence/h3-regressions
+python3 -m unittest discover -s experiments/lr-10a-sdk-runtime/tests -p 'test_h3_*.py' -v
+python3 -m py_compile experiments/lr-10a-sdk-runtime/h3_recovery.py experiments/lr-10a-sdk-runtime/h3_headless.py experiments/lr-10a-sdk-runtime/h3_metadata.py
+python3 experiments/lr-10a-sdk-runtime/h3_metadata.py
+```
 
-## 8. Etapa humana pendente e Stronghold
+O último comando foi executado **uma vez** e está bloqueado por reservas existentes.
+Não é instrução para reexecutar. Cargo usa compilador instalado1.98.1; não foi
+instalado/atualizado1.94. SDK/lock/MSRV/Edition preservados. Suíte Tauri/UI completa
+NOT_RUN por ausência de alteração em produção; não houve prova UI.
 
-Foi solicitada preferência para coordenar a etapa pessoal ou publicar preparação;
-**não recebemos confirmação específica de transição/desbloqueio nesta execução**.
-Nenhuma ausência de resposta foi tratada como autorização. Publicação desta
-preparação não encerra a GUI e não presume recusa do usuário.
+Medição real com caches aquecidos: start2781ms, stop889ms, total4787,38ms,
+cleanup30,8ms, pico RSS somada267.878.400bytes (~255,47MiB), CPU amostrada como
+limite inferior1,92s, pico3 processos possuídos. Contagem global229→230 não prova
+órfãos: as provas são ECHILD/identidades possuídas ausentes. [Amostra daemon](../experiments/lr-10a-sdk-runtime/evidence/h3-daemon-resource-sample.json)
+RSS10.948.608bytes (~10,44MiB), PID/start/UID validados. Não são memória incremental
+nem benchmark frio; sem alegação de economia total comparada ao GNOME.
 
-Próxima etapa concreta está no [plano H2](../experiments/lr-10a-sdk-runtime/HEADLESS-MANUAL-UNLOCK.md):
-confirmar recuperação física, dois SSH/tmux, trabalho salvo, efeitos sobre GUI e
-aprovação naquele momento. Qualificar Secret Service sob user manager **sem
-alterar** PAM/linger/credenciais, não pressupor transferência. Só depois, humano
-em SSH separado poderá usar o helper, se aceitar a extensão experimental. A POC
-não pode capturar essa digitação. Não executar logout/stop-display-manager/target
-ou senha agora. Não há dispatcher de transição nesta entrega.
+## 9. Segurança e limites residuais
 
-Stronghold pessoal não foi aberto: `secret_presence` passa por unlock_client e
-pode chmod/inicializar chave/snapshot ou migrar legado. Não satisfaz diagnóstico
-pessoal puramente read-only; exige escopo próprio antes de qualquer operação
-pessoal. A fixture demonstra o mesmo backend com estado sintético.
+[Safety pós-SDK](../experiments/lr-10a-sdk-runtime/evidence/h3-post-sdk-safety.json)
+confirma zero sinais de recuperação, nenhum survivor possuído, ECHILD e arquivo
+Keyring observacionalmente estável. O harness genérico tem sdk_shutdown_verified
+false por schema legado; shutdown específico vem do relatório Rust graceful,
+com cleanup independente do kernel. Não reclassificamos FIX1.
 
-Se necessário após qualificação, preparar um novo dispatcher/identidade fixa H2
-one-shot para **uma** invocação SDK1.0.17/nativeCLI1.0.95
-SHA`9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99`:
-start/getStatus/auth.getStatus/shutdown apenas, sem retry/model/quota/session/send.
-Nenhuma reserva anterior será reutilizada. H2 não acrescentou esse dispatcher
-antes das pré-condições reais; não executar os drivers GUI como se fossem headless.
-Cold-start precisa janela posterior de boot pelo usuário, não realizado aqui.
+Daemon de credenciais intencionalmente gerido por systemd é serviço do host;
+não matar para “limpar” fixtures. SSH/sshd, tmux, Codex, systemd e bus preservados.
+Não há orfandade experimental conhecida. Morte inesperada do worker, descendentes
+adversariais, reparenting/namespaces não cobertos e tarefas D-state continuam
+limites: nenhum supervisor definitivo foi implementado.
 
-## 9. Alternativa e release0.1
+Sem tokens, itens, conteúdo config/Keyring/Stronghold, argv/env de processos,
+strace, dumps ou tráfego autenticado nos artefatos. Scan de padrões conhecidos
+de segredo é um check adicional, não prova universal de ausência de segredos.
+Metadados seguros/IDs Linux são publicados; identificadores de conta não.
+Builtin MCP desabilitado; nenhuma sessão/caminho de ferramenta foi exercido.
+DenyAll/zero tools anteriores preservados, sem alegação de cobertura de todos os
+hooks/extensões pelo teste de metadata. HOST_ASSISTED não oferece sandbox.
 
-Não foi comprovado bloqueio estrutural do Keyring sem GNOME; o método sintético
-é promissor e evita migração de credenciais. Limite material: extensão GNOME não
-suportada, configuração user-manager/retorno e compatibilidade do cofre pessoal
-não testadas. Primeiro qualificar setup humano versionado e esse único ensaio;
-não abrir ciclos de FIX para repetir autenticação com GUI.
+Arquivo de preparação inicial h3-pretransition-context conserva a observação
+anterior à correção do classificador de root ausente: seu resultado já era BLOCKED,
+nunca autorizou SDK. Hash dessa preparação não equivale ao código final. As
+pré-condições aprovadas e o ensaio real usam hashes posteriores verificáveis.
 
-Se a extensão não for aceita, estudar uma interface suportada de unlock/PAM
-humano sem alterar a pilha nesta H2. Alternativa Stronghold: UnlockKeyStore com
-Argon2id/salt aleatório/parâmetros versionados, sem salvar senha/chave plaintext.
-A chave aleatória atual exige migração criptografada, backup/rollback/recovery;
-não pode ser substituída por uma KDF sem planejamento. **Proposta, não implementada**;
-o sucesso sintético não justifica migração pessoal agora.
+## 10. Produto, pendências e decisão
 
-Prazo17/10/2026: estimativa de planejamento, não medição, uma janela assistida de
-30–60min para qualificar serviço/transição/desbloqueio e auth limitada; cold-start
-em janela separada. Narys0.1 pode priorizar provedores já aprovados e o contexto
-GNOME/Keyring existente enquanto a validação pessoal está pendente. Copilot
-permanece opcional/experimental; nenhum PASS completo LR10A ou avanço LR10B.
+Recomendação: manual unlock tem **viabilidade real pós-login gráfico** para o
+Copilot metadata. GNOME Shell não é requisito permanente desse cenário observado.
+Não declarar servidor Narys/Stronghold pessoal/headless cold-start prontos.
+Linger=no: continuidade após último SSH e boot inteiramente headless não foram
+validados. Serviço instalado é sob demanda e override é temporário em /run.
 
-**Conclusão: preparação parcial demonstrada, HEADLESS_PREPARED_PENDING_USER_TRANSITION.
-Auditoria independente da Luna pendente.**
+Próximos passos proporcionais, sob autorização/auditoria futura: validação de
+boot feito pelo humano, mesmo mecanismo manual e ciclo do user manager; contrato
+Stronghold de status sem efeitos incidentais; financeiro/modelo/custo máximo e
+estado de sessão privado antes de A9. Não iniciar isso nesta H3 nem consumir a
+inferência futura. Não escolher migração criptográfica por conveniência.
+
+Release0.1 alvo17/10/2026: a prova reduz a dependência gráfica para credenciais
+Copilot neste cenário, sem tornar esse SDK requisito de todas as funcionalidades.
+Priorizar caminhos já aprovados enquanto cold-start/Stronghold/finanças permanecem
+pendentes. Não houve LR10B, integração operacional, Android ou nova autoridade.
+
+**Zero inferências enviadas pela POC nesta H3; saldo/cobrança externa não medidos.**
+Não houve consulta atual de quota nem afirmação de saldo zero/ilimitado. Uma futura
+chamada SDK não garante uma única requisição/unidade faturável interna.
+
+**LR-10A H3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+Nenhum PASS definitivo da LR10A/LR10 ou autorização de avanço foi atribuído.
