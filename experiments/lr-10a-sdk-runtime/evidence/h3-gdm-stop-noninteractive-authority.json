@@ -1,0 +1,7 @@
+{
+  "phase": "LR-10A H3",
+  "observed_at": "2026-10-10T13:02:34.512095+00:00",
+  "operation": "sudo_noninteractive_systemctl_stop_gdm_only",
+  "exit_code": 1,
+  "password_requested_or_captured": false
+}

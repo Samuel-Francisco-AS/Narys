@@ -1,0 +1,119 @@
+{
+  "phase": "LR-10A H3",
+  "observed_at": "2026-10-10T13:35:26.164460+00:00",
+  "state": "READY_SINGLE_METADATA_INVOCATION",
+  "context": {
+    "profile": "HOST_ASSISTED_HEADLESS_NOT_SANDBOX",
+    "services": {
+      "gnome-shell_running": false,
+      "gdm_running": false,
+      "gnome-keyring-daemon_running": true,
+      "secrets_service_already_owned": true,
+      "bus_query_exit_code": 0,
+      "runtime_bus_socket_accessible": true,
+      "login_collection_locked": false,
+      "locked_property_exit_code": 0
+    },
+    "credential_owner": {
+      "state": "OBSERVED",
+      "pid": 21550,
+      "start_ticks": 1642719,
+      "in_graphical_login_scope": false,
+      "in_remote_login_scope": false,
+      "in_user_manager": true
+    },
+    "user": {
+      "exit_code": 0,
+      "values": {
+        "State": "active",
+        "Sessions": "6 5 4 3",
+        "Linger": "no"
+      }
+    },
+    "sessions": [
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-6.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "6"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-5.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "5"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-4.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "closing"
+        },
+        "id": "4"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "no",
+          "Type": "unspecified",
+          "Class": "manager",
+          "State": "active"
+        },
+        "id": "3"
+      }
+    ],
+    "graphical_target": "inactive",
+    "gnome_shell_ps_exit": 1,
+    "existing_login_alias_verified": true,
+    "daemon_pin_verified": true,
+    "attempt_marker_present": false,
+    "credentials_read": false
+  },
+  "recovery": {
+    "state": "REGISTERED_ROOT_GDM_RETURN",
+    "timer_registered_waiting": true,
+    "fixed_30_minute_timer": true,
+    "root_authority_registered": true,
+    "exact_gdm_start_action": true,
+    "authenticated_gui_login_restored": false,
+    "guaranteed_after_host_or_system_manager_failure": false
+  },
+  "timer": {
+    "LoadState": "loaded",
+    "ActiveState": "active",
+    "SubState": "waiting",
+    "Transient": "yes",
+    "Unit": "narys-h3-gui-rollback-2.service",
+    "TimersMonotonic": "{ OnActiveUSec=30min ; next_elapse=5h 13.253615s }",
+    "NextElapseUSecMonotonic": "5h 13.253615s"
+  },
+  "rollback_seconds_remaining": 1283.3042308130025,
+  "existing_login_metadata": {
+    "uid": 1000,
+    "ino": 3768584,
+    "dev": 49,
+    "size": 5207,
+    "mtime_ns": 1791602000856395092,
+    "ctime_ns": 1791602000859395011,
+    "mode": 384
+  },
+  "manual_unlock": "USER_REPORTED_LOGIN_UNLOCKED_AND_LOCKED_FALSE_OBSERVED",
+  "credential_contents_read": false,
+  "sdk_invocations_so_far": 0,
+  "source_sha256": {
+    "h3_recovery.py": "ea11e376f50c4928a0351982fda53be0a02178152c1d9dfc8fb0077fe52058f4"
+  }
+}

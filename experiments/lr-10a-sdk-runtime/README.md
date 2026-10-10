@@ -317,3 +317,14 @@ it starts no daemon, creates no collection and rejects GUI/unverified ownership.
 Do not run it from Codex, redirect a password, or use it on personal storage before
 the separately reviewed setup/transition. Host GUI, services and credentials were
 left untouched; H2 real Copilot gate remains NOT_RUN. Prior boundaries are unchanged.
+
+### H3 — credenciais pessoais sem GUI, metadata-only
+
+[H3](HEADLESS-HOST-VALIDATION.md) comprovou manual unlock da coleção existente e
+SDK1.0.17/CLI1.0.95 authenticated=true após parada humana autorizada do GDM.
+É headless pós-login gráfico, não cold-start nem sandbox. Stronghold pessoal não
+acessado. [Evidência real](evidence/h3-metadata-real.json) usa reserva independente
+já consumida: não executar novamente/apagar reserva. Zero inferências/sessões;
+finanças, estado privado e ações continuam bloqueados. Serviço user sob demanda,
+override somente em /run e rollback GDM verificado; nenhum enable/linger/PAM/boot
+permanente. Testes52Rust/158Python, sem código de produção alterado.

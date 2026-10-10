@@ -1,0 +1,731 @@
+{
+  "phase": "LR-10A H3",
+  "profile": "HOST_ASSISTED_HEADLESS_NOT_SANDBOX",
+  "COPILOT_SDK_HEADLESS_AUTH": "PASS_REAL",
+  "PROCESS_CLEANUP": "PASS_REAL",
+  "SESSION_ADMISSION": "BLOCKED",
+  "FINANCIAL_ADMISSION": "BLOCKED",
+  "REAL_INFERENCE": "NOT_RUN",
+  "sdk_invocations": 1,
+  "sdk_send_calls": 0,
+  "session_operations": 0,
+  "models_quota_calls": 0,
+  "marker_claimed": false,
+  "STRONGHOLD_PERSONAL_ACCESS": "NOT_TESTED",
+  "COLD_START_HEADLESS": "NOT_TESTED",
+  "source_sha256": {
+    "h3_metadata.py": "d275437a86aac342aca82c2cef25a05925459bc5867753117442d8588445cac5",
+    "h3_headless.py": "3e1f2265a4cebd87b5ce5913662b221f1591131a7d5766fc4ef0d819b6f7d4e6",
+    "src/bin/h3-metadata-confirm.rs": "70a0afc66ed1936eb456e9406d3f3e51b11bb00a6b4a951edcd6064d9041cf89",
+    "src/metadata_confirmation.rs": "16a020497f5a9052bba5a1b971dc53872b74d6f3fc13aa22e0a30b541ce27c05",
+    "src/host_assisted.rs": "24d736206ecf977354a18f43f7f035edf0a131fd35d4cfae686ed2d6b446cb47",
+    "metadata_policy.py": "2b65e11a25c76501e8924542663a7c294aa4c13a02b4faa5d733fcff617f67df",
+    "config_integrity.py": "6953d084453f3bd00be0b7d5390fada2aafa12c53780769f4591bbfb7c836fb1",
+    "h2_manual_unlock.py": "83a3ab07a92f8ab78a6b126f474281df960596245faf0f4d73bcb6c543d38b33",
+    "h1_context.py": "e34af55ad4e8bfd198c380b4da9b177e31dddeccacb47ae79240060a804003eb",
+    "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+    "confirm_a9_metadata.py": "7fad5bab4868ecec9e20f18d1c7280e428602ccefc65aa4b3d0ffe020e0b6f2e",
+    "diagnose_a9_gui_auth.py": "349054aacac1d03aff7fb8511e0110a5d39743bfd2ed290b19a5ce9ff2c9437f",
+    "diagnose_a9_auth.py": "d27ddc4c78e20ccd85f3fc7ebe6d5e60e896dee868272c7f63b252c8c724f847",
+    "runtime-gui-candidate.json": "0924c38cfda63578cde3ff4c4045124630e89a0a78b10627ad6e0591e653db36",
+    "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+    "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+  },
+  "binary_sha256": "e4a39f123ff97cf5341e4b1e619a5a6f59aa01e6b20c60535a0bf1aad77b748f",
+  "before_context": {
+    "profile": "HOST_ASSISTED_HEADLESS_NOT_SANDBOX",
+    "services": {
+      "gnome-shell_running": false,
+      "gdm_running": false,
+      "gnome-keyring-daemon_running": true,
+      "secrets_service_already_owned": true,
+      "bus_query_exit_code": 0,
+      "runtime_bus_socket_accessible": true,
+      "login_collection_locked": false,
+      "locked_property_exit_code": 0
+    },
+    "credential_owner": {
+      "state": "OBSERVED",
+      "pid": 21550,
+      "start_ticks": 1642719,
+      "in_graphical_login_scope": false,
+      "in_remote_login_scope": false,
+      "in_user_manager": true
+    },
+    "user": {
+      "exit_code": 0,
+      "values": {
+        "State": "active",
+        "Sessions": "6 5 4 3",
+        "Linger": "no"
+      }
+    },
+    "sessions": [
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-6.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "6"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-5.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "5"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-4.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "closing"
+        },
+        "id": "4"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "no",
+          "Type": "unspecified",
+          "Class": "manager",
+          "State": "active"
+        },
+        "id": "3"
+      }
+    ],
+    "graphical_target": "inactive",
+    "gnome_shell_ps_exit": 1,
+    "existing_login_alias_verified": true,
+    "daemon_pin_verified": true,
+    "attempt_marker_present": false,
+    "credentials_read": false
+  },
+  "before_config": {
+    "snapshot": {
+      "state": "observed",
+      "metadata": {
+        "inode": 3773129,
+        "bytes": 470,
+        "mtime_ns": 1791625843024779423,
+        "ctime_ns": 1791625843024779423,
+        "device": 49,
+        "mode": 384,
+        "uid": 1000,
+        "gid": 1000,
+        "links": 1
+      }
+    },
+    "structural_check": "PASS_METADATA_ACCESS"
+  },
+  "concurrency": {
+    "copilot_processes": 0,
+    "ambiguous_runtimes": 0,
+    "unavailable": 4,
+    "suspicious_or_unassessable": 0,
+    "state": "METADATA_SURVEY_ACCEPTED_WITH_LIMITS",
+    "processes": [
+      {
+        "pid": 17121,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "sshd-session",
+        "ppid": 17114,
+        "start_ticks": 1303387,
+        "exe_state": "access_denied",
+        "native_image_match": null,
+        "category": "ESSENTIAL_PROCESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 17122,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "bash",
+        "ppid": 17121,
+        "start_ticks": 1303388,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OBSERVED_UNRELATED",
+        "blocking": false,
+        "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+      },
+      {
+        "pid": 17173,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "tmux: client",
+        "ppid": 17122,
+        "start_ticks": 1306274,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "ESSENTIAL_PROCESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 17183,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "MainThread",
+        "ppid": 4559,
+        "start_ticks": 1307594,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OBSERVED_UNRELATED",
+        "blocking": false,
+        "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+      },
+      {
+        "pid": 17190,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "codex",
+        "ppid": 17183,
+        "start_ticks": 1307614,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OBSERVED_UNRELATED",
+        "blocking": false,
+        "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+      },
+      {
+        "pid": 17268,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "MainThread",
+        "ppid": 4433,
+        "start_ticks": 1307955,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OWN_CODEX_OR_HARNESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 17269,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "node_repl",
+        "ppid": 4433,
+        "start_ticks": 1307956,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OWN_CODEX_OR_HARNESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 17296,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "node_repl",
+        "ppid": 17268,
+        "start_ticks": 1307966,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OWN_CODEX_OR_HARNESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 17843,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "sshd-session",
+        "ppid": 17839,
+        "start_ticks": 1453077,
+        "exe_state": "access_denied",
+        "native_image_match": null,
+        "category": "ESSENTIAL_PROCESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 17844,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "bash",
+        "ppid": 17843,
+        "start_ticks": 1453079,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OBSERVED_UNRELATED",
+        "blocking": false,
+        "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+      },
+      {
+        "pid": 21471,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "dbus-broker-lau",
+        "ppid": 2584,
+        "start_ticks": 1634373,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OBSERVED_UNRELATED",
+        "blocking": false,
+        "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+      },
+      {
+        "pid": 21472,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "dbus-broker",
+        "ppid": 21471,
+        "start_ticks": 1634376,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "ESSENTIAL_PROCESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 21550,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "gnome-keyring-d",
+        "ppid": 2584,
+        "start_ticks": 1642719,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "ESSENTIAL_PROCESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 21812,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "python3",
+        "ppid": 4433,
+        "start_ticks": 1674460,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OWN_CODEX_OR_HARNESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 2584,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "systemd",
+        "ppid": 1,
+        "start_ticks": 3076,
+        "exe_state": "access_denied",
+        "native_image_match": null,
+        "category": "ESSENTIAL_PROCESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 2586,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "(sd-pam)",
+        "ppid": 2584,
+        "start_ticks": 3080,
+        "exe_state": "access_denied",
+        "native_image_match": null,
+        "category": "ESSENTIAL_PROCESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 4433,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "codex",
+        "ppid": 1,
+        "start_ticks": 81484,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OWN_CODEX_OR_HARNESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 4482,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "codex",
+        "ppid": 1,
+        "start_ticks": 81661,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OBSERVED_UNRELATED",
+        "blocking": false,
+        "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+      },
+      {
+        "pid": 4558,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "tmux: server",
+        "ppid": 1,
+        "start_ticks": 87927,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "ESSENTIAL_PROCESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      },
+      {
+        "pid": 4559,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "bash",
+        "ppid": 4558,
+        "start_ticks": 87928,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OBSERVED_UNRELATED",
+        "blocking": false,
+        "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+      },
+      {
+        "pid": 4831,
+        "identity_stable": true,
+        "uid": 1000,
+        "comm": "codex-code-mode",
+        "ppid": 4433,
+        "start_ticks": 95385,
+        "exe_state": "observed",
+        "native_image_match": false,
+        "category": "OWN_CODEX_OR_HARNESS",
+        "blocking": false,
+        "termination_admission": "DENIED_PROTECTED_PROCESS"
+      }
+    ],
+    "vanished_during_scan": 0,
+    "scope": "METADATA_READ_ONLY",
+    "exclusivity_proven": false,
+    "processes_terminated": 0
+  },
+  "measurement": {
+    "schema_version": 2,
+    "probe": "confirm",
+    "sample_kind": "fresh_process_warm_os_caches",
+    "headless": true,
+    "poll_interval_ms": 50,
+    "exit_code": 0,
+    "stdout_truncated": false,
+    "timed_out": false,
+    "operation_outcome": "main_exit_zero",
+    "wall_ms": 4787.38,
+    "cleanup_ms": 30.8,
+    "peak_process_tree_rss_bytes": 267878400,
+    "peak_owned_processes": 3,
+    "sampled_cpu_seconds_lower_bound": 1.92,
+    "system_processes_before": 229,
+    "system_processes_after": 230,
+    "observed_owned_processes": 4,
+    "attributed_processes": [
+      {
+        "pid": 21845,
+        "start_ticks": 1674574,
+        "basis": "launched_root"
+      }
+    ],
+    "unsampled_attributed_descendants": 0,
+    "owned_survivors_before_recovery": [],
+    "owned_survivors_after_recovery": [],
+    "harness_reaped_descendants": 0,
+    "harness_recovery_signals": 0,
+    "ownership_errors": [],
+    "kernel_children_exhausted": true,
+    "cleanup_status": "graceful_no_recovery",
+    "cleanup_complete": true,
+    "ownership_scope": "private_single_invocation_subreaper",
+    "external_process_policy": "not_attributed_never_signalled",
+    "sdk_shutdown_verified": false,
+    "sdk_report": {
+      "attempt_marker_claimed": false,
+      "auth_calls": 1,
+      "authenticated": true,
+      "model_quota_calls": 0,
+      "phases": [
+        {
+          "observation": {
+            "snapshot": {
+              "metadata": {
+                "bytes": 470,
+                "ctime_ns": 1791625843024779423,
+                "device": 49,
+                "gid": 1000,
+                "inode": 3773129,
+                "links": 1,
+                "mode": 384,
+                "mtime_ns": 1791625843024779423,
+                "uid": 1000
+              },
+              "state": "observed"
+            },
+            "structural_check": "PASS_METADATA_ACCESS"
+          },
+          "phase": "before_start"
+        },
+        {
+          "observation": {
+            "snapshot": {
+              "metadata": {
+                "bytes": 470,
+                "ctime_ns": 1791639345089381778,
+                "device": 49,
+                "gid": 1000,
+                "inode": 3775618,
+                "links": 1,
+                "mode": 384,
+                "mtime_ns": 1791639345089381778,
+                "uid": 1000
+              },
+              "state": "observed"
+            },
+            "structural_check": "PASS_METADATA_ACCESS"
+          },
+          "phase": "after_start"
+        },
+        {
+          "observation": {
+            "snapshot": {
+              "metadata": {
+                "bytes": 470,
+                "ctime_ns": 1791639345089381778,
+                "device": 49,
+                "gid": 1000,
+                "inode": 3775618,
+                "links": 1,
+                "mode": 384,
+                "mtime_ns": 1791639345089381778,
+                "uid": 1000
+              },
+              "state": "observed"
+            },
+            "structural_check": "PASS_METADATA_ACCESS"
+          },
+          "phase": "after_status"
+        },
+        {
+          "observation": {
+            "snapshot": {
+              "metadata": {
+                "bytes": 470,
+                "ctime_ns": 1791639345089381778,
+                "device": 49,
+                "gid": 1000,
+                "inode": 3775618,
+                "links": 1,
+                "mode": 384,
+                "mtime_ns": 1791639345089381778,
+                "uid": 1000
+              },
+              "state": "observed"
+            },
+            "structural_check": "PASS_METADATA_ACCESS"
+          },
+          "phase": "after_auth"
+        },
+        {
+          "observation": {
+            "snapshot": {
+              "metadata": {
+                "bytes": 470,
+                "ctime_ns": 1791639345089381778,
+                "device": 49,
+                "gid": 1000,
+                "inode": 3775618,
+                "links": 1,
+                "mode": 384,
+                "mtime_ns": 1791639345089381778,
+                "uid": 1000
+              },
+              "state": "observed"
+            },
+            "structural_check": "PASS_METADATA_ACCESS"
+          },
+          "phase": "after_shutdown"
+        }
+      ],
+      "profile": "HOST_ASSISTED_HEADLESS_NOT_SANDBOX",
+      "runtime_identity_matches": true,
+      "sdk": "1.0.17",
+      "sdk_send_calls": 0,
+      "session_operations": 0,
+      "shutdown": "graceful",
+      "start_calls": 1,
+      "start_ms": 2781,
+      "status_calls": 1,
+      "stop_ms": 889
+    }
+  },
+  "harness_exit_code": 0,
+  "after_context": {
+    "profile": "HOST_ASSISTED_HEADLESS_NOT_SANDBOX",
+    "services": {
+      "gnome-shell_running": false,
+      "gdm_running": false,
+      "gnome-keyring-daemon_running": true,
+      "secrets_service_already_owned": true,
+      "bus_query_exit_code": 0,
+      "runtime_bus_socket_accessible": true,
+      "login_collection_locked": false,
+      "locked_property_exit_code": 0
+    },
+    "credential_owner": {
+      "state": "OBSERVED",
+      "pid": 21550,
+      "start_ticks": 1642719,
+      "in_graphical_login_scope": false,
+      "in_remote_login_scope": false,
+      "in_user_manager": true
+    },
+    "user": {
+      "exit_code": 0,
+      "values": {
+        "State": "active",
+        "Sessions": "6 5 4 3",
+        "Linger": "no"
+      }
+    },
+    "sessions": [
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-6.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "6"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-5.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "5"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-4.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "closing"
+        },
+        "id": "4"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "no",
+          "Type": "unspecified",
+          "Class": "manager",
+          "State": "active"
+        },
+        "id": "3"
+      }
+    ],
+    "graphical_target": "inactive",
+    "gnome_shell_ps_exit": 1,
+    "existing_login_alias_verified": true,
+    "daemon_pin_verified": true,
+    "attempt_marker_present": false,
+    "credentials_read": false
+  },
+  "metadata_policy": {
+    "auth_observation": "AUTH_TRUE_OBSERVED",
+    "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+    "CONFIG_DRIFT_OBSERVED": true,
+    "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+    "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+    "metadata_verification": "OBSERVATION_ACCEPTED",
+    "SESSION_ADMISSION": "BLOCKED",
+    "FINANCIAL_ADMISSION": "BLOCKED",
+    "AGENT_ACTION_ADMISSION": "BLOCKED",
+    "HEADLESS_AUTH": "NOT_PROVEN",
+    "REAL_INFERENCE": "NOT_RUN",
+    "comparisons": [
+      {
+        "classification": "OBSERVATIONALLY_STABLE",
+        "metadata_mutation": false,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "INCONCLUSIVE",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      },
+      {
+        "classification": "METADATA_CHANGE_UNATTRIBUTED",
+        "metadata_mutation": true,
+        "changed_fields": [
+          "ctime_ns",
+          "inode",
+          "mtime_ns"
+        ],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      },
+      {
+        "classification": "OBSERVATIONALLY_STABLE",
+        "metadata_mutation": false,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "INCONCLUSIVE",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      },
+      {
+        "classification": "OBSERVATIONALLY_STABLE",
+        "metadata_mutation": false,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "INCONCLUSIVE",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      },
+      {
+        "classification": "OBSERVATIONALLY_STABLE",
+        "metadata_mutation": false,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "INCONCLUSIVE",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      }
+    ]
+  },
+  "A9_ATTEMPT_MARKER": "ABSENT_NOT_CLAIMED",
+  "observed_at": "2026-10-10T13:35:47.432477+00:00"
+}

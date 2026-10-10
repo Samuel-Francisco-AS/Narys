@@ -1,0 +1,127 @@
+{
+  "phase": "LR-10A H3",
+  "observed_at": "2026-10-10T13:36:55.322606+00:00",
+  "post_sdk_context": {
+    "profile": "HOST_ASSISTED_HEADLESS_NOT_SANDBOX",
+    "services": {
+      "gnome-shell_running": false,
+      "gdm_running": false,
+      "gnome-keyring-daemon_running": true,
+      "secrets_service_already_owned": true,
+      "bus_query_exit_code": 0,
+      "runtime_bus_socket_accessible": true,
+      "login_collection_locked": false,
+      "locked_property_exit_code": 0
+    },
+    "credential_owner": {
+      "state": "OBSERVED",
+      "pid": 21550,
+      "start_ticks": 1642719,
+      "in_graphical_login_scope": false,
+      "in_remote_login_scope": false,
+      "in_user_manager": true
+    },
+    "user": {
+      "exit_code": 0,
+      "values": {
+        "State": "active",
+        "Sessions": "6 5 4 3",
+        "Linger": "no"
+      }
+    },
+    "sessions": [
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-6.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "6"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-5.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "5"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-4.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "closing"
+        },
+        "id": "4"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "no",
+          "Type": "unspecified",
+          "Class": "manager",
+          "State": "active"
+        },
+        "id": "3"
+      }
+    ],
+    "graphical_target": "inactive",
+    "gnome_shell_ps_exit": 1,
+    "existing_login_alias_verified": true,
+    "daemon_pin_verified": true,
+    "attempt_marker_present": false,
+    "credentials_read": false
+  },
+  "services": {
+    "sshd.service": {
+      "ActiveState": "active",
+      "SubState": "running"
+    },
+    "user@1000.service": {
+      "ActiveState": "active",
+      "SubState": "running"
+    },
+    "gdm.service": {
+      "ActiveState": "inactive",
+      "SubState": "dead"
+    }
+  },
+  "credential_file_metadata_unchanged": true,
+  "credential_file_metadata_after": {
+    "uid": 1000,
+    "mode": 384,
+    "inode": 3768584,
+    "device": 49,
+    "size": 5207,
+    "mtime_ns": 1791602000856395092,
+    "ctime_ns": 1791602000859395011
+  },
+  "content_equivalence": "NOT_CHECKED_PERSONAL_CONTENT_NOT_READ",
+  "owned_sdk_identities_absent": true,
+  "kernel_children_exhausted": true,
+  "cleanup_complete": true,
+  "credential_daemon_intentionally_running_under_user_manager": true,
+  "rollback": {
+    "state": "REGISTERED_ROOT_GDM_RETURN",
+    "timer_registered_waiting": true,
+    "fixed_30_minute_timer": true,
+    "root_authority_registered": true,
+    "exact_gdm_start_action": true,
+    "authenticated_gui_login_restored": false,
+    "guaranteed_after_host_or_system_manager_failure": false
+  },
+  "rollback_timer_identity": "narys-h3-gui-rollback-2.timer",
+  "rollback_not_cancelled": true,
+  "graphical_return_execution": "PENDING_TIMER_NOT_YET_OBSERVED",
+  "inference_marker_untouched": true,
+  "STRONGHOLD_PERSONAL_ACCESS": "NOT_TESTED"
+}

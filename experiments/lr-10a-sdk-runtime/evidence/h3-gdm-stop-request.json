@@ -1,0 +1,9 @@
+{
+  "phase": "LR-10A H3",
+  "observed_at": "2026-10-10T13:02:25.297776+00:00",
+  "operation": "system_manager_StopUnit_gdm_only",
+  "interactive_authorization": false,
+  "exit_code": 1,
+  "user_authorization": "explicit_H3_GDM_stop",
+  "no_reboot_or_target_change": true
+}

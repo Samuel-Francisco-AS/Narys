@@ -892,3 +892,72 @@ unlock é viável nos componentes sintéticos; produção/serviço pessoal/boot 
 pendentes. SSH/tmux/Codex e GNOME/Keyring pessoais foram preservados.
 
 **LR-10A H2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+## H3 — validação real headless após login gráfico (10/10/2026)
+
+**HEADLESS_MANUAL_UNLOCK_PASS_REAL**, no escopo de credenciais existentes e
+metadados Copilot após encerrar a GUI, sem reboot. O humano autorizou GDM,
+confirmou trabalho salvo/acesso SSH independente, armou rollback root temporário
+com ação verificada e parou o GDM em SSH privado. As tentativas não interativas
+do agente não tinham privilégio e não interromperam o serviço. O timer inicial
+foi substituído pelo humano por `narys-h3-gui-rollback-2.timer`; registro,
+vínculo à unidade, ação exata e prazo foram novamente verificados.
+
+[Após a parada](../experiments/lr-10a-sdk-runtime/evidence/h3-post-user-gdm-stop-context.json),
+GNOME Shell/GDM e sessão gráfica estavam ausentes, graphical-session.target
+inativo; SSH/tmux/Codex/user manager/bus preservados. Ambos os daemons Keyring
+anteriores saíram, sem transferência automática. Sem owner/daemon ativo, iniciamos
+**somente a unidade user instalada** sob demanda, com override temporário em
+`/run/user/1000/systemd/user/gnome-keyring-daemon.service.d/90-narys-h3-context.conf`:
+UnsetEnvironment=XDG_SESSION_ID DISPLAY WAYLAND_DISPLAY, LimitCORE=0,
+TimeoutStopFailureMode=terminate. Sem enable, linger, PAM, mudança de target,
+cópia/recriação de cofre ou leitura de conteúdo. Serviço/socket intencionalmente
+ativos sob user manager não são órfãos experimentais.
+
+[Antes do desbloqueio](../experiments/lr-10a-sdk-runtime/evidence/h3-before-manual-unlock.json),
+o daemon50.0 pinado era dono no user manager, login existente Locked=true.
+O humano executou o helper H2 auditado em terminal SSH privado e informou
+LOGIN_UNLOCKED. [Verificação posterior](../experiments/lr-10a-sdk-runtime/evidence/h3-after-manual-unlock.json)
+confirmou Locked=false, sem senha/itens/segredos registrados. Interface GNOME
+continua interna não suportada e versionada; H3 não a transforma em API estável.
+Metadados de login.keyring mantiveram-se iguais; conteúdo/equivalência
+criptográfica não foram verificados. Stronghold pessoal **NOT_TESTED** porque
+secret_presence tem efeitos incidentais não autorizados.
+
+[Única invocação SDK real](../experiments/lr-10a-sdk-runtime/evidence/h3-metadata-real.json):
+SDK1.0.17/CLI1.0.95 SHA `9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99`,
+status/protocolo esperados e authenticated=true. Novo executável/driver H3,
+reserva O_EXCL independente, sem reutilizar reservas anteriores. Start2781ms,
+stop889ms, total4787,38ms; cleanup30,8ms, RSS máxima somada267.878.400bytes,
+CPU amostrada inferior1,92s. Caches aquecidos, sem atribuir memória incremental
+ou cold-start. Shutdown SDK graceful e harness graceful_no_recovery, ECHILD,
+identidades ausentes, zero sinais de recuperação. O campo legado genérico
+sdk_shutdown_verified do harness é false; a evidência específica de shutdown
+vem do relatório Rust e da recuperação kernel, sem alterar FIX1.
+
+Config.json teve drift de inode/mtime/ctime durante startup, tamanho estável e
+estrutura aceita; autor e conteúdo permanecem INCONCLUSIVE/NOT_VERIFIED.
+Política metadata proporcional preservada; não concede sessão/finanças/ações.
+**Zero inferências, sessões, modelos/quota ou claim de marker**; saldo/cobrança
+externa não medidos. FINANCIAL_ADMISSION/SESSION_ADMISSION/AGENT_ACTION_ADMISSION
+BLOCKED; A9_ISOLATED permanece bloqueado. Cold-start **NOT_TESTED**.
+
+[Verificação offline](../experiments/lr-10a-sdk-runtime/evidence/h3-offline-verification.json):
+52Rust/158Python PASS sob harness, nove testes H3 novos; testes finais H3 também
+PASS após formatação do novo entrypoint. Dependências/toolchain não atualizados;
+compilador instalado1.98.1, concorrência2, offline/locked. Não repetir suíte
+Tauri/UI: produção e contratos permanecem byte a byte iguais.
+
+Para release0.1 em17/10, manual unlock sem GNOME tem comprovação pessoal pós-login
+gráfico para Copilot metadata, sem exigir migração criptográfica. Cold-start,
+Stronghold pessoal e ciclo após último SSH (Linger=no) ainda precisam de escopo
+próprio; não fazer deles inferências desta prova. Copilot continua opcional e
+experimental, sem LR10B/produção. [Procedimento e retorno](../experiments/lr-10a-sdk-runtime/HEADLESS-HOST-VALIDATION.md).
+
+[Recuperação final](../experiments/lr-10a-sdk-runtime/evidence/h3-gdm-recovery-confirmed.json):
+o humano iniciou o GDM, observado active/running. SSH/tmux/Codex mantiveram
+identidades, Secret Service continuou sob o mesmo owner e metadados do cofre
+ficaram iguais. Não houve login gráfico ou prova visual da tela física; timer
+não cancelado pelo agente. Nenhum novo probe SDK após o retorno.
+
+**LR-10A H3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**

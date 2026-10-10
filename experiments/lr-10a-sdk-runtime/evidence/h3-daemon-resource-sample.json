@@ -1,0 +1,14 @@
+{
+  "phase": "LR-10A H3",
+  "observed_at": "2026-10-10T13:39:09.125574+00:00",
+  "user_manager_daemon_identity": {
+    "pid": 21550,
+    "start_ticks": 1642719
+  },
+  "single_sample_daemon_rss_bytes": 10948608,
+  "methodology": "one_proc_statm_resident_pages_sample_PID_start_time_UID_validated_no_memory_dump",
+  "scope": "warm_live_daemon_not_incremental_system_memory_not_a_benchmark",
+  "inference_marker_present": false,
+  "runtime_override_exists": true,
+  "recovery_timer_state": "active"
+}

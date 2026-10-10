@@ -1,0 +1,14 @@
+test_fixed_evidence_is_burned_even_on_preflight_failure (test_h3_headless.HeadlessTests.test_fixed_evidence_is_burned_even_on_preflight_failure) ... ok
+test_gui_never_becomes_headless_from_filtered_environment (test_h3_headless.HeadlessTests.test_gui_never_becomes_headless_from_filtered_environment) ... ok
+test_marker_blocks_before_service_access (test_h3_headless.HeadlessTests.test_marker_blocks_before_service_access) ... ok
+test_no_retry_identity_override_or_sensitive_method (test_h3_headless.HeadlessTests.test_no_retry_identity_override_or_sensitive_method) ... ok
+test_pin_error_blocks_before_marker_and_service (test_h3_headless.HeadlessTests.test_pin_error_blocks_before_marker_and_service) ... ok
+test_absent_or_failed_timer_blocks (test_h3_recovery.RecoveryTests.test_absent_or_failed_timer_blocks) ... ok
+test_registered_action_not_authenticated_login (test_h3_recovery.RecoveryTests.test_registered_action_not_authenticated_login) ... ok
+test_unbounded_or_wrong_unit_blocks (test_h3_recovery.RecoveryTests.test_unbounded_or_wrong_unit_blocks) ... ok
+test_wrong_action_or_authority_blocks (test_h3_recovery.RecoveryTests.test_wrong_action_or_authority_blocks) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.007s
+
+OK

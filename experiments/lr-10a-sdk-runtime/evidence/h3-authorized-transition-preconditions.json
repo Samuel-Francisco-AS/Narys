@@ -1,0 +1,249 @@
+{
+  "phase": "LR-10A H3",
+  "observed_at": "2026-10-10T13:02:13.876893+00:00",
+  "state": "READY_AUTHORIZED_TRANSITION",
+  "user_authorized_gdm_stop": true,
+  "user_confirmed_saved_work_and_independent_ssh": true,
+  "context": {
+    "scenario": "A_GUI_PRESENT",
+    "credential_service_available": true,
+    "transition_blockers": [
+      "credential_owner_in_graphical_login_scope"
+    ],
+    "transition": "BLOCKED_UNSAFE_OR_UNVERIFIED",
+    "GUI_ABSENT_AUTH": "NOT_TESTED",
+    "COLD_START_HEADLESS_AUTH": "NOT_TESTED",
+    "CREDENTIAL_STORAGE_SAFETY": "INCONCLUSIVE",
+    "SESSION_ADMISSION": "BLOCKED",
+    "FINANCIAL_ADMISSION": "BLOCKED",
+    "AGENT_ACTION_ADMISSION": "BLOCKED",
+    "REAL_INFERENCE": "NOT_TESTED",
+    "sdk_invocations": 0,
+    "sdk_send_calls": 0,
+    "session_operations": 0,
+    "marker_claimed": false,
+    "schema_version": 1,
+    "phase": "LR-10A H1",
+    "observed_at": "2026-10-10T13:02:13.305745+00:00",
+    "environment_presence": {
+      "HOME": true,
+      "PATH": true,
+      "DBUS_SESSION_BUS_ADDRESS": true,
+      "XDG_RUNTIME_DIR": true,
+      "XDG_CONFIG_HOME": false,
+      "XDG_DATA_HOME": false,
+      "XDG_CACHE_HOME": false,
+      "GH_CONFIG_DIR": false,
+      "COPILOT_HOME": false,
+      "DISPLAY": false,
+      "WAYLAND_DISPLAY": false,
+      "GH_TOKEN": false,
+      "GITHUB_TOKEN": false,
+      "COPILOT_GITHUB_TOKEN": false,
+      "COPILOT_SDK_AUTH_TOKEN": false,
+      "GITHUB_COPILOT_API_TOKEN": false,
+      "COPILOT_DISABLE_KEYTAR": false
+    },
+    "runtime_pin_validated": true,
+    "native_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+    "native_version_source": "historical_pinned_manifest_not_new_cli_execution",
+    "native_version": "1.0.95",
+    "sdk_version": "1.0.17",
+    "services_before": {
+      "gnome-shell_running": true,
+      "gdm_running": true,
+      "gnome-keyring-daemon_running": true,
+      "secrets_service_already_owned": true,
+      "bus_query_exit_code": 0,
+      "runtime_bus_socket_accessible": true,
+      "login_collection_locked": false,
+      "locked_property_exit_code": 0
+    },
+    "services_after": {
+      "gnome-shell_running": true,
+      "gdm_running": true,
+      "gnome-keyring-daemon_running": true,
+      "secrets_service_already_owned": true,
+      "bus_query_exit_code": 0,
+      "runtime_bus_socket_accessible": true,
+      "login_collection_locked": false,
+      "locked_property_exit_code": 0
+    },
+    "credential_owner": {
+      "state": "OBSERVED",
+      "pid": 2602,
+      "start_ticks": 3099,
+      "in_graphical_login_scope": true,
+      "in_remote_login_scope": false,
+      "in_user_manager": false
+    },
+    "credential_owner_after": {
+      "state": "OBSERVED",
+      "pid": 2602,
+      "start_ticks": 3099,
+      "in_graphical_login_scope": true,
+      "in_remote_login_scope": false,
+      "in_user_manager": false
+    },
+    "user_manager": {
+      "exit_code": 0,
+      "values": {
+        "State": "active",
+        "Sessions": "6 5 4 3 2",
+        "Linger": "no"
+      }
+    },
+    "sessions": [
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-6.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "6"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-5.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "5"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "yes",
+          "Scope": "session-4.scope",
+          "Type": "tty",
+          "Class": "user",
+          "State": "closing"
+        },
+        "id": "4"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "no",
+          "Type": "unspecified",
+          "Class": "manager",
+          "State": "active"
+        },
+        "id": "3"
+      },
+      {
+        "exit_code": 0,
+        "values": {
+          "Remote": "no",
+          "Scope": "session-2.scope",
+          "Type": "wayland",
+          "Class": "user",
+          "State": "active"
+        },
+        "id": "2"
+      }
+    ],
+    "graphical_target": {
+      "exit_code": 0,
+      "values": {
+        "ActiveState": "active"
+      }
+    },
+    "sshd": {
+      "exit_code": 0,
+      "values": {
+        "ActiveState": "active"
+      }
+    },
+    "essential_roles": [
+      {
+        "state": "OBSERVED",
+        "pid": 2602,
+        "start_ticks": 3099,
+        "in_graphical_login_scope": true,
+        "in_remote_login_scope": false,
+        "in_user_manager": false,
+        "role": "gnome-keyring-d"
+      },
+      {
+        "state": "OBSERVED",
+        "pid": 2800,
+        "start_ticks": 3162,
+        "in_graphical_login_scope": false,
+        "in_remote_login_scope": false,
+        "in_user_manager": true,
+        "role": "gnome-keyring-d"
+      },
+      {
+        "state": "OBSERVED",
+        "pid": 4433,
+        "start_ticks": 81484,
+        "in_graphical_login_scope": false,
+        "in_remote_login_scope": true,
+        "in_user_manager": false,
+        "role": "codex"
+      },
+      {
+        "state": "OBSERVED",
+        "pid": 4482,
+        "start_ticks": 81661,
+        "in_graphical_login_scope": false,
+        "in_remote_login_scope": true,
+        "in_user_manager": false,
+        "role": "codex"
+      },
+      {
+        "state": "OBSERVED",
+        "pid": 4558,
+        "start_ticks": 87927,
+        "in_graphical_login_scope": false,
+        "in_remote_login_scope": true,
+        "in_user_manager": false,
+        "role": "tmux: server"
+      },
+      {
+        "state": "OBSERVED",
+        "pid": 17190,
+        "start_ticks": 1307614,
+        "in_graphical_login_scope": false,
+        "in_remote_login_scope": false,
+        "in_user_manager": true,
+        "role": "codex"
+      }
+    ],
+    "marker_present_before": false,
+    "marker_present_after": false,
+    "services_and_owner_stable": true,
+    "cli_started": false,
+    "credentials_or_config_contents_read": false,
+    "host_services_modified": false,
+    "signals_to_external_processes": 0
+  },
+  "protected_unit_checks": {
+    "17190": {
+      "independent_of_graphical_target": true,
+      "part_of_remote_session_only": true
+    }
+  },
+  "recovery": {
+    "state": "REGISTERED_ROOT_GDM_RETURN",
+    "timer_registered_waiting": true,
+    "fixed_30_minute_timer": true,
+    "root_authority_registered": true,
+    "exact_gdm_start_action": true,
+    "authenticated_gui_login_restored": false,
+    "guaranteed_after_host_or_system_manager_failure": false
+  },
+  "rollback_seconds_remaining": 1602.9016406049996,
+  "source_sha256": {
+    "h3_recovery.py": "ea11e376f50c4928a0351982fda53be0a02178152c1d9dfc8fb0077fe52058f4",
+    "h2_manual_unlock.py": "83a3ab07a92f8ab78a6b126f474281df960596245faf0f4d73bcb6c543d38b33",
+    "h1_context.py": "e34af55ad4e8bfd198c380b4da9b177e31dddeccacb47ae79240060a804003eb"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "phase": "H3",
+  "observed_at": "2026-10-10T13:41:26.115735+00:00",
+  "base": "d7d9eb4c4d97ffb19edba2e2015bdb93b849eb66",
+  "existing_experimental_and_production_files_checked": 552,
+  "changed_existing_files": [
+    "experiments/lr-10a-sdk-runtime/README.md"
+  ],
+  "all_other_checked_historical_files_byte_unchanged": true,
+  "real_execution_sources_and_binary_still_match": true,
+  "SDK_CLI_Cargo_lock_production_MS_RV_Edition_unchanged": true,
+  "only_real_sdk_invocation": 1,
+  "real_inference_calls": 0,
+  "real_session_operations": 0,
+  "marker_claimed": false,
+  "git_diff_check": "PASS",
+  "scope": "experimental_H3_and_docs_only",
+  "full_Tauri_UI_suite": "NOT_RUN_no_production_change"
+}

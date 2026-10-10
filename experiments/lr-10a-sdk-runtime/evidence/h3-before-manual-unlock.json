@@ -1,0 +1,93 @@
+{
+  "profile": "HOST_ASSISTED_HEADLESS_NOT_SANDBOX",
+  "services": {
+    "gnome-shell_running": false,
+    "gdm_running": false,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true,
+    "login_collection_locked": true,
+    "locked_property_exit_code": 0
+  },
+  "credential_owner": {
+    "state": "OBSERVED",
+    "pid": 21550,
+    "start_ticks": 1642719,
+    "in_graphical_login_scope": false,
+    "in_remote_login_scope": false,
+    "in_user_manager": true
+  },
+  "user": {
+    "exit_code": 0,
+    "values": {
+      "State": "active",
+      "Sessions": "6 5 4 3",
+      "Linger": "no"
+    }
+  },
+  "sessions": [
+    {
+      "exit_code": 0,
+      "values": {
+        "Remote": "yes",
+        "Scope": "session-6.scope",
+        "Type": "tty",
+        "Class": "user",
+        "State": "active"
+      },
+      "id": "6"
+    },
+    {
+      "exit_code": 0,
+      "values": {
+        "Remote": "yes",
+        "Scope": "session-5.scope",
+        "Type": "tty",
+        "Class": "user",
+        "State": "active"
+      },
+      "id": "5"
+    },
+    {
+      "exit_code": 0,
+      "values": {
+        "Remote": "yes",
+        "Scope": "session-4.scope",
+        "Type": "tty",
+        "Class": "user",
+        "State": "closing"
+      },
+      "id": "4"
+    },
+    {
+      "exit_code": 0,
+      "values": {
+        "Remote": "no",
+        "Type": "unspecified",
+        "Class": "manager",
+        "State": "active"
+      },
+      "id": "3"
+    }
+  ],
+  "graphical_target": "inactive",
+  "gnome_shell_ps_exit": 1,
+  "existing_login_alias_verified": true,
+  "daemon_pin_verified": true,
+  "attempt_marker_present": false,
+  "credentials_read": false,
+  "phase": "LR-10A H3",
+  "observed_at": "2026-10-10T13:30:51.993299+00:00",
+  "manual_helper_sha256": "83a3ab07a92f8ab78a6b126f474281df960596245faf0f4d73bcb6c543d38b33",
+  "persistent_login_metadata": {
+    "uid": 1000,
+    "mode": 384,
+    "inode": 3768584,
+    "device": 49,
+    "size": 5207,
+    "mtime_ns": 1791602000856395092,
+    "ctime_ns": 1791602000859395011
+  },
+  "sdk_started": false
+}
