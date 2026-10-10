@@ -1,0 +1,103 @@
+{
+  "observed_at_unix": 1791651085.5712736,
+  "context": {
+    "observed_at_unix": 1791651085.4357378,
+    "core": {
+      "status": {
+        "data": {
+          "active_task": null,
+          "agent_execution_authority": false,
+          "copilot": "on_demand",
+          "core": "running",
+          "profile": "HOST_ASSISTED_NOT_SANDBOX",
+          "tools": 0,
+          "trace_events": 0
+        },
+        "ok": true
+      },
+      "credentials": {
+        "data": {
+          "login_unlocked": true,
+          "service_available": true
+        },
+        "ok": true
+      }
+    },
+    "core_service": {
+      "exit_code": 0,
+      "lines": [
+        "ActiveState=active",
+        "SubState=running",
+        "UnitFileState=enabled",
+        "MainPID=11124",
+        "MemoryCurrent=5423104",
+        "TasksCurrent=1"
+      ]
+    },
+    "keyring_service": {
+      "exit_code": 0,
+      "lines": [
+        "ActiveState=active",
+        "UnitFileState=enabled",
+        "MainPID=1395"
+      ]
+    },
+    "gdm": {
+      "exit_code": 3,
+      "lines": [
+        "inactive"
+      ]
+    },
+    "gnome_shell": {
+      "exit_code": 1,
+      "lines": []
+    },
+    "boot_target": {
+      "exit_code": 0,
+      "lines": [
+        "multi-user.target"
+      ]
+    },
+    "linger": {
+      "exit_code": 0,
+      "lines": [
+        "Linger=yes"
+      ]
+    },
+    "login_keyring_metadata": {
+      "exists": true,
+      "uid": 1000,
+      "mode": "0o600",
+      "inode": 3768584,
+      "size": 5207,
+      "mtime_ns": 1791602000856395092,
+      "ctime_ns": 1791602000859395011
+    },
+    "stronghold_metadata": {
+      "exists": true,
+      "uid": 1000,
+      "mode": "0o600",
+      "inode": 3134764,
+      "size": 614,
+      "mtime_ns": 1790850680472346601,
+      "ctime_ns": 1791386670010181473
+    },
+    "a9_marker_present": false
+  },
+  "task_after_core_restart": {
+    "data": {
+      "error_code": null,
+      "private_directory": "/tmp/narys-task-5Cidtj",
+      "result": "5",
+      "state": "completed",
+      "task_id": 2
+    },
+    "ok": true
+  },
+  "installed_core_sha256": "a25c2b0e517bf55e939e6e322185245a0912f5d40dfe92e6b310a2fec267169b",
+  "copilot_processes_present": false,
+  "core_rss_kib": 15236,
+  "attempts": 1,
+  "authorization_closed": true,
+  "keyring_and_stronghold_metadata_unchanged": true
+}

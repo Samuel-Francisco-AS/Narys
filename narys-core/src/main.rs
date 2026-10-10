@@ -34,7 +34,7 @@ async fn main() {
         let request=match operation{
             "status"|"credentials"|"stronghold"|"copilot"|"events"|"session-check"=>json!({"operation":operation}),
             "prepare" if args.len()==4=>json!({"operation":"prepare","task":{"objective":args[2],"model":"auto","included_only_approval":true},"expected":args[3]}),
-            "submit"|"cancel"|"result" if args.len()==3=>json!({"operation":operation,"task_id":args[2].parse::<u64>().map_err(|_|"invalid_task_id")?}),
+            "submit"|"cancel"|"result"|"resume-check" if args.len()==3=>json!({"operation":operation,"task_id":args[2].parse::<u64>().map_err(|_|"invalid_task_id")?}),
             _=>return Err("invalid_command")
         };
         let mut stream=tokio::net::UnixStream::connect(cfg.runtime.join("control.sock")).await.map_err(|_|"core_service_unavailable")?;

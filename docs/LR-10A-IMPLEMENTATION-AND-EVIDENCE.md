@@ -989,3 +989,48 @@ Zero chamadas SDK send; guard de envio ausente e marker histórico A9 preservado
 Melhoria posterior exclusivamente diagnóstica: fase de operação e código RPC numérico, sem texto/payload, mais fixtures negativas para create/patch. [28 testes Rust + 1 integração](../narys-core/evidence/rust-postboot.txt), [5 Python](../narys-core/evidence/python-postboot.txt) PASS. O código diagnóstico não foi retestado contra o SDK real. Flags financeiros, private state, ferramentas negadas e versões foram preservados.
 
 Conclusão: **HEADLESS_MANUAL_UNLOCK_PASS_REAL** para credenciais/Core/status SDK após cold boot; **integração de tarefa Copilot BLOCKED_BEFORE_SEND**, não concluída. A autorização de uma inferência continua não exercida, mas não permite retry automático desta validação. Próximo passo mínimo é diagnosticar o erro de início de sessão com os campos sanitizados novos, sob autorização específica, antes de qualquer send. Não abrir nova trilha H/FIX nem declarar LR-10A/produção aprovadas.
+
+### Implementação consolidada final — 10/10/2026
+
+Nova autorização explícita: até três sends cumulativos da franquia existente,
+sem pagamento adicional, somente objetivo mínimo em workspace descartável.
+O consentimento durável novo não reutiliza task1/receipt/marker anteriores;
+flock/O_EXCL/fsync, escopo fixo, tarefa nova e guards locais preservam anti-replay.
+
+[Diagnóstico](../narys-core/evidence/final-session-diagnosis.json): create real
+retornou -32603 e categoria credits; o parâmetro opcional maxAiCredits=0.5 foi
+omitido. Create e patch posterior funcionaram, com versões/DenyAll/estado privado
+preservados e flag nativa no-custom-instructions confirmada. Não se atribui o
+motivo interno da falha de credits nem incompatibilidade de toda a versão.
+A documentação oficial descreve esse limite como soft, verificado após chamadas,
+não teto financeiro. Flags reais de overage/uso após esgotamento false e confirmação
+humana de orçamento adicional desativado continuam gates independentes.
+
+[Tarefa integrada real](../narys-core/evidence/final-integrated-operation.json):
+SDK pela Narys respondeu exatamente5, arquivo criado/fsync/relido, TaskGraph
+completed e SQLite persistido. **Um send efetivo; zero sends falhos/incertos;
+nenhum retry.** A autorização restante foi encerrada. Usage informou
+1 totalPremiumRequests e68836500 totalNanoAiu; quota agregada manteve52 requests
+antes/depois, portanto não se presume saldo atualizado ou zero consumo. Não houve
+medição de fatura USD; nenhuma cobrança adicional foi autorizada.
+
+[Retomada genuína](../narys-core/evidence/final-owned-session-resume.json): após
+stop do Client/CLI, novo runtime retomou a mesma sessão privada, recuperou10 eventos
+com resposta5 e encerrou/detach. Sem criar nova sessão, novo prompt ou transcript
+fabricado. Isso distingue o contrato de sessão vazia da FIX-2 de conversa realmente
+persistida. Estado Task2 completed sobreviveu à atualização/restart apenas do Core.
+
+[35 Rust +1 integração Unix](../narys-core/evidence/rust-final-resume.txt),
+[6 Python](../narys-core/evidence/python-final.txt) PASS, mais25 regressões FIX1.
+Não houve produção/dependências/SDK/CLI/Edition/MSRV alterados nesta continuação;
+Tauri completa não repetida. Harness anterior intacto. [Estado final real](../narys-core/evidence/final-service-state.json):
+Core/Keyring ativos, GDM/GNOME ausentes, zero Copilot remanescente, metadados do
+Keyring e Stronghold iguais. SDK graceful e ECHILD/cleanup completos em todos os
+ensaios, sem recuperação/sinais externos. Sem novo reboot/desbloqueio/migração.
+
+Impacto 0.1/17/10: Core headless e especialista textual foram comprovados juntos;
+GNOME Shell não é requisito deste fluxo. Android, ferramentas de edição/shell,
+approvals e supervisor/sandbox de produção continuam fora do escopo; modo isolado
+não foi desbloqueado pelo sucesso host-assisted. Instalação depende desta checkout
+e helper de unlock interno pinado; 1.98.1 foi o compiler executado, não prova nova
+em1.94. A auditoria independente decidirá o fechamento definitivo da LR-10A.

@@ -285,12 +285,26 @@ impl Core {
                     json!({"existing_snapshot_opened":true,"writes":false,"migration":false,"secret_values_returned":false}),
                 )
             }
-            "copilot" | "session-check" => {
+            "copilot" | "session-check" | "resume-check" => {
                 let _permit = self.busy.try_acquire().map_err(|_| "runtime_busy")?;
                 if credentials(&self.config).await["login_unlocked"] != true {
                     return Err("manual_unlock_required");
                 }
                 let dir = self.create_job_dir()?;
+                if v["operation"] == "resume-check" {
+                    let id = v["task_id"].as_u64().ok_or("invalid_task_id")?;
+                    let source:String=self.config.db()?.query_row("SELECT directory FROM headless_tasks WHERE id=?1 AND state='completed'",[id],|r|r.get(0)).map_err(|_|"completed_owned_task_required")?;
+                    policy::private_directory(Path::new(&source))?;
+                    // Fixed one-shot per completed task. Never recreate/resend.
+                    private_write(
+                        &Path::new(&source).join("resume-check-claimed.json"),
+                        b"{\"state\":\"ATTEMPTED_RESUME_ONLY\"}",
+                    )?;
+                    private_write(
+                        &dir.join("resume-check.json"),
+                        &serde_json::to_vec(&json!({"source":source,"expected":"5"})).unwrap(),
+                    )?;
+                }
                 if v["operation"] == "session-check" {
                     private_write(&dir.join("session-check.json"), b"{\"inference\":false}\n")?;
                 }

@@ -4,7 +4,7 @@ import json, os, sys
 from pathlib import Path
 root = Path(os.environ['SYNTHETIC_ROOT'])
 mode = os.environ['SYNTHETIC_MODE']
-summary = {'send': 0, 'abort': 0, 'detach': 0, 'zero_tools': False}
+summary = {'send': 0, 'abort': 0, 'detach': 0, 'zero_tools': False, 'create':0, 'resume':0, 'history':0}
 def emit(data):
     body = json.dumps(data).encode()
     sys.stdout.buffer.write(b'Content-Length: '+str(len(body)).encode()+b'\r\n\r\n'+body)
@@ -32,6 +32,7 @@ while True:
         'overageAllowedWithExhaustedQuota':False,'remainingPercentage':100,
         'usageAllowedWithExhaustedQuota':False,'usedRequests':0}}}
     elif method == 'session.create':
+        summary['create'] += 1
         if mode == 'create_error':
             emit({'jsonrpc':'2.0','id':req['id'],'error':{'code':-32602,'message':'synthetic-private-secret'}})
             continue
@@ -40,6 +41,13 @@ while True:
         assert summary['zero_tools']
         assert p.get('configDir') == str(root/'session-state')
         result = {'sessionId':p['sessionId'],'workspacePath':str(root/'workspace')}
+    elif method == 'session.resume':
+        summary['resume'] += 1
+        assert p.get('availableTools') == [] and p.get('mcpServers') == {} and p.get('hooks') is False
+        result = {'sessionId':p['sessionId'],'workspacePath':str(root/'workspace')}
+    elif method == 'session.getMessages':
+        summary['history'] += 1
+        result={'events':[{'id':'synthetic-message','parentId':None,'timestamp':'2026-10-10T00:00:00Z','type':'assistant.message','data':{'content':'5'}}]}
     elif method == 'session.send':
         summary['send'] += 1
         result = {'messageId':'synthetic'}

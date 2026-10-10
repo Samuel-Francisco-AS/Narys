@@ -123,6 +123,37 @@ async fn run_client(
         if s.version!="1.0.95" || s.protocol_version!=3 {return Err("runtime_protocol_mismatch");}
         report["runtime"]=json!({"version":s.version,"protocol_version":s.protocol_version});
         report["phase"]=json!("metadata_preflight");
+        if dir.join("resume-check.json").exists() {
+            policy::private_file(&dir.join("resume-check.json"))?;
+            if dir.join("task.json").exists() || dir.join("session-check.json").exists(){return Err("diagnostic_task_conflict");}
+            let request:Value=serde_json::from_slice(&fs::read(dir.join("resume-check.json")).map_err(|_|"resume_request_unavailable")?).map_err(|_|"resume_request_invalid")?;
+            let source=Path::new(request["source"].as_str().ok_or("resume_request_invalid")?);
+            let id=owned_session_id(source)?;
+            report["auth"]=json!({"authenticated":bounded(client.get_auth_status()).await?.is_authenticated});
+            if report["auth"]["authenticated"]!=true{return Err("authentication_required");}
+            let mut cfg=narys_lr10a_poc::resume_config(id,&source.join("workspace"));
+            cfg.config_directory=Some(source.join("session-state"));
+            cfg.enable_session_store=Some(false);
+            cfg.infinite_sessions=Some(github_copilot_sdk::types::InfiniteSessionConfig::new().with_enabled(false));
+            cfg.permission_handler=Some(Arc::new(github_copilot_sdk::handler::DenyAllHandler));
+            let prepared=client.prepare_resume_session(cfg).map_err(|_|"resume_prepare_failed")?;
+            let _events=prepared.subscribe();
+            report["phase"]=json!("owned_session_resume");
+            let session=match tokio::time::timeout(narys_lr10a_poc::DEADLINE,prepared.start()).await {
+                Ok(Ok(session))=>session,
+                Ok(Err(error))=>{record_rpc_error(report,&error);return Err(narys_lr10a_poc::error_code(&error));},
+                Err(_)=>return Err("timeout"),
+            };
+            let history=bounded(session.get_events()).await;
+            report["disconnect"]=json!(bounded(session.disconnect()).await.err().unwrap_or("acknowledged"));
+            let history=history?;
+            report["history_event_count"]=json!(history.len());
+            let matches=history.iter().any(|e| e.event_type.to_string()=="assistant.message" && e.data["content"].as_str().is_some_and(|s|s.trim()=="5"));
+            report["persisted_answer_matches_expected"]=json!(matches);
+            if !matches {return Err("persisted_answer_not_found");}
+            report["state"]=json!("owned_session_resumed");
+            return Ok(());
+        }
         if dir.join("session-check.json").exists() {
             policy::private_file(&dir.join("session-check.json"))?;
             if dir.join("task.json").exists(){return Err("diagnostic_task_conflict");}
@@ -226,6 +257,47 @@ async fn run_client(
         return Err("sdk_shutdown_incomplete");
     }
     outcome
+}
+fn owned_session_id(source: &Path) -> Result<github_copilot_sdk::SessionId, &'static str> {
+    policy::private_directory(source)?;
+    if !source.starts_with("/tmp")
+        || !source
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().starts_with("narys-task-"))
+        || source.canonicalize().map_err(|_| "unsafe_resume_source")? != source
+    {
+        return Err("unsafe_resume_source");
+    }
+    policy::private_file(&source.join("task.json"))?;
+    let input: TaskInput = serde_json::from_slice(
+        &fs::read(source.join("task.json")).map_err(|_| "owned_task_unavailable")?,
+    )
+    .map_err(|_| "owned_task_invalid")?;
+    if input.objective != crate::authorization::PROMPT {
+        return Err("resume_source_outside_consent");
+    }
+    let store = source.join("session-state/session-state");
+    policy::private_directory(&source.join("session-state"))?;
+    policy::private_directory(&store)?;
+    let mut ids = Vec::new();
+    for entry in fs::read_dir(&store).map_err(|_| "owned_session_unavailable")? {
+        let entry = entry.map_err(|_| "owned_session_unavailable")?;
+        let name = entry.file_name();
+        let name = name.to_str().ok_or("invalid_owned_session_id")?;
+        if name.starts_with('.') {
+            continue;
+        }
+        if name.len() != 36 || !name.bytes().all(|c| c.is_ascii_hexdigit() || c == b'-') {
+            return Err("invalid_owned_session_id");
+        }
+        policy::private_directory(&entry.path())?;
+        policy::private_file(&entry.path().join("events.jsonl"))?;
+        ids.push(name.to_owned());
+    }
+    if ids.len() != 1 {
+        return Err("owned_session_identity_ambiguous");
+    }
+    Ok(github_copilot_sdk::SessionId::from(ids.remove(0)))
 }
 fn observe_event(
     kind: &str,
@@ -393,6 +465,39 @@ mod tests {
             )
             .unwrap();
         }
+        let source = tempfile::Builder::new()
+            .prefix("narys-task-")
+            .tempdir()
+            .unwrap();
+        if mode == "resume" {
+            fs::set_permissions(source.path(), fs::Permissions::from_mode(0o700)).unwrap();
+            for n in [
+                "workspace",
+                "session-state",
+                "session-state/session-state",
+                "session-state/session-state/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            ] {
+                fs::create_dir(source.path().join(n)).unwrap();
+                fs::set_permissions(source.path().join(n), fs::Permissions::from_mode(0o700))
+                    .unwrap();
+            }
+            fs::rename(d.path().join("task.json"), source.path().join("task.json")).unwrap();
+            let transcript = source.path().join(
+                "session-state/session-state/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/events.jsonl",
+            );
+            fs::write(&transcript, b"synthetic placeholder, not a real transcript").unwrap();
+            fs::set_permissions(&transcript, fs::Permissions::from_mode(0o600)).unwrap();
+            fs::write(
+                d.path().join("resume-check.json"),
+                serde_json::to_vec(&json!({"source":source.path(),"expected":"5"})).unwrap(),
+            )
+            .unwrap();
+            fs::set_permissions(
+                d.path().join("resume-check.json"),
+                fs::Permissions::from_mode(0o600),
+            )
+            .unwrap();
+        }
         let opts = ClientOptions::new()
             .with_program(CliProgram::Path("/usr/bin/python3".into()))
             .with_prefix_args([concat!(env!("CARGO_MANIFEST_DIR"), "/tests/sdk_peer.py")])
@@ -413,6 +518,31 @@ mod tests {
         let summary =
             serde_json::from_slice(&fs::read(d.path().join("summary.json")).unwrap()).unwrap();
         (result, report, summary)
+    }
+    #[tokio::test]
+    async fn owned_resume_reads_history_without_create_send_or_budget_claim() {
+        let (r, e, s) = synthetic("resume").await;
+        assert_eq!(r, Ok(()));
+        assert_eq!(e["state"], "owned_session_resumed");
+        assert_eq!(e["persisted_answer_matches_expected"], true);
+        assert_eq!(s["resume"], 1);
+        assert_eq!(s["create"], 0);
+        assert_eq!(s["send"], 0);
+        assert_eq!(s["history"], 1);
+        assert_eq!(e["global_attempt_slot"], Value::Null);
+    }
+    #[test]
+    fn resume_cannot_read_arbitrary_state() {
+        let d = tempfile::tempdir().unwrap();
+        fs::set_permissions(
+            d.path(),
+            std::os::unix::fs::PermissionsExt::from_mode(0o700),
+        )
+        .unwrap();
+        assert_eq!(
+            owned_session_id(d.path()).unwrap_err(),
+            "unsafe_resume_source"
+        );
     }
     #[tokio::test]
     async fn session_diagnostic_cannot_send_or_consume_budget() {

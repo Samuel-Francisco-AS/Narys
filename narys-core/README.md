@@ -1,154 +1,114 @@
-# Narys Core headless
+# Narys Core headless — LR-10A
 
-Core residente independente de Tauri/WebKit, controlado por socket Unix 0600 em
-`$XDG_RUNTIME_DIR/narys-core/control.sock`. O servidor valida SO_PEERCRED (mesmo
-UID); não abre porta TCP. O usuário Linux é a fronteira de confiança. **Este
-perfil HOST_ASSISTED não é sandbox e não protege contra processos do mesmo UID.**
+**Validação integrada real concluída:** Core após cold boot sem GNOME, credenciais
+existentes desbloqueadas manualmente, Copilot SDK textual, resposta `5`, resultado
+persistido e TaskGraph completed. A mesma conversa foi retomada em outro runtime,
+sem novo prompt. [Relatório para auditoria](../docs/LR-10-LATEST-EXECUTION-REPORT.md).
+Esta é uma implementação candidata; não concede aprovação de produção ou LR-10B.
 
-Reutiliza os contratos `AgentBackend`, `AgentRegistry`, `PlanV1`, `TaskGraph`,
-`TaskId`, o `OperationalTraceBus` limitado e as migrações SQLite existentes. A
-factory da aplicação gráfica continua somente Codex. O banco do Core fica em
-`~/.local/state/narys/core/db/luna.sqlite3`, separado do banco da GUI; resultados
-sobrevivem a restart. Tarefas interrompidas nunca são reenviadas automaticamente.
-O snapshot Stronghold existente continua no diretório original e é somente
-aberto/validado: nenhum create_client, save, migração, chmod ou chave substituta.
+## Composição e limites
 
-O SDK 1.0.17 inicia o CLI 1.0.95 sob demanda. A identidade SHA-256 é verificada a
-cada invocação. O harness FIX1 permanece inalterado: subreaper privado, pidfds,
-PID/start-time e exaustão ECHILD. O cgroup da unidade contém Core e workers; o
-Keyring está em outra unidade. Morte do supervisor ainda não equivale a cleanup
-comprovado; systemd termina membros da unidade na parada. Não há supervisor
-adversarial nem sandbox de produção implementado.
+Core independente de Tauri/GTK/WebKit/X11/Wayland, residente sob systemd --user.
+Reutiliza AgentBackend/Registry, PlanV1/TaskGraph, TaskId, OperationalTraceBus
+limitado e migrações SQLite. Banco próprio em `~/.local/state/narys/core/db`;
+interrupção não autoriza reenvio. Factory gráfica Codex, ExecutionBroker,
+ExecutionAuthority/HumanLocal, IPC, Scheduler e políticas LR-8.5 preservados.
 
-Neste Fedora, a conexão padrão aos endpoints públicos do Copilot excedeu o
-timeout, enquanto IPv4 respondeu. O runtime recebe somente `RES_OPTIONS=no-aaaa`
-para as consultas DNS glibc; o catálogo real passou com essa seleção. Não há
-mudança global de rede, proxy ou desativação de TLS. É um ajuste local de
-compatibilidade, sem restrição de destinos ou promessa de sandbox. A opção é
-diagnóstica e incompatível com validação DNSSEC pela aplicação, conforme a
-[documentação glibc](https://sourceware.org/glibc/manual/latest/html_node/Resolver-Options.html).
+Controle local por socket Unix0600/SO_PEERCRED mesmo UID; sem porta TCP. Perfil
+**HOST_ASSISTED_NOT_SANDBOX**: o usuário Linux é a fronteira de confiança; não
+protege de processos do mesmo UID nem isola filesystem/rede do runtime. Copilot
+não recebe ferramentas, shell, edição ou autoridade agentiva. O Core escreve
+somente o resultado no workspace privado autorizado, por código confiável.
 
-## Construção e instalação
+SDK Rust1.0.17 (runtime, sem bundle), CLI nativo1.0.95 com SHA verificado a cada
+invocação. CLI sob demanda; shutdown e harness FIX1 (subreaper/pidfds/ECHILD)
+separados. Morte do supervisor/descendentes adversariais ainda não representam
+contenção comprovada. Unidade possui cgroup próprio e parada limitada270s;
+Keyring permanece separado. Limites catálogo30s, inferência120s, harness240s.
+
+## Compatibilidade comprovada
+
+O limite opcional `sessionLimits.maxAiCredits=0.5` fazia `session.create` retornar
+RPC -32603, categoria pública credits. Sem esse parâmetro, create e patch
+`session.options.update` funcionaram. O motivo interno exato do serviço de
+credits não foi exposto/atribuído. O limite é soft, não garantia de custo; os
+controles financeiros obrigatórios e o guard de envios são independentes.
+
+`--no-custom-instructions` é suportado pelo CLI pinado e complementa o patch
+skipCustomInstructions=true. Mantidos DenyAll, availableTools=[], MCP{}, hooks,
+skills, discovery, extensões e host Git desabilitados; estado configDir privado.
+Infinite sessions/compaction automática desabilitadas. enable_session_store=false
+não impediu transcript real/resume (não confundir índice com flush de conversa).
+
+`RES_OPTIONS=no-aaaa` permanece somente no runtime: contorna a rota IPv6 local
+que expirava no provedor. Sem mudança global de resolver/firewall/proxy/TLS.
+Não restringe destinos, e tem limitação DNSSEC pela aplicação, conforme
+[glibc](https://sourceware.org/glibc/manual/latest/html_node/Resolver-Options.html).
+
+## Instalação e operação SSH
 
 ```sh
 COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 \
   CARGO_TARGET_DIR="$PWD/src-tauri/target" \
   /usr/bin/cargo test --offline --locked --manifest-path narys-core/Cargo.toml
-python3 narys-core/ops/install_user.py
+python3 -m unittest discover -s narys-core/tests -p 'test_*.py'
 ```
 
-O instalador recusa sobrescrever unidades diferentes; não reinicia Keyring ou
-GDM, não muda boot e não usa sudo. O binário instalado usa os scripts desta
-checkout; manter este repositório e caminho. A unidade e o drop-in persistente
-habilitam somente serviços de usuário. Linger e multi-user.target são condições
-externas, não efeitos do instalador. Nunca digitar senha em sessão capturada
-pelo Codex.
-
-Atualizações do Core já instalado usam `ops/update_user.py SHA_BINARIO_ATUAL
-SHA_UNIDADE_ATUAL`: os hashes precisam ser previamente revisados. Somente a
-unidade `narys-core.service` é parada; Keyring e GDM não são reiniciados. Esta
-entrega já instalou a unidade e o binário no host. Catálogo: timeout 30s, inferência:
-120s, harness: 240s, parada systemd: 270s. Não há retry SDK pela Narys.
-
-## Operação pelo SSH privado
+Host já instalado. `ops/install_user.py` prepara somente unidades de usuário;
+recusa sobrescrever instalações divergentes. Atualização usa
+`ops/update_user.py SHA_BINARIO_INSTALADO SHA_UNIDADE_REVISADA`, parando somente
+narys-core.service. Scripts dependem desta checkout/caminho. Linger e boot
+multi-user foram configurados pelo usuário; nenhum instalador altera boot/GDM,
+PAM, Keyring, SSH ou serviços globais.
 
 ```sh
+systemctl --user status narys-core.service
 ~/.local/lib/narys/narys-core status
 ~/.local/lib/narys/narys-core credentials
 ~/.local/lib/narys/narys-core unlock
 ~/.local/lib/narys/narys-core stronghold
-~/.local/lib/narys/narys-core copilot
+~/.local/lib/narys/narys-core result 2
+~/.local/lib/narys/narys-core events
 ```
 
-`unlock` executa o helper humano H2/H3, fixado ao GNOME Keyring 50.0. A interface
-GNOME utilizada é interna/não suportada. Exige ausência real de GNOME Shell,
-serviço existente no user manager, coleção login preexistente e sessão libsecret
-DH/AES. Senha somente via `/dev/tty`, sem eco, argumento ou persistência. Não há
-unlock automático, criação de coleção, cópia de tokens ou leitura de itens.
-`stronghold` resolve internamente a chave pelo credential store existente e
-abre o client `luna-core`; retorna somente status, nunca valores. `copilot`
-consulta status/auth/modelos/quota, encerra o runtime e guarda evidência privada.
-Autenticação, quota e admissão financeira continuam estados independentes.
+**unlock somente em terminal SSH privado não capturado pela IA.** Helper H2/H3
+fixado ao GNOME Keyring50.0 usa interface interna não suportada; coleção login
+existente, libsecret DH/AES e senha /dev/tty sem eco/persistência. Não cria cofre,
+copia tokens ou substitui senha. stronghold resolve normalmente a chave existente
+e retorna status, sem valores/create_client/save/migração. Core funciona bloqueado
+até desbloqueio humano; não há desbloqueio automático. Não é a composição completa
+de todos os provedores/GUI/Android da Narys.
 
-## Tarefa pequena e autorizada
+## Consentimento, tarefa e persistência
 
-```sh
-~/.local/lib/narys/narys-core prepare \
-  'Responda somente o número da soma de alpha=2 e beta=3. Não utilize ferramentas, não execute comandos, não acesse arquivos e não faça outras solicitações.' 5
-```
+Consentimento final explícito do usuário: até3 sends, somatória mínima, franquia
+existente, orçamento adicional desativado, nenhuma compra/overage autorizado.
+Estado durável0700/0600 em `~/.local/state/narys/core/lr10a-final-authorization`:
+consent fixo, receipt novo por task, slots O_EXCL+flock+fsync antes do send.
+Crash/resultado incerto contam; replay/corrupção/limite/closure bloqueiam.
+`record_final_consent.py` não sobrescreve consentimento;
+`review_final_task.py` vincula somente task nova/objetivo exato, sem enviar.
+Receipt expira30min. Antigo financial-review.json/task1 nunca reutilizados.
 
-Retorna ID e workspace descartável 0700 em `/tmp/narys-task-*`. Revisar tarefa e
-caminho antes de submeter. Nenhum arquivo pessoal é incorporado ao prompt. Esta
-versão oferece tarefas textuais de especialista com resultado independente
-esperado, **zero ferramentas**. Ela não oferece execução agentiva de shell,
-edição de repositórios ou ações externas. O Core grava o resultado na fixture
-como efeito local controlado. O especialista não recebe `ExecutionAuthority` ou
-`HumanLocal`; o Execution Broker original permanece inalterado.
+**Consumido1 de3, autorização encerrada após sucesso; não executar novamente.**
+Prepare/submit/cancel/result são controles locais; prepare não envia. Nova operação
+não ganha consentimento de auth, metadata, flags ou fixtures. O antigo helper
+review_financial.py não admite novas submissões nesse contrato final. Marker A9
+histórico não é criado/consumido. A API exige ainda auth, catálogo Auto elegível,
+quota disponível e ambas flags de uso após esgotamento/overage false; missing/erro
+bloqueiam. Requests legadas não são AI Credits nem teto USD. Uma chamada SDK pode
+representar várias requisições internas; não há retry/fallback pago pela Narys.
 
-Antes da primeira inferência há um gate financeiro humano obrigatório. A API
-pinada informa requests, enquanto a documentação atual usa AI Credits; Auto e
-multiplicador ausente não comprovam custo. O operador deve verificar a franquia
-e ausência de orçamento adicional no GitHub e autorizar especificamente a
-incerteza residual, sem autorizar pagamento. **Não executar o comando seguinte
-sem essa decisão explícita.**
+Concluir depende de resposta final validada contra esperado humano, shutdown e
+cleanup, result.txt0600/fsync/reread exato, grafo completed e SQLite persistido.
+session.idle isolado não comprova sucesso. Eventos públicos e counters numéricos
+sanitizados são evidência, sem reasoning/protocolos/credenciais publicados.
+`resume-check ID` é one-shot, somente task completed e sessão única no estado
+privado, sem create fallback/send. Task2 já foi verificada; não repetir o ensaio.
+`copilot` consulta metadata; `session-check` diagnostica create/detach sem send;
+não são autorização financeira ou agentiva.
 
-```sh
-python3 narys-core/ops/review_financial.py ID
-~/.local/lib/narys/narys-core submit ID
-~/.local/lib/narys/narys-core result ID
-~/.local/lib/narys/narys-core cancel ID
-```
-
-A revisão é exclusiva de uma tarefa, expira após 30 minutos e admite zero USD
-adicional. A resposta atual do provedor ainda deve informar quota disponível e
-ambas as flags de overage/uso após esgotamento false. Falta/erro bloqueia. O
-limite de sessão de 0,5 AI Credits é **soft**, não garantia de custo máximo. Uma
-operação SDK pode envolver várias requisições internas. Não há retry, fallback
-ou compra. O guard `send-attempt.json` é O_EXCL + fsync antes do único
-`send_and_wait`; erro/timeout consome a tentativa. Restart não libera reenvio.
-O marker histórico A9 não é apagado ou reutilizado.
-
-Para a validação desta entrega, o usuário já confirmou orçamento adicional
-desativado e autorizou a única chamada apesar da diferença de unidades. Esse
-consentimento deve ser associado à tarefa exata em um receipt privado; nenhuma
-inferência foi enviada durante a preparação. O catálogo e as flags atuais do
-provedor continuam obrigatórios antes do envio.
-
-Cada sessão recebe diretório de configuração/estado privado, infinite sessions
-(compaction automática) desabilitado, zero ferramentas, DenyAll, MCPs,
-extensões, skills, hooks, descoberta de instruções/config e Git desabilitados.
-Logs brutos do CLI ficam privados; journal recebe apenas labels de lifecycle.
-`session.idle` indica término da operação, não sucesso: o Core compara o texto
-final ao resultado esperado, verifica shutdown/cleanup e então conclui o grafo.
-O arquivo `result.txt` precisa ser criado e relido com conteúdo idêntico antes
-da conclusão. `events` retorna somente labels/correlações do trace local.
-Uma mensagem do modelo não atesta efeito de shell/filesystem.
-
-## Uma reinicialização, quando a entrega estiver preparada
-
-Confirmar `loginctl show-user "$USER" -p Linger` e `systemctl get-default`
-(`yes`, `multi-user.target`); unidades habilitadas. Reboot somente pelo usuário,
-no SSH privado. Depois reconectar, executar status/credentials/unlock/stronghold.
-O Core deve estar ativo mesmo com coleção bloqueada. Codex verifica ausência
-real de GUI e executa o único teste integrado aprovado depois do gate financeiro.
-Não iniciar GDM nem alterar permanentemente boot durante a validação.
-
-O Core não é a aplicação gráfica completa: provedores cognitivos, renderização
-3D e comandos Tauri continuam em seus módulos originais. É a composição mínima
-para operar o especialista pelo servidor, sem antecipar toda a Narys Android.
-
-## Resultado da validação integrada desta entrega
-
-O único reboot humano foi concluído: Core iniciou automaticamente sem GNOME,
-login foi desbloqueado pelo usuário e Stronghold/status SDK autenticado foram
-comprovados no host. A única task1 falhou em `PreparedSession.start()` com erro
-RPC, antes de qualquer send. Não há resultado5 nem arquivo de resultado. Estado
-failed persistiu após restart; zero retries/inferências e marker A9 intacto.
-
-Os comandos de administração/credenciais/metadata funcionam. A execução de uma
-tarefa pelo especialista **ainda está bloqueada**; não usar esta entrega como
-integração Copilot concluída. A melhoria de diagnóstico publicada depois da
-execução conserva fase/código numérico e foi testada só em fixtures. Nenhum
-controle foi removido para forçar sucesso. Consulte a
-[evidência pós-boot](evidence/postboot-single-submission.json) e o
-[relatório atualizado](../docs/LR-10-LATEST-EXECUTION-REPORT.md).
+[Evidência da tarefa](evidence/final-integrated-operation.json),
+[resume genuíno](evidence/final-owned-session-resume.json),
+[serviços finais](evidence/final-service-state.json). A falha histórica task1
+continua [preservada](evidence/postboot-single-submission.json); não foi reclassificada.

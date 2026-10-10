@@ -1,0 +1,22 @@
+{
+  "core_rust_units": 35,
+  "core_unix_integration": 1,
+  "core_python": 6,
+  "ownership_python": {
+    "command": "python3 -m unittest discover -s experiments/lr-10a-sdk-runtime/tests -p test_measure.py",
+    "passed": 25,
+    "duration_seconds": 2.739,
+    "standalone_raw_log_retained": false
+  },
+  "rustfmt": "PASS",
+  "python_syntax": "PASS",
+  "systemd_user_verify": "PASS",
+  "json_validation": "PASS",
+  "git_diff_check": "PASS",
+  "new_secret_patterns_found": false,
+  "production_suite": "NOT_RUN: no production changes since base25fe; historical shared extraction 117 tests already passed",
+  "compiler_executed": "Fedora rustc 1.98.1",
+  "sdk_update": false,
+  "cli_update": false,
+  "production_changes": false
+}
