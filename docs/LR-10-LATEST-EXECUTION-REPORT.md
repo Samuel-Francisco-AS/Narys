@@ -13,7 +13,7 @@ Headless Authentication Recovery & Financial Preflight — SEM INFERÊNCIA.
 - HEAD inicial local/remoto confirmado: `938dc40ad3575435b97479fa14b8f3a2b1f7506b`.
   Workspace inicial limpo; nenhuma alteração humana sobrescrita.
 - Main local/remota: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`, preservada.
-- Implementação testada: IMPLEMENTATION_COMMIT_TO_REFERENCE.
+- Implementação testada: [`379dd483db73dca5e0e7cd15357e818b4af9d0a3`](https://github.com/Samuel-Francisco-AS/Narys/commit/379dd483db73dca5e0e7cd15357e818b4af9d0a3).
 - HEAD documental final: referência verificável ao
   [histórico desta branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility/).
   O SHA do próprio commit documental não é inserido circularmente no arquivo.
@@ -222,7 +222,9 @@ não foram alterados.
 
 Config.json permaneceu com inode/tamanho/mtime/ctime iguais antes/depois dos
 probes. Somente esses metadados foram lidos: não se afirma equivalência criptográfica
-de conteúdo, não houve leitura de credenciais/configuração nem restauração automática.
+de conteúdo, o código diagnóstico não inspecionou conteúdo de configuração/credenciais nem
+fez restauração automática. O CLI pôde usar sua resolução normal de autenticação
+no host, conforme autorizado; isso não significa extração/exportação pela POC.
 Nenhum login/logout, exportação de conta/token, PAT, keyring daemon/UI ou serviço
 iniciado. Conteúdo de sessões pessoais nunca acessado.
 
