@@ -86,7 +86,7 @@ Primeira rodada identificou runtime de teste sem modo0700 e expectativa antiga d
 
 `ops/install_cli.py` instalou **`/home/sam/.local/bin/narys`**, modo0700, sem sudo, dotfiles ou alteração global. Se o shell não inclui `~/.local/bin`, use o caminho completo. CLI funciona no host acessado por SSH; não há build Android/Termux nesta entrega.
 
-Updater validou hashes Core/unit anteriores e fez backup privado em `~/.local/state/narys/core/updates/server-1a-eq2fb8r_ (ver path exato no [log](evidence/server-1c/install.txt); prefixo herdado). Atualizou somente nosso Core, preservando Keyring, boot, unit/políticas e dados. [Manifesto instalado](evidence/server-1c/installed-artifacts.json):
+Updater validou hashes Core/unit anteriores e fez backup privado em `~/.local/state/narys/core/updates/server-1a-eq2fb8r_` (ver path exato no [log](evidence/server-1c/install.txt); prefixo herdado). Atualizou somente nosso Core, preservando Keyring, boot, unit/políticas e dados. [Manifesto instalado](evidence/server-1c/installed-artifacts.json):
 
 - Revision instalada: `06ef4076380ed2723b9c567f5323104ec596e846`; worktree limpa durante instalação.
 - CLI SHA-256: `5719709444be4a62503a6ddfbdd6ecb9a3049944541fd26d1a9030e9a9032328`.
