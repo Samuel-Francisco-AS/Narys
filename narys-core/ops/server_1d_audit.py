@@ -7,6 +7,7 @@ An optional --baseline private SQLite backup proves original rows survived addit
 import argparse
 import datetime
 import hashlib
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -188,7 +189,12 @@ def main():
         for line in (Path('/proc/net')/family).read_text().splitlines()[1:]:
             columns = line.split()
             if columns[3] == '0A':
-                host_tcp_listeners.append(dict(family=family, local_address_hex=columns[1],uid=int(columns[7])))
+                address, port = columns[1].split(':')
+                words = [int(address[i:i+8],16) for i in range(0,len(address),8)]
+                packed = struct.pack('='+str(len(words))+'I',*words)
+                decoded = socket.inet_ntop(socket.AF_INET if family=='tcp' else socket.AF_INET6,packed)
+                host_tcp_listeners.append(dict(family=family, local_address_hex=columns[1],
+                                               local_address=decoded, port=int(port,16), uid=int(columns[7])))
             if columns[9] in inodes and columns[3] == '0A':
                 tcp_listeners.append(family)
     cg = Path('/sys/fs/cgroup')/(proc/'cgroup').read_text().strip().split('::',1)[1].lstrip('/')
@@ -214,6 +220,7 @@ def main():
                   socket=dict(mode=oct(stat.S_IMODE(sock.stat().st_mode)), directory_mode=oct(stat.S_IMODE(sock.parent.stat().st_mode)),peer_pid=peer_pid,peer_uid=peer_uid,uid_matches=peer_uid==os.getuid(),pid_matches=peer_pid==pid),
                   core_tcp_listeners=tcp_listeners if fd_visibility else None,
                   proc_fd_visible=fd_visibility, host_tcp_listeners=host_tcp_listeners,
+                  same_uid_nonloopback_tcp_listeners=[s for s in host_tcp_listeners if s['uid']==os.getuid() and not ipaddress.ip_address(s['local_address']).is_loopback],
                   tcp_attribution_limit=None if fd_visibility else 'core_nondumpable_fd_access_denied; compare_host_listeners_and_review_unix_only_bind',
                   processes=process_report(),
                   memory=memory, host_memory={line.split(':')[0]:line.split(':')[1].strip() for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith(('MemTotal:', 'MemAvailable:', 'SwapTotal:', 'SwapFree:'))},

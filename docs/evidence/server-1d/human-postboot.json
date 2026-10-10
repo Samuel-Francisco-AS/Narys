@@ -1,0 +1,85 @@
+{
+  "recorded_at": "2026-10-10T18:25:18.080957-03:00",
+  "source": "operator post-reboot message in Codex conversation",
+  "client": "Termux/SSH on phone",
+  "human_reboot_reported": true,
+  "doctor": {
+    "core": "running",
+    "conversation_integrated": true,
+    "graphical_environment_present": false,
+    "execution_workers": 0
+  },
+  "credentials": {
+    "login_unlocked": true,
+    "state": "unlocked",
+    "unlock_backend_compatible": true
+  },
+  "stronghold": {
+    "ok": true,
+    "existing_snapshot_opened": true,
+    "migration": false,
+    "writes": false,
+    "secret_values_returned": false
+  },
+  "unlock_origin": "operator confirms personally executing narys credentials unlock in direct SSH after real reboot",
+  "agent_requested_or_received_password": false,
+  "before_boot_id": "299dc161-7036-4c0f-b012-82b1150b528c",
+  "after_boot_id": "371dd203-7e49-4156-bdf8-6c8bb9f3af8a",
+  "host_confirmed_new_boot": true,
+  "host_sessions": [
+    {
+      "session_id": "2",
+      "properties": [
+        "User=1000",
+        "Timestamp=Sat 2026-10-10 18:18:53 -03",
+        "TTY=pts/0",
+        "Remote=yes",
+        "Service=sshd",
+        "Leader=1410",
+        "Type=tty",
+        "Class=user"
+      ],
+      "timestamp_monotonic": "TimestampMonotonic=28710608"
+    },
+    {
+      "session_id": "3",
+      "properties": [
+        "User=1000",
+        "Timestamp=Sat 2026-10-10 18:23:56 -03",
+        "TTY=pts/1",
+        "Remote=yes",
+        "Service=sshd",
+        "Leader=1531",
+        "Type=tty",
+        "Class=user"
+      ],
+      "timestamp_monotonic": "TimestampMonotonic=331307354"
+    }
+  ],
+  "configuration_preservation": {
+    "/etc/ssh/sshd_config": "baseline_not_readable_no_privilege_requested",
+    "/etc/gdm/custom.conf": true,
+    "/etc/systemd/system/default.target": true,
+    "narys-core.service": true,
+    "gnome-keyring-daemon.service": true
+  },
+  "service_timing": {
+    "narys-core.service": [
+      "ActiveEnterTimestamp=Sat 2026-10-10 18:18:44 -03",
+      "ActiveEnterTimestampMonotonic=19314756",
+      "ExecMainStartTimestamp=Sat 2026-10-10 18:18:44 -03",
+      "ExecMainStartTimestampMonotonic=19088277"
+    ],
+    "user@1000.service": [
+      "ActiveEnterTimestamp=Sat 2026-10-10 18:18:44 -03",
+      "ActiveEnterTimestampMonotonic=19086190",
+      "ExecMainStartTimestamp=Sat 2026-10-10 18:18:44 -03",
+      "ExecMainStartTimestampMonotonic=18789430"
+    ]
+  },
+  "unlock_command_human_attested": true,
+  "password_prompt_behavior": "operator confirms no-echo prompt, personally typed password, command succeeded",
+  "unlock_origin_recorded_at": "2026-10-10T18:30:08.819184-03:00",
+  "personal_unlock_real_human_attested": true,
+  "unlock_prompt_attested_at": "2026-10-10T18:31:22.475574-03:00"
+}

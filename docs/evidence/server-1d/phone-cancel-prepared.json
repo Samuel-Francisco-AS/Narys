@@ -1,0 +1,14 @@
+{
+  "observed_at": "2026-10-10T18:32:08.780221-03:00",
+  "namespace": "lr10a",
+  "prepare": {
+    "no_inference": true,
+    "state": "prepared",
+    "task_id": 4,
+    "workspace": "/tmp/narys-task-10yJFH/workspace"
+  },
+  "remote_inference": false,
+  "submit_invoked": false,
+  "agent_started": false,
+  "purpose": "eligible CLI cancellation from human Termux after reconnect"
+}

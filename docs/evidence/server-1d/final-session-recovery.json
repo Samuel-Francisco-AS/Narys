@@ -1,0 +1,82 @@
+{
+  "started_at": "2026-10-10T18:35:43.562664-03:00",
+  "remote_inference": false,
+  "before_status": {
+    "active_task": null,
+    "agent_execution_authority": false,
+    "authority": "narys-core",
+    "conversation_integrated": true,
+    "copilot": "on_demand",
+    "core": "running",
+    "database": "core/db/luna.sqlite3",
+    "execution_workers": 0,
+    "graphical_environment_present": false,
+    "product_active_tasks": 0,
+    "profile": "HOST_ASSISTED_NOT_SANDBOX",
+    "protocol_version": 1,
+    "tools": 0,
+    "trace_events": 15
+  },
+  "core_pid_before": 1392,
+  "keyring_pid_before": 1391,
+  "session_lifecycle": {
+    "session_id": 39,
+    "close": {
+      "automatic_summary_execution": false,
+      "closed": true,
+      "session_id": 39
+    },
+    "resume": {
+      "session_id": 39,
+      "status": "active"
+    },
+    "message_count": 3,
+    "messages_unchanged_exact": true,
+    "messages_sha256": "77e3891ab502fdb4de4652c5e157c68949e4ac60be1b22631a00a077615c30af"
+  },
+  "original_policy_restored_exactly": true,
+  "core_pid_after": 2461,
+  "keyring_pid_after": 1391,
+  "after_status": {
+    "active_task": null,
+    "agent_execution_authority": false,
+    "authority": "narys-core",
+    "conversation_integrated": true,
+    "copilot": "on_demand",
+    "core": "running",
+    "database": "core/db/luna.sqlite3",
+    "execution_workers": 0,
+    "graphical_environment_present": false,
+    "product_active_tasks": 0,
+    "profile": "HOST_ASSISTED_NOT_SANDBOX",
+    "protocol_version": 1,
+    "tools": 0,
+    "trace_events": 0
+  },
+  "task_equals_before_restart": true,
+  "session_equals_before_restart": true,
+  "task_equals_after_settle": true,
+  "credentials": {
+    "login_unlocked": true,
+    "service_available": true,
+    "state": "unlocked",
+    "unlock_backend_compatible": true,
+    "unlock_error_code": null
+  },
+  "groq_usage_recorded": {
+    "fallbacks": 0,
+    "inputTokens": 252,
+    "outputTokens": 66,
+    "outputTokensAccounted": 66,
+    "outputTokensMeasured": true,
+    "providerCalls": 1,
+    "providersUsed": [
+      "groq"
+    ],
+    "retries": 0,
+    "thoughtTokens": null,
+    "totalTokens": 318
+  },
+  "finished_at": "2026-10-10T18:35:47.464137-03:00",
+  "no_new_inference_submitted": true
+}

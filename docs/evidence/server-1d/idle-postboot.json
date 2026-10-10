@@ -1,0 +1,38 @@
+{
+  "observed_at": "2026-10-10T18:25:16.946057-03:00",
+  "pid": 1392,
+  "remote_inference": false,
+  "unlock_invoked": false,
+  "long_run_benchmark": false,
+  "snapshot_scrypt_log_n": 19,
+  "estimated_scrypt_v_buffer_bytes": 536870912,
+  "idle_before": {
+    "elapsed_seconds": 10.005143066000016,
+    "sample_interval_seconds": 0.05,
+    "samples": 200,
+    "before": {
+      "cpu_seconds": 1.7,
+      "rss_kib": 28292,
+      "hwm_kib": 551684
+    },
+    "after": {
+      "cpu_seconds": 1.7,
+      "rss_kib": 28292,
+      "hwm_kib": 551684
+    },
+    "peak_observed_rss_kib": 28292,
+    "cpu_seconds_delta": 0.0,
+    "cgroup_before": {
+      "memory.current": "40448000",
+      "memory.peak": "578871296",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+    },
+    "cgroup_after": {
+      "memory.current": "40448000",
+      "memory.peak": "578871296",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+    }
+  }
+}

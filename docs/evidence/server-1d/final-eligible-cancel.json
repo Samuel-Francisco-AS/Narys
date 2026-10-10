@@ -1,0 +1,44 @@
+{
+  "observed_at": "2026-10-10T18:35:10.651837-03:00",
+  "source": "installed official CLI executed locally by Codex; not claimed as human phone interaction",
+  "purpose": "finish prepared task after operator declared phone gate complete",
+  "namespace": "lr10a",
+  "task_id": 4,
+  "cancel": {
+    "cancellation_requested": true,
+    "namespace": "lr10a",
+    "state": "cancelled",
+    "task_id": 4
+  },
+  "repeat": {
+    "already_terminal": true,
+    "cancellation_requested": true,
+    "namespace": "lr10a",
+    "state": "cancelled",
+    "task_id": 4
+  },
+  "state": "cancelled",
+  "error_code": "cancelled_before_send",
+  "events": [
+    {
+      "code": "prepared",
+      "created_at": "2026-10-10T21:32:08.763Z",
+      "details": null,
+      "namespace": "lr10a",
+      "sequence": 63,
+      "task_id": 4
+    },
+    {
+      "code": "cancelled_before_send",
+      "created_at": "2026-10-10T21:35:10.619Z",
+      "details": null,
+      "namespace": "lr10a",
+      "sequence": 64,
+      "task_id": 4
+    }
+  ],
+  "remote_inference": false,
+  "submit_invoked": false,
+  "agent_started": false,
+  "eligible_cancel_pass": true
+}

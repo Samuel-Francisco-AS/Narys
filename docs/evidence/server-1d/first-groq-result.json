@@ -1,0 +1,145 @@
+{
+  "observed_at": "2026-10-10T18:32:34.720404-03:00",
+  "source": "read-only installed CLI and authority verification",
+  "task_id": 193,
+  "session_id": 39,
+  "state": "completed",
+  "result": {
+    "contextMetadata": {
+      "identityVersion": "continuity-bootstrap-2026-09-26",
+      "memoryCount": 0,
+      "recentMessageCount": 0
+    },
+    "providerId": "groq",
+    "text": "SERVER1D-371dd203 78",
+    "usage": {
+      "fallbacks": 0,
+      "inputTokens": 252,
+      "outputTokens": 66,
+      "outputTokensAccounted": 66,
+      "outputTokensMeasured": true,
+      "providerCalls": 1,
+      "providersUsed": [
+        "groq"
+      ],
+      "retries": 0,
+      "thoughtTokens": null,
+      "totalTokens": 318
+    }
+  },
+  "result_equals_authority": true,
+  "result_sha256": "a39dd0d83b4a6c1ae947570544172effb48f868d6d5982abb91de36fb3dd1988",
+  "technical_prompt_verified_exact": true,
+  "events": [
+    {
+      "code": "conversation_admitted",
+      "created_at": "2026-10-10T21:32:01.328Z",
+      "details": {
+        "no_restart_replay": true,
+        "session_id": 39
+      },
+      "namespace": "product",
+      "sequence": 57,
+      "task_id": 193
+    },
+    {
+      "code": "task_started",
+      "created_at": "2026-10-10T21:32:01.347Z",
+      "details": null,
+      "namespace": "product",
+      "sequence": 58,
+      "task_id": 193
+    },
+    {
+      "code": "context_built",
+      "created_at": "2026-10-10T21:32:02.847Z",
+      "details": {
+        "memory_count": 0,
+        "recent_message_count": 0
+      },
+      "namespace": "product",
+      "sequence": 59,
+      "task_id": 193
+    },
+    {
+      "code": "provider_selected",
+      "created_at": "2026-10-10T21:32:02.863Z",
+      "details": {
+        "attempt": 1,
+        "model": "openai/gpt-oss-20b",
+        "provider_id": "groq",
+        "routing_reason": "fixed",
+        "score": null
+      },
+      "namespace": "product",
+      "sequence": 60,
+      "task_id": 193
+    },
+    {
+      "code": "provider_admitted",
+      "created_at": "2026-10-10T21:32:02.897Z",
+      "details": {
+        "provider_id": "groq",
+        "queue_delay_ms": 0,
+        "traffic_class": "foreground_interactive"
+      },
+      "namespace": "product",
+      "sequence": 61,
+      "task_id": 193
+    },
+    {
+      "code": "completed",
+      "created_at": "2026-10-10T21:32:04.938Z",
+      "details": {
+        "error_code": null,
+        "session_id": 39
+      },
+      "namespace": "product",
+      "sequence": 62,
+      "task_id": 193
+    }
+  ],
+  "task_keys": [
+    "error_code",
+    "finished_at",
+    "kind",
+    "namespace",
+    "policy",
+    "restart_replay",
+    "result",
+    "session_id",
+    "started_at",
+    "state",
+    "task_id"
+  ],
+  "human_disconnect_reconnect_attestation": {
+    "source": "operator message after executing gate via direct Termux/SSH",
+    "reported_at": "2026-10-10T18:35:10.610837-03:00",
+    "task_id": 193,
+    "session_id": 39,
+    "receipt": {
+      "state": "pending",
+      "durable": true,
+      "disconnect_cancels": false
+    },
+    "exit_executed": true,
+    "termux_ssh_reconnected": true,
+    "result_recovered": true,
+    "reported_model": "openai/gpt-oss-20b",
+    "reported_message_ids": [
+      101,
+      102
+    ],
+    "operator_limit": "do not claim work still running at SSH disconnect without temporal evidence"
+  },
+  "remote_submissions_by_collector": 0,
+  "host_disconnect_timing": {
+    "logged_out_session_id": "2",
+    "new_session_id": "4",
+    "logout_at": "2026-10-10T21:32:17.667039+00:00",
+    "admitted_at": "2026-10-10T21:32:01.328000+00:00",
+    "completed_at": "2026-10-10T21:32:04.938000+00:00",
+    "logout_after_durable_admission_before_completion": false,
+    "limit": "CLI client exits at receipt; SSH logout may occur after fast provider completion"
+  }
+}
