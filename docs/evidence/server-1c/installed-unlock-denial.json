@@ -1,0 +1,11 @@
+{
+  "exit_code": 1,
+  "response": {
+    "version": 1,
+    "ok": false,
+    "error_code": "human_private_ssh_terminal_required",
+    "category": "credentials"
+  },
+  "stderr_empty": true,
+  "no_password_supplied": true
+}

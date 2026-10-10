@@ -7,11 +7,10 @@ use tauri::{AppHandle, Emitter, Manager};
 
 pub const AUTO_HEADLESS_DELAY: Duration = Duration::from_secs(30);
 const HISTORY_LIMIT: usize = 64;
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum PresentationPolicy { Economy, Presence, Headless, Auto }
-impl PresentationPolicy {
-    pub fn control_surface(self) -> RuntimeState {
+pub use narys_domain::persistence::shell_settings::PresentationPolicy;
+pub trait PresentationPolicyExt { fn control_surface(self) -> RuntimeState; }
+impl PresentationPolicyExt for PresentationPolicy {
+    fn control_surface(self) -> RuntimeState {
         if self == Self::Presence { RuntimeState::Presence } else { RuntimeState::Economy }
     }
 }

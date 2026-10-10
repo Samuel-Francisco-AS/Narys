@@ -1,0 +1,1 @@
+{"pass": true, "session_id": 38, "tasks": [189, 190, 191], "restart_equal": true, "cancel_state": "cancelled", "rss_kib": 554820, "idle_cpu_seconds": 1.0599999999999996, "evidence": "docs/evidence/server-1b/live-conversation.json"}

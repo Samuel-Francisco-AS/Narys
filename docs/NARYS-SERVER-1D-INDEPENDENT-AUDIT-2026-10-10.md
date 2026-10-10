@@ -1,0 +1,38 @@
+# NARYS-SERVER-1D — auditoria independente Luna (10/10/2026)
+
+**DECISÃO: PASS FUNCIONAL da SERVER-1D nas capacidades servidor efetivamente demonstradas; NARYS-SERVER-1 (1A–1D) ACEITA em seu escopo de serviço headless.** A decisão **não** declara a Narys 0.1 agentiva pronta e **não** apaga limites de cobertura em tarefas executando durante desconexão ou cancelamento de inferência ativa. Auditoria por leitura do código remoto, relatório e evidências do Fedora publicados + resultados compartilhados pelo operador. A auditora não acessou nem executou os testes diretamente no host.
+
+## Identificação e controles
+
+- Implementação candidata auditada na branch `narys-server-1-headless-runtime`: **`64aa59c1c9ce53e2ee4867dab930778f145e261b`**.
+- Baseline final de 1C auditado: `2b7c64cb7f69339167d014ac0f78f11e03454e66`; comparação GitHub **3 commits à frente, zero atrás**.
+- Main verificada durante a auditoria: `553b51182bb477d0b777093da5bfda93239fddf9`; ainda não integrada no momento de produzir este parecer.
+- Janela real de 48h: **10/10/2026 15:03:12 → 12/10/2026 15:03:12, America/Recife**. As quatro etapas foram concluídas e auditadas antes da expiração, sem etapas extras.
+- Fontes: [relatório final 1D](NARYS-SERVER-1D-REPORT.md), [arquitetura](NARYS-CORE-FIRST-ARCHITECTURE-2026-10-10.md), [CLI](../narys-core/CLI.md), [auditorias anteriores](NARYS-SERVER-1C-INDEPENDENT-AUDIT-2026-10-10.md), evidências em `docs/evidence/server-1d/`.
+
+## Fundamentação de PASS
+
+1. **Boot real headless anterior ao SSH:** `host-postboot.json` registra boot ID diferente, `multi-user.target` ativo, GDM inativo, linger=yes, `narys-core.service` `Type=notify` enabled/active e pronto **9,396 segundos antes** da primeira sessão SSH. Em `host-final.json`, Core PID2461, sem GUI, workers ou Copilot residente. Acesso Termux/SSH confirmado pelo operador e logind registra sessões `sshd` remotas; logind não confirma qual aplicativo Android foi usado.
+2. **Cofre e humano:** operador informou que digitou pessoalmente a senha numa sessão SSH direta, fora do tmux, sem eco. `human-postboot.json` registra a declaração; `host-postboot.json` mostra coleção login `unlocked`, backend compatível e serviço ativo. Probe `narys-core stronghold` `ok=true`, `existing_snapshot_opened=true`, sem migration/write/secret_values. Metadados/hash Stronghold e autorização LR-10A encerrada não mudaram. **Prova do ato humano é relato do operador, não gravação ou observação da senha pelo agente**.
+3. **LLM real e continuidade:** Task **product:193**, session **39**, marcada pending/durable no recibo humano; resposta real Groq `openai/gpt-oss-20b` `SERVER1D-371dd203 78`, **252 tokens input + 66 output = 318**, 1 providerCall, 0 retries/fallbacks. Mensagens 101/102 consultadas pelo usuário na CLI após `exit`/novo `ssh`. `first-call-observation.json` e `first-groq-result.json` concordam com estados/runs/eventos. Nenhum envio da LLM pelo Codex nesta etapa.
+4. **Precisão da desconexão:** logind demonstra logout da sessão2 às **18:32:17.667** e nova sessão4 às **18:32:26**; Task193 concluiu às **18:32:04.938**. **PASS de receipt→logout→reconexão→consulta do resultado**, **não demonstrado** que uma inferência real permaneceu executando *durante* ausência do cliente. Testes IPC independentes da sessão cobrem disconnect, mas não substituem validação end-to-end temporal com operação longa.
+5. **Dados e recovery:** baseline da 1C preservado: 38 sessões, 99 mensagens, 191 TaskRecords, 39 subtarefas, 3 runs e identidades/memórias; nenhuma linha histórica removida. Estado final observado: 39 sessões, 102 mensagens, 193 TaskRecords, 5 runs, 4 tarefas legadas (incluindo novas preparadas/canceladas), schema20 `quick_check=ok`, zero FK errors. Um backup SQLite privado com WAL precedeu gates mutantes. Resultado Task193 e sessão39 iguais antes/depois de restart, sem nova inferência. `lifecycle.json` comprova stop/start limpo e restart de Core ocioso sob SIGKILL sem perda de estado.
+6. **Cancelamento:** `cancel.json` recusa *corretamente* como já terminal produto192 (falhou antes da chamada por provider desabilitado), **não** é cancelamento bem-sucedido. `cancel-prepared.json`/`final-eligible-cancel.json` demonstram **lr10a:3/4** canceladas antes do submit, repetição idempotente, nenhuma inferência nova; Task4 foi cancelada pelo Codex localmente, não pelo telefone. **PASS apenas para cancelamento elegível de tarefas preparadas; cancelamento de uma chamada LLM ativa continua não demonstrado.**
+7. **Segurança/performance:** socket Unix 0600, runtime0700, SO_PEERCRED, nenhum TCP público da Narys, `HOST_ASSISTED_NOT_SANDBOX`, sem `HumanLocal` ou ferramentas para agentes. `idle-final.json` RSS **26.472 KiB ≈25,9 MiB**, 0s CPU adicional/10s. Diagnóstico Stronghold implica demanda KDF scrypt ~512 MiB e pico observado ~541 MiB transitório; não houve pressão/OOM na amostra; memória com concorrência agentiva futura exige monitoramento. Logs checados por rótulos/assinaturas sem vazamento conhecido, não prova exaustiva. **8 testes IPC PASS** no log `protocol-tests.txt`; mudança de produção zero durante 1D.
+8. **Prazo e escopo:** etapas 1A, 1B, 1C já ratificadas pela Luna. 1D fecha o serviço headless utilizável via Termux/SSH, com autorização/credenciais humanas, Conversation real, histórico, TaskIds, eventos e recuperação. Não afirmar GUI desktop operacional: versão legada permanece cercada pelo takeover, exige adaptação ao IPC antes de sua retomada.
+
+## Lacunas ACEITAS / não omitir em README e backlog
+
+- Logout **durante** trabalho remoto ainda executando: **NÃO DEMONSTRADO** em 1D. Confirmar em fluxo de agente/tarefa longa no gate LR-10E/F, onde o requisito é essencial.
+- Cancelamento de **inferência de produto ativa** e comportamento depois de evento remoto já consumado: **NÃO DEMONSTRADO** em 1D. Testar sob integração agentiva, diferenciar cancel-before-send, running, commit-in-progress e resultados tardios.
+- Desktop Tauri **não funcional** pós-takeover até converter em cliente fino IPC. Esta é dívida de compatibilidade concreta, não PASS da GUI.
+- Agentes Copilot/Codex com **tool invocation, approval, workspace-bound execution, diff/build/test**: **AINDA NÃO IMPLEMENTADOS/COMPROVADOS**; prossiga prioritariamente em LR-10B–F/LR-11 para a meta Narys 0.1 de 17/10.
+- Outros providers só compostos/configurados; não há gate remoto novo que os aprove.
+- GNOME Keyring50 usando extensão interna pinada permanece suscetível a mudança de backend; memória transitória Stronghold ~512MiB; MSRV1.94 e sandbox forte não provados. Não converter host-assisted em isolamento comprovado.
+- Autorizações Groq do teste foram fechadas; 1 chamada usada, 1 não usada **não se transfere como autorização**. LR-10A continua encerrada. Não iniciar chamadas pagas ou Codex/Copilot sem escopo apropriado.
+
+## Encaminhamento final
+
+**SERVER-1D RATIFICADA — PASS FUNCIONAL DELIMITADO. NARYS-SERVER-1 ACEITA E ELEGÍVEL AO PROCEDIMENTO DE FECHAMENTO** após registro documental. Nenhuma alteração funcional é requisitada para reabrir 1D; não criar 1E/FIX por limitações honestamente registradas e não bloqueantes ao uso servidor. Integrar a branch à main requer rastrear explicitamente que o desktop legado segue temporariamente indisponível e que o release 0.1 agentivo ainda não é PASS. Abrir imediatamente a próxima frente de execução LR-10B–F (primeiro adapter/supervisor agentivo com autoridade delimitada), com LR-11 como segunda integração independente, preservando a continuidade do Core e a meta externa de 17/10.
+
+Este parecer não executou merge, deploy novo, reboot, inferências ou alteração em senhas.

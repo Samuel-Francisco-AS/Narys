@@ -1,0 +1,8 @@
+test_chat_select_create_send_follow_and_exit (test_cli.CliTests.test_chat_select_create_send_follow_and_exit) ... ok
+test_send_stdin_bound_and_private_runtime (test_cli.CliTests.test_send_stdin_bound_and_private_runtime) ... ok
+test_version_correlation_response_limits_and_uncertain_send_never_replay (test_cli.CliTests.test_version_correlation_response_limits_and_uncertain_send_never_replay) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 1.230s
+
+OK

@@ -1,0 +1,807 @@
+{
+  "data": {
+    "admission": [
+      {
+        "activeCalls": 0,
+        "countersSaturated": false,
+        "maxConcurrency": 2,
+        "providerId": "cloudflare",
+        "queueCapacity": 64,
+        "queueDelayRecentMs": null,
+        "queueDelaySamples": 0,
+        "queueDelayTotalMs": 0,
+        "queueDepth": 0,
+        "queueFullCount": 0,
+        "queueTimeoutCount": 0,
+        "queuedByClass": {
+          "background": 0,
+          "foreground_interactive": 0,
+          "foreground_task": 0
+        },
+        "totalAdmissions": 0,
+        "totalWaited": 0
+      },
+      {
+        "activeCalls": 0,
+        "countersSaturated": false,
+        "maxConcurrency": 2,
+        "providerId": "gemini",
+        "queueCapacity": 64,
+        "queueDelayRecentMs": null,
+        "queueDelaySamples": 0,
+        "queueDelayTotalMs": 0,
+        "queueDepth": 0,
+        "queueFullCount": 0,
+        "queueTimeoutCount": 0,
+        "queuedByClass": {
+          "background": 0,
+          "foreground_interactive": 0,
+          "foreground_task": 0
+        },
+        "totalAdmissions": 0,
+        "totalWaited": 0
+      },
+      {
+        "activeCalls": 0,
+        "countersSaturated": false,
+        "maxConcurrency": 2,
+        "providerId": "groq",
+        "queueCapacity": 64,
+        "queueDelayRecentMs": null,
+        "queueDelaySamples": 0,
+        "queueDelayTotalMs": 0,
+        "queueDepth": 0,
+        "queueFullCount": 0,
+        "queueTimeoutCount": 0,
+        "queuedByClass": {
+          "background": 0,
+          "foreground_interactive": 0,
+          "foreground_task": 0
+        },
+        "totalAdmissions": 0,
+        "totalWaited": 0
+      },
+      {
+        "activeCalls": 0,
+        "countersSaturated": false,
+        "maxConcurrency": 2,
+        "providerId": "mistral",
+        "queueCapacity": 64,
+        "queueDelayRecentMs": null,
+        "queueDelaySamples": 0,
+        "queueDelayTotalMs": 0,
+        "queueDepth": 0,
+        "queueFullCount": 0,
+        "queueTimeoutCount": 0,
+        "queuedByClass": {
+          "background": 0,
+          "foreground_interactive": 0,
+          "foreground_task": 0
+        },
+        "totalAdmissions": 0,
+        "totalWaited": 0
+      }
+    ],
+    "allocation_policy": null,
+    "automatic_summary_execution": false,
+    "conversation_policy": {
+      "contextMaxBytes": 32768,
+      "historyMaxBytes": 12288,
+      "historyMaxMessages": 8,
+      "maxOutputTokens": null,
+      "maxProviderCalls": 3,
+      "maxRetries": 1,
+      "retryBackoffMs": 1500,
+      "retryEnabled": true,
+      "role": "conversation",
+      "routingMode": "fixed",
+      "summaryInputMaxBytes": 32768,
+      "targets": [
+        {
+          "model": "openai/gpt-oss-20b",
+          "providerId": "groq",
+          "thinkingLevel": "medium"
+        }
+      ]
+    },
+    "credential_store_available": true,
+    "credential_store_error_code": null,
+    "permissions": [
+      {
+        "enabled": false,
+        "free_tier_confirmed": false,
+        "provider_id": "groq"
+      },
+      {
+        "enabled": false,
+        "free_tier_confirmed": false,
+        "provider_id": "gemini"
+      },
+      {
+        "enabled": false,
+        "free_tier_confirmed": false,
+        "provider_id": "cloudflare"
+      },
+      {
+        "enabled": false,
+        "free_tier_confirmed": false,
+        "provider_id": "mistral"
+      }
+    ],
+    "providers": [
+      {
+        "capabilities": {
+          "streaming": true,
+          "structuredOutput": false,
+          "textGeneration": true,
+          "toolCalling": false,
+          "vision": false
+        },
+        "configured": true,
+        "defaultModel": "@cf/zai-org/glm-4.7-flash",
+        "displayName": "Cloudflare Workers AI",
+        "enabled": false,
+        "id": "cloudflare",
+        "local_state": "free_account_confirmation_required",
+        "registered": true,
+        "supportedThinkingLevels": []
+      },
+      {
+        "capabilities": {
+          "streaming": true,
+          "structuredOutput": false,
+          "textGeneration": true,
+          "toolCalling": false,
+          "vision": false
+        },
+        "configured": true,
+        "defaultModel": "gemini-3.8-flash",
+        "displayName": "Gemini",
+        "enabled": false,
+        "id": "gemini",
+        "local_state": "free_account_confirmation_required",
+        "registered": true,
+        "supportedThinkingLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "capabilities": {
+          "streaming": true,
+          "structuredOutput": true,
+          "textGeneration": true,
+          "toolCalling": false,
+          "vision": false
+        },
+        "configured": true,
+        "defaultModel": "openai/gpt-oss-20b",
+        "displayName": "Groq",
+        "enabled": false,
+        "id": "groq",
+        "local_state": "free_account_confirmation_required",
+        "registered": true,
+        "supportedThinkingLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      {
+        "capabilities": {
+          "streaming": true,
+          "structuredOutput": false,
+          "textGeneration": true,
+          "toolCalling": false,
+          "vision": false
+        },
+        "configured": true,
+        "defaultModel": "mistral-small-2603",
+        "displayName": "Mistral",
+        "enabled": false,
+        "id": "mistral",
+        "local_state": "free_account_confirmation_required",
+        "registered": true,
+        "supportedThinkingLevels": [
+          "low",
+          "medium",
+          "high"
+        ]
+      }
+    ],
+    "rate": [
+      {
+        "capturedAtUnixMs": 1791660197256,
+        "constraints": [],
+        "contextGeneration": 0,
+        "localBlocks": 0,
+        "pendingReservations": 0,
+        "persistenceFailed": false,
+        "policy": {
+          "dailyBudget": null,
+          "limits": []
+        },
+        "providerId": "cloudflare",
+        "saturated": false
+      },
+      {
+        "capturedAtUnixMs": 1791660197256,
+        "constraints": [],
+        "contextGeneration": 0,
+        "localBlocks": 0,
+        "pendingReservations": 0,
+        "persistenceFailed": false,
+        "policy": {
+          "dailyBudget": null,
+          "limits": []
+        },
+        "providerId": "gemini",
+        "saturated": false
+      },
+      {
+        "capturedAtUnixMs": 1791660197256,
+        "constraints": [],
+        "contextGeneration": 0,
+        "localBlocks": 0,
+        "pendingReservations": 0,
+        "persistenceFailed": false,
+        "policy": {
+          "dailyBudget": null,
+          "limits": []
+        },
+        "providerId": "groq",
+        "saturated": false
+      },
+      {
+        "capturedAtUnixMs": 1791660197256,
+        "constraints": [],
+        "contextGeneration": 0,
+        "localBlocks": 0,
+        "pendingReservations": 0,
+        "persistenceFailed": false,
+        "policy": {
+          "dailyBudget": null,
+          "limits": []
+        },
+        "providerId": "mistral",
+        "saturated": false
+      }
+    ],
+    "resilience": [
+      {
+        "breakerOpenCount": 0,
+        "circuitState": "closed",
+        "configuredThreshold": 3,
+        "consecutiveEligibleFailures": 0,
+        "cooldownRemainingMs": 0,
+        "halfOpenCount": 0,
+        "halfOpenMaxProbes": 1,
+        "halfOpenProbesActive": 0,
+        "lastTransitionReason": null,
+        "openRemainingMs": 0,
+        "providerId": "cloudflare",
+        "recoveryCount": 0,
+        "saturated": false,
+        "transitionCount": 0
+      },
+      {
+        "breakerOpenCount": 0,
+        "circuitState": "closed",
+        "configuredThreshold": 3,
+        "consecutiveEligibleFailures": 0,
+        "cooldownRemainingMs": 0,
+        "halfOpenCount": 0,
+        "halfOpenMaxProbes": 1,
+        "halfOpenProbesActive": 0,
+        "lastTransitionReason": null,
+        "openRemainingMs": 0,
+        "providerId": "gemini",
+        "recoveryCount": 0,
+        "saturated": false,
+        "transitionCount": 0
+      },
+      {
+        "breakerOpenCount": 0,
+        "circuitState": "closed",
+        "configuredThreshold": 3,
+        "consecutiveEligibleFailures": 0,
+        "cooldownRemainingMs": 0,
+        "halfOpenCount": 0,
+        "halfOpenMaxProbes": 1,
+        "halfOpenProbesActive": 0,
+        "lastTransitionReason": null,
+        "openRemainingMs": 0,
+        "providerId": "groq",
+        "recoveryCount": 0,
+        "saturated": false,
+        "transitionCount": 0
+      },
+      {
+        "breakerOpenCount": 0,
+        "circuitState": "closed",
+        "configuredThreshold": 3,
+        "consecutiveEligibleFailures": 0,
+        "cooldownRemainingMs": 0,
+        "halfOpenCount": 0,
+        "halfOpenMaxProbes": 1,
+        "halfOpenProbesActive": 0,
+        "lastTransitionReason": null,
+        "openRemainingMs": 0,
+        "providerId": "mistral",
+        "recoveryCount": 0,
+        "saturated": false,
+        "transitionCount": 0
+      }
+    ],
+    "telemetry": [
+      {
+        "capturedAtUnixMs": 1791660197256,
+        "contextGeneration": 0,
+        "lastOutcome": {
+          "state": "unknown"
+        },
+        "providerId": "cloudflare",
+        "quotas": [
+          {
+            "dimensions": {
+              "concurrency": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "requests_per_day": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "requests_per_minute": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "tokens_per_day": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "tokens_per_minute": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              }
+            },
+            "scope": {
+              "kind": "provider"
+            }
+          }
+        ],
+        "retryHint": {
+          "state": "unknown"
+        },
+        "updatedAgeMs": null,
+        "usage": {
+          "input_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "output_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "requests": {
+            "observed": {
+              "observedAtUnixMs": 1791660177892,
+              "provenance": "local_runtime",
+              "state": "known",
+              "value": 0
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "thought_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "total_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          }
+        }
+      },
+      {
+        "capturedAtUnixMs": 1791660197256,
+        "contextGeneration": 0,
+        "lastOutcome": {
+          "state": "unknown"
+        },
+        "providerId": "gemini",
+        "quotas": [
+          {
+            "dimensions": {
+              "concurrency": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "requests_per_day": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "requests_per_minute": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "tokens_per_day": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "tokens_per_minute": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              }
+            },
+            "scope": {
+              "kind": "provider"
+            }
+          }
+        ],
+        "retryHint": {
+          "state": "unknown"
+        },
+        "updatedAgeMs": null,
+        "usage": {
+          "input_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "output_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "requests": {
+            "observed": {
+              "observedAtUnixMs": 1791660177892,
+              "provenance": "local_runtime",
+              "state": "known",
+              "value": 0
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "thought_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "total_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          }
+        }
+      },
+      {
+        "capturedAtUnixMs": 1791660197256,
+        "contextGeneration": 0,
+        "lastOutcome": {
+          "state": "unknown"
+        },
+        "providerId": "groq",
+        "quotas": [
+          {
+            "dimensions": {
+              "concurrency": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "requests_per_day": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "requests_per_minute": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "tokens_per_day": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "tokens_per_minute": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              }
+            },
+            "scope": {
+              "kind": "provider"
+            }
+          }
+        ],
+        "retryHint": {
+          "state": "unknown"
+        },
+        "updatedAgeMs": null,
+        "usage": {
+          "input_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "output_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "requests": {
+            "observed": {
+              "observedAtUnixMs": 1791660177892,
+              "provenance": "local_runtime",
+              "state": "known",
+              "value": 0
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "thought_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "total_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          }
+        }
+      },
+      {
+        "capturedAtUnixMs": 1791660197256,
+        "contextGeneration": 0,
+        "lastOutcome": {
+          "state": "unknown"
+        },
+        "providerId": "mistral",
+        "quotas": [
+          {
+            "dimensions": {
+              "concurrency": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "requests_per_day": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "requests_per_minute": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "tokens_per_day": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              },
+              "tokens_per_minute": {
+                "limit": {
+                  "state": "unknown"
+                },
+                "remaining": {
+                  "state": "unknown"
+                },
+                "reset": {
+                  "state": "unknown"
+                }
+              }
+            },
+            "scope": {
+              "kind": "provider"
+            }
+          }
+        ],
+        "retryHint": {
+          "state": "unknown"
+        },
+        "updatedAgeMs": null,
+        "usage": {
+          "input_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "output_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "requests": {
+            "observed": {
+              "observedAtUnixMs": 1791660177892,
+              "provenance": "local_runtime",
+              "state": "known",
+              "value": 0
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "thought_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          },
+          "total_tokens": {
+            "observed": {
+              "state": "unknown"
+            },
+            "reportingRequests": 0,
+            "saturated": false
+          }
+        }
+      }
+    ]
+  },
+  "ok": true,
+  "request_id": "cli-58170",
+  "version": 1
+}

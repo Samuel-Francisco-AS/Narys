@@ -1,0 +1,14 @@
+{
+  "since": "2026-10-10T18:02:00-03:00",
+  "entries": 44,
+  "sources": {
+    "narys-core": 33,
+    "systemd": 11
+  },
+  "core_entries": 33,
+  "core_fixed_or_numeric_timing_only": true,
+  "unknown_core_entry_count": 0,
+  "potential_secret_signature_count": 0,
+  "raw_log_exported": false,
+  "limit": "observed Core entries checked against fixed code labels/numeric timings; signature scan is not proof against every possible secret"
+}

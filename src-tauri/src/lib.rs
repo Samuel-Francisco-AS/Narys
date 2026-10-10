@@ -34,6 +34,10 @@ pub fn run() {
         .manage(execution::human::HumanTerminal::process_wide())
         .manage(terminal_surface::SurfaceHub::default());
     let builder = builder.setup(|app| {
+            #[cfg(not(feature = "perf1c-probe"))]
+            if std::env::var_os("HOME").is_some_and(|home| std::path::PathBuf::from(home).join(".local/state/narys/core/db/luna.sqlite3").exists()) {
+                return Err("desktop_runtime_retired_use_core_ipc".into());
+            }
             #[cfg(debug_assertions)]
             app.add_capability(include_str!("../debug-diagnostics.json"))?;
             let directory = app.path().app_local_data_dir()?;

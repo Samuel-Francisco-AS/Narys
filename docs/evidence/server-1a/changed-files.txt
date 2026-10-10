@@ -1,0 +1,212 @@
+M	README.md
+M	docs/NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md
+A	docs/NARYS-SERVER-1A-REPORT.md
+A	docs/evidence/server-1a/core-dependencies.txt
+A	docs/evidence/server-1a/core-tests.txt
+A	docs/evidence/server-1a/desktop-event-tests.txt
+A	docs/evidence/server-1a/desktop-presentation-tests.txt
+A	docs/evidence/server-1a/desktop-release-check.txt
+A	docs/evidence/server-1a/desktop-session-tests.txt
+A	docs/evidence/server-1a/domain-tests.txt
+A	docs/evidence/server-1a/existing-secret-reader-tests.txt
+A	docs/evidence/server-1a/host-final.json
+A	docs/evidence/server-1a/host-first-start.json
+A	docs/evidence/server-1a/host-restart.json
+A	docs/evidence/server-1a/idle-final.json
+A	docs/evidence/server-1a/idle-sample.json
+A	docs/evidence/server-1a/pre-update.json
+A	docs/evidence/server-1a/python-tests.txt
+M	narys-core/Cargo.lock
+M	narys-core/Cargo.toml
+A	narys-core/IPC.md
+M	narys-core/README.md
+M	narys-core/ops/narys-core.service
+A	narys-core/ops/server_1a_audit.py
+M	narys-core/ops/update_user.py
+D	narys-core/src/agents/mod.rs
+D	narys-core/src/cognition/mod.rs
+A	narys-core/src/ipc.rs
+M	narys-core/src/lib.rs
+M	narys-core/src/main.rs
+D	narys-core/src/operational_trace/mod.rs
+D	narys-core/src/persistence/mod.rs
+M	narys-core/src/policy.rs
+A	narys-core/src/runtime.rs
+M	narys-core/src/server.rs
+A	narys-core/src/storage.rs
+A	narys-core/tests/protocol.rs
+A	narys-domain/Cargo.lock
+A	narys-domain/Cargo.toml
+A	narys-domain/README.md
+R100	src-tauri/migrations/001_initial_persistence.sql	narys-domain/migrations/001_initial_persistence.sql
+R100	src-tauri/migrations/002_conversation_history.sql	narys-domain/migrations/002_conversation_history.sql
+R100	src-tauri/migrations/003_cognitive_role_policy.sql	narys-domain/migrations/003_cognitive_role_policy.sql
+R100	src-tauri/migrations/004_cognitive_retry_and_general_settings.sql	narys-domain/migrations/004_cognitive_retry_and_general_settings.sql
+R100	src-tauri/migrations/005_gemini_provider_timeouts.sql	narys-domain/migrations/005_gemini_provider_timeouts.sql
+R100	src-tauri/migrations/006_cognitive_routing.sql	narys-domain/migrations/006_cognitive_routing.sql
+R100	src-tauri/migrations/007_provider_timeouts.sql	narys-domain/migrations/007_provider_timeouts.sql
+R100	src-tauri/migrations/008_orchestrator_role.sql	narys-domain/migrations/008_orchestrator_role.sql
+R100	src-tauri/migrations/009_cognitive_role_targets.sql	narys-domain/migrations/009_cognitive_role_targets.sql
+R100	src-tauri/migrations/010_provider_timeout_defaults.sql	narys-domain/migrations/010_provider_timeout_defaults.sql
+R100	src-tauri/migrations/011_worker_role_and_task_graph.sql	narys-domain/migrations/011_worker_role_and_task_graph.sql
+R100	src-tauri/migrations/012_cognitive_rate_state.sql	narys-domain/migrations/012_cognitive_rate_state.sql
+R100	src-tauri/migrations/013_cognitive_allocation_policy.sql	narys-domain/migrations/013_cognitive_allocation_policy.sql
+R100	src-tauri/migrations/014_cognitive_checkpoints.sql	narys-domain/migrations/014_cognitive_checkpoints.sql
+R100	src-tauri/migrations/015_cognitive_continuations.sql	narys-domain/migrations/015_cognitive_continuations.sql
+R100	src-tauri/migrations/016_cognitive_cancel_request.sql	narys-domain/migrations/016_cognitive_cancel_request.sql
+R100	src-tauri/migrations/017_economy_shell.sql	narys-domain/migrations/017_economy_shell.sql
+R100	src-tauri/migrations/018_presentation_policy.sql	narys-domain/migrations/018_presentation_policy.sql
+A	narys-domain/migrations/019_server_runtime.sql
+R095	src-tauri/src/agents/backend.rs	narys-domain/src/agents/backend.rs
+A	narys-domain/src/agents/codex/app_server.rs
+A	narys-domain/src/agents/codex/backend.rs
+A	narys-domain/src/agents/codex/lifecycle_tests.rs
+A	narys-domain/src/agents/codex/mod.rs
+A	narys-domain/src/agents/codex/status.rs
+A	narys-domain/src/agents/mod.rs
+R100	src-tauri/src/agents/plan_contract.rs	narys-domain/src/agents/plan_contract.rs
+R100	src-tauri/src/agents/planner.rs	narys-domain/src/agents/planner.rs
+R100	src-tauri/src/agents/registry.rs	narys-domain/src/agents/registry.rs
+R100	src-tauri/src/agents/registry_storage.rs	narys-domain/src/agents/registry_storage.rs
+R091	src-tauri/src/agents/trace.rs	narys-domain/src/agents/trace.rs
+R100	src-tauri/src/agents/types.rs	narys-domain/src/agents/types.rs
+A	narys-domain/src/channel.rs
+R100	src-tauri/src/cognition/admission.rs	narys-domain/src/cognition/admission.rs
+R100	src-tauri/src/cognition/admission_tests.rs	narys-domain/src/cognition/admission_tests.rs
+R099	src-tauri/src/cognition/allocation_policy.rs	narys-domain/src/cognition/allocation_policy.rs
+R100	src-tauri/src/cognition/allocation_policy/runtime_tests.rs	narys-domain/src/cognition/allocation_policy/runtime_tests.rs
+R099	src-tauri/src/cognition/allocation_policy/tests.rs	narys-domain/src/cognition/allocation_policy/tests.rs
+R100	src-tauri/src/cognition/bounded_json.rs	narys-domain/src/cognition/bounded_json.rs
+R100	src-tauri/src/cognition/catalog.rs	narys-domain/src/cognition/catalog.rs
+R098	src-tauri/src/cognition/cloudflare.rs	narys-domain/src/cognition/cloudflare.rs
+R100	src-tauri/src/cognition/context.rs	narys-domain/src/cognition/context.rs
+R098	src-tauri/src/cognition/fix5_tests.rs	narys-domain/src/cognition/fix5_tests.rs
+R098	src-tauri/src/cognition/gemini.rs	narys-domain/src/cognition/gemini.rs
+R099	src-tauri/src/cognition/groq.rs	narys-domain/src/cognition/groq.rs
+R100	src-tauri/src/cognition/lr8e_gate_tests.rs	narys-domain/src/cognition/lr8e_gate_tests.rs
+R098	src-tauri/src/cognition/mistral.rs	narys-domain/src/cognition/mistral.rs
+R100	src-tauri/src/cognition/mock.rs	narys-domain/src/cognition/mock.rs
+A	narys-domain/src/cognition/mod.rs
+R100	src-tauri/src/cognition/operational.rs	narys-domain/src/cognition/operational.rs
+R097	src-tauri/src/cognition/operational_tests.rs	narys-domain/src/cognition/operational_tests.rs
+R098	src-tauri/src/cognition/orchestrator.rs	narys-domain/src/cognition/orchestrator.rs
+R099	src-tauri/src/cognition/policy.rs	narys-domain/src/cognition/policy.rs
+R100	src-tauri/src/cognition/provider.rs	narys-domain/src/cognition/provider.rs
+R100	src-tauri/src/cognition/rate.rs	narys-domain/src/cognition/rate.rs
+R100	src-tauri/src/cognition/rate_tests.rs	narys-domain/src/cognition/rate_tests.rs
+R100	src-tauri/src/cognition/registry.rs	narys-domain/src/cognition/registry.rs
+R100	src-tauri/src/cognition/resilience.rs	narys-domain/src/cognition/resilience.rs
+R100	src-tauri/src/cognition/resilience_tests.rs	narys-domain/src/cognition/resilience_tests.rs
+R099	src-tauri/src/cognition/scheduler.rs	narys-domain/src/cognition/scheduler.rs
+R100	src-tauri/src/cognition/scheduler_usage.rs	narys-domain/src/cognition/scheduler_usage.rs
+A	narys-domain/src/cognition/sessions.rs
+R099	src-tauri/src/cognition/smart_routing_tests.rs	narys-domain/src/cognition/smart_routing_tests.rs
+R098	src-tauri/src/cognition/summary.rs	narys-domain/src/cognition/summary.rs
+R100	src-tauri/src/cognition/task_graph.rs	narys-domain/src/cognition/task_graph.rs
+R098	src-tauri/src/cognition/task_graph_handoff.rs	narys-domain/src/cognition/task_graph_handoff.rs
+R100	src-tauri/src/cognition/task_graph_handoff/tests.rs	narys-domain/src/cognition/task_graph_handoff/tests.rs
+R099	src-tauri/src/cognition/task_graph_runtime.rs	narys-domain/src/cognition/task_graph_runtime.rs
+R099	src-tauri/src/cognition/task_graph_runtime/c3_tests.rs	narys-domain/src/cognition/task_graph_runtime/c3_tests.rs
+R099	src-tauri/src/cognition/task_graph_runtime/c4_tests.rs	narys-domain/src/cognition/task_graph_runtime/c4_tests.rs
+R099	src-tauri/src/cognition/task_graph_runtime/c4_tests/cancellation_fix2_tests.rs	narys-domain/src/cognition/task_graph_runtime/c4_tests/cancellation_fix2_tests.rs
+R099	src-tauri/src/cognition/task_graph_runtime/c4_tests/storage_tests.rs	narys-domain/src/cognition/task_graph_runtime/c4_tests/storage_tests.rs
+R099	src-tauri/src/cognition/task_graph_runtime/c4_tests/terminal_fix1_tests.rs	narys-domain/src/cognition/task_graph_runtime/c4_tests/terminal_fix1_tests.rs
+R099	src-tauri/src/cognition/task_graph_runtime_tests.rs	narys-domain/src/cognition/task_graph_runtime_tests.rs
+R099	src-tauri/src/cognition/task_graph_worker.rs	narys-domain/src/cognition/task_graph_worker.rs
+R100	src-tauri/src/cognition/telemetry.rs	narys-domain/src/cognition/telemetry.rs
+R099	src-tauri/src/cognition/telemetry_tests.rs	narys-domain/src/cognition/telemetry_tests.rs
+R095	src-tauri/src/cognition/tests.rs	narys-domain/src/cognition/tests.rs
+R100	src-tauri/src/cognition/transport.rs	narys-domain/src/cognition/transport.rs
+R100	src-tauri/src/cognition/types.rs	narys-domain/src/cognition/types.rs
+R100	src-tauri/src/cognitive_resources/allocation.rs	narys-domain/src/cognitive_resources/allocation.rs
+R100	src-tauri/src/cognitive_resources/allocation_tests.rs	narys-domain/src/cognitive_resources/allocation_tests.rs
+R100	src-tauri/src/cognitive_resources/capabilities.rs	narys-domain/src/cognitive_resources/capabilities.rs
+R100	src-tauri/src/cognitive_resources/catalog.rs	narys-domain/src/cognitive_resources/catalog.rs
+R100	src-tauri/src/cognitive_resources/economic_context.rs	narys-domain/src/cognitive_resources/economic_context.rs
+R100	src-tauri/src/cognitive_resources/economics.rs	narys-domain/src/cognitive_resources/economics.rs
+R100	src-tauri/src/cognitive_resources/facts.rs	narys-domain/src/cognitive_resources/facts.rs
+R100	src-tauri/src/cognitive_resources/fix1_tests.rs	narys-domain/src/cognitive_resources/fix1_tests.rs
+R100	src-tauri/src/cognitive_resources/fix2_tests.rs	narys-domain/src/cognitive_resources/fix2_tests.rs
+R100	src-tauri/src/cognitive_resources/fix3_tests.rs	narys-domain/src/cognitive_resources/fix3_tests.rs
+R100	src-tauri/src/cognitive_resources/handoff.rs	narys-domain/src/cognitive_resources/handoff.rs
+R100	src-tauri/src/cognitive_resources/handoff_tests.rs	narys-domain/src/cognitive_resources/handoff_tests.rs
+R100	src-tauri/src/cognitive_resources/ids.rs	narys-domain/src/cognitive_resources/ids.rs
+R100	src-tauri/src/cognitive_resources/lr8.rs	narys-domain/src/cognitive_resources/lr8.rs
+A	narys-domain/src/cognitive_resources/mod.rs
+R100	src-tauri/src/cognitive_resources/provider_bridge.rs	narys-domain/src/cognitive_resources/provider_bridge.rs
+R100	src-tauri/src/cognitive_resources/provider_bridge_tests.rs	narys-domain/src/cognitive_resources/provider_bridge_tests.rs
+R100	src-tauri/src/cognitive_resources/scarcity.rs	narys-domain/src/cognitive_resources/scarcity.rs
+R100	src-tauri/src/cognitive_resources/scoring.rs	narys-domain/src/cognitive_resources/scoring.rs
+R100	src-tauri/src/cognitive_resources/scoring_tests.rs	narys-domain/src/cognitive_resources/scoring_tests.rs
+R100	src-tauri/src/cognitive_resources/spend.rs	narys-domain/src/cognitive_resources/spend.rs
+R100	src-tauri/src/cognitive_resources/tests.rs	narys-domain/src/cognitive_resources/tests.rs
+R100	src-tauri/src/cognitive_resources/types.rs	narys-domain/src/cognitive_resources/types.rs
+R097	src-tauri/src/execution/broker.rs	narys-domain/src/execution/broker.rs
+R098	src-tauri/src/execution/contract.rs	narys-domain/src/execution/contract.rs
+R094	src-tauri/src/execution/human.rs	narys-domain/src/execution/human.rs
+A	narys-domain/src/execution/mod.rs
+R100	src-tauri/src/execution/os.rs	narys-domain/src/execution/os.rs
+R099	src-tauri/src/execution/pty.rs	narys-domain/src/execution/pty.rs
+R099	src-tauri/src/execution/tests.rs	narys-domain/src/execution/tests.rs
+A	narys-domain/src/lib.rs
+R099	src-tauri/src/luna/conversation_preflight_tests.rs	narys-domain/src/luna/conversation_preflight_tests.rs
+R098	src-tauri/src/luna/events.rs	narys-domain/src/luna/events.rs
+A	narys-domain/src/luna/mod.rs
+R097	src-tauri/src/luna/runtime.rs	narys-domain/src/luna/runtime.rs
+R100	src-tauri/src/luna/task.rs	narys-domain/src/luna/task.rs
+R100	src-tauri/src/luna/task_id.rs	narys-domain/src/luna/task_id.rs
+R097	src-tauri/src/operational_trace/adapters/agent.rs	narys-domain/src/operational_trace/adapters/agent.rs
+R092	src-tauri/src/operational_trace/adapters/mod.rs	narys-domain/src/operational_trace/adapters/mod.rs
+R098	src-tauri/src/operational_trace/adapters/scheduler.rs	narys-domain/src/operational_trace/adapters/scheduler.rs
+R098	src-tauri/src/operational_trace/adapters/task.rs	narys-domain/src/operational_trace/adapters/task.rs
+R099	src-tauri/src/operational_trace/adapters/tests.rs	narys-domain/src/operational_trace/adapters/tests.rs
+R098	src-tauri/src/operational_trace/bus.rs	narys-domain/src/operational_trace/bus.rs
+R100	src-tauri/src/operational_trace/coalesce.rs	narys-domain/src/operational_trace/coalesce.rs
+R100	src-tauri/src/operational_trace/contract.rs	narys-domain/src/operational_trace/contract.rs
+R100	src-tauri/src/operational_trace/invariants.rs	narys-domain/src/operational_trace/invariants.rs
+A	narys-domain/src/operational_trace/mod.rs
+R100	src-tauri/src/operational_trace/tests.rs	narys-domain/src/operational_trace/tests.rs
+R100	src-tauri/src/persistence/checkpoints.rs	narys-domain/src/persistence/checkpoints.rs
+R100	src-tauri/src/persistence/checkpoints/contracts.rs	narys-domain/src/persistence/checkpoints/contracts.rs
+R099	src-tauri/src/persistence/checkpoints/tests.rs	narys-domain/src/persistence/checkpoints/tests.rs
+R099	src-tauri/src/persistence/continuations.rs	narys-domain/src/persistence/continuations.rs
+R100	src-tauri/src/persistence/conversation.rs	narys-domain/src/persistence/conversation.rs
+A	narys-domain/src/persistence/database.rs
+R100	src-tauri/src/persistence/gemini_settings.rs	narys-domain/src/persistence/gemini_settings.rs
+R100	src-tauri/src/persistence/general_settings.rs	narys-domain/src/persistence/general_settings.rs
+R100	src-tauri/src/persistence/identity.rs	narys-domain/src/persistence/identity.rs
+R100	src-tauri/src/persistence/memory.rs	narys-domain/src/persistence/memory.rs
+R094	src-tauri/src/persistence/migrations.rs	narys-domain/src/persistence/migrations.rs
+A	narys-domain/src/persistence/mod.rs
+A	narys-domain/src/persistence/ownership.rs
+R100	src-tauri/src/persistence/provider_timeouts.rs	narys-domain/src/persistence/provider_timeouts.rs
+R089	src-tauri/src/persistence/shell_settings.rs	narys-domain/src/persistence/shell_settings.rs
+R099	src-tauri/src/persistence/task_history.rs	narys-domain/src/persistence/task_history.rs
+R099	src-tauri/src/persistence/tests.rs	narys-domain/src/persistence/tests.rs
+A	narys-domain/src/runtime.rs
+R100	src-tauri/src/security/audit.rs	narys-domain/src/security/audit.rs
+A	narys-domain/src/security/mod.rs
+R090	src-tauri/src/security/secrets.rs	narys-domain/src/security/secrets.rs
+A	narys-domain/src/security/snapshot.rs
+R100	src-tauri/src/security/validation.rs	narys-domain/src/security/validation.rs
+M	src-tauri/Cargo.lock
+M	src-tauri/Cargo.toml
+M	src-tauri/src/adaptive.rs
+M	src-tauri/src/adaptive_tests.rs
+M	src-tauri/src/agents/codex/app_server.rs
+M	src-tauri/src/agents/codex/backend.rs
+M	src-tauri/src/agents/codex/lifecycle_tests.rs
+M	src-tauri/src/agents/codex/mod.rs
+M	src-tauri/src/agents/codex/status.rs
+M	src-tauri/src/agents/mod.rs
+M	src-tauri/src/cognition/gemini_commands.rs
+M	src-tauri/src/cognition/mod.rs
+M	src-tauri/src/cognitive_resources/mod.rs
+M	src-tauri/src/execution/mod.rs
+M	src-tauri/src/lib.rs
+M	src-tauri/src/luna/mod.rs
+M	src-tauri/src/operational_trace/mod.rs
+D	src-tauri/src/persistence/database.rs
+M	src-tauri/src/persistence/mod.rs
+M	src-tauri/src/security/mod.rs
+M	src-tauri/src/terminal_surface/tests.rs

@@ -1,0 +1,11 @@
+{
+  "data": {
+    "existing_snapshot_opened": true,
+    "migration": false,
+    "secret_values_returned": false,
+    "writes": false
+  },
+  "ok": true,
+  "request_id": "cli-58441",
+  "version": 1
+}

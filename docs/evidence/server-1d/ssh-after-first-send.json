@@ -1,0 +1,55 @@
+{
+  "observed_at": "2026-10-10T18:33:08.699572-03:00",
+  "sessions": [
+    {
+      "session_id": "1",
+      "properties": [
+        "User=1000",
+        "Timestamp=Sat 2026-10-10 18:18:44 -03",
+        "TimestampMonotonic=18837857",
+        "TTY=",
+        "Remote=no",
+        "Service=systemd-user",
+        "Leader=1340"
+      ]
+    },
+    {
+      "session_id": "3",
+      "properties": [
+        "User=1000",
+        "Timestamp=Sat 2026-10-10 18:23:56 -03",
+        "TimestampMonotonic=331307354",
+        "TTY=pts/1",
+        "Remote=yes",
+        "Service=sshd",
+        "Leader=1531"
+      ]
+    },
+    {
+      "session_id": "4",
+      "properties": [
+        "User=1000",
+        "Timestamp=Sat 2026-10-10 18:32:26 -03",
+        "TimestampMonotonic=841465080",
+        "TTY=pts/0",
+        "Remote=yes",
+        "Service=sshd",
+        "Leader=2312"
+      ]
+    }
+  ],
+  "logind_session_lifecycle": [
+    {
+      "message": "Session 2 logged out. Waiting for processes to exit.",
+      "realtime_timestamp_us": "1791667937667039",
+      "monotonic_timestamp_us": "832442268"
+    },
+    {
+      "message": "Removed session 2.",
+      "realtime_timestamp_us": "1791667937669941",
+      "monotonic_timestamp_us": "832445169"
+    }
+  ],
+  "raw_journal_exported": false,
+  "logind_journal_exit_code": 0
+}

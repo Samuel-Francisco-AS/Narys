@@ -1,0 +1,544 @@
+{
+  "started_at": "2026-10-10T16:23:23.213066-03:00",
+  "finished_at": "2026-10-10T16:23:46.690846-03:00",
+  "account_confirmation": "operator confirmed Groq Free, quota available, no overage",
+  "permission": {
+    "account_verified_by": "operator",
+    "enabled": true,
+    "free_tier_confirmed": true,
+    "overage_enabled_by_core": false,
+    "provider_id": "groq"
+  },
+  "session_id": 38,
+  "marker": "SERVER1B-479acc90",
+  "first_request": "Guarde nesta conversa o marcador SERVER1B-479acc90. Responda brevemente com o marcador e com o resultado de 17 + 26.",
+  "first_receipt": {
+    "disconnect_cancels": false,
+    "durable": true,
+    "namespace": "product",
+    "restart_replay": false,
+    "session_id": 38,
+    "state": "pending",
+    "task_id": 189
+  },
+  "first_result": {
+    "error_code": null,
+    "finished_at": "2026-10-10T19:23:30.812822642+00:00",
+    "kind": "conversation",
+    "namespace": "product",
+    "policy": {
+      "contextMaxBytes": 32768,
+      "historyMaxBytes": 12288,
+      "historyMaxMessages": 8,
+      "maxOutputTokens": 512,
+      "maxProviderCalls": 1,
+      "maxRetries": 0,
+      "retryBackoffMs": 1500,
+      "retryEnabled": false,
+      "role": "conversation",
+      "routingMode": "fixed",
+      "summaryInputMaxBytes": 32768,
+      "targets": [
+        {
+          "model": "openai/gpt-oss-20b",
+          "providerId": "groq",
+          "thinkingLevel": "medium"
+        }
+      ]
+    },
+    "restart_replay": false,
+    "result": {
+      "contextMetadata": {
+        "identityVersion": "continuity-bootstrap-2026-09-26",
+        "memoryCount": 0,
+        "recentMessageCount": 0
+      },
+      "providerId": "groq",
+      "text": "SERVER1B-479acc90 43",
+      "usage": {
+        "fallbacks": 0,
+        "inputTokens": 236,
+        "outputTokens": 225,
+        "outputTokensAccounted": 225,
+        "outputTokensMeasured": true,
+        "providerCalls": 1,
+        "providersUsed": [
+          "groq"
+        ],
+        "retries": 0,
+        "thoughtTokens": null,
+        "totalTokens": 461
+      }
+    },
+    "session_id": 38,
+    "started_at": "2026-10-10T19:23:26.491Z",
+    "state": "completed",
+    "task_id": 189
+  },
+  "restart": {
+    "pid_before": 58145,
+    "pid_after": 58294,
+    "task_equal": true,
+    "session_equal": true,
+    "no_replay": true
+  },
+  "followup_request": "Qual marcador de continuidade eu registrei nesta sessão e qual foi o resultado da soma? Responda brevemente.",
+  "second_receipt": {
+    "disconnect_cancels": false,
+    "durable": true,
+    "namespace": "product",
+    "restart_replay": false,
+    "session_id": 38,
+    "state": "pending",
+    "task_id": 190
+  },
+  "second_result": {
+    "error_code": null,
+    "finished_at": "2026-10-10T19:23:34.825760989+00:00",
+    "kind": "conversation",
+    "namespace": "product",
+    "policy": {
+      "contextMaxBytes": 32768,
+      "historyMaxBytes": 12288,
+      "historyMaxMessages": 8,
+      "maxOutputTokens": 512,
+      "maxProviderCalls": 1,
+      "maxRetries": 0,
+      "retryBackoffMs": 1500,
+      "retryEnabled": false,
+      "role": "conversation",
+      "routingMode": "fixed",
+      "summaryInputMaxBytes": 32768,
+      "targets": [
+        {
+          "model": "openai/gpt-oss-20b",
+          "providerId": "groq",
+          "thinkingLevel": "medium"
+        }
+      ]
+    },
+    "restart_replay": false,
+    "result": {
+      "contextMetadata": {
+        "identityVersion": "continuity-bootstrap-2026-09-26",
+        "memoryCount": 0,
+        "recentMessageCount": 0
+      },
+      "providerId": "groq",
+      "text": "**Marcador registrado:** SERVER1B-479acc90  \n**Resultado da soma:** 43",
+      "usage": {
+        "fallbacks": 0,
+        "inputTokens": 278,
+        "outputTokens": 56,
+        "outputTokensAccounted": 56,
+        "outputTokensMeasured": true,
+        "providerCalls": 1,
+        "providersUsed": [
+          "groq"
+        ],
+        "retries": 0,
+        "thoughtTokens": null,
+        "totalTokens": 334
+      }
+    },
+    "session_id": 38,
+    "started_at": "2026-10-10T19:23:31.004Z",
+    "state": "completed",
+    "task_id": 190
+  },
+  "cancel_receipt": {
+    "disconnect_cancels": false,
+    "durable": true,
+    "namespace": "product",
+    "restart_replay": false,
+    "session_id": 38,
+    "state": "pending",
+    "task_id": 191
+  },
+  "cancel_response": {
+    "already_terminal": false,
+    "cancellation_requested": true,
+    "commit_in_progress": false,
+    "namespace": "product",
+    "state": "running",
+    "task_id": 191
+  },
+  "cancel_result": {
+    "error_code": null,
+    "finished_at": "2026-10-10T19:23:36.622470853+00:00",
+    "kind": "conversation",
+    "namespace": "product",
+    "policy": {
+      "contextMaxBytes": 32768,
+      "historyMaxBytes": 12288,
+      "historyMaxMessages": 8,
+      "maxOutputTokens": 512,
+      "maxProviderCalls": 1,
+      "maxRetries": 0,
+      "retryBackoffMs": 1500,
+      "retryEnabled": false,
+      "role": "conversation",
+      "routingMode": "fixed",
+      "summaryInputMaxBytes": 32768,
+      "targets": [
+        {
+          "model": "openai/gpt-oss-20b",
+          "providerId": "groq",
+          "thinkingLevel": "medium"
+        }
+      ]
+    },
+    "restart_replay": false,
+    "result": null,
+    "session_id": 38,
+    "started_at": "2026-10-10T19:23:34.933Z",
+    "state": "cancelled",
+    "task_id": 191
+  },
+  "final_session": {
+    "has_more": false,
+    "messages": [
+      {
+        "content": "Guarde nesta conversa o marcador SERVER1B-479acc90. Responda brevemente com o marcador e com o resultado de 17 + 26.",
+        "created_at": "2026-10-10T19:23:26.491Z",
+        "id": 95,
+        "role": "user"
+      },
+      {
+        "content": "SERVER1B-479acc90 43",
+        "created_at": "2026-10-10T19:23:30.812Z",
+        "id": 96,
+        "role": "assistant"
+      },
+      {
+        "content": "Qual marcador de continuidade eu registrei nesta sessão e qual foi o resultado da soma? Responda brevemente.",
+        "created_at": "2026-10-10T19:23:31.004Z",
+        "id": 97,
+        "role": "user"
+      },
+      {
+        "content": "**Marcador registrado:** SERVER1B-479acc90  \n**Resultado da soma:** 43",
+        "created_at": "2026-10-10T19:23:34.825Z",
+        "id": 98,
+        "role": "assistant"
+      },
+      {
+        "content": "Mensagem de validação de cancelamento SERVER-1B. Responda em uma frase.",
+        "created_at": "2026-10-10T19:23:34.933Z",
+        "id": 99,
+        "role": "user"
+      }
+    ],
+    "next_message": 99,
+    "session": {
+      "created_at": "2026-10-10T19:23:26.469Z",
+      "kind": "product",
+      "session_id": 38,
+      "status": "active",
+      "summary": null,
+      "summary_status": "none",
+      "title": null,
+      "updated_at": "2026-10-10T19:23:34.933Z"
+    }
+  },
+  "events": {
+    "complete": true,
+    "durable": true,
+    "events": [
+      {
+        "code": "ready",
+        "created_at": "2026-10-10T18:33:06.029Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 1,
+        "task_id": null
+      },
+      {
+        "code": "stopped",
+        "created_at": "2026-10-10T18:33:33.070Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 2,
+        "task_id": null
+      },
+      {
+        "code": "ready",
+        "created_at": "2026-10-10T18:33:33.119Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 3,
+        "task_id": null
+      },
+      {
+        "code": "stopped",
+        "created_at": "2026-10-10T18:38:16.556Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 4,
+        "task_id": null
+      },
+      {
+        "code": "ready",
+        "created_at": "2026-10-10T18:38:17.179Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 5,
+        "task_id": null
+      },
+      {
+        "code": "stopped",
+        "created_at": "2026-10-10T19:22:56.752Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 6,
+        "task_id": null
+      },
+      {
+        "code": "ready",
+        "created_at": "2026-10-10T19:22:57.898Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 7,
+        "task_id": null
+      },
+      {
+        "code": "provider_permission_changed",
+        "created_at": "2026-10-10T19:23:26.429Z",
+        "details": {
+          "enabled": true,
+          "free_tier_confirmed": true,
+          "provider_id": "groq"
+        },
+        "namespace": "product",
+        "sequence": 8,
+        "task_id": null
+      },
+      {
+        "code": "conversation_policy_changed",
+        "created_at": "2026-10-10T19:23:26.450Z",
+        "details": null,
+        "namespace": "product",
+        "sequence": 9,
+        "task_id": null
+      },
+      {
+        "code": "session_created",
+        "created_at": "2026-10-10T19:23:26.469Z",
+        "details": {
+          "session_id": 38
+        },
+        "namespace": "product",
+        "sequence": 10,
+        "task_id": null
+      },
+      {
+        "code": "conversation_admitted",
+        "created_at": "2026-10-10T19:23:26.491Z",
+        "details": {
+          "no_restart_replay": true,
+          "session_id": 38
+        },
+        "namespace": "product",
+        "sequence": 11,
+        "task_id": 189
+      },
+      {
+        "code": "task_started",
+        "created_at": "2026-10-10T19:23:26.505Z",
+        "details": null,
+        "namespace": "product",
+        "sequence": 12,
+        "task_id": 189
+      },
+      {
+        "code": "context_built",
+        "created_at": "2026-10-10T19:23:28.448Z",
+        "details": {
+          "memory_count": 0,
+          "recent_message_count": 0
+        },
+        "namespace": "product",
+        "sequence": 13,
+        "task_id": 189
+      },
+      {
+        "code": "provider_selected",
+        "created_at": "2026-10-10T19:23:28.472Z",
+        "details": {
+          "attempt": 1,
+          "model": "openai/gpt-oss-20b",
+          "provider_id": "groq",
+          "routing_reason": "fixed",
+          "score": null
+        },
+        "namespace": "product",
+        "sequence": 14,
+        "task_id": 189
+      },
+      {
+        "code": "provider_admitted",
+        "created_at": "2026-10-10T19:23:28.486Z",
+        "details": {
+          "provider_id": "groq",
+          "queue_delay_ms": 0,
+          "traffic_class": "foreground_interactive"
+        },
+        "namespace": "product",
+        "sequence": 15,
+        "task_id": 189
+      },
+      {
+        "code": "completed",
+        "created_at": "2026-10-10T19:23:30.813Z",
+        "details": {
+          "error_code": null,
+          "session_id": 38
+        },
+        "namespace": "product",
+        "sequence": 16,
+        "task_id": 189
+      },
+      {
+        "code": "stopped",
+        "created_at": "2026-10-10T19:23:30.862Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 17,
+        "task_id": null
+      },
+      {
+        "code": "ready",
+        "created_at": "2026-10-10T19:23:30.908Z",
+        "details": null,
+        "namespace": "runtime",
+        "sequence": 18,
+        "task_id": null
+      },
+      {
+        "code": "conversation_admitted",
+        "created_at": "2026-10-10T19:23:31.004Z",
+        "details": {
+          "no_restart_replay": true,
+          "session_id": 38
+        },
+        "namespace": "product",
+        "sequence": 19,
+        "task_id": 190
+      },
+      {
+        "code": "task_started",
+        "created_at": "2026-10-10T19:23:31.040Z",
+        "details": null,
+        "namespace": "product",
+        "sequence": 20,
+        "task_id": 190
+      },
+      {
+        "code": "context_built",
+        "created_at": "2026-10-10T19:23:32.776Z",
+        "details": {
+          "memory_count": 0,
+          "recent_message_count": 0
+        },
+        "namespace": "product",
+        "sequence": 21,
+        "task_id": 190
+      },
+      {
+        "code": "provider_selected",
+        "created_at": "2026-10-10T19:23:32.814Z",
+        "details": {
+          "attempt": 1,
+          "model": "openai/gpt-oss-20b",
+          "provider_id": "groq",
+          "routing_reason": "fixed",
+          "score": null
+        },
+        "namespace": "product",
+        "sequence": 22,
+        "task_id": 190
+      },
+      {
+        "code": "provider_admitted",
+        "created_at": "2026-10-10T19:23:32.845Z",
+        "details": {
+          "provider_id": "groq",
+          "queue_delay_ms": 0,
+          "traffic_class": "foreground_interactive"
+        },
+        "namespace": "product",
+        "sequence": 23,
+        "task_id": 190
+      },
+      {
+        "code": "completed",
+        "created_at": "2026-10-10T19:23:34.826Z",
+        "details": {
+          "error_code": null,
+          "session_id": 38
+        },
+        "namespace": "product",
+        "sequence": 24,
+        "task_id": 190
+      },
+      {
+        "code": "conversation_admitted",
+        "created_at": "2026-10-10T19:23:34.933Z",
+        "details": {
+          "no_restart_replay": true,
+          "session_id": 38
+        },
+        "namespace": "product",
+        "sequence": 25,
+        "task_id": 191
+      },
+      {
+        "code": "task_started",
+        "created_at": "2026-10-10T19:23:34.948Z",
+        "details": null,
+        "namespace": "product",
+        "sequence": 26,
+        "task_id": 191
+      },
+      {
+        "code": "cancellation_requested",
+        "created_at": "2026-10-10T19:23:34.986Z",
+        "details": null,
+        "namespace": "product",
+        "sequence": 27,
+        "task_id": 191
+      },
+      {
+        "code": "cancelled",
+        "created_at": "2026-10-10T19:23:36.622Z",
+        "details": {
+          "error_code": null,
+          "session_id": 38
+        },
+        "namespace": "product",
+        "sequence": 28,
+        "task_id": 191
+      }
+    ],
+    "has_more": false,
+    "next_sequence": 28,
+    "retention_events": 4096
+  },
+  "idle": {
+    "start": {
+      "pid": 58294,
+      "cpu_seconds": 5.16,
+      "rss_kib": 30184
+    },
+    "end": {
+      "pid": 58294,
+      "cpu_seconds": 6.22,
+      "rss_kib": 554820
+    },
+    "elapsed_seconds": 10.009408343999894,
+    "cpu_seconds_delta": 1.0599999999999996,
+    "valid_for_idle": false,
+    "context": "Overlapped another client Stronghold diagnostic; retained as transient-load observation. Use idle-isolated.json for idle consumption."
+  },
+  "pass": true
+}

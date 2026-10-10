@@ -1,0 +1,22 @@
+test_chat_select_create_send_follow_and_exit (test_cli.CliTests.test_chat_select_create_send_follow_and_exit) ... ok
+test_ctrl_c_at_prompt_after_follow_exits_without_replay (test_cli.CliTests.test_ctrl_c_at_prompt_after_follow_exits_without_replay) ... ok
+test_send_stdin_bound_and_private_runtime (test_cli.CliTests.test_send_stdin_bound_and_private_runtime) ... ok
+test_version_correlation_response_limits_and_uncertain_send_never_replay (test_cli.CliTests.test_version_correlation_response_limits_and_uncertain_send_never_replay) ... ok
+test_agent_allocated_pty_is_not_ssh (test_credential_manager.GateTests.test_agent_allocated_pty_is_not_ssh) ... ok
+test_existing_collection_only_no_create_prompt_or_plain_session (test_credential_manager.GateTests.test_existing_collection_only_no_create_prompt_or_plain_session) ... ok
+test_missing_service_status_is_sanitized (test_credential_manager.GateTests.test_missing_service_status_is_sanitized) ... ok
+test_native_password_no_echo_wiped_and_tty_restored (test_credential_manager.GateTests.test_native_password_no_echo_wiped_and_tty_restored) ... ok
+test_pipe_and_automation_refused_before_service_or_password (test_credential_manager.GateTests.test_pipe_and_automation_refused_before_service_or_password) ... ok
+test_signal_wipes_and_restores_tty (test_credential_manager.GateTests.test_signal_wipes_and_restores_tty) ... ok
+test_ssh_session_properties_and_interactive_shell_gate (test_credential_manager.GateTests.test_ssh_session_properties_and_interactive_shell_gate) ... ok
+test_durable_scope_never_overwritten_and_receipt_never_reused (test_final_authorization.Consent.test_durable_scope_never_overwritten_and_receipt_never_reused) ... ok
+test_install_does_not_restart_keyring_or_change_boot (test_units.Units.test_install_does_not_restart_keyring_or_change_boot) ... ok
+test_no_public_listener (test_units.Units.test_no_public_listener) ... ok
+test_password_uses_existing_human_helper_only (test_units.Units.test_password_uses_existing_human_helper_only) ... ok
+test_service_no_gui_or_auto_provider_start (test_units.Units.test_service_no_gui_or_auto_provider_start) ... ok
+test_update_stops_only_owned_core_and_requires_reviewed_hashes (test_units.Units.test_update_stops_only_owned_core_and_requires_reviewed_hashes) ... ok
+
+----------------------------------------------------------------------
+Ran 17 tests in 2.284s
+
+OK

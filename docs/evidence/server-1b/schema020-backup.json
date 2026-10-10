@@ -1,0 +1,9 @@
+[
+  {
+    "path": "/home/sam/.local/state/narys/core/backups/server-1b-schema020-usKnag/authority-schema019.sqlite3",
+    "sha256": "e634e611f49f7a8dc3bd199940877836ee40645d2b7076b5f7383c3b320ba0d2",
+    "schema": 19,
+    "sessions": 37,
+    "messages": 94
+  }
+]

@@ -1,0 +1,1665 @@
+{
+  "observed_at": "2026-10-10T16:23:47.216455-03:00",
+  "start": "2026-10-10T15:03:12-03:00",
+  "deadline": "2026-10-12T15:03:12-03:00",
+  "remaining_seconds": 167964,
+  "authority": {
+    "schema": 20,
+    "integrity": "ok",
+    "tables": {
+      "checkpoint_task_policies": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_checkpoints": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuation_units": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuations": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_rate_state": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_role_allocation_policies": {
+        "count": 4,
+        "sha256": "f8d3966916a98889ed66538a53b2cc3304d0573a6c99ed36a7ab752b45a65f98"
+      },
+      "cognitive_role_policies": {
+        "count": 4,
+        "sha256": "2f2b5644ada9fa4b1f3ffa13869d90c024b6c16a8733a149cc600ab4cf7fc454"
+      },
+      "cognitive_role_targets": {
+        "count": 4,
+        "sha256": "b42bb1bb9cb3b7351cb3b62a83a54f1d00ef755670c6a7bfd59695d17d99315a"
+      },
+      "conversation_messages": {
+        "count": 99,
+        "sha256": "c3de82a0880f15c4268e73d008f29c20c974833abd4f5d7391f80c2613689287"
+      },
+      "conversation_runs": {
+        "count": 3,
+        "sha256": "083a7a7d04d096503005e20da5620eaaa31b3849ce48f7593d3dfeba1180cfcd"
+      },
+      "conversation_sessions": {
+        "count": 38,
+        "sha256": "a34e726c9313f922cdf219d8e11eb857965ec74aa6d9ad2c95274e2657ee8128"
+      },
+      "gemini_provider_settings": {
+        "count": 1,
+        "sha256": "89e1a0d215211cdd921e2d3539570761f66e5043ca66ed5047dad2b14f894403"
+      },
+      "general_settings": {
+        "count": 1,
+        "sha256": "8555369d21bd1bd1f594fe8fb5a1b1928dc34d0ae2fdbfdc8fa860fc3c02d1c2"
+      },
+      "headless_tasks": {
+        "count": 2,
+        "sha256": "022e270e7f3c2e134735251053802188ad8ed1890273672401259680bb124090"
+      },
+      "identity_snapshots": {
+        "count": 1,
+        "sha256": "b3e5d67e85b7dcc712c2798a01d4956047f88d8e1564fcc828d5ff2360746799"
+      },
+      "memory_records": {
+        "count": 4,
+        "sha256": "0059fa400e34a00b43d3ec784b5150f7429f34b23fa1c9a3d140dd4047faaa8d"
+      },
+      "provider_timeout_settings": {
+        "count": 4,
+        "sha256": "ff316e5e0c3ddeb0f4796f4b3481e4ebbcd142bc34b7a01ae63998f49fb3cad4"
+      },
+      "server_events": {
+        "count": 29,
+        "sha256": "e128b073367284438dfb0b3709c6f45c73463dcf7523eb144ed0a0c84a5babb3"
+      },
+      "server_migrations": {
+        "count": 1,
+        "sha256": "2fb4a65e4c33f66206cf80de674bf023d288e4cfd5d35efb7846286a335080b2"
+      },
+      "server_provider_permissions": {
+        "count": 4,
+        "sha256": "be5114a94161950e3f5bfa6977125e9c683ba785e14e5e3c84ff8bca60970fe8"
+      },
+      "shell_settings": {
+        "count": 1,
+        "sha256": "5509c3b2a20d234cf5d2332feb1aa6111e10ca4af4c15ff775bacd29410c4935"
+      },
+      "task_records": {
+        "count": 191,
+        "sha256": "eaba33d7676133bdfa57af2d648027e0115e94e828c7d4bbc36d5b16fadda3a7"
+      },
+      "task_subtask_records": {
+        "count": 39,
+        "sha256": "1f8907304110d6da8a8f9590f6e92534ddbeeab733bfb328a6b1828031631908"
+      }
+    }
+  },
+  "desktop": {
+    "schema": 18,
+    "integrity": "ok",
+    "tables": {
+      "checkpoint_task_policies": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_checkpoints": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuation_units": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuations": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_rate_state": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_role_allocation_policies": {
+        "count": 4,
+        "sha256": "f8d3966916a98889ed66538a53b2cc3304d0573a6c99ed36a7ab752b45a65f98"
+      },
+      "cognitive_role_policies": {
+        "count": 4,
+        "sha256": "6c982b1cfeb3cb6e39a8b2053d4291ff873df57668831014e7d0b8f625172be8"
+      },
+      "cognitive_role_targets": {
+        "count": 4,
+        "sha256": "b42bb1bb9cb3b7351cb3b62a83a54f1d00ef755670c6a7bfd59695d17d99315a"
+      },
+      "conversation_messages": {
+        "count": 94,
+        "sha256": "f573239c5e7f083bdf13e84ee709acf6e8646bfc2362ebc54df5b5038d88f418"
+      },
+      "conversation_sessions": {
+        "count": 37,
+        "sha256": "57659477ceb71903d66445a7e27b9c3802f367eafb4afac4ab15dda2cdad94b5"
+      },
+      "gemini_provider_settings": {
+        "count": 1,
+        "sha256": "89e1a0d215211cdd921e2d3539570761f66e5043ca66ed5047dad2b14f894403"
+      },
+      "general_settings": {
+        "count": 1,
+        "sha256": "8555369d21bd1bd1f594fe8fb5a1b1928dc34d0ae2fdbfdc8fa860fc3c02d1c2"
+      },
+      "identity_snapshots": {
+        "count": 1,
+        "sha256": "b3e5d67e85b7dcc712c2798a01d4956047f88d8e1564fcc828d5ff2360746799"
+      },
+      "memory_records": {
+        "count": 4,
+        "sha256": "0059fa400e34a00b43d3ec784b5150f7429f34b23fa1c9a3d140dd4047faaa8d"
+      },
+      "provider_timeout_settings": {
+        "count": 4,
+        "sha256": "ff316e5e0c3ddeb0f4796f4b3481e4ebbcd142bc34b7a01ae63998f49fb3cad4"
+      },
+      "shell_settings": {
+        "count": 1,
+        "sha256": "5509c3b2a20d234cf5d2332feb1aa6111e10ca4af4c15ff775bacd29410c4935"
+      },
+      "task_records": {
+        "count": 188,
+        "sha256": "7206a231fc71137b7818edf0d6a534db2f161457391398a9870c2bb70b00b975"
+      },
+      "task_subtask_records": {
+        "count": 39,
+        "sha256": "1f8907304110d6da8a8f9590f6e92534ddbeeab733bfb328a6b1828031631908"
+      }
+    }
+  },
+  "migration": {
+    "backup_directory": "/home/sam/.local/state/narys/core/backups/server-1a-L0o8Y4",
+    "desktop_tables_equal": {
+      "checkpoint_task_policies": true,
+      "cognitive_checkpoints": true,
+      "cognitive_continuation_units": true,
+      "cognitive_continuations": true,
+      "cognitive_rate_state": true,
+      "cognitive_role_allocation_policies": true,
+      "cognitive_role_policies": false,
+      "cognitive_role_targets": true,
+      "conversation_messages": false,
+      "conversation_sessions": false,
+      "gemini_provider_settings": true,
+      "general_settings": true,
+      "identity_snapshots": true,
+      "memory_records": true,
+      "provider_timeout_settings": true,
+      "shell_settings": true,
+      "task_records": false,
+      "task_subtask_records": true
+    },
+    "all_desktop_tables_equal": false,
+    "legacy_task_ids_results_equal": true,
+    "desktop_source_equal_backup": true,
+    "fence_present": true
+  },
+  "service": {
+    "pid": 58294,
+    "state": "active",
+    "linger": "yes",
+    "default_target": "multi-user.target",
+    "rss": "VmRSS:\t   30488 kB",
+    "gui_environment_present": false,
+    "gnome_shell_count": 0,
+    "copilot_count": 0,
+    "socket_mode": "0o600",
+    "linked_gui_libraries": []
+  },
+  "protocol": {
+    "status": {
+      "data": {
+        "active_task": null,
+        "agent_execution_authority": false,
+        "authority": "narys-core",
+        "conversation_integrated": true,
+        "copilot": "on_demand",
+        "core": "running",
+        "database": "core/db/luna.sqlite3",
+        "execution_workers": 0,
+        "graphical_environment_present": false,
+        "product_active_tasks": 0,
+        "profile": "HOST_ASSISTED_NOT_SANDBOX",
+        "protocol_version": 1,
+        "tools": 0,
+        "trace_events": 28
+      },
+      "ok": true,
+      "request_id": "cli-58455",
+      "version": 1
+    },
+    "capabilities": {
+      "data": {
+        "agent_tools": false,
+        "approvals": false,
+        "authority": "narys-core",
+        "conversation": true,
+        "execution_authority_from_ipc": false,
+        "implemented": [
+          "status",
+          "credentials",
+          "events",
+          "prepare",
+          "result",
+          "cancel",
+          "conversation",
+          "sessions",
+          "session-create",
+          "session-get",
+          "session-resume",
+          "session-close",
+          "providers",
+          "provider-configure",
+          "conversation-policy",
+          "task-get",
+          "task-cancel"
+        ],
+        "persistence": "core/db/luna.sqlite3",
+        "protocol_version": 1,
+        "provider_configuration": true,
+        "task_namespaces": [
+          "lr10a",
+          "product"
+        ]
+      },
+      "ok": true,
+      "request_id": "cli-58456",
+      "version": 1
+    },
+    "events": {
+      "data": {
+        "complete": true,
+        "durable": true,
+        "events": [
+          {
+            "code": "ready",
+            "created_at": "2026-10-10T18:33:06.029Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 1,
+            "task_id": null
+          },
+          {
+            "code": "stopped",
+            "created_at": "2026-10-10T18:33:33.070Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 2,
+            "task_id": null
+          },
+          {
+            "code": "ready",
+            "created_at": "2026-10-10T18:33:33.119Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 3,
+            "task_id": null
+          },
+          {
+            "code": "stopped",
+            "created_at": "2026-10-10T18:38:16.556Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 4,
+            "task_id": null
+          },
+          {
+            "code": "ready",
+            "created_at": "2026-10-10T18:38:17.179Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 5,
+            "task_id": null
+          },
+          {
+            "code": "stopped",
+            "created_at": "2026-10-10T19:22:56.752Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 6,
+            "task_id": null
+          },
+          {
+            "code": "ready",
+            "created_at": "2026-10-10T19:22:57.898Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 7,
+            "task_id": null
+          },
+          {
+            "code": "provider_permission_changed",
+            "created_at": "2026-10-10T19:23:26.429Z",
+            "details": {
+              "enabled": true,
+              "free_tier_confirmed": true,
+              "provider_id": "groq"
+            },
+            "namespace": "product",
+            "sequence": 8,
+            "task_id": null
+          },
+          {
+            "code": "conversation_policy_changed",
+            "created_at": "2026-10-10T19:23:26.450Z",
+            "details": null,
+            "namespace": "product",
+            "sequence": 9,
+            "task_id": null
+          },
+          {
+            "code": "session_created",
+            "created_at": "2026-10-10T19:23:26.469Z",
+            "details": {
+              "session_id": 38
+            },
+            "namespace": "product",
+            "sequence": 10,
+            "task_id": null
+          },
+          {
+            "code": "conversation_admitted",
+            "created_at": "2026-10-10T19:23:26.491Z",
+            "details": {
+              "no_restart_replay": true,
+              "session_id": 38
+            },
+            "namespace": "product",
+            "sequence": 11,
+            "task_id": 189
+          },
+          {
+            "code": "task_started",
+            "created_at": "2026-10-10T19:23:26.505Z",
+            "details": null,
+            "namespace": "product",
+            "sequence": 12,
+            "task_id": 189
+          },
+          {
+            "code": "context_built",
+            "created_at": "2026-10-10T19:23:28.448Z",
+            "details": {
+              "memory_count": 0,
+              "recent_message_count": 0
+            },
+            "namespace": "product",
+            "sequence": 13,
+            "task_id": 189
+          },
+          {
+            "code": "provider_selected",
+            "created_at": "2026-10-10T19:23:28.472Z",
+            "details": {
+              "attempt": 1,
+              "model": "openai/gpt-oss-20b",
+              "provider_id": "groq",
+              "routing_reason": "fixed",
+              "score": null
+            },
+            "namespace": "product",
+            "sequence": 14,
+            "task_id": 189
+          },
+          {
+            "code": "provider_admitted",
+            "created_at": "2026-10-10T19:23:28.486Z",
+            "details": {
+              "provider_id": "groq",
+              "queue_delay_ms": 0,
+              "traffic_class": "foreground_interactive"
+            },
+            "namespace": "product",
+            "sequence": 15,
+            "task_id": 189
+          },
+          {
+            "code": "completed",
+            "created_at": "2026-10-10T19:23:30.813Z",
+            "details": {
+              "error_code": null,
+              "session_id": 38
+            },
+            "namespace": "product",
+            "sequence": 16,
+            "task_id": 189
+          },
+          {
+            "code": "stopped",
+            "created_at": "2026-10-10T19:23:30.862Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 17,
+            "task_id": null
+          },
+          {
+            "code": "ready",
+            "created_at": "2026-10-10T19:23:30.908Z",
+            "details": null,
+            "namespace": "runtime",
+            "sequence": 18,
+            "task_id": null
+          },
+          {
+            "code": "conversation_admitted",
+            "created_at": "2026-10-10T19:23:31.004Z",
+            "details": {
+              "no_restart_replay": true,
+              "session_id": 38
+            },
+            "namespace": "product",
+            "sequence": 19,
+            "task_id": 190
+          },
+          {
+            "code": "task_started",
+            "created_at": "2026-10-10T19:23:31.040Z",
+            "details": null,
+            "namespace": "product",
+            "sequence": 20,
+            "task_id": 190
+          },
+          {
+            "code": "context_built",
+            "created_at": "2026-10-10T19:23:32.776Z",
+            "details": {
+              "memory_count": 0,
+              "recent_message_count": 0
+            },
+            "namespace": "product",
+            "sequence": 21,
+            "task_id": 190
+          },
+          {
+            "code": "provider_selected",
+            "created_at": "2026-10-10T19:23:32.814Z",
+            "details": {
+              "attempt": 1,
+              "model": "openai/gpt-oss-20b",
+              "provider_id": "groq",
+              "routing_reason": "fixed",
+              "score": null
+            },
+            "namespace": "product",
+            "sequence": 22,
+            "task_id": 190
+          },
+          {
+            "code": "provider_admitted",
+            "created_at": "2026-10-10T19:23:32.845Z",
+            "details": {
+              "provider_id": "groq",
+              "queue_delay_ms": 0,
+              "traffic_class": "foreground_interactive"
+            },
+            "namespace": "product",
+            "sequence": 23,
+            "task_id": 190
+          },
+          {
+            "code": "completed",
+            "created_at": "2026-10-10T19:23:34.826Z",
+            "details": {
+              "error_code": null,
+              "session_id": 38
+            },
+            "namespace": "product",
+            "sequence": 24,
+            "task_id": 190
+          },
+          {
+            "code": "conversation_admitted",
+            "created_at": "2026-10-10T19:23:34.933Z",
+            "details": {
+              "no_restart_replay": true,
+              "session_id": 38
+            },
+            "namespace": "product",
+            "sequence": 25,
+            "task_id": 191
+          },
+          {
+            "code": "task_started",
+            "created_at": "2026-10-10T19:23:34.948Z",
+            "details": null,
+            "namespace": "product",
+            "sequence": 26,
+            "task_id": 191
+          },
+          {
+            "code": "cancellation_requested",
+            "created_at": "2026-10-10T19:23:34.986Z",
+            "details": null,
+            "namespace": "product",
+            "sequence": 27,
+            "task_id": 191
+          },
+          {
+            "code": "cancelled",
+            "created_at": "2026-10-10T19:23:36.622Z",
+            "details": {
+              "error_code": null,
+              "session_id": 38
+            },
+            "namespace": "product",
+            "sequence": 28,
+            "task_id": 191
+          },
+          {
+            "code": "conversation_policy_changed",
+            "created_at": "2026-10-10T19:23:46.703Z",
+            "details": null,
+            "namespace": "product",
+            "sequence": 29,
+            "task_id": null
+          }
+        ],
+        "has_more": false,
+        "next_sequence": 29,
+        "retention_events": 4096
+      },
+      "ok": true,
+      "request_id": "cli-58457",
+      "version": 1
+    },
+    "providers": {
+      "data": {
+        "admission": [
+          {
+            "activeCalls": 0,
+            "countersSaturated": false,
+            "maxConcurrency": 2,
+            "providerId": "cloudflare",
+            "queueCapacity": 64,
+            "queueDelayRecentMs": null,
+            "queueDelaySamples": 0,
+            "queueDelayTotalMs": 0,
+            "queueDepth": 0,
+            "queueFullCount": 0,
+            "queueTimeoutCount": 0,
+            "queuedByClass": {
+              "background": 0,
+              "foreground_interactive": 0,
+              "foreground_task": 0
+            },
+            "totalAdmissions": 0,
+            "totalWaited": 0
+          },
+          {
+            "activeCalls": 0,
+            "countersSaturated": false,
+            "maxConcurrency": 2,
+            "providerId": "gemini",
+            "queueCapacity": 64,
+            "queueDelayRecentMs": null,
+            "queueDelaySamples": 0,
+            "queueDelayTotalMs": 0,
+            "queueDepth": 0,
+            "queueFullCount": 0,
+            "queueTimeoutCount": 0,
+            "queuedByClass": {
+              "background": 0,
+              "foreground_interactive": 0,
+              "foreground_task": 0
+            },
+            "totalAdmissions": 0,
+            "totalWaited": 0
+          },
+          {
+            "activeCalls": 0,
+            "countersSaturated": false,
+            "maxConcurrency": 2,
+            "providerId": "groq",
+            "queueCapacity": 64,
+            "queueDelayRecentMs": null,
+            "queueDelaySamples": 0,
+            "queueDelayTotalMs": 0,
+            "queueDepth": 0,
+            "queueFullCount": 0,
+            "queueTimeoutCount": 0,
+            "queuedByClass": {
+              "background": 0,
+              "foreground_interactive": 0,
+              "foreground_task": 0
+            },
+            "totalAdmissions": 1,
+            "totalWaited": 0
+          },
+          {
+            "activeCalls": 0,
+            "countersSaturated": false,
+            "maxConcurrency": 2,
+            "providerId": "mistral",
+            "queueCapacity": 64,
+            "queueDelayRecentMs": null,
+            "queueDelaySamples": 0,
+            "queueDelayTotalMs": 0,
+            "queueDepth": 0,
+            "queueFullCount": 0,
+            "queueTimeoutCount": 0,
+            "queuedByClass": {
+              "background": 0,
+              "foreground_interactive": 0,
+              "foreground_task": 0
+            },
+            "totalAdmissions": 0,
+            "totalWaited": 0
+          }
+        ],
+        "allocation_policy": null,
+        "automatic_summary_execution": false,
+        "conversation_policy": {
+          "contextMaxBytes": 32768,
+          "historyMaxBytes": 12288,
+          "historyMaxMessages": 8,
+          "maxOutputTokens": null,
+          "maxProviderCalls": 3,
+          "maxRetries": 1,
+          "retryBackoffMs": 1500,
+          "retryEnabled": true,
+          "role": "conversation",
+          "routingMode": "fixed",
+          "summaryInputMaxBytes": 32768,
+          "targets": [
+            {
+              "model": "openai/gpt-oss-20b",
+              "providerId": "groq",
+              "thinkingLevel": "medium"
+            }
+          ]
+        },
+        "credential_store_available": true,
+        "credential_store_error_code": null,
+        "permissions": [
+          {
+            "enabled": true,
+            "free_tier_confirmed": true,
+            "provider_id": "groq"
+          },
+          {
+            "enabled": false,
+            "free_tier_confirmed": false,
+            "provider_id": "gemini"
+          },
+          {
+            "enabled": false,
+            "free_tier_confirmed": false,
+            "provider_id": "cloudflare"
+          },
+          {
+            "enabled": false,
+            "free_tier_confirmed": false,
+            "provider_id": "mistral"
+          }
+        ],
+        "providers": [
+          {
+            "capabilities": {
+              "streaming": true,
+              "structuredOutput": false,
+              "textGeneration": true,
+              "toolCalling": false,
+              "vision": false
+            },
+            "configured": true,
+            "defaultModel": "@cf/zai-org/glm-4.7-flash",
+            "displayName": "Cloudflare Workers AI",
+            "enabled": false,
+            "id": "cloudflare",
+            "local_state": "free_account_confirmation_required",
+            "registered": true,
+            "supportedThinkingLevels": []
+          },
+          {
+            "capabilities": {
+              "streaming": true,
+              "structuredOutput": false,
+              "textGeneration": true,
+              "toolCalling": false,
+              "vision": false
+            },
+            "configured": true,
+            "defaultModel": "gemini-3.8-flash",
+            "displayName": "Gemini",
+            "enabled": false,
+            "id": "gemini",
+            "local_state": "free_account_confirmation_required",
+            "registered": true,
+            "supportedThinkingLevels": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          {
+            "capabilities": {
+              "streaming": true,
+              "structuredOutput": true,
+              "textGeneration": true,
+              "toolCalling": false,
+              "vision": false
+            },
+            "configured": true,
+            "defaultModel": "openai/gpt-oss-20b",
+            "displayName": "Groq",
+            "enabled": true,
+            "id": "groq",
+            "local_state": "ready_local_quota_unverified",
+            "registered": true,
+            "supportedThinkingLevels": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          {
+            "capabilities": {
+              "streaming": true,
+              "structuredOutput": false,
+              "textGeneration": true,
+              "toolCalling": false,
+              "vision": false
+            },
+            "configured": true,
+            "defaultModel": "mistral-small-2603",
+            "displayName": "Mistral",
+            "enabled": false,
+            "id": "mistral",
+            "local_state": "free_account_confirmation_required",
+            "registered": true,
+            "supportedThinkingLevels": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        ],
+        "rate": [
+          {
+            "capturedAtUnixMs": 1791660228940,
+            "constraints": [],
+            "contextGeneration": 0,
+            "localBlocks": 0,
+            "pendingReservations": 0,
+            "persistenceFailed": false,
+            "policy": {
+              "dailyBudget": null,
+              "limits": []
+            },
+            "providerId": "cloudflare",
+            "saturated": false
+          },
+          {
+            "capturedAtUnixMs": 1791660228940,
+            "constraints": [],
+            "contextGeneration": 0,
+            "localBlocks": 0,
+            "pendingReservations": 0,
+            "persistenceFailed": false,
+            "policy": {
+              "dailyBudget": null,
+              "limits": []
+            },
+            "providerId": "gemini",
+            "saturated": false
+          },
+          {
+            "capturedAtUnixMs": 1791660228940,
+            "constraints": [
+              {
+                "capacity": 998,
+                "consumed": 0,
+                "dimension": "requests_per_day",
+                "effectiveRemaining": 998,
+                "external": {
+                  "limit": {
+                    "observedAtUnixMs": 1791660214757,
+                    "provenance": "provider_header",
+                    "state": "known",
+                    "value": 1000
+                  },
+                  "remaining": {
+                    "observedAtUnixMs": 1791660214757,
+                    "provenance": "provider_header",
+                    "state": "known",
+                    "value": 998
+                  },
+                  "reset": {
+                    "state": "unknown"
+                  }
+                },
+                "provenance": "provider_header",
+                "reserved": 0,
+                "resetInMs": null,
+                "resetUnixMs": null,
+                "saturated": false,
+                "scope": {
+                  "kind": "model",
+                  "model": "openai/gpt-oss-20b"
+                },
+                "source": "external_fact",
+                "unaccountedTokenCalls": 0
+              },
+              {
+                "capacity": 7210,
+                "consumed": 334,
+                "dimension": "tokens_per_minute",
+                "effectiveRemaining": null,
+                "external": {
+                  "limit": {
+                    "observedAtUnixMs": 1791660214757,
+                    "provenance": "provider_header",
+                    "state": "known",
+                    "value": 8000
+                  },
+                  "remaining": {
+                    "observedAtUnixMs": 1791660214757,
+                    "provenance": "provider_header",
+                    "state": "known",
+                    "value": 7210
+                  },
+                  "reset": {
+                    "state": "unknown"
+                  }
+                },
+                "provenance": "provider_header",
+                "reserved": 0,
+                "resetInMs": null,
+                "resetUnixMs": null,
+                "saturated": false,
+                "scope": {
+                  "kind": "model",
+                  "model": "openai/gpt-oss-20b"
+                },
+                "source": "external_fact",
+                "unaccountedTokenCalls": 1
+              }
+            ],
+            "contextGeneration": 0,
+            "localBlocks": 0,
+            "pendingReservations": 0,
+            "persistenceFailed": false,
+            "policy": {
+              "dailyBudget": null,
+              "limits": []
+            },
+            "providerId": "groq",
+            "saturated": false
+          },
+          {
+            "capturedAtUnixMs": 1791660228940,
+            "constraints": [],
+            "contextGeneration": 0,
+            "localBlocks": 0,
+            "pendingReservations": 0,
+            "persistenceFailed": false,
+            "policy": {
+              "dailyBudget": null,
+              "limits": []
+            },
+            "providerId": "mistral",
+            "saturated": false
+          }
+        ],
+        "resilience": [
+          {
+            "breakerOpenCount": 0,
+            "circuitState": "closed",
+            "configuredThreshold": 3,
+            "consecutiveEligibleFailures": 0,
+            "cooldownRemainingMs": 0,
+            "halfOpenCount": 0,
+            "halfOpenMaxProbes": 1,
+            "halfOpenProbesActive": 0,
+            "lastTransitionReason": null,
+            "openRemainingMs": 0,
+            "providerId": "cloudflare",
+            "recoveryCount": 0,
+            "saturated": false,
+            "transitionCount": 0
+          },
+          {
+            "breakerOpenCount": 0,
+            "circuitState": "closed",
+            "configuredThreshold": 3,
+            "consecutiveEligibleFailures": 0,
+            "cooldownRemainingMs": 0,
+            "halfOpenCount": 0,
+            "halfOpenMaxProbes": 1,
+            "halfOpenProbesActive": 0,
+            "lastTransitionReason": null,
+            "openRemainingMs": 0,
+            "providerId": "gemini",
+            "recoveryCount": 0,
+            "saturated": false,
+            "transitionCount": 0
+          },
+          {
+            "breakerOpenCount": 0,
+            "circuitState": "closed",
+            "configuredThreshold": 3,
+            "consecutiveEligibleFailures": 0,
+            "cooldownRemainingMs": 0,
+            "halfOpenCount": 0,
+            "halfOpenMaxProbes": 1,
+            "halfOpenProbesActive": 0,
+            "lastTransitionReason": null,
+            "openRemainingMs": 0,
+            "providerId": "groq",
+            "recoveryCount": 0,
+            "saturated": false,
+            "transitionCount": 0
+          },
+          {
+            "breakerOpenCount": 0,
+            "circuitState": "closed",
+            "configuredThreshold": 3,
+            "consecutiveEligibleFailures": 0,
+            "cooldownRemainingMs": 0,
+            "halfOpenCount": 0,
+            "halfOpenMaxProbes": 1,
+            "halfOpenProbesActive": 0,
+            "lastTransitionReason": null,
+            "openRemainingMs": 0,
+            "providerId": "mistral",
+            "recoveryCount": 0,
+            "saturated": false,
+            "transitionCount": 0
+          }
+        ],
+        "telemetry": [
+          {
+            "capturedAtUnixMs": 1791660228941,
+            "contextGeneration": 0,
+            "lastOutcome": {
+              "state": "unknown"
+            },
+            "providerId": "cloudflare",
+            "quotas": [
+              {
+                "dimensions": {
+                  "concurrency": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  }
+                },
+                "scope": {
+                  "kind": "provider"
+                }
+              }
+            ],
+            "retryHint": {
+              "state": "unknown"
+            },
+            "updatedAgeMs": null,
+            "usage": {
+              "input_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "output_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "requests": {
+                "observed": {
+                  "observedAtUnixMs": 1791660210907,
+                  "provenance": "local_runtime",
+                  "state": "known",
+                  "value": 0
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "thought_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "total_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              }
+            }
+          },
+          {
+            "capturedAtUnixMs": 1791660228941,
+            "contextGeneration": 0,
+            "lastOutcome": {
+              "state": "unknown"
+            },
+            "providerId": "gemini",
+            "quotas": [
+              {
+                "dimensions": {
+                  "concurrency": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  }
+                },
+                "scope": {
+                  "kind": "provider"
+                }
+              }
+            ],
+            "retryHint": {
+              "state": "unknown"
+            },
+            "updatedAgeMs": null,
+            "usage": {
+              "input_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "output_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "requests": {
+                "observed": {
+                  "observedAtUnixMs": 1791660210907,
+                  "provenance": "local_runtime",
+                  "state": "known",
+                  "value": 0
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "thought_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "total_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              }
+            }
+          },
+          {
+            "capturedAtUnixMs": 1791660228941,
+            "contextGeneration": 0,
+            "lastOutcome": {
+              "observedAtUnixMs": 1791660214823,
+              "provenance": "local_runtime",
+              "state": "known",
+              "value": {
+                "kind": "succeeded"
+              }
+            },
+            "providerId": "groq",
+            "quotas": [
+              {
+                "dimensions": {
+                  "concurrency": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  }
+                },
+                "scope": {
+                  "kind": "provider"
+                }
+              },
+              {
+                "dimensions": {
+                  "concurrency": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_day": {
+                    "limit": {
+                      "observedAtUnixMs": 1791660214757,
+                      "provenance": "provider_header",
+                      "state": "known",
+                      "value": 1000
+                    },
+                    "remaining": {
+                      "observedAtUnixMs": 1791660214757,
+                      "provenance": "provider_header",
+                      "state": "known",
+                      "value": 998
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_minute": {
+                    "limit": {
+                      "observedAtUnixMs": 1791660214757,
+                      "provenance": "provider_header",
+                      "state": "known",
+                      "value": 8000
+                    },
+                    "remaining": {
+                      "observedAtUnixMs": 1791660214757,
+                      "provenance": "provider_header",
+                      "state": "known",
+                      "value": 7210
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  }
+                },
+                "scope": {
+                  "kind": "model",
+                  "model": "openai/gpt-oss-20b"
+                }
+              }
+            ],
+            "retryHint": {
+              "state": "unknown"
+            },
+            "updatedAgeMs": 14117,
+            "usage": {
+              "input_tokens": {
+                "observed": {
+                  "observedAtUnixMs": 1791660214823,
+                  "provenance": "provider_response",
+                  "state": "known",
+                  "value": 278
+                },
+                "reportingRequests": 1,
+                "saturated": false
+              },
+              "output_tokens": {
+                "observed": {
+                  "observedAtUnixMs": 1791660214823,
+                  "provenance": "provider_response",
+                  "state": "known",
+                  "value": 56
+                },
+                "reportingRequests": 1,
+                "saturated": false
+              },
+              "requests": {
+                "observed": {
+                  "observedAtUnixMs": 1791660214439,
+                  "provenance": "local_runtime",
+                  "state": "known",
+                  "value": 1
+                },
+                "reportingRequests": 1,
+                "saturated": false
+              },
+              "thought_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "total_tokens": {
+                "observed": {
+                  "observedAtUnixMs": 1791660214823,
+                  "provenance": "provider_response",
+                  "state": "known",
+                  "value": 334
+                },
+                "reportingRequests": 1,
+                "saturated": false
+              }
+            }
+          },
+          {
+            "capturedAtUnixMs": 1791660228941,
+            "contextGeneration": 0,
+            "lastOutcome": {
+              "state": "unknown"
+            },
+            "providerId": "mistral",
+            "quotas": [
+              {
+                "dimensions": {
+                  "concurrency": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "requests_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_day": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  },
+                  "tokens_per_minute": {
+                    "limit": {
+                      "state": "unknown"
+                    },
+                    "remaining": {
+                      "state": "unknown"
+                    },
+                    "reset": {
+                      "state": "unknown"
+                    }
+                  }
+                },
+                "scope": {
+                  "kind": "provider"
+                }
+              }
+            ],
+            "retryHint": {
+              "state": "unknown"
+            },
+            "updatedAgeMs": null,
+            "usage": {
+              "input_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "output_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "requests": {
+                "observed": {
+                  "observedAtUnixMs": 1791660210907,
+                  "provenance": "local_runtime",
+                  "state": "known",
+                  "value": 0
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "thought_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              },
+              "total_tokens": {
+                "observed": {
+                  "state": "unknown"
+                },
+                "reportingRequests": 0,
+                "saturated": false
+              }
+            }
+          }
+        ]
+      },
+      "ok": true,
+      "request_id": "cli-58466",
+      "version": 1
+    }
+  },
+  "vault_metadata": {
+    "inode": 3134764,
+    "size": 614,
+    "mode": "0o600",
+    "mtime_ns": 1790850680472346601,
+    "ctime_ns": 1791386670010181473
+  },
+  "closed_authorization_metadata": {
+    "inode": 3787185,
+    "size": 233,
+    "mode": "0o600",
+    "mtime_ns": 1791650738220143670,
+    "ctime_ns": 1791650738220143670
+  },
+  "historical_rows": {
+    "checkpoint_task_policies": {
+      "historical_count": 0,
+      "all_original_rows_equal": true
+    },
+    "cognitive_checkpoints": {
+      "historical_count": 0,
+      "all_original_rows_equal": true
+    },
+    "cognitive_continuation_units": {
+      "historical_count": 0,
+      "all_original_rows_equal": true
+    },
+    "cognitive_continuations": {
+      "historical_count": 0,
+      "all_original_rows_equal": true
+    },
+    "cognitive_role_allocation_policies": {
+      "historical_count": 4,
+      "all_original_rows_equal": true
+    },
+    "conversation_messages": {
+      "historical_count": 94,
+      "all_original_rows_equal": true
+    },
+    "conversation_sessions": {
+      "historical_count": 37,
+      "all_original_rows_equal": true
+    },
+    "gemini_provider_settings": {
+      "historical_count": 1,
+      "all_original_rows_equal": true
+    },
+    "general_settings": {
+      "historical_count": 1,
+      "all_original_rows_equal": true
+    },
+    "identity_snapshots": {
+      "historical_count": 1,
+      "all_original_rows_equal": true
+    },
+    "memory_records": {
+      "historical_count": 4,
+      "all_original_rows_equal": true
+    },
+    "provider_timeout_settings": {
+      "historical_count": 4,
+      "all_original_rows_equal": true
+    },
+    "shell_settings": {
+      "historical_count": 1,
+      "all_original_rows_equal": true
+    },
+    "task_records": {
+      "historical_count": 188,
+      "all_original_rows_equal": true
+    },
+    "task_subtask_records": {
+      "historical_count": 39,
+      "all_original_rows_equal": true
+    }
+  },
+  "historical_rows_preserved": true,
+  "runs": [
+    {
+      "task_id": 189,
+      "session_id": 38,
+      "state": "completed",
+      "error_code": null,
+      "result_present": 1
+    },
+    {
+      "task_id": 190,
+      "session_id": 38,
+      "state": "completed",
+      "error_code": null,
+      "result_present": 1
+    },
+    {
+      "task_id": 191,
+      "session_id": 38,
+      "state": "cancelled",
+      "error_code": null,
+      "result_present": 0
+    }
+  ],
+  "provider_permissions": [
+    {
+      "provider_id": "cloudflare",
+      "enabled": 0,
+      "free_tier_confirmed": 0
+    },
+    {
+      "provider_id": "gemini",
+      "enabled": 0,
+      "free_tier_confirmed": 0
+    },
+    {
+      "provider_id": "groq",
+      "enabled": 1,
+      "free_tier_confirmed": 1
+    },
+    {
+      "provider_id": "mistral",
+      "enabled": 0,
+      "free_tier_confirmed": 0
+    }
+  ]
+}

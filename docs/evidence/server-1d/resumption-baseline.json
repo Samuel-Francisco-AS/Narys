@@ -1,0 +1,23 @@
+{
+  "observed_at": "2026-10-10T18:09:58.794189-03:00",
+  "private_backup": {
+    "path": "/home/sam/.local/state/narys/core/backups/server-1d-o7b9amba/authority.sqlite3",
+    "mode": "0o600",
+    "sha256": "8acfe11831e1b059fcda3de09c7726ffd9cefbacb371ec921b9304ff7d1af145",
+    "counts": {
+      "conversation_sessions": 38,
+      "conversation_messages": 99,
+      "task_records": 191,
+      "headless_tasks": 2
+    }
+  },
+  "global_configuration_hashes": {
+    "/etc/ssh/sshd_config": "unreadable_or_absent_no_privilege_requested",
+    "/etc/gdm/custom.conf": "04022d30d148bf53461bc0fc6f8c5df8fbfcf590c06b684ce975e1e057894541",
+    "/etc/systemd/system/default.target": "/usr/lib/systemd/system/multi-user.target"
+  },
+  "user_units": {
+    "narys-core.service": "ae2c405615dc506e8dda7e8d910d80a14252d9343644a56b28f386afe7e49d29",
+    "gnome-keyring-daemon.service": "03c83a27fae76f914cb50c88aaf39ee803c0fa3eda20904978e5f9d5d364e9f1"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "data": {
+    "already_terminal": true,
+    "cancellation_requested": true,
+    "commit_in_progress": false,
+    "namespace": "product",
+    "state": "cancelled",
+    "task_id": 191
+  },
+  "ok": true,
+  "request_id": "cli-68690",
+  "version": 1
+}

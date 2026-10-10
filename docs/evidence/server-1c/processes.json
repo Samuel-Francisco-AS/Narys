@@ -1,0 +1,22 @@
+{
+  "core_processes": {
+    "exit_code": 0,
+    "output": "    PID    PPID STAT COMMAND\n  68612    1344 Ss   narys-core\n"
+  },
+  "gui_copilot_processes": {
+    "exit_code": 1,
+    "output": "    PID COMMAND\n"
+  },
+  "service": {
+    "exit_code": 0,
+    "output": "ActiveState=active\nMainPID=68612\nNRestarts=0\n"
+  },
+  "keyring_service": {
+    "exit_code": 0,
+    "output": "ActiveState=active\nMainPID=1395\n"
+  },
+  "linger": {
+    "exit_code": 0,
+    "output": "Linger=yes\n"
+  }
+}

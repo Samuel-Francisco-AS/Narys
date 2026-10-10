@@ -1,0 +1,178 @@
+{
+  "core": {
+    "schema": 18,
+    "integrity": "ok",
+    "tables": {
+      "checkpoint_task_policies": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_checkpoints": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuation_units": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuations": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_rate_state": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_role_allocation_policies": {
+        "count": 4,
+        "sha256": "bff51c5003db261f1a891202a9e03eed5e1e69c4779959c7c37282a071e736e6"
+      },
+      "cognitive_role_policies": {
+        "count": 4,
+        "sha256": "6f27841eede120916e5ba38ba2818ebe56452b603886c0fa1bc3ecbc10a5c6ff"
+      },
+      "cognitive_role_targets": {
+        "count": 5,
+        "sha256": "4e2f7e62fec816deed32acfa7c568450c9f34eb4c4989a3adeb33e84eb0c6220"
+      },
+      "conversation_messages": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "conversation_sessions": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "gemini_provider_settings": {
+        "count": 1,
+        "sha256": "ac15fa783e97a358c4654f3b6bfa27c37b85f850e3ef94a43a42de25d849047d"
+      },
+      "general_settings": {
+        "count": 1,
+        "sha256": "90e19685080bf2bda8eb29411eb704d29209b2f9a5c03595ea63562b77537b4c"
+      },
+      "headless_tasks": {
+        "count": 2,
+        "sha256": "022e270e7f3c2e134735251053802188ad8ed1890273672401259680bb124090"
+      },
+      "identity_snapshots": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "memory_records": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "provider_timeout_settings": {
+        "count": 4,
+        "sha256": "f3ad41ac9227e72b62b711bd69b304fb627b58bfd1f9f2a98af66848407adfa5"
+      },
+      "shell_settings": {
+        "count": 1,
+        "sha256": "5509c3b2a20d234cf5d2332feb1aa6111e10ca4af4c15ff775bacd29410c4935"
+      },
+      "task_records": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "task_subtask_records": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "desktop": {
+    "schema": 18,
+    "integrity": "ok",
+    "tables": {
+      "checkpoint_task_policies": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_checkpoints": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuation_units": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuations": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_rate_state": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_role_allocation_policies": {
+        "count": 4,
+        "sha256": "f8d3966916a98889ed66538a53b2cc3304d0573a6c99ed36a7ab752b45a65f98"
+      },
+      "cognitive_role_policies": {
+        "count": 4,
+        "sha256": "6c982b1cfeb3cb6e39a8b2053d4291ff873df57668831014e7d0b8f625172be8"
+      },
+      "cognitive_role_targets": {
+        "count": 4,
+        "sha256": "b42bb1bb9cb3b7351cb3b62a83a54f1d00ef755670c6a7bfd59695d17d99315a"
+      },
+      "conversation_messages": {
+        "count": 94,
+        "sha256": "f573239c5e7f083bdf13e84ee709acf6e8646bfc2362ebc54df5b5038d88f418"
+      },
+      "conversation_sessions": {
+        "count": 37,
+        "sha256": "57659477ceb71903d66445a7e27b9c3802f367eafb4afac4ab15dda2cdad94b5"
+      },
+      "gemini_provider_settings": {
+        "count": 1,
+        "sha256": "89e1a0d215211cdd921e2d3539570761f66e5043ca66ed5047dad2b14f894403"
+      },
+      "general_settings": {
+        "count": 1,
+        "sha256": "8555369d21bd1bd1f594fe8fb5a1b1928dc34d0ae2fdbfdc8fa860fc3c02d1c2"
+      },
+      "identity_snapshots": {
+        "count": 1,
+        "sha256": "b3e5d67e85b7dcc712c2798a01d4956047f88d8e1564fcc828d5ff2360746799"
+      },
+      "memory_records": {
+        "count": 4,
+        "sha256": "0059fa400e34a00b43d3ec784b5150f7429f34b23fa1c9a3d140dd4047faaa8d"
+      },
+      "provider_timeout_settings": {
+        "count": 4,
+        "sha256": "ff316e5e0c3ddeb0f4796f4b3481e4ebbcd142bc34b7a01ae63998f49fb3cad4"
+      },
+      "shell_settings": {
+        "count": 1,
+        "sha256": "5509c3b2a20d234cf5d2332feb1aa6111e10ca4af4c15ff775bacd29410c4935"
+      },
+      "task_records": {
+        "count": 188,
+        "sha256": "7206a231fc71137b7818edf0d6a534db2f161457391398a9870c2bb70b00b975"
+      },
+      "task_subtask_records": {
+        "count": 39,
+        "sha256": "1f8907304110d6da8a8f9590f6e92534ddbeeab733bfb328a6b1828031631908"
+      }
+    }
+  },
+  "vault_metadata": {
+    "inode": 3134764,
+    "size": 614,
+    "mode": "0o600",
+    "mtime_ns": 1790850680472346601,
+    "ctime_ns": 1791386670010181473
+  },
+  "closed_authorization_metadata": {
+    "inode": 3787185,
+    "size": 233,
+    "mode": "0o600",
+    "mtime_ns": 1791650738220143670,
+    "ctime_ns": 1791650738220143670
+  },
+  "binary_sha256": "a25c2b0e517bf55e939e6e322185245a0912f5d40dfe92e6b310a2fec267169b",
+  "unit_sha256": "4c95860a4aad56ba526a05c5aef3899508ea99e2944c57b5802204e8dd8ff22c"
+}

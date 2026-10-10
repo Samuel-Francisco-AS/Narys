@@ -1,0 +1,15 @@
+    Checking narys-domain v0.1.0 (/home/sam/Projetos/Narys/narys-domain)
+warning: method `context_generation` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `narys-domain` (lib) generated 1 warning
+    Checking narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.80s

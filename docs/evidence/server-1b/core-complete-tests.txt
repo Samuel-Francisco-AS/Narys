@@ -1,0 +1,82 @@
+warning: method `context_generation` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `narys-domain` (lib) generated 1 warning
+   Compiling narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 37.75s
+     Running unittests src/lib.rs (src-tauri/target/debug/deps/narys_core-e3954a5bcfe52720)
+
+running 32 tests
+test policy::review_tests::flags_and_auth_cannot_replace_financial_review ... ok
+test policy::review_tests::overage_or_unknown_provider_flags_deny_even_human_consent ... ok
+test policy::review_tests::receipt_requires_scope_expiry_and_zero_paid_budget ... ok
+test policy::tests::authentication_does_not_authorize_spending ... ok
+test policy::tests::no_other_model_or_unbounded_task ... ok
+test policy::tests::quota_absent_is_not_unlimited ... ok
+test ipc::tests::strict_protocol_rejects_unknown_fields_and_authority ... ok
+test server::tests::precancelled_task_has_no_side_effect_or_runtime ... ok
+test ipc::conversation_validation_tests::conversation_pages_and_financial_confirmation_have_strict_limits ... ok
+test server::tests::specialist_never_inherits_shell_authority ... ok
+test ipc::tests::task_namespaces_are_explicit_and_agent_intent_is_not_authority ... ok
+test vault::tests::missing_snapshot_never_created ... ok
+test authorization::tests::corruption_closure_wrong_scope_and_symlink_fail_closed ... ok
+test vault::tests::symlink_rejected ... ok
+test worker::tests::attempt_claim_is_single_use ... ok
+test authorization::tests::durable_cap_replay_and_crash ... ok
+test worker::tests::deny_all_configuration_keeps_private_state ... ok
+test authorization::tests::race_allows_only_three_distinct_tasks ... ok
+test worker::tests::compatibility_keeps_controls_without_ai_credits_soft_cap ... ok
+test worker::tests::resume_cannot_read_arbitrary_state ... ok
+test worker::tests::owned_resume_reads_history_without_create_send_or_budget_claim ... ok
+test worker::tests::post_create_patch_error_is_not_a_completed_session_or_inference ... ok
+test worker::tests::session_create_error_keeps_numeric_code_without_secret_or_send ... ok
+test worker::tests::session_diagnostic_cannot_send_or_consume_budget ... ok
+test worker::tests::unknown_cli_fails_before_start ... ok
+test storage::wal_tests::desktop_wal_commits_are_included_in_consistent_backup ... ok
+test worker::tests::synthetic_send_validates_response_without_retry ... ok
+test storage::tests::schema020_upgrade_backs_up_authority_once_before_migration ... ok
+test storage::tests::conflicting_populated_databases_are_preserved ... ok
+test storage::tests::transactional_takeover_preserves_colliding_namespaces_history_and_receipts ... ok
+test worker::tests::synthetic_cancel_and_timeout_abort_disconnect_without_resend ... ok
+test vault::tests::real_backend_opens_existing_synthetic_without_write ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.81s
+
+     Running unittests src/main.rs (src-tauri/target/debug/deps/narys_core-ff87290113d8a918)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/control.rs (src-tauri/target/debug/deps/control-6bacc3b46d394e8e)
+
+running 1 test
+test real_local_core_restarts_tasks_without_inference_and_blocks_unreviewed_submit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.34s
+
+     Running tests/protocol.rs (src-tauri/target/debug/deps/protocol-dc0392ea0144b4a6)
+
+running 6 tests
+test crashed_running_task_is_interrupted_once_and_never_retried ... ok
+test duplicate_daemon_cannot_recover_or_take_socket_from_authority ... ok
+test typed_protocol_bounds_versions_and_future_authority_are_enforced ... ok
+test disconnect_cancellation_and_restart_preserve_durable_events_without_replay ... ok
+test product_crash_recovery_keeps_input_and_does_not_reuse_ids_or_replay ... ok
+test conversation_sessions_product_errors_and_free_permission_are_real_ipc ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+   Doc-tests narys_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

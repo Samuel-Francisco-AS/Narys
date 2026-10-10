@@ -1,0 +1,15 @@
+{
+  "confirmed_at": "2026-10-10T18:44:45-03:00",
+  "command": "git ls-remote origin refs/heads/narys-server-1-headless-runtime refs/heads/main",
+  "branch": "narys-server-1-headless-runtime",
+  "local_head": "398eb1bd54faf69ea0b90c8d6372cbb1f91b7dc4",
+  "remote_head": "398eb1bd54faf69ea0b90c8d6372cbb1f91b7dc4",
+  "remote_main": "553b51182bb477d0b777093da5bfda93239fddf9",
+  "push_completed": true,
+  "deadline": "2026-10-12T15:03:12-03:00",
+  "remaining_seconds_at_confirmation": 159507,
+  "subsequent_commit_scope": "documentation and publication receipt only; final remote SHA reported in delivery message",
+  "independent_luna_audit": "pending",
+  "merge_performed": false,
+  "new_remote_inference": false
+}

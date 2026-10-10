@@ -1,0 +1,25 @@
+{
+  "observed_at": "2026-10-10T15:46:45.680515-03:00",
+  "base": "553b51182bb477d0b777093da5bfda93239fddf9",
+  "implementation_commit": "81751db34ef146388003342ac49766256434ec2d",
+  "checkpoint": "2492285b786ef261951f0759f151b893ed69037a",
+  "branch": "narys-server-1-headless-runtime",
+  "deadline": "2026-10-12T15:03:12-03:00",
+  "remaining_seconds": 170186,
+  "rustc": "1.98.1",
+  "cargo": "1.98.1",
+  "final_checks": {
+    "core_fmt": true,
+    "git_diff_check": true,
+    "systemd_unit_verify": true,
+    "vault_metadata_unchanged": true,
+    "closed_authorization_metadata_unchanged": true,
+    "all_desktop_tables_equal": true,
+    "legacy_tasks_equal": true,
+    "service_active": true
+  },
+  "result": "SERVER-1A technical PASS, independent Luna audit pending",
+  "conversation_integrated": false,
+  "agent_tools_integrated": false,
+  "server_1b_executed": false
+}

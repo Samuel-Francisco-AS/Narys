@@ -1,0 +1,23 @@
+{
+  "observed_at": "2026-10-10T18:08:42.400239-03:00",
+  "namespace": "lr10a",
+  "task_id": 3,
+  "state": "cancelled",
+  "error_code": "cancelled_before_send",
+  "event_codes": [
+    "prepared",
+    "cancelled_before_send"
+  ],
+  "repeat": {
+    "already_terminal": true,
+    "cancellation_requested": true,
+    "namespace": "lr10a",
+    "state": "cancelled",
+    "task_id": 3
+  },
+  "submit_invoked": false,
+  "remote_inference": false,
+  "agent_started": false,
+  "eligible_cancel_pass": true,
+  "scope_limit": "prepared-only legacy task; not cancellation of an active product inference"
+}

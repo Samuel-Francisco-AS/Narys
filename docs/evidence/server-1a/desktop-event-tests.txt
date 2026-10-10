@@ -1,0 +1,782 @@
+warning: unused import: `sync::atomic::AtomicUsize`
+    --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:3:34
+     |
+   3 | use std::{collections::VecDeque, sync::atomic::AtomicUsize};
+     |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+    --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:1245:1
+     |
+1245 | pub mod lifecycle_tests;
+     | ^^^^^^^^^^^^^^^^^^^^^^^^
+     = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `OperationalKind`, `OperationalTraceBus`, `RejectPublisher`, `SourceType`, `TextChannel`, `code as trace_code`, `events as trace_events`, and `payloads`
+    --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:519:17
+     |
+ 519 |         tests::{code as trace_code, events as trace_events, payloads, RejectPublisher},
+     |                 ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^  ^^^^^^^^^^^^^^^
+...
+ 522 |     OperationalKind, OperationalTraceBus, SourceType, TextChannel,
+     |     ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^
+     |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+    --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:1245:1
+     |
+1245 | pub mod lifecycle_tests;
+     | ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::cognition::types::ProviderSelection`
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/summary.rs:505:9
+    |
+505 |     use crate::cognition::types::ProviderSelection;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+    --> /home/sam/Projetos/Narys/narys-domain/src/cognition/summary.rs:1260:9
+     |
+1260 |     use super::*;
+     |         ^^^^^^^^
+     |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+    --> /home/sam/Projetos/Narys/narys-domain/src/cognition/summary.rs:1259:1
+     |
+1259 | mod uip6b_budget_tests {
+     | ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `NoopPublisher`, `OperationalKind`, `OperationalTraceBus`, `RejectPublisher`, `SourceType`, `TracePublisher`, `code`, `events`, and `payloads`
+    --> /home/sam/Projetos/Narys/narys-domain/src/cognition/summary.rs:1289:21
+     |
+1289 |             tests::{code, events, payloads, NoopPublisher, RejectPublisher},
+     |                     ^^^^  ^^^^^^  ^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^
+1290 |             TracePublisher,
+     |             ^^^^^^^^^^^^^^
+1291 |         },
+1292 |         OperationalKind, OperationalTraceBus, SourceType,
+     |         ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^
+     |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+    --> /home/sam/Projetos/Narys/narys-domain/src/cognition/summary.rs:1284:1
+     |
+1284 | pub mod lr9d_tests {
+     | ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `conversation`
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:15:9
+   |
+15 |         conversation,
+   |         ^^^^^^^^^^^^
+   |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/mod.rs:37:1
+   |
+37 | pub mod task_graph_runtime_tests;
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `luna::task::TaskId` and `operational_trace::TraceId`
+ --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:3:13
+  |
+3 | use crate::{luna::task::TaskId, operational_trace::TraceId};
+  |             ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+    --> /home/sam/Projetos/Narys/narys-domain/src/luna/runtime.rs:1182:9
+     |
+1182 |     use super::*;
+     |         ^^^^^^^^
+
+warning: unused import: `super::*`
+    --> /home/sam/Projetos/Narys/narys-domain/src/luna/runtime.rs:1554:9
+     |
+1554 |     use super::*;
+     |         ^^^^^^^^
+     |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+    --> /home/sam/Projetos/Narys/narys-domain/src/luna/runtime.rs:1553:1
+     |
+1553 | mod headless_registry_tests {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `AgentBackend`, `AgentCapabilities`, `AgentEvent`, `AgentRequest`, `AgentTraceObservation`, `MockAgentBackend`, and `NoopAgentTrace`
+ --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/adapters/tests.rs:4:19
+  |
+4 |         backend::{AgentBackend, MockAgentBackend},
+  |                   ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+5 |         trace::{AgentTraceObservation, AgentTraceSink, NoopAgentTrace},
+  |                 ^^^^^^^^^^^^^^^^^^^^^                  ^^^^^^^^^^^^^^
+6 |         types::{AgentCapabilities, AgentEvent, AgentRequest},
+  |                 ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused import: `time::Instant`
+  --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/adapters/tests.rs:19:5
+   |
+19 |     time::Instant,
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+   --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/bus.rs:432:9
+    |
+432 |     use super::*;
+    |         ^^^^^^^^
+    |
+help: if this is a test module, consider adding a `#[cfg(test)]` to the containing module
+   --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/bus.rs:431:1
+    |
+431 | mod boundary_tests {
+    | ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AgentTraceSink`
+ --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/adapters/tests.rs:5:40
+  |
+5 |         trace::{AgentTraceObservation, AgentTraceSink, NoopAgentTrace},
+  |                                        ^^^^^^^^^^^^^^
+
+warning: irrefutable `if let` pattern
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:408:12
+    |
+408 |         if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+    = note: `#[warn(irrefutable_let_patterns)]` on by default
+
+warning: irrefutable `if let` pattern
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:426:12
+    |
+426 |         if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:446:12
+    |
+446 |         if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:287:16
+    |
+287 |             if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: function `read_frames` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/app_server.rs:147:4
+    |
+147 | fn read_frames<R: Read>(mut stdout: R, sender: SyncSender<Frame>) {
+    |    ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `test_planner_stream` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/app_server.rs:320:15
+    |
+320 | pub(super) fn test_planner_stream(input: &[u8]) -> CodexRpcStream {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `response` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/app_server.rs:506:6
+    |
+506 |   fn response(id: u64) -> Vec<u8> {
+    |      ^^^^^^^^
+
+warning: function `queued_initialize_after_notifications` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/app_server.rs:551:6
+    |
+551 |   fn queued_initialize_after_notifications(count: usize) -> Result<CodexAppServerProbe, CodexAppServerDiagnosticCode> {
+    |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `run_controlled_prepared_turn` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:590:4
+    |
+590 | fn run_controlled_prepared_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, objective: &str,
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `run_prepared_turn` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:744:4
+    |
+744 | fn run_prepared_turn<T: PlannerTurnProtocol>(session: &mut T, thread_id: &str, objective: &str)
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: struct `FakeProbeBackend` is never constructed
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:771:12
+    |
+771 |     struct FakeProbeBackend {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: function `fake_probe` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:787:14
+    |
+787 |     async fn fake_probe(registry: &Arc<crate::agents::registry::AgentRegistry>, objective: &str,
+    |              ^^^^^^^^^^
+
+warning: struct `FakeTurnProtocol` is never constructed
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:847:12
+    |
+847 |     struct FakeTurnProtocol {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: associated functions `with_notifications` and `valid` are never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:856:12
+    |
+855 |     impl FakeTurnProtocol {
+    |     --------------------- associated functions in this implementation
+856 |         fn with_notifications(notifications: Vec<Value>) -> Self {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+860 |         fn valid() -> Self {
+    |            ^^^^^
+
+warning: function `valid_plan` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:888:8
+    |
+888 |     fn valid_plan() -> Value {
+    |        ^^^^^^^^^^
+
+warning: function `agent_message` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:892:8
+    |
+892 |     fn agent_message(text: &str) -> Value {
+    |        ^^^^^^^^^^^^^
+
+warning: function `completed_turn` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:896:8
+    |
+896 |     fn completed_turn(status: &str) -> Value {
+    |        ^^^^^^^^^^^^^^
+
+warning: struct `WireTurnProtocol` is never constructed
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:900:12
+    |
+900 |     struct WireTurnProtocol {
+    |            ^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:905:12
+    |
+904 |     impl WireTurnProtocol {
+    |     --------------------- associated function in this implementation
+905 |         fn new(tail: &[u8]) -> Self {
+    |            ^^^
+
+warning: function `append_frame` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:927:8
+    |
+927 |     fn append_frame(wire:&mut Vec<u8>,value:Value) { wire.extend_from_slice(value.to_string().as_bytes()); wire.push(b'\n'); }
+    |        ^^^^^^^^^^^^
+
+warning: function `assert_turn_failure` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:965:8
+    |
+965 |     fn assert_turn_failure(mut fake: FakeTurnProtocol, expected: PlannerTurnDiagnosticCode) {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `FakePlannerProtocol` is never constructed
+    --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:1052:12
+     |
+1052 |     struct FakePlannerProtocol {
+     |            ^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `ready` is never used
+    --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:1059:12
+     |
+1058 |     impl FakePlannerProtocol {
+     |     ------------------------ associated function in this implementation
+1059 |         fn ready() -> Self { Self { calls: Vec::new(), config: json!({"config":{"mcp_servers":{}}}),
+     |            ^^^^^
+
+warning: function `safe_thread_response` is never used
+    --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/backend.rs:1078:8
+     |
+1078 |     fn safe_thread_response() -> Value {
+     |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `valid` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:23:8
+   |
+16 | impl<'a> Fake<'a> {
+   | ----------------- associated function in this implementation
+...
+23 |     fn valid(control: &'a LifecycleControl) -> Self { Self::new(control, vec![message(), completed("completed")]) }
+   |        ^^^^^
+
+warning: function `delta` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:78:4
+   |
+78 | fn delta() -> Value { json!({"method":"item/agentMessage/delta","params":{"threadId":"t","turnId":"v","delta":"untrusted"}}) }
+   |    ^^^^^
+
+warning: function `run` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:79:4
+   |
+79 | fn run(fake: &mut Fake<'_>, events: &mut Vec<AgentEvent>) -> Result<String, OperationFailure> {
+   |    ^^^
+
+warning: function `cancelled` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:83:4
+   |
+83 | fn cancelled() -> OperationFailure { OperationFailure::Agent(AgentError::Cancelled) }
+   |    ^^^^^^^^^
+
+warning: struct `InterruptWire` is never constructed
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:305:8
+    |
+305 | struct InterruptWire {
+    |        ^^^^^^^^^^^^^
+
+warning: associated items `new` and `assert_reclaimed_once` are never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:314:8
+    |
+313 | impl InterruptWire {
+    | ------------------ associated items in this implementation
+314 |     fn new(interleaved:Vec<Value>, ack:&str, eof_fault:Option<CodexAppServerDiagnosticCode>) -> Self {
+    |        ^^^
+...
+321 |     fn assert_reclaimed_once(&self) {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `run_interrupt_wire` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:357:4
+    |
+357 | fn run_interrupt_wire(wire:&mut InterruptWire, sink_closed:bool)->Result<String,OperationFailure> {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `forbidden` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/agents/codex/lifecycle_tests.rs:367:4
+    |
+367 | fn forbidden(kind:&str)->Value {
+    |    ^^^^^^^^^
+
+warning: type alias `CompletionAcks` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:50:6
+   |
+50 | type CompletionAcks = std::collections::HashMap<usize, mpsc::Sender<String>>;
+   |      ^^^^^^^^^^^^^^
+
+warning: static `COMPLETION_ACKS` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:51:8
+   |
+51 | static COMPLETION_ACKS: std::sync::OnceLock<Mutex<CompletionAcks>> = std::sync::OnceLock::new();
+   |        ^^^^^^^^^^^^^^^
+
+warning: struct `WorkerAcknowledgement` is never constructed
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:52:8
+   |
+52 | struct WorkerAcknowledgement {
+   |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated items `new` and `wait` are never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:57:8
+   |
+56 | impl WorkerAcknowledgement {
+   | -------------------------- associated items in this implementation
+57 |     fn new(key: usize) -> Self {
+   |        ^^^
+...
+67 |     fn wait(self) -> String {
+   |        ^^^^
+
+warning: function `worker_completed_ack` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:85:15
+   |
+85 | pub(super) fn worker_completed_ack(cancelled: &AtomicBool, subtask_id: &str) {
+   |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `fixture` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:308:4
+    |
+308 | fn fixture(
+    |    ^^^^^^^
+
+warning: function `channel_fail_on` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:418:4
+    |
+418 | fn channel_fail_on(needle: &'static str) -> (Channel<TaskEvent>, mpsc::Receiver<String>) {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `cancel_on_task_started` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:441:4
+    |
+441 | fn cancel_on_task_started(
+    |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `wait_for` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:473:4
+    |
+473 | fn wait_for(receiver: &mpsc::Receiver<String>, needle: &str) -> Vec<String> {
+    |    ^^^^^^^^
+
+warning: function `local_sse_server` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:485:4
+    |
+485 | fn local_sse_server(
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `groq_completion` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:539:4
+    |
+539 | fn groq_completion(text: &str, finish: &str, usage: bool) -> String {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `groq_sse` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:548:4
+    |
+548 | fn groq_sse(text: &str, usage: bool) -> String {
+    |    ^^^^^^^^
+
+warning: function `cloudflare_sse` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:562:4
+    |
+562 | fn cloudflare_sse(text: &str) -> String {
+    |    ^^^^^^^^^^^^^^
+
+warning: function `cloudflare_sse_without_usage` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:569:4
+    |
+569 | fn cloudflare_sse_without_usage(text: &str) -> String {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `terminal_count` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:576:4
+    |
+576 | fn terminal_count(events: &[String]) -> usize {
+    |    ^^^^^^^^^^^^^^
+
+warning: struct `AdmissionGraphWorker` is never constructed
+    --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:1501:8
+     |
+1501 | struct AdmissionGraphWorker {
+     |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `same_provider_workers_admission` is never used
+    --> /home/sam/Projetos/Narys/narys-domain/src/cognition/task_graph_runtime_tests.rs:1536:4
+     |
+1536 | fn same_provider_workers_admission(cap: usize) {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `context_generation` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+
+warning: variant `Fixture` is never constructed
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/contract.rs:85:5
+   |
+82 | enum AuthorityKind {
+   |      ------------- variant in this enum
+...
+85 |     Fixture {
+   |     ^^^^^^^
+
+warning: associated function `fixture` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/contract.rs:94:19
+   |
+89 | impl ExecutionAuthority {
+   | ----------------------- associated function in this implementation
+...
+94 |     pub(super) fn fixture(program: &Path) -> Self {
+   |                   ^^^^^^^
+
+warning: constant `WAIT` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:15:7
+   |
+15 | const WAIT: Duration = Duration::from_secs(15);
+   |       ^^^^
+
+warning: constant `PYTHON` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:16:7
+   |
+16 | const PYTHON: &str = "/usr/bin/python3";
+   |       ^^^^^^
+
+warning: struct `Runtime` is never constructed
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:18:8
+   |
+18 | struct Runtime(Arc<ExecutionBroker>);
+   |        ^^^^^^^
+
+warning: associated items `new` and `idle` are never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:20:8
+   |
+19 | impl Runtime {
+   | ------------ associated items in this implementation
+20 |     fn new() -> Self {
+   |        ^^^
+...
+23 |     fn idle(&self) {
+   |        ^^^^
+
+warning: struct `Directory` is never constructed
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:42:8
+   |
+42 | struct Directory(PathBuf);
+   |        ^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:44:8
+   |
+43 | impl Directory {
+   | -------------- associated function in this implementation
+44 |     fn new() -> Self {
+   |        ^^^
+
+warning: function `request` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:60:4
+   |
+60 | fn request(program: &str, args: &[&str]) -> ExecutionRequest {
+   |    ^^^^^^^
+
+warning: function `python` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:74:4
+   |
+74 | fn python(script: &str) -> ExecutionRequest {
+   |    ^^^^^^
+
+warning: function `submit` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:77:4
+   |
+77 | fn submit(rt: &Runtime, r: &ExecutionRequest) -> ExecutionHandle {
+   |    ^^^^^^
+
+warning: function `done` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:81:4
+   |
+81 | fn done(h: &ExecutionHandle) -> Arc<ExecutionResult> {
+   |    ^^^^
+
+warning: function `reaped` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:84:4
+   |
+84 | fn reaped(r: &ExecutionResult) {
+   |    ^^^^^^
+
+warning: function `until` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:97:4
+   |
+97 | fn until(mut condition: impl FnMut() -> bool) {
+   |    ^^^^^
+
+warning: function `running` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:104:4
+    |
+104 | fn running(h: &ExecutionHandle) {
+    |    ^^^^^^^
+
+warning: function `dimensions` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:107:4
+    |
+107 | fn dimensions() -> PtyDimensions {
+    |    ^^^^^^^^^^
+
+warning: function `human_request` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:110:4
+    |
+110 | fn human_request(program: &str, args: &[&str]) -> ExecutionRequest {
+    |    ^^^^^^^^^^^^^
+
+warning: function `shell` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:115:4
+    |
+115 | fn shell(rt: &Runtime, cwd: &Path) -> PtySession {
+    |    ^^^^^
+
+warning: function `input` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:131:4
+    |
+131 | fn input(s: &PtySession, command: &str) {
+    |    ^^^^^
+
+warning: function `retained` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:139:4
+    |
+139 | fn retained(s: &PtySession) -> Vec<u8> {
+    |    ^^^^^^^^
+
+warning: function `contains` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:152:4
+    |
+152 | fn contains(bytes: &[u8], needle: &[u8]) -> bool {
+    |    ^^^^^^^^
+
+warning: function `wait_text` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:155:4
+    |
+155 | fn wait_text(s: &PtySession, text: &[u8]) {
+    |    ^^^^^^^^^
+
+warning: function `close` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:158:4
+    |
+158 | fn close(s: &PtySession) -> Arc<ExecutionResult> {
+    |    ^^^^^
+
+warning: constant `FLOOD` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/execution/tests.rs:327:7
+    |
+327 | const FLOOD: &str = "import os,threading\ndef flood(fd):\n for i in range(768): os.write(fd,b'x'*8192)\na=threading.Thread(target=f...
+    |       ^^^^^
+
+warning: methods `entered` and `release` are never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:37:8
+   |
+28 | impl Gate {
+   | --------- methods in this implementation
+...
+37 |     fn entered(&self) {
+   |        ^^^^^^^
+...
+48 |     fn release(&self) {
+   |        ^^^^^^^
+
+warning: struct `ReleaseOnDrop` is never constructed
+  --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:53:8
+   |
+53 | struct ReleaseOnDrop(Arc<Gate>);
+   |        ^^^^^^^^^^^^^
+
+warning: struct `InstalledGate` is never constructed
+  --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:61:8
+   |
+61 | struct InstalledGate {
+   |        ^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:66:8
+   |
+65 | impl InstalledGate {
+   | ------------------ associated function in this implementation
+66 |     fn new(sessions: &CurrentRunSessions, after: bool) -> Self {
+   |        ^^^
+
+warning: struct `Keys` is never constructed
+  --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:96:8
+   |
+96 | struct Keys {
+   |        ^^^^
+
+warning: struct `Observed` is never constructed
+   --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:124:8
+    |
+124 | struct Observed {
+    |        ^^^^^^^^
+
+warning: struct `RecordingProvider` is never constructed
+   --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:129:8
+    |
+129 | struct RecordingProvider {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: struct `Fixture` is never constructed
+   --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:166:8
+    |
+166 | struct Fixture {
+    |        ^^^^^^^
+
+warning: associated items `new`, `configure`, `start`, `collect`, and `no_exchange` are never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/luna/conversation_preflight_tests.rs:179:8
+    |
+178 | impl Fixture {
+    | ------------ associated items in this implementation
+179 |     fn new(credentials: &[SecretKey]) -> Self {
+    |        ^^^
+...
+253 |     fn configure(&self, mode: RoutingMode, ids: &[&str]) {
+    |        ^^^^^^^^^
+...
+284 |     fn start(&self, session: i64, message: &str) -> (TaskId, mpsc::Receiver<Value>) {
+    |        ^^^^^
+...
+307 |     fn collect(&self, id: TaskId, receiver: mpsc::Receiver<Value>, state: &str) -> Vec<Value> {
+    |        ^^^^^^^
+...
+346 |     fn no_exchange(&self) {
+    |        ^^^^^^^^^^^
+
+warning: function `task_fixture` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/adapters/tests.rs:71:4
+   |
+71 | fn task_fixture() -> (Arc<OperationalTraceBus>, TaskTraceAdapter) {
+   |    ^^^^^^^^^^^^
+
+warning: function `plan` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/adapters/tests.rs:147:4
+    |
+147 | fn plan() -> crate::agents::planner::PlanV1 {
+    |    ^^^^
+
+warning: function `functional_events` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/adapters/tests.rs:272:4
+    |
+272 | fn functional_events() -> Vec<TaskEventKind> {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `scheduler_fixture` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/adapters/tests.rs:393:4
+    |
+393 | fn scheduler_fixture(role: CognitiveRole) -> (Arc<OperationalTraceBus>, SchedulerTraceAdapter) {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: struct `Reference` is never constructed
+ --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/invariants.rs:5:8
+  |
+5 | struct Reference {
+  |        ^^^^^^^^^
+
+warning: method `retain_event` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/invariants.rs:10:8
+   |
+ 9 | impl Reference {
+   | -------------- method in this implementation
+10 |     fn retain_event(&mut self, event: Arc<OperationalEvent>) -> bool {
+   |        ^^^^^^^^^^^^
+
+warning: function `assert_counters` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/operational_trace/invariants.rs:75:4
+   |
+75 | fn assert_counters(store: &Storage) {
+   |    ^^^^^^^^^^^^^^^
+
+warning: `narys-domain` (lib) generated 103 warnings (run `cargo fix --lib -p narys-domain` to apply 12 suggestions)
+warning: unused import: `task_id`
+ --> src/luna/mod.rs:1:53
+  |
+1 | pub use narys_domain::luna::{events, runtime, task, task_id};
+  |                                                     ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `request_attention` is never used
+   --> src/adaptive.rs:249:14
+    |
+249 | pub async fn request_attention(app: AppHandle, reason: AttentionReason) -> Result<(), String> {
+    |              ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `require_attention` is never used
+   --> src/adaptive.rs:253:8
+    |
+253 | pub fn require_attention(app: &AppHandle, reason: AttentionReason) -> Result<(), String> {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: `assistente-3d` (lib test) generated 3 warnings (run `cargo fix --lib -p assistente-3d --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running unittests src/lib.rs (src-tauri/target/debug/deps/assistente_3d_lib-29974b9d2230cb9e)
+
+running 1 test
+test terminal_surface::tests::activity_fixture_uses_real_adapters_and_existing_lr9c_dto ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.00s
+

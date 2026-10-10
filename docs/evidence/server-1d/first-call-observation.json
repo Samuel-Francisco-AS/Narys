@@ -1,0 +1,69 @@
+{
+  "started_at": "2026-10-10T18:30:20.428220-03:00",
+  "pid": 1392,
+  "after_task": 192,
+  "remote_submissions_by_monitor": 0,
+  "unlock_invoked": false,
+  "before": {
+    "cpu_seconds": 4.56,
+    "rss_kib": 28516,
+    "hwm_kib": 552460
+  },
+  "cgroup_before": {
+    "memory.current": "40034304",
+    "memory.peak": "578871296",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+    "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+  },
+  "sample_interval_seconds": 0.05,
+  "long_run_benchmark": false,
+  "elapsed_seconds": 104.63876336099997,
+  "samples": 2060,
+  "after": {
+    "cpu_seconds": 7.52,
+    "rss_kib": 31008,
+    "hwm_kib": 552904
+  },
+  "peak_observed_rss_kib": 553476,
+  "cpu_seconds_delta": 2.96,
+  "timeline": [
+    {
+      "elapsed_seconds": 0.15299406400004045,
+      "states": []
+    },
+    {
+      "elapsed_seconds": 100.99370877700005,
+      "states": [
+        [
+          193,
+          "running"
+        ]
+      ]
+    },
+    {
+      "elapsed_seconds": 104.63876057799996,
+      "states": [
+        [
+          193,
+          "completed"
+        ]
+      ]
+    }
+  ],
+  "cgroup_after": {
+    "memory.current": "41345024",
+    "memory.peak": "579256320",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+    "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+  },
+  "runs": [
+    {
+      "task_id": 193,
+      "state": "completed",
+      "error_code": null,
+      "result_present": true,
+      "result_sha256": "a39dd0d83b4a6c1ae947570544172effb48f868d6d5982abb91de36fb3dd1988"
+    }
+  ],
+  "finished_at": "2026-10-10T18:32:05.067652-03:00"
+}

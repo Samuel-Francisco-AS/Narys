@@ -1,0 +1,47 @@
+{
+  "recorded_at": "2026-10-10T18:06:01.798963-03:00",
+  "source": "operator report in Codex conversation",
+  "client": "Termux on phone via private SSH terminal",
+  "doctor_ok": true,
+  "core_reachable": true,
+  "credentials_state": "unlocked",
+  "backend_compatible": true,
+  "personal_unlock_executed": false,
+  "password_requested_or_received_by_agent": false,
+  "cold_boot_proven": false,
+  "inference_authorization": {
+    "max_calls": 2,
+    "provider": "Groq Free",
+    "quota_available_confirmed": true,
+    "overage": false,
+    "retry": false,
+    "paid_fallback": false,
+    "calls_used": 0
+  },
+  "host_sessions": [
+    {
+      "session_id": "2",
+      "properties": [
+        "User=1000",
+        "TTY=pts/0",
+        "Remote=yes",
+        "Service=sshd",
+        "Leader=1414",
+        "Type=tty",
+        "Class=user"
+      ]
+    },
+    {
+      "session_id": "3",
+      "properties": [
+        "User=1000",
+        "TTY=pts/1",
+        "Remote=yes",
+        "Service=sshd",
+        "Leader=1501",
+        "Type=tty",
+        "Class=user"
+      ]
+    }
+  ]
+}

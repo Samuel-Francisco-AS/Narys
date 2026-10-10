@@ -1,0 +1,16 @@
+{
+  "pid": 48353,
+  "sample_seconds": 10.000375292998797,
+  "cpu_seconds": 0.0,
+  "first": {
+    "ticks": 3,
+    "parent_pid": 1344,
+    "rss": "VmRSS:\t   15964 kB"
+  },
+  "last": {
+    "ticks": 3,
+    "parent_pid": 1344,
+    "rss": "VmRSS:\t   15964 kB"
+  },
+  "same_systemd_pid_after_client_exit": true
+}

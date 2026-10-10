@@ -1,0 +1,1 @@
+CORE_UPDATED; protocol_v1_ready; reviewed binary/unit backup=/home/sam/.local/state/narys/core/updates/server-1a-8ahgsssf

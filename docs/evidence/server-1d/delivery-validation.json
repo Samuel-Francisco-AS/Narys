@@ -1,0 +1,14 @@
+{
+  "checked_at": "2026-10-10T18:44:08.432239-03:00",
+  "json_files_valid_before_this_file": 28,
+  "evidence_consistency": "pass",
+  "baseline_rows_preserved": true,
+  "potential_secret_signature_count": 0,
+  "report_relative_links_valid": 28,
+  "python_compile": "pass",
+  "git_diff_check": "pass",
+  "unfinished_outputs": 0,
+  "groq_calls_used": 1,
+  "remote_inference_by_validator": false,
+  "scan_limit": "signature scan is not proof against all secrets"
+}

@@ -1,0 +1,64 @@
+{
+  "prepared_at": "2026-10-10T18:26:05.998008-03:00",
+  "authority": "explicit user authorization earlier in this conversation; up to 2 Groq Free calls",
+  "max_calls": 2,
+  "calls_used": 1,
+  "remote_inference_executed_by_agent": false,
+  "free_tier_and_quota_confirmed_by_operator": true,
+  "overage": false,
+  "paid_fallback": false,
+  "session_id": 39,
+  "marker": "SERVER1D-371dd203",
+  "expected_arithmetic_result": 78,
+  "original_policy": {
+    "contextMaxBytes": 32768,
+    "historyMaxBytes": 12288,
+    "historyMaxMessages": 8,
+    "maxOutputTokens": null,
+    "maxProviderCalls": 3,
+    "maxRetries": 1,
+    "retryBackoffMs": 1500,
+    "retryEnabled": true,
+    "role": "conversation",
+    "routingMode": "fixed",
+    "summaryInputMaxBytes": 32768,
+    "targets": [
+      {
+        "model": "openai/gpt-oss-20b",
+        "providerId": "groq",
+        "thinkingLevel": "medium"
+      }
+    ]
+  },
+  "bounded_policy": {
+    "contextMaxBytes": 32768,
+    "historyMaxBytes": 12288,
+    "historyMaxMessages": 8,
+    "maxOutputTokens": 512,
+    "maxProviderCalls": 1,
+    "maxRetries": 0,
+    "retryBackoffMs": 1500,
+    "retryEnabled": false,
+    "role": "conversation",
+    "routingMode": "fixed",
+    "summaryInputMaxBytes": 32768,
+    "targets": [
+      {
+        "model": "openai/gpt-oss-20b",
+        "providerId": "groq",
+        "thinkingLevel": "medium"
+      }
+    ]
+  },
+  "original_policy_private_path": "/home/sam/.local/state/narys/core/server-1d/original-conversation-policy.json",
+  "other_providers_disabled": true,
+  "baseline_event_cursor": 54,
+  "next_expected_product_task_id": 193,
+  "state": "closed_after_single_successful_human_inference",
+  "first_task_id": 193,
+  "first_state": "completed",
+  "calls_unused": 1,
+  "authorization_unused_allowance_not_transferred": true,
+  "policy_restored": true,
+  "closed_at": "2026-10-10T18:35:47.464137-03:00"
+}

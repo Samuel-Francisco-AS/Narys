@@ -6,14 +6,15 @@ rust-version = "1.94.0"
 publish = false
 [workspace]
 [dependencies]
+narys-domain = { path = "../narys-domain" }
 narys-lr10a-poc = { path = "../experiments/lr-10a-sdk-runtime" }
 github-copilot-sdk = { version = "=1.0.17", default-features = false, features = ["runtime"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "=1.0.150"
-tokio = { version = "=1.52.3", features = ["macros", "rt", "time", "process", "io-util", "net", "signal", "sync"] }
+tokio = { version = "=1.52.3", features = ["macros", "rt", "time", "process", "io-util", "io-std", "net", "signal", "sync"] }
 sha2 = "0.10"
 libc = "=0.2.189"
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.31", features = ["bundled", "backup"] }
 iota_stronghold = { version = "2.1.0", default-features = false, features = ["std"] }
 keyring = { version = "3.6.3", features = ["sync-secret-service", "crypto-rust"] }
 zeroize = "1"

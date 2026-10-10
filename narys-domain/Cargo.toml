@@ -1,0 +1,31 @@
+[package]
+name = "narys-domain"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94.0"
+publish = false
+[features]
+lr9e-probe = []
+desktop-tests = []
+[workspace]
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "=1.52.3", features = ["rt-multi-thread", "macros", "time", "sync", "net", "io-util"] }
+reqwest = { version = "=0.11.27", default-features = false, features = ["json", "stream", "rustls-tls"] }
+httpdate = "=1.0.3"
+rusqlite = { version = "0.31", features = ["bundled", "backup"] }
+chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
+getrandom = "0.3"
+keyring = { version = "=3.6.3", default-features = false, features = ["sync-secret-service", "crypto-rust", "apple-native", "windows-native"] }
+iota_stronghold = { version = "2.1.0", default-features = false, features = ["std"] }
+zeroize = "1"
+thiserror = "2"
+libc = "=0.2.189"
+portable-pty = { version = "=0.9.0", default-features = false }
+[target.'cfg(target_os = "linux")'.dependencies]
+dbus-secret-service = { version = "4.0.1", features = ["crypto-rust"] }
+[dev-dependencies]
+tempfile = "=3.27.0"
+[profile.dev.package.scrypt]
+opt-level = 3

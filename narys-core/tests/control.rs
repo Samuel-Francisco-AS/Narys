@@ -4,6 +4,32 @@ use std::{
     process::{Command, Stdio},
     time::{Duration, Instant},
 };
+struct OwnedChild(std::process::Child);
+impl std::ops::Deref for OwnedChild {
+    type Target = std::process::Child;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl std::ops::DerefMut for OwnedChild {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl Drop for OwnedChild {
+    fn drop(&mut self) {
+        if self.0.try_wait().ok().flatten().is_none() {
+            let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, self.0.id(), 0) } as i32;
+            if fd >= 0 {
+                unsafe {
+                    libc::syscall(libc::SYS_pidfd_send_signal, fd, libc::SIGTERM, 0, 0);
+                    libc::close(fd);
+                }
+            }
+            let _ = self.0.wait();
+        }
+    }
+}
 fn call(home: &std::path::Path, runtime: &std::path::Path, args: &[&str]) -> serde_json::Value {
     let out = Command::new(env!("CARGO_BIN_EXE_narys-core"))
         .args(args)
@@ -16,26 +42,30 @@ fn call(home: &std::path::Path, runtime: &std::path::Path, args: &[&str]) -> ser
         )
         .output()
         .unwrap();
-    serde_json::from_slice(&out.stdout).unwrap()
+    serde_json::from_slice(&out.stdout)
+        .unwrap_or_else(|e| panic!("{e}: {}", String::from_utf8_lossy(&out.stderr)))
 }
 #[test]
 fn real_local_core_restarts_tasks_without_inference_and_blocks_unreviewed_submit() {
     let home = tempfile::tempdir().unwrap();
     let runtime = tempfile::tempdir().unwrap();
+    fs::set_permissions(runtime.path(), fs::Permissions::from_mode(0o700)).unwrap();
     let launch = || {
-        Command::new(env!("CARGO_BIN_EXE_narys-core"))
-            .arg("serve")
-            .env_clear()
-            .env("HOME", home.path())
-            .env("XDG_RUNTIME_DIR", runtime.path())
-            .env(
-                "DBUS_SESSION_BUS_ADDRESS",
-                "unix:path=/nonexistent-narys-synthetic-bus",
-            )
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .unwrap()
+        OwnedChild(
+            Command::new(env!("CARGO_BIN_EXE_narys-core"))
+                .arg("serve")
+                .env_clear()
+                .env("HOME", home.path())
+                .env("XDG_RUNTIME_DIR", runtime.path())
+                .env(
+                    "DBUS_SESSION_BUS_ADDRESS",
+                    "unix:path=/nonexistent-narys-synthetic-bus",
+                )
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap(),
+        )
     };
     let mut child = launch();
     let socket = runtime.path().join("narys-core/control.sock");

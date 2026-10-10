@@ -1,0 +1,32 @@
+{
+  "sample": "isolated idle; no credential probes or provider calls during interval",
+  "start": {
+    "pid": 58294,
+    "cpu_seconds": 8.31,
+    "rss_kib": 30520
+  },
+  "end": {
+    "pid": 58294,
+    "cpu_seconds": 8.31,
+    "rss_kib": 30520
+  },
+  "elapsed_seconds": 10.018382808000752,
+  "cpu_seconds_delta": 0.0,
+  "pid_unchanged": true,
+  "status": {
+    "active_task": null,
+    "agent_execution_authority": false,
+    "authority": "narys-core",
+    "conversation_integrated": true,
+    "copilot": "on_demand",
+    "core": "running",
+    "database": "core/db/luna.sqlite3",
+    "execution_workers": 0,
+    "graphical_environment_present": false,
+    "product_active_tasks": 0,
+    "profile": "HOST_ASSISTED_NOT_SANDBOX",
+    "protocol_version": 1,
+    "tools": 0,
+    "trace_events": 28
+  }
+}
