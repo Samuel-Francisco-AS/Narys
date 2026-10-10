@@ -1,0 +1,454 @@
+{
+  "phase": "LR-10A A9-FIX-1",
+  "schema_version": 1,
+  "base": "938dc40ad3575435b97479fa14b8f3a2b1f7506b",
+  "mode": "HOST_ASSISTED_NOT_SANDBOX",
+  "variants": [
+    {
+      "name": "a9_baseline",
+      "changed_dimension": "none",
+      "observed_at": "2026-10-10T00:30:41.375291+00:00",
+      "config_stat_unchanged": true,
+      "marker_present_after": false,
+      "owned_identities_absent_after": true,
+      "harness_exit_code": 1,
+      "measurement": {
+        "schema_version": 2,
+        "probe": "preflight",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 1409.32,
+        "cleanup_ms": 14.0,
+        "peak_process_tree_rss_bytes": 302866432,
+        "peak_owned_processes": 3,
+        "sampled_cpu_seconds_lower_bound": 1.39,
+        "system_processes_before": 231,
+        "system_processes_after": 231,
+        "observed_owned_processes": 8,
+        "attributed_processes": [
+          {
+            "pid": 23540,
+            "start_ticks": 1226174,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "attempt_marker_claimed": false,
+          "blockers": [
+            "authentication_unavailable",
+            "included_quota_unverified",
+            "model_catalog_unavailable",
+            "billing_units_and_maximum_cost_unverified",
+            "no_paid_fallback_enforcement_unverified",
+            "private_authenticated_session_state_unverified"
+          ],
+          "fixture_unchanged": true,
+          "gate": "A9_HOST_ASSISTED",
+          "gui_started": false,
+          "host_assisted_not_sandbox": true,
+          "model_selected": null,
+          "persistence": "NOT_RUN_pre_send_blocked",
+          "preflight": {
+            "auth": {
+              "authenticated": false,
+              "identity_omitted": true
+            },
+            "catalog": {
+              "code": "rpc_error_unknown",
+              "models": null,
+              "source": "models.list"
+            },
+            "quota": {
+              "error": "rpc_error_unknown",
+              "snapshots": null,
+              "source": "account.getQuota",
+              "state": "quota_unknown"
+            }
+          },
+          "response_received": false,
+          "runtime": {
+            "protocol_version": 3,
+            "version": "1.0.90"
+          },
+          "sdk": "1.0.17",
+          "sdk_send_calls": 0,
+          "shutdown": "graceful",
+          "start_ms": 1058,
+          "state": "BLOCKED_PRE_SEND",
+          "stop_ms": 28,
+          "task_result_validated": false,
+          "workspace_private": true
+        }
+      }
+    },
+    {
+      "name": "validated_original_path",
+      "changed_dimension": "PATH",
+      "observed_at": "2026-10-10T00:30:42.726932+00:00",
+      "config_stat_unchanged": true,
+      "marker_present_after": false,
+      "owned_identities_absent_after": true,
+      "harness_exit_code": 1,
+      "measurement": {
+        "schema_version": 2,
+        "probe": "preflight",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 1329.65,
+        "cleanup_ms": 19.9,
+        "peak_process_tree_rss_bytes": 302338048,
+        "peak_owned_processes": 3,
+        "sampled_cpu_seconds_lower_bound": 1.37,
+        "system_processes_before": 231,
+        "system_processes_after": 231,
+        "observed_owned_processes": 8,
+        "attributed_processes": [
+          {
+            "pid": 23703,
+            "start_ticks": 1226317,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "attempt_marker_claimed": false,
+          "blockers": [
+            "authentication_unavailable",
+            "included_quota_unverified",
+            "model_catalog_unavailable",
+            "billing_units_and_maximum_cost_unverified",
+            "no_paid_fallback_enforcement_unverified",
+            "private_authenticated_session_state_unverified"
+          ],
+          "fixture_unchanged": true,
+          "gate": "A9_HOST_ASSISTED",
+          "gui_started": false,
+          "host_assisted_not_sandbox": true,
+          "model_selected": null,
+          "persistence": "NOT_RUN_pre_send_blocked",
+          "preflight": {
+            "auth": {
+              "authenticated": false,
+              "identity_omitted": true
+            },
+            "catalog": {
+              "code": "rpc_error_unknown",
+              "models": null,
+              "source": "models.list"
+            },
+            "quota": {
+              "error": "rpc_error_unknown",
+              "snapshots": null,
+              "source": "account.getQuota",
+              "state": "quota_unknown"
+            }
+          },
+          "response_received": false,
+          "runtime": {
+            "protocol_version": 3,
+            "version": "1.0.90"
+          },
+          "sdk": "1.0.17",
+          "sdk_send_calls": 0,
+          "shutdown": "graceful",
+          "start_ms": 1003,
+          "state": "BLOCKED_PRE_SEND",
+          "stop_ms": 32,
+          "task_result_validated": false,
+          "workspace_private": true
+        }
+      }
+    },
+    {
+      "name": "without_dbus_session_bus_address",
+      "changed_dimension": "DBUS_SESSION_BUS_ADDRESS",
+      "observed_at": "2026-10-10T00:30:44.077622+00:00",
+      "config_stat_unchanged": true,
+      "marker_present_after": false,
+      "owned_identities_absent_after": true,
+      "harness_exit_code": 1,
+      "measurement": {
+        "schema_version": 2,
+        "probe": "preflight",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 1328.31,
+        "cleanup_ms": 15.55,
+        "peak_process_tree_rss_bytes": 303181824,
+        "peak_owned_processes": 3,
+        "sampled_cpu_seconds_lower_bound": 1.37,
+        "system_processes_before": 231,
+        "system_processes_after": 231,
+        "observed_owned_processes": 8,
+        "attributed_processes": [
+          {
+            "pid": 23861,
+            "start_ticks": 1226452,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "attempt_marker_claimed": false,
+          "blockers": [
+            "authentication_unavailable",
+            "included_quota_unverified",
+            "model_catalog_unavailable",
+            "billing_units_and_maximum_cost_unverified",
+            "no_paid_fallback_enforcement_unverified",
+            "private_authenticated_session_state_unverified"
+          ],
+          "fixture_unchanged": true,
+          "gate": "A9_HOST_ASSISTED",
+          "gui_started": false,
+          "host_assisted_not_sandbox": true,
+          "model_selected": null,
+          "persistence": "NOT_RUN_pre_send_blocked",
+          "preflight": {
+            "auth": {
+              "authenticated": false,
+              "identity_omitted": true
+            },
+            "catalog": {
+              "code": "rpc_error_unknown",
+              "models": null,
+              "source": "models.list"
+            },
+            "quota": {
+              "error": "rpc_error_unknown",
+              "snapshots": null,
+              "source": "account.getQuota",
+              "state": "quota_unknown"
+            }
+          },
+          "response_received": false,
+          "runtime": {
+            "protocol_version": 3,
+            "version": "1.0.90"
+          },
+          "sdk": "1.0.17",
+          "sdk_send_calls": 0,
+          "shutdown": "graceful",
+          "start_ms": 1018,
+          "state": "BLOCKED_PRE_SEND",
+          "stop_ms": 29,
+          "task_result_validated": false,
+          "workspace_private": true
+        }
+      }
+    },
+    {
+      "name": "without_xdg_runtime_dir",
+      "changed_dimension": "XDG_RUNTIME_DIR",
+      "observed_at": "2026-10-10T00:30:45.439486+00:00",
+      "config_stat_unchanged": true,
+      "marker_present_after": false,
+      "owned_identities_absent_after": true,
+      "harness_exit_code": 1,
+      "measurement": {
+        "schema_version": 2,
+        "probe": "preflight",
+        "sample_kind": "fresh_process_warm_os_caches",
+        "headless": true,
+        "poll_interval_ms": 50,
+        "exit_code": 1,
+        "stdout_truncated": false,
+        "timed_out": false,
+        "operation_outcome": "main_exit_nonzero",
+        "wall_ms": 1335.02,
+        "cleanup_ms": 25.25,
+        "peak_process_tree_rss_bytes": 303271936,
+        "peak_owned_processes": 3,
+        "sampled_cpu_seconds_lower_bound": 1.38,
+        "system_processes_before": 231,
+        "system_processes_after": 231,
+        "observed_owned_processes": 8,
+        "attributed_processes": [
+          {
+            "pid": 24024,
+            "start_ticks": 1226588,
+            "basis": "launched_root"
+          }
+        ],
+        "unsampled_attributed_descendants": 0,
+        "owned_survivors_before_recovery": [],
+        "owned_survivors_after_recovery": [],
+        "harness_reaped_descendants": 0,
+        "harness_recovery_signals": 0,
+        "ownership_errors": [],
+        "kernel_children_exhausted": true,
+        "cleanup_status": "graceful_no_recovery",
+        "cleanup_complete": true,
+        "ownership_scope": "private_single_invocation_subreaper",
+        "external_process_policy": "not_attributed_never_signalled",
+        "sdk_shutdown_verified": false,
+        "sdk_report": {
+          "attempt_marker_claimed": false,
+          "blockers": [
+            "authentication_unavailable",
+            "included_quota_unverified",
+            "model_catalog_unavailable",
+            "billing_units_and_maximum_cost_unverified",
+            "no_paid_fallback_enforcement_unverified",
+            "private_authenticated_session_state_unverified"
+          ],
+          "fixture_unchanged": true,
+          "gate": "A9_HOST_ASSISTED",
+          "gui_started": false,
+          "host_assisted_not_sandbox": true,
+          "model_selected": null,
+          "persistence": "NOT_RUN_pre_send_blocked",
+          "preflight": {
+            "auth": {
+              "authenticated": false,
+              "identity_omitted": true
+            },
+            "catalog": {
+              "code": "rpc_error_unknown",
+              "models": null,
+              "source": "models.list"
+            },
+            "quota": {
+              "error": "rpc_error_unknown",
+              "snapshots": null,
+              "source": "account.getQuota",
+              "state": "quota_unknown"
+            }
+          },
+          "response_received": false,
+          "runtime": {
+            "protocol_version": 3,
+            "version": "1.0.90"
+          },
+          "sdk": "1.0.17",
+          "sdk_send_calls": 0,
+          "shutdown": "graceful",
+          "start_ms": 996,
+          "state": "BLOCKED_PRE_SEND",
+          "stop_ms": 29,
+          "task_result_validated": false,
+          "workspace_private": true
+        }
+      }
+    }
+  ],
+  "sdk_send_calls": 0,
+  "real_session_operations": 0,
+  "marker_claimed": false,
+  "a9_real": "NOT_RUN",
+  "environment_presence": {
+    "HOME": true,
+    "PATH": true,
+    "DBUS_SESSION_BUS_ADDRESS": true,
+    "XDG_RUNTIME_DIR": true,
+    "XDG_CONFIG_HOME": false,
+    "XDG_DATA_HOME": false,
+    "XDG_CACHE_HOME": false,
+    "GH_CONFIG_DIR": false,
+    "COPILOT_HOME": false,
+    "DISPLAY": false,
+    "WAYLAND_DISPLAY": false,
+    "GH_TOKEN": false,
+    "GITHUB_TOKEN": false,
+    "COPILOT_GITHUB_TOKEN": false,
+    "COPILOT_SDK_AUTH_TOKEN": false,
+    "GITHUB_COPILOT_API_TOKEN": false,
+    "COPILOT_DISABLE_KEYTAR": false
+  },
+  "gh_available_usr_bin": true,
+  "gh_same_resolution_original_and_baseline": true,
+  "verification_stage": "complete",
+  "cli_sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+  "binary_sha256": "9f1d6389e79e947507556078804b80ae8e7a9a6d014e3e32dcda6d47fac852c1",
+  "source_sha256": {
+    "diagnose_a9_auth.py": "3ce57458a1057bb9b574a0fbe8ec7a7467afc46443d53744feb65f36eb8a4e7b",
+    "run_a9_host.py": "0a9446a9874bb088d1c013f521d7bde51530e9979e74c761149c91c6e1e5affe",
+    "src/host_assisted.rs": "24d736206ecf977354a18f43f7f035edf0a131fd35d4cfae686ed2d6b446cb47",
+    "src/bin/a9-host-assisted.rs": "9a9cbda9b85c163b15333b93f991912c95430c0765aa0a458e87e849c0afdd26",
+    "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+    "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+    "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+  },
+  "config_stat_before": {
+    "inode": 3734806,
+    "bytes": 470,
+    "mtime_ns": 1791556078357782432,
+    "ctime_ns": 1791556078357782432
+  },
+  "marker_present_before": false,
+  "headless_before": {
+    "gnome-shell_running": false,
+    "gdm_running": false,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true
+  },
+  "config_stat_after": {
+    "inode": 3734806,
+    "bytes": 470,
+    "mtime_ns": 1791556078357782432,
+    "ctime_ns": 1791556078357782432
+  },
+  "headless_after": {
+    "gnome-shell_running": false,
+    "gdm_running": false,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true
+  },
+  "authenticated_variants": [],
+  "decision": "AUTH_NOT_RECOVERED",
+  "cause": "unknown_requires_controlled_positive_proof",
+  "finished_at": "2026-10-10T00:30:45.491676+00:00"
+}

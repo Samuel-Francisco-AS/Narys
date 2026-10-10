@@ -56,3 +56,41 @@ See [current report](../../docs/LR-10-LATEST-EXECUTION-REPORT.md),
 [owned regressions](evidence/a9-host-owned-tests.json) and
 [verification](evidence/a9-host-verification.json). No LR-10B advancement, no isolated
 boundary claim, no real conversation persistence or billing delta is implied.
+
+## A9-FIX-1 — headless authentication diagnosis, metadata ONLY
+
+The [diagnostic](diagnose_a9_auth.py) uses the SAME metadata-only binary and
+unchanged FIX-1 ownership harness. It compares the A9 baseline with restoration
+of validated existing PATH directories and individual removal of session-bus /
+runtime context. Optional XDG/GH_CONFIG_DIR restoration is included only when
+those non-secret variables actually exist. No full environment is copied.
+Token names are recorded as presence booleans; their values are never acquired.
+PATH values and personal context paths are not written into evidence.
+
+```sh
+python3 experiments/lr-10a-sdk-runtime/diagnose_a9_auth.py /absolute/path/to/pinned/native/copilot --output /tmp/new-a9-auth-matrix.json
+```
+
+Run only in the accepted HOST_ASSISTED_NOT_SANDBOX profile. Each variant starts
+a fresh Client/CLI and calls auth status, models and quota; no session method.
+The existing private marker directory must already be safe. Diagnosis performs
+only anchored metadata checks; it never prepares the directory or claims a file.
+An existing marker blocks the diagnostic. Fresh evidence is reserved at 0600.
+Config is stat-only. Changes, cleanup failure or timeout stop the matrix without
+restoration/fallback. A non-activating NameHasOwner query checks that the existing
+credential service is already owned before CLI startup; it never starts/unlocks
+that service. GUI presence or changed service metadata blocks verification.
+
+Observed final result: **AUTH_NOT_RECOVERED** in all four real variants. Current
+catalog/quota remain unavailable/unknown. The cause is unproved; daemon/socket
+presence does not establish unlocked credentials or entitlement. There is no
+validated wrapper correction, token workaround or financial bypass. Optional
+context variables were absent and were not invented. The historical FIX-2 broad
+mount is not reproduced. No gh auth status/token, login, keyring inspection or
+credential export was necessary. Tests with synthetic auth booleans prove the
+projection/fail-closed behavior, never the real user's authentication.
+
+See [final matrix](evidence/a9-fix-1-real-auth-matrix.json) and
+[contract comparison](evidence/a9-fix-1-contract.json). A9 real remains NOT_RUN,
+with zero real inference/session operations and no ATTEMPTED entry. Authentication
+recovery, financial admission and real A9 remain three distinct gates.

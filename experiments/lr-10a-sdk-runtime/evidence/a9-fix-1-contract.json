@@ -1,0 +1,64 @@
+{
+  "phase": "LR-10A A9-FIX-1",
+  "observed_at": "2026-10-10T00:33:48.621631+00:00",
+  "sdk": {
+    "version": "1.0.17",
+    "features": [
+      "runtime"
+    ],
+    "default_features": false,
+    "source_lib_sha256": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+    "matches_prior_fix4_source": true,
+    "vcs": {
+      "git": {
+        "sha1": "0e56b9a0033f48e4358ee027a4077cd6ebd61f32",
+        "dirty": true
+      },
+      "path_in_vcs": "src/sdk/rust"
+    },
+    "upstream_line_references": {
+      "build_command_env_base_directory_empty_keytar": "src/lib.rs:2223-2291",
+      "auth_args": "src/lib.rs:2294-2319",
+      "stdio_auto_update_disabled": "src/lib.rs:2350-2368"
+    }
+  },
+  "cli": {
+    "sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+    "native_version_from_unchanged_historical_image": "1.0.91",
+    "current_rpc_version": "1.0.90",
+    "current_protocol": 3,
+    "program_selection": "explicit_canonical_native_path",
+    "global_update_or_download": false
+  },
+  "options_common": {
+    "mode": "CopilotCli",
+    "use_logged_in_user": true,
+    "base_directory": null,
+    "copilot_home_removed": true,
+    "github_token": null,
+    "transport": "Stdio",
+    "log_level": "None",
+    "mcp_builtin_disabled": true,
+    "no_auto_login": false
+  },
+  "differences": {
+    "FIX2": "bwrap wrapper; inherited environment except explicit removals; read-only broad host with disposable session overlay; historical mode retired; no environment fingerprint available",
+    "A9": "direct native path; allowlist; PATH=/usr/bin; temporary cwd/logs; no session operation",
+    "current_controlled_path_result": "restoring validated existing original helper directories did not restore auth; gh executable resolution identical",
+    "optional_context_vars": "XDG_CONFIG_HOME/XDG_DATA_HOME/XDG_CACHE_HOME/GH_CONFIG_DIR absent; no values invented",
+    "services": "existing bus/socket and secrets service owner present, not credential availability proof",
+    "cause": "UNKNOWN"
+  },
+  "not_executed": {
+    "gh_auth_status": "no additional account surface required; helper resolution only; never auth token/login/logout",
+    "keyring_state_or_contents": "not authorized to inspect",
+    "old_protected_fix2_wrapper": "retired broad host mount not restored"
+  },
+  "official_doc_review": {
+    "url": "https://github.com/github/copilot-sdk/blob/main/docs/auth/authenticate.md",
+    "latest_is_not_pinned_version_proof": true,
+    "retrieved_on": "2026-10-10"
+  },
+  "inference_calls": 0,
+  "real_session_operations": 0
+}

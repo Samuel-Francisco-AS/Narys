@@ -582,3 +582,45 @@ internas faturáveis. Não avançar à LR-10B automaticamente.
 **LR-10A A9-HOST-ASSISTED — BLOCKED_PRE_SEND; IMPLEMENTAÇÃO/EXECUÇÃO CANDIDATA,
 AGUARDANDO AUDITORIA INDEPENDENTE**. [Relatório atual](LR-10-LATEST-EXECUTION-REPORT.md)
 e [perfil/reprodução](../experiments/lr-10a-sdk-runtime/HOST-ASSISTED.md).
+
+## Adendo — A9-FIX-1: diagnóstico headless, sem inferência (09/10/2026 local)
+
+**AUTH_NOT_RECOVERED; A9 real NOT_RUN.** A execução não criou/retomou/excluiu
+sessões reais nem consumiu o marcador persistente. A autorização anterior de uma
+tentativa futura não foi utilizada. Zero inferências enviadas pela POC não é uma
+medição de cobrança externa, de saldo ou de quota atual.
+
+A comparação estática confirmou que a FIX-2 herdava contexto e usava bwrap
+com montagens diferentes; seu fingerprint de ambiente não foi registrado. A9
+filtrava contexto e reduzia PATH. SDK 1.0.17, CLI nativo pinado e modo CopilotCli
+foram preservados. A guarda ampla histórica não foi restaurada. Os contextos
+opcionais XDG_CONFIG_HOME/DATA_HOME/CACHE_HOME/GH_CONFIG_DIR estão ausentes hoje;
+não se fabricaram valores nem se expuseram credenciais para preencher a lacuna.
+
+Quatro variantes finais com SDK/CLI reais (baseline, PATH validado, remoção
+individual de DBUS_SESSION_BUS_ADDRESS e XDG_RUNTIME_DIR) retornaram auth=false.
+Catálogo indisponível e quota_unknown por erro RPC sanitizado, sem entitlement
+atual ou admissão financeira. Todos os processos atribuídos foram reclamados
+por exhaustion do kernel, sem sinais de recuperação, com stat de config.json
+igual antes/depois e serviço de credenciais já existente. GNOME/GDM permaneceram
+ausentes. Socket/serviço presente não prova que a credencial possa ser usada;
+não se conclui logout, keyring bloqueado ou GUI obrigatória. Causa desconhecida.
+
+48 testes Rust (46 anteriores + 2) e 57 Python (47 anteriores + 10) passaram,
+sem atualizar dependências/toolchain e sem recompilar Tauri. Fixtures positivas
+de metadata são sintéticas; não substituem auth real. O guard atômico foi retestado
+em diretórios sintéticos e permaneceu intacto; o diagnóstico real só usa stat
+ancorado do diretório existente. Mantidos os três bloqueios de custo máximo,
+paid fallback e estado privado autenticado, além dos gates do modo isolado e
+limites de morte do worker. Nenhuma correção de descoberta foi comprovada, por
+isso os wrappers A9 originais não foram alterados.
+
+Evidências: [matriz final](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-1-real-auth-matrix.json),
+[contrato](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-1-contract.json),
+[regressões finais](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-1-final-regressions/a9-host-owned-tests.json)
+e [verificação](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-1-verification.json).
+Próximo passo proporcional: Luna revisar a lacuna de contexto histórico e decidir
+eventual ação humana de autenticação por procedimento separado; não executar
+desbloqueio/login/GUI nem inferência por iniciativa desta POC.
+
+**LR-10A A9-FIX-1 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**
