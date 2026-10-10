@@ -1,0 +1,105 @@
+{
+  "observed_at": "2026-10-10T18:06:28.216517-03:00",
+  "pid": 68612,
+  "remote_inference": false,
+  "unlock_invoked": false,
+  "long_run_benchmark": false,
+  "snapshot_scrypt_log_n": 19,
+  "estimated_scrypt_v_buffer_bytes": 536870912,
+  "idle_before": {
+    "elapsed_seconds": 10.035514207000233,
+    "sample_interval_seconds": 0.05,
+    "samples": 201,
+    "before": {
+      "cpu_seconds": 0.48,
+      "rss_kib": 26376,
+      "hwm_kib": 26376
+    },
+    "after": {
+      "cpu_seconds": 0.48,
+      "rss_kib": 26372,
+      "hwm_kib": 26372
+    },
+    "peak_observed_rss_kib": 26376,
+    "cpu_seconds_delta": 0.0,
+    "cgroup_before": {
+      "memory.current": "3391488",
+      "memory.peak": "22474752",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+    },
+    "cgroup_after": {
+      "memory.current": "3346432",
+      "memory.peak": "22474752",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+    }
+  },
+  "stronghold_read": {
+    "elapsed_seconds": 1.716317793001508,
+    "sample_interval_seconds": 0.05,
+    "samples": 36,
+    "before": {
+      "cpu_seconds": 0.48,
+      "rss_kib": 26372,
+      "hwm_kib": 26372
+    },
+    "after": {
+      "cpu_seconds": 1.95,
+      "rss_kib": 28592,
+      "hwm_kib": 552596
+    },
+    "peak_observed_rss_kib": 552916,
+    "cpu_seconds_delta": 1.47,
+    "cgroup_before": {
+      "memory.current": "3346432",
+      "memory.peak": "22474752",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+    },
+    "cgroup_after": {
+      "memory.current": "5877760",
+      "memory.peak": "543797248",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+    },
+    "probe": {
+      "existing_snapshot_opened": true,
+      "migration": false,
+      "secret_values_returned": false,
+      "writes": false
+    },
+    "stderr_empty": true
+  },
+  "idle_after": {
+    "elapsed_seconds": 10.032078456999443,
+    "sample_interval_seconds": 0.05,
+    "samples": 201,
+    "before": {
+      "cpu_seconds": 1.95,
+      "rss_kib": 28592,
+      "hwm_kib": 552596
+    },
+    "after": {
+      "cpu_seconds": 1.95,
+      "rss_kib": 28628,
+      "hwm_kib": 552596
+    },
+    "peak_observed_rss_kib": 28628,
+    "cpu_seconds_delta": 0.0,
+    "cgroup_before": {
+      "memory.current": "5877760",
+      "memory.peak": "543797248",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+    },
+    "cgroup_after": {
+      "memory.current": "5398528",
+      "memory.peak": "543797248",
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+      "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+    }
+  },
+  "concurrent_cargo_build": true,
+  "valid_for_isolated_host_idle": false
+}

@@ -1,0 +1,29 @@
+   Compiling github-copilot-sdk v1.0.17
+warning: method `context_generation` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `narys-domain` (lib) generated 1 warning
+   Compiling narys-lr10a-poc v0.1.0 (/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime)
+   Compiling narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 46s
+     Running tests/protocol.rs (src-tauri/target/debug/deps/protocol-a60c2285227dc30c)
+
+running 8 tests
+test duplicate_daemon_cannot_recover_or_take_socket_from_authority ... ok
+test typed_protocol_bounds_versions_and_future_authority_are_enforced ... ok
+test crashed_running_task_is_interrupted_once_and_never_retried ... ok
+test disconnect_cancellation_and_restart_preserve_durable_events_without_replay ... ok
+test official_cli_disconnected_clients_recover_cancelled_task_without_replay ... ok
+test product_crash_recovery_keeps_input_and_does_not_reuse_ids_or_replay ... ok
+test conversation_sessions_product_errors_and_free_permission_are_real_ipc ... ok
+test official_cli_human_json_pages_permissions_and_unlock_denial ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s

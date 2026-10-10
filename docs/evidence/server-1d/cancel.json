@@ -1,0 +1,42 @@
+{
+  "observed_at": "2026-10-10T18:07:55.223360-03:00",
+  "remote_inference": false,
+  "method": "all provider permissions disabled before admission; official installed CLI",
+  "session_id": 39,
+  "receipt": {
+    "disconnect_cancels": false,
+    "durable": true,
+    "namespace": "product",
+    "restart_replay": false,
+    "session_id": 39,
+    "state": "pending",
+    "task_id": 192
+  },
+  "cancel_response": {
+    "already_terminal": true,
+    "cancellation_requested": false,
+    "commit_in_progress": false,
+    "namespace": "product",
+    "state": "failed",
+    "task_id": 192
+  },
+  "task_id": 192,
+  "state": "failed",
+  "error_code": "free_provider_authorization_required",
+  "result_present": false,
+  "event_codes": [
+    "conversation_admitted",
+    "task_started",
+    "failed"
+  ],
+  "eligible_cancel_pass": false,
+  "repeated_cancel": {
+    "already_terminal": true,
+    "cancellation_requested": false,
+    "commit_in_progress": false,
+    "namespace": "product",
+    "state": "failed",
+    "task_id": 192
+  },
+  "provider_permission_restored": true
+}

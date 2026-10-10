@@ -1,0 +1,403 @@
+{
+  "observed_at": "2026-10-10T18:09:01.369960-03:00",
+  "deadline": "2026-10-12T15:03:12-03:00",
+  "remaining_seconds": 161650,
+  "boot_id": "299dc161-7036-4c0f-b012-82b1150b528c",
+  "uptime_seconds": 19866.36,
+  "fedora": "NAME=\"Fedora Linux\"\nVERSION=\"44 (Workstation Edition)\"\nRELEASE_TYPE=stable\nID=fedora\nVERSION_ID=44\nVERSION_CODENAME=\"\"\nPRETTY_NAME=\"Fedora Linux 44 (Workstation Edition)\"\nANSI_COLOR=\"0;38;2;60;110;180\"\nLOGO=fedora-logo-icon\nCPE_NAME=\"cpe:/o:fedoraproject:fedora:44\"\nDEFAULT_HOSTNAME=\"fedora\"\nHOME_URL=\"https://fedoraproject.org/\"\nDOCUMENTATION_URL=\"https://docs.fedoraproject.org/en-US/fedora/f44/\"\nSUPPORT_URL=\"https://ask.fedoraproject.org/\"\nBUG_REPORT_URL=\"https://bugzilla.redhat.com/\"\nREDHAT_BUGZILLA_PRODUCT=\"Fedora\"\nREDHAT_BUGZILLA_PRODUCT_VERSION=44\nREDHAT_SUPPORT_PRODUCT=\"Fedora\"\nREDHAT_SUPPORT_PRODUCT_VERSION=44\nSUPPORT_END=2027-05-19\nVARIANT=\"Workstation Edition\"\nVARIANT_ID=workstation\n",
+  "kernel": "7.2.8-200.fc44.x86_64",
+  "default_target": {
+    "exit_code": 0,
+    "output": "multi-user.target"
+  },
+  "multi_user_active": {
+    "exit_code": 0,
+    "output": "active"
+  },
+  "gdm": {
+    "exit_code": 3,
+    "output": "inactive"
+  },
+  "sshd": {
+    "exit_code": 0,
+    "output": "active"
+  },
+  "linger": {
+    "exit_code": 0,
+    "output": "Linger=yes"
+  },
+  "service": {
+    "exit_code": 0,
+    "output": "ActiveState=active\nSubState=running\nType=notify\nMainPID=68612\nResult=success\nNRestarts=0\nExecMainStartTimestamp=Sat 2026-10-10 17:49:10 -03\nCPUUsageNSec=12305704000"
+  },
+  "enabled": {
+    "exit_code": 0,
+    "output": "enabled"
+  },
+  "keyring_service": {
+    "exit_code": 0,
+    "output": "ActiveState=active\nMainPID=1395"
+  },
+  "status": {
+    "active_task": null,
+    "agent_execution_authority": false,
+    "authority": "narys-core",
+    "conversation_integrated": true,
+    "copilot": "on_demand",
+    "core": "running",
+    "database": "core/db/luna.sqlite3",
+    "execution_workers": 0,
+    "graphical_environment_present": false,
+    "product_active_tasks": 0,
+    "profile": "HOST_ASSISTED_NOT_SANDBOX",
+    "protocol_version": 1,
+    "tools": 0,
+    "trace_events": 2
+  },
+  "doctor": {
+    "checks": {
+      "capabilities": {
+        "data": {
+          "agent_tools": false,
+          "approvals": false,
+          "authority": "narys-core",
+          "conversation": true,
+          "execution_authority_from_ipc": false,
+          "implemented": [
+            "status",
+            "credentials",
+            "events",
+            "prepare",
+            "result",
+            "cancel",
+            "conversation",
+            "sessions",
+            "session-create",
+            "session-get",
+            "session-resume",
+            "session-close",
+            "providers",
+            "provider-configure",
+            "conversation-policy",
+            "task-get",
+            "task-cancel",
+            "tasks",
+            "models"
+          ],
+          "persistence": "core/db/luna.sqlite3",
+          "protocol_version": 1,
+          "provider_configuration": true,
+          "task_namespaces": [
+            "lr10a",
+            "product"
+          ]
+        },
+        "ok": true,
+        "request_id": "cli-70358",
+        "version": 1
+      },
+      "core": {
+        "data": {
+          "active_task": null,
+          "agent_execution_authority": false,
+          "authority": "narys-core",
+          "conversation_integrated": true,
+          "copilot": "on_demand",
+          "core": "running",
+          "database": "core/db/luna.sqlite3",
+          "execution_workers": 0,
+          "graphical_environment_present": false,
+          "product_active_tasks": 0,
+          "profile": "HOST_ASSISTED_NOT_SANDBOX",
+          "protocol_version": 1,
+          "tools": 0,
+          "trace_events": 2
+        },
+        "ok": true,
+        "request_id": "cli-70358",
+        "version": 1
+      },
+      "credentials": {
+        "data": {
+          "login_unlocked": true,
+          "service_available": true,
+          "state": "unlocked",
+          "unlock_backend_compatible": true,
+          "unlock_error_code": null
+        },
+        "ok": true,
+        "request_id": "cli-70358",
+        "version": 1
+      }
+    },
+    "core_reachable": true,
+    "remote_inference": false,
+    "unlock_transport": "private_authenticated_ssh_tty"
+  },
+  "credentials": {
+    "login_unlocked": true,
+    "service_available": true,
+    "state": "unlocked",
+    "unlock_backend_compatible": true,
+    "unlock_error_code": null
+  },
+  "socket": {
+    "mode": "0o600",
+    "directory_mode": "0o700",
+    "peer_pid": 68612,
+    "peer_uid": 1000,
+    "uid_matches": true,
+    "pid_matches": true
+  },
+  "core_tcp_listeners": null,
+  "proc_fd_visible": false,
+  "host_tcp_listeners": [
+    {
+      "family": "tcp",
+      "local_address_hex": "3500007F:0035",
+      "uid": 193
+    },
+    {
+      "family": "tcp",
+      "local_address_hex": "3600007F:0035",
+      "uid": 193
+    },
+    {
+      "family": "tcp",
+      "local_address_hex": "00000000:14EB",
+      "uid": 193
+    },
+    {
+      "family": "tcp",
+      "local_address_hex": "0100007F:0277",
+      "uid": 0
+    },
+    {
+      "family": "tcp",
+      "local_address_hex": "00000000:0016",
+      "uid": 0
+    },
+    {
+      "family": "tcp",
+      "local_address_hex": "0100007F:B079",
+      "uid": 1000
+    },
+    {
+      "family": "tcp6",
+      "local_address_hex": "00000000000000000000000000000000:14EB",
+      "uid": 193
+    },
+    {
+      "family": "tcp6",
+      "local_address_hex": "00000000000000000000000001000000:0277",
+      "uid": 0
+    },
+    {
+      "family": "tcp6",
+      "local_address_hex": "00000000000000000000000000000000:0016",
+      "uid": 0
+    }
+  ],
+  "tcp_attribution_limit": "core_nondumpable_fd_access_denied; compare_host_listeners_and_review_unix_only_bind",
+  "processes": [
+    {
+      "pid": 1395,
+      "name": "gnome-keyring-d",
+      "state": "S",
+      "ppid": 1344,
+      "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/gnome-keyring-daemon.service"
+    },
+    {
+      "pid": 68612,
+      "name": "narys-core",
+      "state": "S",
+      "ppid": 1344,
+      "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/narys-core.service"
+    }
+  ],
+  "memory": {
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0\nsock_throttled 0",
+    "memory.current": "9125888",
+    "memory.peak": "547401728",
+    "memory.pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0"
+  },
+  "host_memory": {
+    "MemTotal": "8007528 kB",
+    "MemAvailable": "7079100 kB",
+    "SwapTotal": "8006652 kB",
+    "SwapFree": "7856528 kB"
+  },
+  "host_memory_pressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=4438840\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=4252478",
+  "database": {
+    "schema": 20,
+    "integrity": "ok",
+    "foreign_key_errors": 0,
+    "counts": {
+      "checkpoint_task_policies": 0,
+      "cognitive_checkpoints": 0,
+      "cognitive_continuation_units": 0,
+      "cognitive_continuations": 0,
+      "cognitive_rate_state": 0,
+      "cognitive_role_allocation_policies": 4,
+      "cognitive_role_policies": 4,
+      "cognitive_role_targets": 4,
+      "conversation_messages": 100,
+      "conversation_runs": 4,
+      "conversation_sessions": 39,
+      "gemini_provider_settings": 1,
+      "general_settings": 1,
+      "headless_tasks": 3,
+      "identity_snapshots": 1,
+      "memory_records": 4,
+      "provider_timeout_settings": 4,
+      "server_events": 49,
+      "server_migrations": 1,
+      "server_provider_permissions": 4,
+      "shell_settings": 1,
+      "task_records": 192,
+      "task_subtask_records": 39
+    },
+    "sessions_verified": 39,
+    "messages_verified_exact": 100,
+    "product_tasks_listed": 192,
+    "runs": [
+      {
+        "task_id": 189,
+        "session_id": 38,
+        "state": "completed",
+        "result_sha256": "34c516fe8267b3231b6f50d74ce054d0314d5e5baa11fb6da74546e8157749cc",
+        "result_equals_authority": true
+      },
+      {
+        "task_id": 190,
+        "session_id": 38,
+        "state": "completed",
+        "result_sha256": "527f808f1866395aa1f05b58f311d88f5386e7f1febc5a34a896ad2a1d03f0de",
+        "result_equals_authority": true
+      },
+      {
+        "task_id": 191,
+        "session_id": 38,
+        "state": "cancelled",
+        "result_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "result_equals_authority": true
+      },
+      {
+        "task_id": 192,
+        "session_id": 39,
+        "state": "failed",
+        "result_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "result_equals_authority": true
+      }
+    ],
+    "baseline_rows": {
+      "conversation_sessions": {
+        "prior_count": 38,
+        "all_original_rows_equal": true
+      },
+      "conversation_messages": {
+        "prior_count": 99,
+        "all_original_rows_equal": true
+      },
+      "task_records": {
+        "prior_count": 191,
+        "all_original_rows_equal": true
+      },
+      "task_subtask_records": {
+        "prior_count": 39,
+        "all_original_rows_equal": true
+      },
+      "conversation_runs": {
+        "prior_count": 3,
+        "all_original_rows_equal": true
+      },
+      "headless_tasks": {
+        "prior_count": 2,
+        "all_original_rows_equal": true
+      },
+      "identity_snapshots": {
+        "prior_count": 1,
+        "all_original_rows_equal": true
+      },
+      "memory_records": {
+        "prior_count": 4,
+        "all_original_rows_equal": true
+      }
+    },
+    "events": {
+      "count": 49,
+      "complete": true,
+      "next_sequence": 49,
+      "ordered_unique": true,
+      "all_pages_equal_authority": true
+    }
+  },
+  "stronghold_snapshot": {
+    "inode": 3134764,
+    "size": 614,
+    "mtime_ns": 1790850680472346601,
+    "ctime_ns": 1791386670010181473,
+    "mode": 33152,
+    "uid": 1000,
+    "links": 1,
+    "sha256": "5700cf3fda5ee5e775e7c4369ec8570931187e0eb1cb83d4ce2c1082129a8c58"
+  },
+  "stronghold_unchanged_since_1c": true,
+  "closed_lr10a_authorization": {
+    "inode": 3787185,
+    "size": 233,
+    "mtime_ns": 1791650738220143670,
+    "ctime_ns": 1791650738220143670,
+    "mode": 33152,
+    "uid": 1000,
+    "links": 1,
+    "sha256": "836d9891376c4ad3ac6f76a819ea492005068f4e7ce0e6cf17923e5a0f437bab"
+  },
+  "artifacts": {
+    "cli": {
+      "path": "/home/sam/.local/bin/narys",
+      "inode": 3808750,
+      "size": 4973696,
+      "mtime_ns": 1791665321952529943,
+      "ctime_ns": 1791665321980243730,
+      "mode": 33216,
+      "uid": 1000,
+      "links": 1,
+      "sha256": "5719709444be4a62503a6ddfbdd6ecb9a3049944541fd26d1a9030e9a9032328"
+    },
+    "core": {
+      "path": "/home/sam/.local/lib/narys/narys-core",
+      "inode": 3808745,
+      "size": 62102992,
+      "mtime_ns": 1791665321266271444,
+      "ctime_ns": 1791665321620257703,
+      "mode": 33216,
+      "uid": 1000,
+      "links": 1,
+      "sha256": "6a68ae32e967eb2d196b890424e9ac9114ebe5a0e9de6636d7be97d97c98c8bd"
+    },
+    "unit": {
+      "path": "/home/sam/.config/systemd/user/narys-core.service",
+      "inode": 3783394,
+      "size": 948,
+      "mtime_ns": 1791665321626479370,
+      "ctime_ns": 1791665321626479370,
+      "mode": 33152,
+      "uid": 1000,
+      "links": 1,
+      "sha256": "df7b3205ebfcf5f673e9c72fd8aea4c0bba2c697d3f15a76feaaf4028b1a0810"
+    }
+  },
+  "installed_hashes_equal_1c": true,
+  "journal": {
+    "exit_code": 0,
+    "total_lines": 194,
+    "ready_count": 10,
+    "stopped_count": 16,
+    "unexported_lines": 168
+  },
+  "backup": null,
+  "remote_inference": false,
+  "unlock_invoked": false,
+  "ssh_termux_human_gate": "requires_separate_operator_evidence"
+}
