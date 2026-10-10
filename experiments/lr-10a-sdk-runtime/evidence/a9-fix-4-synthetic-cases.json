@@ -1,0 +1,421 @@
+{
+  "kind": "synthetic_only",
+  "cases": [
+    {
+      "a9_fix4_synthetic_case": "failed_dependency",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": false,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "BLOCKED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "OBSERVATIONALLY_STABLE",
+            "metadata_mutation": false,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "INCONCLUSIVE",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "failed_dependency",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": false,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "BLOCKED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "OBSERVATIONALLY_STABLE",
+            "metadata_mutation": false,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "INCONCLUSIVE",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "concurrent_unknown_writer",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": true,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "OBSERVATION_ACCEPTED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "METADATA_CHANGE_UNATTRIBUTED",
+            "metadata_mutation": true,
+            "changed_fields": [
+              "bytes",
+              "ctime_ns",
+              "mtime_ns"
+            ],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "BLOCKED",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "atomic_equal_size_auth_drift",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": true,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "OBSERVATION_ACCEPTED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "METADATA_CHANGE_UNATTRIBUTED",
+            "metadata_mutation": true,
+            "changed_fields": [
+              "ctime_ns",
+              "inode",
+              "mtime_ns"
+            ],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "BLOCKED",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "scope_cannot_expand",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": false,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "OBSERVATION_ACCEPTED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "OBSERVATIONALLY_STABLE",
+            "metadata_mutation": false,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "INCONCLUSIVE",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "unavailable_unavailable",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "BLOCKED",
+        "CONFIG_DRIFT_OBSERVED": null,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "BLOCKED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "METADATA_UNAVAILABLE",
+            "metadata_mutation": null,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "BLOCKED",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "unavailable_unavailable",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "BLOCKED",
+        "CONFIG_DRIFT_OBSERVED": null,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "BLOCKED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "METADATA_UNAVAILABLE",
+            "metadata_mutation": null,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "BLOCKED",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "unavailable_interrupted",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "BLOCKED",
+        "CONFIG_DRIFT_OBSERVED": null,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "BLOCKED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "INCONCLUSIVE",
+            "metadata_mutation": null,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "INCONCLUSIVE",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "negative_auth_stable",
+      "evaluation": {
+        "auth_observation": "AUTH_FALSE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": false,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "OBSERVATION_ACCEPTED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "OBSERVATIONALLY_STABLE",
+            "metadata_mutation": false,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "INCONCLUSIVE",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "bytes",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": true,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "OBSERVATION_ACCEPTED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "METADATA_CHANGE_UNATTRIBUTED",
+            "metadata_mutation": true,
+            "changed_fields": [
+              "bytes"
+            ],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "BLOCKED",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "mtime_ns",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": true,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "OBSERVATION_ACCEPTED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "METADATA_CHANGE_UNATTRIBUTED",
+            "metadata_mutation": true,
+            "changed_fields": [
+              "mtime_ns"
+            ],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "BLOCKED",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "ctime_ns",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": true,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "OBSERVATION_ACCEPTED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "METADATA_CHANGE_UNATTRIBUTED",
+            "metadata_mutation": true,
+            "changed_fields": [
+              "ctime_ns"
+            ],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "BLOCKED",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "stable",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+        "CONFIG_DRIFT_OBSERVED": false,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "OBSERVATION_ACCEPTED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "OBSERVATIONALLY_STABLE",
+            "metadata_mutation": false,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "INCONCLUSIVE",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only",
+            "coverage": "extended_metadata"
+          }
+        ]
+      }
+    },
+    {
+      "a9_fix4_synthetic_case": "unsafe_paths",
+      "evaluation": {
+        "auth_observation": "AUTH_TRUE_OBSERVED",
+        "CONFIG_STRUCTURAL_CHECK": "BLOCKED",
+        "CONFIG_DRIFT_OBSERVED": null,
+        "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+        "CONTENT_EQUIVALENCE": "NOT_VERIFIED",
+        "metadata_verification": "BLOCKED",
+        "SESSION_ADMISSION": "BLOCKED",
+        "FINANCIAL_ADMISSION": "BLOCKED",
+        "AGENT_ACTION_ADMISSION": "BLOCKED",
+        "HEADLESS_AUTH": "NOT_PROVEN",
+        "REAL_INFERENCE": "NOT_RUN",
+        "comparisons": [
+          {
+            "classification": "VERIFICATION_FAILED",
+            "metadata_mutation": null,
+            "changed_fields": [],
+            "writer_attribution": "INCONCLUSIVE",
+            "integrity_verification": "BLOCKED",
+            "content_equivalence": "NOT_VERIFIED",
+            "operational_admission": "BLOCKED",
+            "scope": "metadata_only"
+          }
+        ]
+      }
+    }
+  ]
+}

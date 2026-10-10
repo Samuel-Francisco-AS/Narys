@@ -1,0 +1,57 @@
+{
+  "observed_at": "2026-10-10T09:26:25.495232+00:00",
+  "kind": "metadata_only_final_safety",
+  "same_uid_concurrency_inspection_failures": {
+    "executable_metadata:EACCES": 3
+  },
+  "failure_attribution_to_copilot": "NOT_ESTABLISHED",
+  "inspection_limits": "No cmdline/environ/credentials, no process signals; unreadable identity blocks probe",
+  "config_before_after_preflight_window": {
+    "classification": "OBSERVATIONALLY_STABLE",
+    "metadata_mutation": false,
+    "changed_fields": [],
+    "writer_attribution": "INCONCLUSIVE",
+    "integrity_verification": "INCONCLUSIVE",
+    "content_equivalence": "NOT_VERIFIED",
+    "operational_admission": "BLOCKED",
+    "scope": "metadata_only",
+    "coverage": "extended_metadata"
+  },
+  "after_snapshot": {
+    "state": "observed",
+    "metadata": {
+      "inode": 3768738,
+      "bytes": 470,
+      "mtime_ns": 1791603250606145370,
+      "ctime_ns": 1791603250606145370,
+      "device": 49,
+      "mode": 384,
+      "uid": 1000,
+      "gid": 1000,
+      "links": 1
+    }
+  },
+  "content_read": false,
+  "historical_writer_attribution": "INCONCLUSIVE",
+  "marker_present_after": false,
+  "marker_claimed": false,
+  "metadata_runtime_reservation_created": false,
+  "real_cli_started": false,
+  "sdk_invocations": 0,
+  "real_session_operations": 0,
+  "inference_calls": 0,
+  "owned_test_reports": [
+    {
+      "evidence": "a9-fix-4-regressions/a9-host-owned-tests.json",
+      "identities_absent": true,
+      "kernel_children_exhausted": true
+    },
+    {
+      "evidence": "a9-fix-4-final-regressions/a9-host-owned-tests.json",
+      "identities_absent": true,
+      "kernel_children_exhausted": true
+    }
+  ],
+  "as_executed_sources_still_match": true,
+  "financial_admission": "BLOCKED"
+}

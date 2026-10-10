@@ -734,3 +734,56 @@ com GNOME não é equivalente. O release 0.1 em 17/10 não autoriza bypass; mant
 POC fora de produção e priorização humana.
 
 **A9-FIX-3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+## Adendo — A9-FIX-4: gates proporcionais à operação (10/10/2026)
+
+[Contrato experimental](../experiments/lr-10a-sdk-runtime/METADATA-CONFIRMATION.md)
+separa resposta SDK, acesso estrutural, drift, autoria, conteúdo e admissão.
+METADATA_READ_ONLY pode aceitar observação com drift de inode/tamanho/timestamps;
+isso não prova escrita legítima nem equivalência de conteúdo. SESSION_OPERATIONS,
+INFERENCE/financeiro, AGENT_ACTIONS e HEADLESS_OPERATION continuam bloqueados ou não
+comprovados, sem transferência de PASS. O classificador/replay histórico mantém
+METADATA_CHANGE_UNATTRIBUTED/BLOCKED e todas as evidências anteriores intactas.
+
+Snapshot ancorado recebeu checagem estrutural opt-in: tipo regular, UID próprio,
+mode0600/link único, diretórios não graváveis por outros e sem symlinks. Não lê
+conteúdo pessoal. Novo executável independente limita SDK1.0.17 a start/status/auth/
+shutdown, com observação por fase e interrupção de RPCs opcionais após falha
+estrutural/versão. Sem catálogo/quota/sessões/send/retries. Preserva pin independente
+CLI1.0.95, environment allowlist, private cwd/logs e harness FIX-1; profile GUI
+continua NOT_SANDBOX. Nenhuma mudança financeira ou de produção foi feita.
+
+52 Rust e 100 Python PASS (4 Rust/14 Python novos), testes offline/locked/jobs2,
+incluindo drift+auth positiva simultâneos, auth negativa+estabilidade, falha de
+acesso/cleanup, escopo financeiro fechado e lista restrita de métodos RPC em peer
+local. Formatação, sintaxe, JSON e identidades/child exhaustion verificados. Testes
+sintéticos não validam auth, writer ou autorização operacional reais. Tauri/UI
+NOT_RUN pois produção, dependências, MSRV e Edition não mudaram.
+
+O preflight real autorizado foi interrompido **antes de Client start**: zero
+Copilot/Node/Bun conhecidos, mas três inspeções same-UID ficaram indisponíveis;
+uma varredura posterior independente registrou três EACCES em executable metadata,
+sem correlacionar PIDs/escritor. Ausência de concorrência não pôde ser comprovada. Resultado
+NOT_RUN_CONCURRENCY_UNVERIFIED, sem retry/CLI help/version/autenticação/catálogo/
+quota. Cofre/GUI não foram sondados após o bloqueio nem manipulados. O SHA nativo
+foi validado por leitura apenas do executável público; a configuração passou no
+stat estrutural. Metadados finais concordam na janela de preflight, sem provar
+conteúdo ou legitimar a mutação histórica. Escritor continua INCONCLUSIVE.
+
+Zero inferências/sessões reais, A9 marker ausente/não consumido, sem credenciais ou
+conteúdo pessoal coletados. Cleanup PASS somente no escopo sintético owned; SDK
+real NOT_RUN. Reserva separada do runtime diagnóstico não chegou a ser criada.
+Bloqueios financeiros, headless, estado privado, isolamento/auth/network e morte
+do supervisor continuam. Não se amplia /proc, serviços ou permissões para PASS.
+
+Evidências: [preflight](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-metadata-confirmation.json),
+[offline](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-offline-verification.json),
+[casos](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-synthetic-cases.json),
+[regressões](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-final-regressions/a9-host-owned-tests.json),
+[verificação final](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4-final-safety.json).
+PASS parcial do contrato sintético; confirmação SDK atual BLOCKED, sem LR-10B.
+O release0.1 em17/10 mantém a POC fora de produção e priorização humana; headless
+precisa de prova própria. Novo ensaio exige resolver a pré-condição por método
+não invasivo revisado e nova autorização, nunca encerrar processos externos.
+
+**A9-FIX-4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**

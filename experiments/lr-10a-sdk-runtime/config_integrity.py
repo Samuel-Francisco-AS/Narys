@@ -16,7 +16,7 @@ LEGACY_FIELDS = frozenset(('inode', 'bytes', 'mtime_ns', 'ctime_ns'))
 FIELDS = LEGACY_FIELDS | frozenset(('device', 'mode', 'uid', 'gid', 'links'))
 
 
-def snapshot(path):
+def snapshot(path, *, access_uid=None):
     """Stat only, anchored directories, no symlink traversal or content opens.
 
     A snapshot has a race boundary and is not continuous filesystem monitoring.
@@ -30,10 +30,13 @@ def snapshot(path):
     try:
         flags = os.O_PATH | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
         fd = os.open('/', flags)
-        for name in path.parts[1:-1]:
+        for index, name in enumerate(path.parts[1:-1], start=1):
             before = os.stat(name, dir_fd=fd, follow_symlinks=False)
             if stat.S_ISLNK(before.st_mode) or not stat.S_ISDIR(before.st_mode):
                 return {'state': 'failed', 'reason': 'unexpected_path_type'}
+            temporary_root = path.parts[:index + 1] == ('/', 'tmp')
+            if access_uid is not None and not safe_directory(before, access_uid, temporary_root):
+                return {'state': 'failed', 'reason': 'unsafe_directory_access'}
             child = os.open(name, flags, dir_fd=fd)
             try:
                 opened = os.fstat(child)
@@ -43,11 +46,17 @@ def snapshot(path):
             if (before.st_dev, before.st_ino) != (opened.st_dev, opened.st_ino):
                 os.close(child)
                 return {'state': 'failed', 'reason': 'path_identity_changed'}
+            if access_uid is not None and not safe_directory(opened, access_uid, temporary_root):
+                os.close(child)
+                return {'state': 'failed', 'reason': 'unsafe_directory_access'}
             os.close(fd)
             fd = child
         meta = os.stat(path.name, dir_fd=fd, follow_symlinks=False)
         if not stat.S_ISREG(meta.st_mode):
             return {'state': 'failed', 'reason': 'unexpected_file_type'}
+        if access_uid is not None and (meta.st_uid != access_uid
+                or stat.S_IMODE(meta.st_mode) != 0o600 or meta.st_nlink != 1):
+            return {'state': 'failed', 'reason': 'unsafe_file_access'}
         return {'state': 'observed', 'metadata': {
             'inode': meta.st_ino, 'bytes': meta.st_size,
             'mtime_ns': meta.st_mtime_ns, 'ctime_ns': meta.st_ctime_ns,
@@ -63,6 +72,13 @@ def snapshot(path):
     finally:
         if fd is not None:
             os.close(fd)
+
+
+def safe_directory(meta, uid, temporary_root=False):
+    # Root-owned sticky temporary directories are safe for private fixture roots;
+    # they are not filesystem isolation. Same-UID races remain outside this proof.
+    return (meta.st_uid in (0, uid) and (not meta.st_mode & 0o022
+            or (temporary_root and meta.st_uid == 0 and bool(meta.st_mode & stat.S_ISVTX))))
 
 
 def historical_snapshot(metadata):

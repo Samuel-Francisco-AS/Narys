@@ -1,0 +1,90 @@
+{
+  "phase": "A9-FIX-4",
+  "profile": "HOST_ASSISTED_WITH_GUI_NOT_SANDBOX",
+  "METADATA_AUTH_OBSERVATION": "NOT_RUN_CONCURRENCY_UNVERIFIED",
+  "CONFIG_STRUCTURAL_CHECK": "PASS_METADATA_ACCESS",
+  "CONFIG_DRIFT_OBSERVED": null,
+  "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+  "SESSION_ADMISSION": "BLOCKED",
+  "FINANCIAL_ADMISSION": "BLOCKED",
+  "AGENT_ACTION_ADMISSION": "BLOCKED",
+  "HEADLESS_AUTH": "NOT_PROVEN",
+  "REAL_INFERENCE": "NOT_RUN",
+  "PROCESS_CLEANUP": "NOT_RUN",
+  "ATTEMPT_MARKER": "ABSENT_NOT_CLAIMED",
+  "sdk_invocations": 0,
+  "sdk_send_calls": 0,
+  "session_operations": 0,
+  "models_quota_calls": 0,
+  "marker_claimed": false,
+  "environment_presence": {
+    "HOME": true,
+    "PATH": true,
+    "DBUS_SESSION_BUS_ADDRESS": true,
+    "XDG_RUNTIME_DIR": true,
+    "XDG_CONFIG_HOME": false,
+    "XDG_DATA_HOME": false,
+    "XDG_CACHE_HOME": false,
+    "GH_CONFIG_DIR": false,
+    "COPILOT_HOME": false,
+    "DISPLAY": false,
+    "WAYLAND_DISPLAY": false,
+    "GH_TOKEN": false,
+    "GITHUB_TOKEN": false,
+    "COPILOT_GITHUB_TOKEN": false,
+    "COPILOT_SDK_AUTH_TOKEN": false,
+    "GITHUB_COPILOT_API_TOKEN": false,
+    "COPILOT_DISABLE_KEYTAR": false
+  },
+  "source_sha256": {
+    "config_integrity.py": "6953d084453f3bd00be0b7d5390fada2aafa12c53780769f4591bbfb7c836fb1",
+    "metadata_policy.py": "2b65e11a25c76501e8924542663a7c294aa4c13a02b4faa5d733fcff617f67df",
+    "confirm_a9_metadata.py": "269941e2cae6e2d6c83ab54c6b053c30a601793c33537d8592fc667e3ada9e15",
+    "src/metadata_confirmation.rs": "16a020497f5a9052bba5a1b971dc53872b74d6f3fc13aa22e0a30b541ce27c05",
+    "src/bin/a9-metadata-confirm.rs": "962f586974c706b36f5fedf0d78e6d8f4f413be6156982ea910cd207e539b356",
+    "src/host_assisted.rs": "24d736206ecf977354a18f43f7f035edf0a131fd35d4cfae686ed2d6b446cb47",
+    "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+    "diagnose_a9_auth.py": "d27ddc4c78e20ccd85f3fc7ebe6d5e60e896dee868272c7f63b252c8c724f847",
+    "diagnose_a9_gui_auth.py": "349054aacac1d03aff7fb8511e0110a5d39743bfd2ed290b19a5ce9ff2c9437f",
+    "runtime-gui-candidate.json": "0924c38cfda63578cde3ff4c4045124630e89a0a78b10627ad6e0591e653db36",
+    "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+    "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+  },
+  "binary_sha256": "fe7e979831d6ebf86c9a1a281812f79570942e216d0651631833d1ed51463fae",
+  "runtime_manifest": {
+    "schema_version": 1,
+    "profile": "HOST_ASSISTED_WITH_GUI_NOT_SANDBOX",
+    "sdk_version": "1.0.17",
+    "native_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+    "native_version": "1.0.95",
+    "selection": "explicit_canonical_native_path",
+    "purpose": "Independent metadata-only candidate; does not replace historical CLI pin"
+  },
+  "marker_present_before": false,
+  "before": {
+    "snapshot": {
+      "state": "observed",
+      "metadata": {
+        "inode": 3768738,
+        "bytes": 470,
+        "mtime_ns": 1791603250606145370,
+        "ctime_ns": 1791603250606145370,
+        "device": 49,
+        "mode": 384,
+        "uid": 1000,
+        "gid": 1000,
+        "links": 1
+      }
+    },
+    "structural_check": "PASS_METADATA_ACCESS"
+  },
+  "concurrency_before_services": {
+    "copilot_processes": 0,
+    "ambiguous_runtimes": 0,
+    "unavailable": 3,
+    "state": "NOT_RUN_CONCURRENCY_UNVERIFIED"
+  },
+  "verification": "BLOCKED",
+  "blocked_stage": "concurrency",
+  "observed_at": "2026-10-10T09:25:03.337813+00:00"
+}

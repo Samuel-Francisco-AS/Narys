@@ -161,3 +161,15 @@ config integrity BLOCKED. No personal recovery, permission change, lock, token c
 or COPILOT_HOME change occurred. New probes are PENDING_USER_AUTHORIZATION;
 live wrappers remain intact. SDK_GUI auth is OBSERVED_REAL_PASS historically,
 headless NOT_PROVEN, finance BLOCKED, A9 NOT_RUN, attempt not claimed.
+
+## A9-FIX-4 — operation-scoped metadata gates
+
+The independent [metadata contract](METADATA-CONFIRMATION.md) accepts safe
+metadata observations with drift without declaring a legitimate write or byte
+integrity. Historical evidence/classification and all older wrappers remain
+unchanged. Sessions, finance, actions and headless never inherit this acceptance.
+The one-shot status/auth confirmation was **NOT_RUN_CONCURRENCY_UNVERIFIED**:
+three same-UID process inspections were unavailable; a later stat-only scan
+recorded three executable-metadata EACCES failures without PID correlation. No runtime or
+credential-service probe was launched, and no retry or external process signal
+was used. A9 marker absent/unclaimed; auth from FIX-2 remains historical only.
