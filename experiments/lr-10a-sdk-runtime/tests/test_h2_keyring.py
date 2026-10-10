@@ -69,7 +69,7 @@ class UnlockTests(unittest.TestCase):
         rows = [{'values': {'Type': 'tty'}}]
         role = {'state': 'OBSERVED', 'in_user_manager': True,
                 'in_graphical_login_scope': False}
-        manual.require_headless_service(services, rows, role, 'inactive')
+        manual.require_headless_service(services, rows, role, 'inactive', 1)
         for s, r, o, t in (({'gnome-shell_running': True}, rows, role, 'inactive'),
                 (services, [{'values': {'Type': 'wayland'}}], role, 'inactive'),
                 (services, [], role, 'inactive'), (services, rows, role, None),
@@ -77,7 +77,14 @@ class UnlockTests(unittest.TestCase):
                 (services, rows, dict(role, in_graphical_login_scope=True), 'inactive'),
                 (services, rows, dict(role, state='IDENTITY_CHANGED'), 'inactive')):
             with self.assertRaises(manual.UnlockBlocked):
-                manual.require_headless_service(s, r, o, t)
+                manual.require_headless_service(s, r, o, t, 1)
+
+    def test_process_query_errors_never_become_gui_absence(self):
+        for code in (0, 2, 127, 255, -15, None):
+            with self.assertRaisesRegex(manual.UnlockBlocked, 'gui_process_absence_not_verified'):
+                manual.require_headless_service({'gnome-shell_running': False},
+                    [{'values': {'Type': 'tty'}}], {'state': 'OBSERVED',
+                    'in_user_manager': True, 'in_graphical_login_scope': False}, 'inactive', code)
 
     def client(self, locked=True, algorithm=manual.ALGORITHM):
         client = manual.ExistingLogin.__new__(manual.ExistingLogin)

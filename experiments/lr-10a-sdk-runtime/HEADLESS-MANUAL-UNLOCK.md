@@ -155,7 +155,11 @@ rede e env. Esse mount de /usr não altera o boundary mínimo do Copilot da FIX3
 Medições estão no JSON final: whole-tree RSS somada, CPU amostrada como limite
 inferior, duração/cleanup e amostras de RSS/readiness do daemon. Não representam
 RAM incremental do servidor Narys, benchmark frio ou systemd --user real.
-Regressões52Rust/148Python, incluindo20novos; [ownership](evidence/h2-regressions/a9-host-owned-tests.json).
+Regressões iniciais52Rust/148Python, incluindo20novos; [ownership](evidence/h2-regressions/a9-host-owned-tests.json).
+Revisão final do dispatcher acrescentou negação de erro de ps (somente exit1
+comprova ausência), sem alterar a operação encrypted testada na fixture inicial.
+[Regressão Python final](evidence/h2-python-final-regressions.json):149PASS,
+21novosH2, mesmo harness. Rust permanece byte a byte igual à versão já testada.
 Não repetir suíte/UI Tauri: nenhum código de produção foi alterado.
 
 ## Release0.1 — 17/10/2026

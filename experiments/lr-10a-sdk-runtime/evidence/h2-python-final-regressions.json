@@ -1,0 +1,74 @@
+{
+  "phase": "H2",
+  "observed_at": "2026-10-10T12:02:09.029582+00:00",
+  "command": [
+    "/usr/bin/python3",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "tests",
+    "-p",
+    "test_*.py",
+    "-v"
+  ],
+  "exit": 0,
+  "measurement": {
+    "schema_version": 2,
+    "probe": "h2-python-final",
+    "sample_kind": "fresh_process_warm_os_caches",
+    "headless": true,
+    "poll_interval_ms": 50,
+    "exit_code": 0,
+    "stdout_truncated": false,
+    "timed_out": false,
+    "operation_outcome": "main_exit_zero",
+    "wall_ms": 5219.81,
+    "cleanup_ms": 33.98,
+    "peak_process_tree_rss_bytes": 102002688,
+    "peak_owned_processes": 8,
+    "sampled_cpu_seconds_lower_bound": 2.08,
+    "system_processes_before": 314,
+    "system_processes_after": 314,
+    "observed_owned_processes": 57,
+    "attributed_processes": [
+      {
+        "pid": 16520,
+        "start_ticks": 1112759,
+        "basis": "launched_root"
+      }
+    ],
+    "unsampled_attributed_descendants": 0,
+    "owned_survivors_before_recovery": [],
+    "owned_survivors_after_recovery": [],
+    "harness_reaped_descendants": 0,
+    "harness_recovery_signals": 0,
+    "ownership_errors": [],
+    "kernel_children_exhausted": true,
+    "cleanup_status": "graceful_no_recovery",
+    "cleanup_complete": true,
+    "ownership_scope": "private_single_invocation_subreaper",
+    "external_process_policy": "not_attributed_never_signalled",
+    "sdk_shutdown_verified": false,
+    "sdk_report": {
+      "python_exit_code": 0,
+      "real_inference_calls": 0,
+      "sdk_invocations": 0
+    }
+  },
+  "source_sha256": {
+    "h2_manual_unlock.py": "83a3ab07a92f8ab78a6b126f474281df960596245faf0f4d73bcb6c543d38b33",
+    "tests/test_h2_keyring.py": "048204b85dd1a3933842a40f66736f142cd0598d1d1960016c7f82f4b81bcbbb"
+  },
+  "reason": "Review hardening: ps error must not imply GUI absence",
+  "real_sdk_invocations": 0,
+  "synthetic_real_component_reference": {
+    "implementation_commit": "887477a631cf519811b357aad5a6407dafaebabd",
+    "unchanged_ast_nodes": [
+      "ExistingLogin",
+      "human_password"
+    ],
+    "real_encrypted_component_retest": "NOT_RUN_AFTER_CONTEXT_ONLY_HARDENING; already observed against identical class",
+    "Rust_source_unchanged": true
+  }
+}

@@ -105,7 +105,10 @@ def human_password():
         return password[:-1]
 
 
-def require_headless_service(services, rows, role, target):
+def require_headless_service(services, rows, role, target, gui_ps_exit):
+    # ps exit1 means no match. Errors (including missing/unreadable proc) are not
+    # normalized to GUI absent just because the historical helper returns False.
+    require(gui_ps_exit == 1, 'gui_process_absence_not_verified')
     require(services.get('gnome-shell_running') is False and target == 'inactive'
         and bool(rows) and all(r['values'].get('Type') in ('tty', 'unspecified') for r in rows),
         'verified_gui_absence_required')
@@ -136,7 +139,9 @@ def main():
     target = properties(['/usr/bin/systemctl', '--user', 'show',
         'graphical-session.target', '-p', 'ActiveState'], context,
         {'ActiveState': 'active|inactive'})['values'].get('ActiveState')
-    require_headless_service(services, rows, role, target)
+    gui_ps_exit = properties(['/usr/bin/ps', '-C', 'gnome-shell', '-o', 'pid='],
+                             context, {})['exit_code']
+    require_headless_service(services, rows, role, target, gui_ps_exit)
     entry = Path('/proc') / str(role['pid'])
     require(entry.stat().st_uid == os.getuid() and
         (entry / 'exe').resolve() == Path('/usr/bin/gnome-keyring-daemon') and

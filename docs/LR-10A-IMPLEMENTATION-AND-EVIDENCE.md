@@ -879,9 +879,12 @@ Stronghold pessoal NOT_TESTED: `secret_presence` pode ajustar permissões/inicia
 migrar; não satisfaz diagnóstico pessoal puramente read-only. Não implementada
 KDF/migração alternativa. Copilot auth headless e cold-start NOT_TESTED; zero
 novas invocações SDK, inferências, sessões ou claims do marker. FINANCIAL_ADMISSION
-continua BLOCKED.52Rust/148Python PASS, incluindo20novos testes, com cleanup
+continua BLOCKED.52Rust/148Python PASS inicialmente, incluindo20novos testes, com cleanup
 ECHILD/identidades ausentes e nenhum processo externo sinalizado. Cache Rust
 compatível já existente foi utilizado sem rebuild Tauri, installs ou downloads.
+Revisão final do helper exige exit1 da consulta ps para provar ausência de GNOME;
+erro não vira ausência.149Python/21novosH2 passaram no [reteste final](../experiments/lr-10a-sdk-runtime/evidence/h2-python-final-regressions.json).
+Contrato de unlock encrypted e Rust não mudaram depois do ensaio sintético inicial.
 
 Release0.1 em17/10: qualificar uma janela humana proporcional, sem tornar Copilot
 obrigatório ou migrar credenciais por conveniência. Serviço sob demanda/manual
