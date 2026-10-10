@@ -850,3 +850,42 @@ continuam bloqueados. Para release0.1 em17/10, Copilot é opcional/experimental;
 priorizar caminhos existentes aprovados, sem certificar outros provedores no H1.
 
 **LR-10A H1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+## H2 — desbloqueio manual de credenciais sem GNOME (10/10/2026)
+
+**HEADLESS_PREPARED_PENDING_USER_TRANSITION**. A [prova sintética real](../experiments/lr-10a-sdk-runtime/evidence/h2-keyring-synthetic.json)
+executou GNOME Keyring50.0 em D-Bus/filesystem/PID/rede privados, sem GNOME Shell,
+com restart da mesma coleção criptografada e desbloqueio existente por libsecret
+DH/AES. Senha incorreta foi negada. O backend Rust real, incluído sem alteração,
+criou/reabriu somente Stronghold sintético; snapshot/login.keyring mantiveram seus
+bytes após unlock/restart/presença. Não houve acesso a credenciais pessoais.
+
+Contrato importante: `gnome-keyring-daemon --unlock` lê stdin na inicialização e
+pode **criar** login ausente. A operação existente-only demonstrada usa extensão
+GNOME explicitamente **não suportada**, com pin50.0, libsecret instalada e rejeição
+de transporte plain. O [helper humano](../experiments/lr-10a-sdk-runtime/h2_manual_unlock.py)
+exige TTY privado, GUI realmente ausente, owner no user manager e UID/PID/start-time/
+SHA compatíveis. Não inicia daemon, lê itens ou grava credenciais; não foi usado
+no cofre pessoal. Limites/reprodução/retorno e aprovação específica estão no
+[contrato H2](../experiments/lr-10a-sdk-runtime/HEADLESS-MANUAL-UNLOCK.md).
+
+A [observação passiva atual](../experiments/lr-10a-sdk-runtime/evidence/h2-context.json)
+confirma GUI ativa e dono no scope gráfico. Fonte GNOME50 observa fechamento de
+sessão logind quando há XDG_SESSION_ID: PAM close_session no-op não basta para
+garantir sobrevivência. Não se afirma que este daemon herdou essa variável;
+não houve /proc/environ, transição, serviço modificado ou transferência testada.
+
+Stronghold pessoal NOT_TESTED: `secret_presence` pode ajustar permissões/inicializar/
+migrar; não satisfaz diagnóstico pessoal puramente read-only. Não implementada
+KDF/migração alternativa. Copilot auth headless e cold-start NOT_TESTED; zero
+novas invocações SDK, inferências, sessões ou claims do marker. FINANCIAL_ADMISSION
+continua BLOCKED.52Rust/148Python PASS, incluindo20novos testes, com cleanup
+ECHILD/identidades ausentes e nenhum processo externo sinalizado. Cache Rust
+compatível já existente foi utilizado sem rebuild Tauri, installs ou downloads.
+
+Release0.1 em17/10: qualificar uma janela humana proporcional, sem tornar Copilot
+obrigatório ou migrar credenciais por conveniência. Serviço sob demanda/manual
+unlock é viável nos componentes sintéticos; produção/serviço pessoal/boot continuam
+pendentes. SSH/tmux/Codex e GNOME/Keyring pessoais foram preservados.
+
+**LR-10A H2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**

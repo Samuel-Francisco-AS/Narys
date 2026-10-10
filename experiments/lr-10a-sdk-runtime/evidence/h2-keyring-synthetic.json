@@ -1,0 +1,166 @@
+{
+  "phase": "LR-10A H2",
+  "observed_at": "2026-10-10T11:49:08.423039+00:00",
+  "state": "PASS_SYNTHETIC_ONLY",
+  "measurement": {
+    "schema_version": 2,
+    "probe": "synthetic",
+    "sample_kind": "fresh_process_warm_os_caches",
+    "headless": true,
+    "poll_interval_ms": 50,
+    "exit_code": 0,
+    "stdout_truncated": false,
+    "timed_out": false,
+    "operation_outcome": "main_exit_zero",
+    "wall_ms": 5180.09,
+    "cleanup_ms": 32.8,
+    "peak_process_tree_rss_bytes": 640958464,
+    "peak_owned_processes": 6,
+    "sampled_cpu_seconds_lower_bound": 4.84,
+    "system_processes_before": 329,
+    "system_processes_after": 330,
+    "observed_owned_processes": 9,
+    "attributed_processes": [
+      {
+        "pid": 16038,
+        "start_ticks": 1034697,
+        "basis": "launched_root"
+      },
+      {
+        "pid": 16039,
+        "start_ticks": 1034699,
+        "basis": "subreaper_child"
+      }
+    ],
+    "unsampled_attributed_descendants": 0,
+    "owned_survivors_before_recovery": [],
+    "owned_survivors_after_recovery": [],
+    "harness_reaped_descendants": 1,
+    "harness_recovery_signals": 0,
+    "ownership_errors": [],
+    "kernel_children_exhausted": true,
+    "cleanup_status": "graceful_no_recovery",
+    "cleanup_complete": true,
+    "ownership_scope": "private_single_invocation_subreaper",
+    "external_process_policy": "not_attributed_never_signalled",
+    "sdk_shutdown_verified": false,
+    "sdk_report": {
+      "scope": "SYNTHETIC_PRIVATE_FS_DBUS_PID_NET_NAMESPACES",
+      "host_credentials_accessed": false,
+      "copilot_started": false,
+      "personal_stronghold_accessed": false,
+      "sdk_invocations": 0,
+      "inference_calls": 0,
+      "gui_shell_in_namespace": false,
+      "cases": [
+        {
+          "case": "guard_missing_collection",
+          "state": "PASS"
+        },
+        {
+          "case": "official_cli_creates_when_missing",
+          "state": "PASS_OBSERVED_CREATION"
+        },
+        {
+          "case": "wrong_password_stays_locked",
+          "state": "PASS"
+        },
+        {
+          "case": "gnome_private_existing_only_unlock_without_gui",
+          "state": "PASS_SYNTHETIC_REAL_DAEMON"
+        },
+        {
+          "case": "production_rust_backend_presence_private_fixture",
+          "state": "PASS_SYNTHETIC_REAL_BACKEND"
+        },
+        {
+          "case": "daemon_restart_existing_store_and_rust_reopen",
+          "state": "PASS_SYNTHETIC_REAL_BACKEND"
+        }
+      ],
+      "daemon_resource_samples": [
+        {
+          "phase": "empty_locked_service",
+          "readiness_ms": 10.89,
+          "rss_bytes": 9768960
+        },
+        {
+          "phase": "explicit_synthetic_creation_on_start",
+          "readiness_ms": 10.72,
+          "rss_bytes": 10383360
+        },
+        {
+          "phase": "existing_unlock_and_backend_presence",
+          "readiness_ms": 10.72,
+          "rss_bytes": 10383360
+        },
+        {
+          "phase": "restart_existing_encrypted_store_locked",
+          "readiness_ms": 11.41,
+          "rss_bytes": 9748480
+        },
+        {
+          "phase": "restart_existing_store_unlocked_and_backend_presence",
+          "readiness_ms": 11.41,
+          "rss_bytes": 10141696
+        }
+      ],
+      "fixture_store_file_modes": {
+        "login.keyring": "0o600",
+        "user.keystore": "0o600"
+      },
+      "snapshot_bytes_unchanged_after_presence_and_restart": true,
+      "synthetic_login_keyring_bytes_unchanged_after_unlock_and_restart": true,
+      "official_cli_unlock_is_atomic_existing_only": false,
+      "existing_only_extension_is_supported_public_api": false,
+      "manual_unlock_transport": "LIBSECRET_DH_AES_NO_PLAIN_FALLBACK",
+      "personal_unlock_authorized_or_executed": false,
+      "state": "PASS_SYNTHETIC_REAL_COMPONENTS",
+      "daemon_error_indicators": {
+        "store_module_missing": false,
+        "credential_creation_failed": false,
+        "store_creation_failed": false,
+        "permission_denied": false,
+        "system_bus_unavailable": false,
+        "collection_creation_notification": false
+      }
+    }
+  },
+  "harness_exit": 0,
+  "host_services_before": {
+    "gnome-shell_running": true,
+    "gdm_running": true,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true,
+    "login_collection_locked": false,
+    "locked_property_exit_code": 0
+  },
+  "host_services_after": {
+    "gnome-shell_running": true,
+    "gdm_running": true,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true,
+    "login_collection_locked": false,
+    "locked_property_exit_code": 0
+  },
+  "marker_present_before": false,
+  "marker_present_after": false,
+  "personal_keyring_or_stronghold_accessed": false,
+  "copilot_sdk_invocations": 0,
+  "production_files_modified": false,
+  "binary_sha256": "e9783c67179214526732817050e55774d1830392e0f6e3a41226b7fe3855d7b8",
+  "source_sha256": {
+    "h2_keyring.py": "609fe8f4168fb7b0403d24a5cfe7c236c2d3617f0243814888db8b64c16ee3a1",
+    "h2_manual_unlock.py": "caabf3f0cf21f59c09cc95db31f2be525901237be2a30ee275e301a1f455fc31",
+    "fixtures/h2_keyring_fixture.py": "3aa1139731a177641a0ab601074fa895e98c785d117c19816ba72d1676464d48",
+    "fixtures/h2_stronghold.rs": "f53a52ed416844790fcdc5a729366144363718a46d0af535c2c56f910f3d4f15",
+    "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+    "../../src-tauri/src/security/secrets.rs": "78bf299cd79e4f08698d390725a03b5009f21a8dfc3ada061bb59cfe3719957a",
+    "../../src-tauri/src/security/audit.rs": "ea236e2cb4897064c53f7defbfcbad4b946c20bbcfd3624284d5ecc8974c440e"
+  },
+  "owned_identities_absent": true
+}

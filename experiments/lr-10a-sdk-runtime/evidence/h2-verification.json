@@ -1,0 +1,148 @@
+{
+  "phase": "LR-10A H2",
+  "observed_at": "2026-10-10T11:54:39.842580+00:00",
+  "decision": "HEADLESS_PREPARED_PENDING_USER_TRANSITION",
+  "python_syntax": "PASS",
+  "rustfmt_check": "PASS",
+  "git_diff_check": "PASS",
+  "json_documents_validated": 14,
+  "jsonl_lines_validated": 32,
+  "rust_tests_passed": 52,
+  "python_tests_passed": 148,
+  "new_python_tests": 20,
+  "historical_experiment_files_preserved_byte_for_byte": 215,
+  "historical_experiment_modified_files": [
+    "README.md append-only documentation"
+  ],
+  "production_diff_empty": true,
+  "sdk_cli_lockfile_and_previous_harness_unchanged": true,
+  "personal_credentials_contents_read": false,
+  "personal_unlock_or_transition_executed": false,
+  "host_services_changed": false,
+  "real_copilot_sdk_invocations": 0,
+  "real_inference_calls": 0,
+  "real_session_operations": 0,
+  "marker_exists_final": false,
+  "cleanup_verification": [
+    {
+      "path": "evidence/h2-keyring-initial-setup-failure.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-second-setup-failure.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-dbus-identity-failure.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-create-failure.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-startup-unlock-discovery.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-plain-transport-synthetic.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-libsecret-constructor-failure.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-encrypted-transport-development.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-context.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-encrypted-pre-snapshot-check.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-keyring-synthetic.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    },
+    {
+      "path": "evidence/h2-regressions/a9-host-owned-tests.json",
+      "kernel_children_exhausted": true,
+      "owned_identities_absent": true,
+      "cleanup_status": "graceful_no_recovery",
+      "harness_recovery_signals": 0
+    }
+  ],
+  "source_sha256": {
+    "h2_keyring.py": "609fe8f4168fb7b0403d24a5cfe7c236c2d3617f0243814888db8b64c16ee3a1",
+    "h2_manual_unlock.py": "caabf3f0cf21f59c09cc95db31f2be525901237be2a30ee275e301a1f455fc31",
+    "fixtures/h2_keyring_fixture.py": "3aa1139731a177641a0ab601074fa895e98c785d117c19816ba72d1676464d48",
+    "tests/test_h2_keyring.py": "bc5721a1e6cf3f3922336ff6c750598bd55243c0c5946d5eca2a3f582e7b1598",
+    "fixtures/h2_stronghold.rs": "f53a52ed416844790fcdc5a729366144363718a46d0af535c2c56f910f3d4f15"
+  },
+  "gates": {
+    "HEADLESS_KEYRING_SERVICE": "PASS_SYNTHETIC_REAL_COMPONENTS / NOT_TESTED_PERSONAL_SYSTEMD",
+    "MANUAL_UNLOCK_METHOD": "PASS_SYNTHETIC_ENCRYPTED_EXISTING_ONLY / PENDING_HUMAN_SETUP",
+    "DBUS_USER_SESSION": "PASS_REAL_GUI_PRESENT / PASS_PRIVATE_SYNTHETIC_HEADLESS",
+    "STRONGHOLD_ACCESS": "PASS_SYNTHETIC_REAL_BACKEND / NOT_TESTED_PERSONAL",
+    "COPILOT_SDK_AUTH": "NOT_TESTED_HEADLESS / HISTORICAL_GUI_ONLY",
+    "GUI_ABSENT_VERIFIED": "PASS_SYNTHETIC_NAMESPACE / NOT_TESTED_HOST",
+    "COLD_START_HEADLESS": "NOT_TESTED",
+    "SERVICE_PERSISTENCE": "PASS_SYNTHETIC_RESTART / NOT_TESTED_HOST_SESSION_OR_BOOT",
+    "PROCESS_CLEANUP": "PASS_OBSERVED_OWNED_FIXTURES_AND_PASSIVE_COMMANDS",
+    "FINANCIAL_ADMISSION": "BLOCKED",
+    "REAL_INFERENCE": "NOT_RUN"
+  },
+  "limitations": [
+    "GNOME existing-only extension explicitly unsupported, version-pinned",
+    "No personal transition or manual unlock authorization exercised",
+    "No systemd user service mutation or cold boot experiment",
+    "No production supervisor containment claim",
+    "No scan result proves absence of every possible secret format",
+    "One extra development fixture used private PID namespace containment outside harness; no pidfd/ECHILD measurement recorded for that invocation"
+  ],
+  "test_log_normalization": {
+    "path": "h2-regressions/a9-host-rust-tests.txt",
+    "operation": "Removed redundant trailing blank lines only; no test lines removed",
+    "original_sha256": "e9e91d0b3f489f2d0c356ccf77501896854a2f709e79cbff91f2076e76de1bc9",
+    "published_sha256": "d9a888bb5492fe201071d3934f0a7d277431955b3d10b8d4c6cd8cf8d7e6939c",
+    "removed_bytes": 1,
+    "reason": "git diff --cached --check reported blank line at EOF"
+  }
+}

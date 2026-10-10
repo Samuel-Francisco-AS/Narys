@@ -304,3 +304,16 @@ was updated/acquired. New [evidence](evidence/fix-4-verification.json) links the
 current tests separately from prior results. The [latest report](../../docs/LR-10-LATEST-EXECUTION-REPORT.md)
 characterizes auth, TLS/DNS and provider integration blockers. A9 remains an
 [inert specification](fixtures/A9-COMMAND-NOT-AUTHORIZED.txt), without a send mode.
+
+### H2 — manual unlock without GNOME Shell
+
+[H2 contract and reproduction](HEADLESS-MANUAL-UNLOCK.md) documents a real
+GNOME50/libsecret/production-Rust-backend experiment using **synthetic credentials
+inside private filesystem, D-Bus, PID and offline namespaces**. This does not
+authenticate a personal account or prove cold-start on this Fedora host.
+`h2_manual_unlock.py` is a pending human-only existing-login helper, using libsecret
+encrypted sessions and a version-pinned, explicitly unsupported GNOME extension;
+it starts no daemon, creates no collection and rejects GUI/unverified ownership.
+Do not run it from Codex, redirect a password, or use it on personal storage before
+the separately reviewed setup/transition. Host GUI, services and credentials were
+left untouched; H2 real Copilot gate remains NOT_RUN. Prior boundaries are unchanged.

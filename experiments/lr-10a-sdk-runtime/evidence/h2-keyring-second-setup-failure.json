@@ -1,0 +1,86 @@
+{
+  "phase": "LR-10A H2",
+  "observed_at": "2026-10-10T11:32:28.136940+00:00",
+  "state": "BLOCKED",
+  "measurement": {
+    "schema_version": 2,
+    "probe": "synthetic",
+    "sample_kind": "fresh_process_warm_os_caches",
+    "headless": true,
+    "poll_interval_ms": 50,
+    "exit_code": 1,
+    "stdout_truncated": false,
+    "timed_out": false,
+    "operation_outcome": "main_exit_nonzero",
+    "wall_ms": 160.68,
+    "cleanup_ms": 19.76,
+    "peak_process_tree_rss_bytes": 27758592,
+    "peak_owned_processes": 3,
+    "sampled_cpu_seconds_lower_bound": 0.05,
+    "system_processes_before": 324,
+    "system_processes_after": 325,
+    "observed_owned_processes": 3,
+    "attributed_processes": [
+      {
+        "pid": 14627,
+        "start_ticks": 935171,
+        "basis": "launched_root"
+      },
+      {
+        "pid": 14628,
+        "start_ticks": 935172,
+        "basis": "subreaper_child"
+      }
+    ],
+    "unsampled_attributed_descendants": 0,
+    "owned_survivors_before_recovery": [],
+    "owned_survivors_after_recovery": [],
+    "harness_reaped_descendants": 1,
+    "harness_recovery_signals": 0,
+    "ownership_errors": [],
+    "kernel_children_exhausted": true,
+    "cleanup_status": "graceful_no_recovery",
+    "cleanup_complete": true,
+    "ownership_scope": "private_single_invocation_subreaper",
+    "external_process_policy": "not_attributed_never_signalled",
+    "sdk_shutdown_verified": false,
+    "sdk_report": {
+      "state": "BLOCKED_SYNTHETIC_EXPERIMENT",
+      "error_code": "synthetic_setup_or_cleanup_failed"
+    }
+  },
+  "harness_exit": 1,
+  "host_services_before": {
+    "gnome-shell_running": true,
+    "gdm_running": true,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true,
+    "login_collection_locked": false,
+    "locked_property_exit_code": 0
+  },
+  "host_services_after": {
+    "gnome-shell_running": true,
+    "gdm_running": true,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true,
+    "login_collection_locked": false,
+    "locked_property_exit_code": 0
+  },
+  "marker_present_before": false,
+  "marker_present_after": false,
+  "personal_keyring_or_stronghold_accessed": false,
+  "copilot_sdk_invocations": 0,
+  "production_files_modified": false,
+  "binary_sha256": "e9783c67179214526732817050e55774d1830392e0f6e3a41226b7fe3855d7b8",
+  "source_sha256": {
+    "h2_keyring.py": "1be28f45f85c4d778e697cc3cbb05667f86c325a0b27148211e3ceff6e7b8ace",
+    "fixtures/h2_keyring_fixture.py": "c31d6b7309760da7cffe62fd96588724fffffde9285515e27f8d7ae42e7766e7",
+    "fixtures/h2_stronghold.rs": "9c10947837eb59a0526946322cbeb05322f1bb114f7a9b9738813d2c69c04ab1",
+    "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e"
+  },
+  "owned_identities_absent": true
+}

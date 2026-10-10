@@ -1,0 +1,42 @@
+{
+  "command": [
+    "/usr/bin/rustc",
+    "--edition=2021",
+    "-A",
+    "dead_code",
+    "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/fixtures/h2_stronghold.rs",
+    "-L",
+    "dependency=/home/sam/Projetos/Narys/src-tauri/target/debug/deps",
+    "-o",
+    "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/target/debug/h2-stronghold-fixture",
+    "--extern",
+    "tauri_plugin_stronghold=/home/sam/Projetos/Narys/src-tauri/target/debug/deps/libtauri_plugin_stronghold-7e7a3ef5d8eb1740.rlib",
+    "--extern",
+    "keyring=/home/sam/Projetos/Narys/src-tauri/target/debug/deps/libkeyring-16b577ac86f0781c.rlib",
+    "--extern",
+    "iota_stronghold=/home/sam/Projetos/Narys/src-tauri/target/debug/deps/libiota_stronghold-531d6f125a21ceb9.rlib",
+    "--extern",
+    "getrandom=/home/sam/Projetos/Narys/src-tauri/target/debug/deps/libgetrandom-ffe273f327b04d34.rlib"
+  ],
+  "cached_artifacts": {
+    "tauri_plugin_stronghold": {
+      "name": "libtauri_plugin_stronghold-7e7a3ef5d8eb1740.rlib",
+      "sha256": "8c3287a233437796ac23e745c5fd65c406d557f351819e723bb135abfa4e8b83"
+    },
+    "keyring": {
+      "name": "libkeyring-16b577ac86f0781c.rlib",
+      "sha256": "075102650f8ae29297433d8b4d1cfe38888e8ea0aaa703ed61e029db65321f21"
+    },
+    "iota_stronghold": {
+      "name": "libiota_stronghold-531d6f125a21ceb9.rlib",
+      "sha256": "098084df2588e213c443c8bfd00829b02318ab07b8a4892e39cdb7b002cb942b"
+    },
+    "getrandom": {
+      "name": "libgetrandom-ffe273f327b04d34.rlib",
+      "sha256": "b1918850b71e71e787062c06b132b1378c04a43f7328b2be9b81833dc2d460e0"
+    }
+  },
+  "compile_exit": 0,
+  "production_files_modified": false,
+  "cache_selection_note": "Most recent cache built by1.94 incompatible with installed1.98.1; existing compatible1.98.1 artifacts selected, no rebuild/update/download."
+}

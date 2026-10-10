@@ -1,0 +1,29 @@
+{
+  "phase": "H2",
+  "compile_exit": 0,
+  "compiler": "rustc 1.98.1 (48a229cea 2026-09-01) (Fedora 1.98.1-1.fc44)",
+  "command": [
+    "/usr/bin/rustc",
+    "--edition=2021",
+    "-A",
+    "dead_code",
+    "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/fixtures/h2_stronghold.rs",
+    "-L",
+    "dependency=/home/sam/Projetos/Narys/src-tauri/target/debug/deps",
+    "-o",
+    "/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime/target/debug/h2-stronghold-fixture",
+    "--extern",
+    "tauri_plugin_stronghold=/home/sam/Projetos/Narys/src-tauri/target/debug/deps/libtauri_plugin_stronghold-7e7a3ef5d8eb1740.rlib",
+    "--extern",
+    "keyring=/home/sam/Projetos/Narys/src-tauri/target/debug/deps/libkeyring-16b577ac86f0781c.rlib",
+    "--extern",
+    "iota_stronghold=/home/sam/Projetos/Narys/src-tauri/target/debug/deps/libiota_stronghold-531d6f125a21ceb9.rlib",
+    "--extern",
+    "getrandom=/home/sam/Projetos/Narys/src-tauri/target/debug/deps/libgetrandom-ffe273f327b04d34.rlib"
+  ],
+  "source_sha256": "f53a52ed416844790fcdc5a729366144363718a46d0af535c2c56f910f3d4f15",
+  "binary_sha256": "e9783c67179214526732817050e55774d1830392e0f6e3a41226b7fe3855d7b8",
+  "cached_library_hashes_revalidated": true,
+  "downloads": 0,
+  "production_rebuild": false
+}
