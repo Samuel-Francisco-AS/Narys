@@ -1,0 +1,24 @@
+{
+  "crate": "github-copilot-sdk",
+  "version": "1.0.17",
+  "registry_checksum": "c66d1375ffce624174ffab84f2781225ecd2c5c696ab412bcfabe01794cb0e97",
+  "inspected_source_sha256": "c358f0f773c7687947f89a9be7cc2c988db279cd33993d7024b40ce1f0a3b196",
+  "published_vcs_metadata": {
+    "git": {
+      "sha1": "0e56b9a0033f48e4358ee027a4077cd6ebd61f32",
+      "dirty": true
+    },
+    "path_in_vcs": "src/sdk/rust"
+  },
+  "vcs_caution": "published dirty=true means repository SHA alone is not asserted byte-identical to packaged source",
+  "prepared_start_contract": "session.create followed by explicit skipCustomInstructions options patch; no Session returned if patch errors; SDK attempts disconnect on patch error",
+  "source_locations": {
+    "create_finish": "src/session.rs:2018-2026",
+    "finish_session_setup": "src/session.rs:2497-2516",
+    "post_create_patch": "src/session.rs:2527-2565"
+  },
+  "packaged_source_link": "https://docs.rs/crate/github-copilot-sdk/1.0.17/source/src/session.rs",
+  "actual_rpc_numeric_code": "not recorded; synthetic -32602 does not establish actual numeric error",
+  "real_root_cause": "INCONCLUSIVE",
+  "additional_real_probe": false
+}

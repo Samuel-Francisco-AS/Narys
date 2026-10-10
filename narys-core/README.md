@@ -136,3 +136,19 @@ Não iniciar GDM nem alterar permanentemente boot durante a validação.
 O Core não é a aplicação gráfica completa: provedores cognitivos, renderização
 3D e comandos Tauri continuam em seus módulos originais. É a composição mínima
 para operar o especialista pelo servidor, sem antecipar toda a Narys Android.
+
+## Resultado da validação integrada desta entrega
+
+O único reboot humano foi concluído: Core iniciou automaticamente sem GNOME,
+login foi desbloqueado pelo usuário e Stronghold/status SDK autenticado foram
+comprovados no host. A única task1 falhou em `PreparedSession.start()` com erro
+RPC, antes de qualquer send. Não há resultado5 nem arquivo de resultado. Estado
+failed persistiu após restart; zero retries/inferências e marker A9 intacto.
+
+Os comandos de administração/credenciais/metadata funcionam. A execução de uma
+tarefa pelo especialista **ainda está bloqueada**; não usar esta entrega como
+integração Copilot concluída. A melhoria de diagnóstico publicada depois da
+execução conserva fase/código numérico e foi testada só em fixtures. Nenhum
+controle foi removido para forçar sucesso. Consulte a
+[evidência pós-boot](evidence/postboot-single-submission.json) e o
+[relatório atualizado](../docs/LR-10-LATEST-EXECUTION-REPORT.md).

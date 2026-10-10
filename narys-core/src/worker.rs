@@ -105,9 +105,11 @@ async fn operation(dir: &Path, cli: &Path, report: &mut Value) -> Result<(), &'s
 }
 async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<(), &'static str> {
     let outcome=async {
+        report["phase"]=json!("runtime_status");
         let s=bounded(client.get_status()).await?;
         if s.version!="1.0.95" || s.protocol_version!=3 {return Err("runtime_protocol_mismatch");}
         report["runtime"]=json!({"version":s.version,"protocol_version":s.protocol_version});
+        report["phase"]=json!("metadata_preflight");
         let preflight=preflight(&client).await;
         report["preflight"]=preflight.clone();
         if !dir.join("task.json").exists() {report["state"]=json!("metadata_observed"); return Ok(());}
@@ -128,12 +130,23 @@ async fn run_client(client: Client, dir: &Path, report: &mut Value) -> Result<()
         cfg.infinite_sessions=Some(github_copilot_sdk::types::InfiniteSessionConfig::new().with_enabled(false));
         let prepared=client.prepare_session(cfg).map_err(|_|"prepare_failed")?;
         let mut events=prepared.subscribe();
-        let session=bounded(prepared.start()).await?;
+        // Prepared.start includes session.create and the SDK's post-create
+        // options patch. Do not claim an exact RPC method from this phase.
+        report["phase"]=json!("session_start");
+        let session=match tokio::time::timeout(narys_lr10a_poc::DEADLINE,prepared.start()).await {
+            Ok(Ok(session))=>session,
+            Ok(Err(error))=>{
+                if let github_copilot_sdk::ErrorKind::Rpc{code}=error.kind(){report["rpc_error_code"]=json!(code);}
+                return Err(narys_lr10a_poc::error_code(&error));
+            },
+            Err(_)=>return Err("timeout"),
+        };
         report["session_created"]=json!(true);
         if session.workspace_path().is_some_and(|p|!p.starts_with(dir)){let _=bounded(session.disconnect()).await;return Err("session_storage_outside_private_root");}
         let inference=async {
             if dir.join("cancel").exists() {return Err("cancelled_before_send");}
             claim_task(dir)?;
+            report["phase"]=json!("single_send");
             report["sdk_send_calls"]=json!(1);
             let deadline=if cfg!(test){Duration::from_millis(300)}else{Duration::from_secs(120)};
             let send=session.send_and_wait(github_copilot_sdk::types::MessageOptions::new(input.objective.clone()).with_wait_timeout(deadline));
@@ -215,12 +228,12 @@ mod tests {
         let pid = client.pid().unwrap();
         let mut report = json!({"sdk_send_calls":0});
         let result = run_client(client, d.path(), &mut report).await;
-        assert!(
-            d.path().join("send-attempt.json").exists(),
-            "synthetic result: {result:?}; {report}"
-        );
         assert!(!Path::new(&format!("/proc/{pid}")).exists());
-        assert_eq!(claim_task(d.path()), Err("attempt_already_claimed"));
+        if report["sdk_send_calls"] == 1 {
+            assert_eq!(claim_task(d.path()), Err("attempt_already_claimed"));
+        } else {
+            assert!(!d.path().join("send-attempt.json").exists());
+        }
         let summary =
             serde_json::from_slice(&fs::read(d.path().join("summary.json")).unwrap()).unwrap();
         (result, report, summary)
@@ -245,6 +258,28 @@ mod tests {
             assert_eq!(s["abort"], 1);
             assert_eq!(s["detach"], 1);
         }
+    }
+    #[tokio::test]
+    async fn session_create_error_keeps_numeric_code_without_secret_or_send() {
+        let (r, e, s) = synthetic("create_error").await;
+        assert_eq!(r, Err("rpc_error_unknown"));
+        assert_eq!(e["phase"], "session_start");
+        assert_eq!(e["rpc_error_code"], -32602);
+        assert_eq!(e["sdk_send_calls"], 0);
+        assert_eq!(e["shutdown"], "graceful");
+        assert_eq!(s["send"], 0);
+        assert!(!e.to_string().contains("synthetic-private-secret"));
+    }
+    #[tokio::test]
+    async fn post_create_patch_error_is_not_a_completed_session_or_inference() {
+        let (r, e, s) = synthetic("options_error").await;
+        assert_eq!(r, Err("rpc_error_unknown"));
+        assert_eq!(e["phase"], "session_start");
+        assert_eq!(e["rpc_error_code"], -32602);
+        assert_eq!(e["sdk_send_calls"], 0);
+        assert_eq!(s["send"], 0);
+        assert_eq!(s["detach"], 1);
+        assert_eq!(e["shutdown"], "graceful");
     }
     #[test]
     fn attempt_claim_is_single_use() {

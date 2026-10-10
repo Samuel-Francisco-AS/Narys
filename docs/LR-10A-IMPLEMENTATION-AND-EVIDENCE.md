@@ -976,3 +976,16 @@ O usuário confirmou orçamento adicional desativado e autorizou UMA chamada da 
 **Aceite operacional ainda pendente:** boot realmente sem GNOME, desbloqueio humano privado e tarefa integrada real não foram executados nesta preparação. Zero inferências e zero sessões reais novas até este registro. O modo host-assisted continua sem sandbox; H1/H2/H3 e bloqueios do modo isolado permanecem preservados.
 
 Impacto na 0.1 (17/10): Core local e credenciais sob demanda evitam manter desktop para esse fluxo. A entrega oferece especialista textual com zero ferramentas; não antecipa Android, execução de shell, edição de projetos, approvals de produção ou toda a composição cognitiva da GUI. A conclusão depende da validação final após o único reboot humano, sem abrir nova trilha de investigação.
+
+
+### Validação final pós-boot — 10/10/2026
+
+[Evidência consolidada](../narys-core/evidence/postboot-single-submission.json): boot multi-user real, GDM sem start nesta inicialização, nenhuma sessão Wayland/X11 ou GNOME Shell, Core iniciado automaticamente aos ~20s de boot, user manager/Keyring ativos. Usuário desbloqueou login no SSH privado; status verificado desbloqueado. Stronghold pessoal existente aberto novamente sem save/migração. Metadados de login.keyring e snapshot permaneceram iguais. SDK 1.0.17/CLI 1.0.95 autenticado e catálogo Auto/quota recebidos pela Narys após esse cold boot.
+
+**Única submissão operacional: FAIL antes do send.** Task1 ficou `failed/backend_failed`; o worker gravou `rpc_error_unknown` durante `PreparedSession.start()`. Essa API inclui `session.create` e `session.options.update`; a implementação executada não preservou o código RPC numérico, logo método exato/causa permanecem INCONCLUSIVE. Nenhuma Session foi retornada à POC; não se pode descartar criação transitória seguida de falha no patch. Diretórios privados de estado/workspace ficaram vazios.
+
+Zero chamadas SDK send; guard de envio ausente e marker histórico A9 preservado. Não houve retry, nova submissão, segundo prompt, ferramenta ou modificação de credenciais. Shutdown SDK gracioso, ECHILD=true, cleanup completo, zero sinais externos. Estado failed persistiu após restart somente do Core.
+
+Melhoria posterior exclusivamente diagnóstica: fase de operação e código RPC numérico, sem texto/payload, mais fixtures negativas para create/patch. [28 testes Rust + 1 integração](../narys-core/evidence/rust-postboot.txt), [5 Python](../narys-core/evidence/python-postboot.txt) PASS. O código diagnóstico não foi retestado contra o SDK real. Flags financeiros, private state, ferramentas negadas e versões foram preservados.
+
+Conclusão: **HEADLESS_MANUAL_UNLOCK_PASS_REAL** para credenciais/Core/status SDK após cold boot; **integração de tarefa Copilot BLOCKED_BEFORE_SEND**, não concluída. A autorização de uma inferência continua não exercida, mas não permite retry automático desta validação. Próximo passo mínimo é diagnosticar o erro de início de sessão com os campos sanitizados novos, sob autorização específica, antes de qualquer send. Não abrir nova trilha H/FIX nem declarar LR-10A/produção aprovadas.

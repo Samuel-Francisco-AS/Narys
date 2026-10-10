@@ -1,0 +1,66 @@
+   Compiling narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+warning: method `seed_test_sequence` is never used
+   --> src/operational_trace/../../../src-tauri/src/operational_trace/bus.rs:142:19
+    |
+127 | impl OperationalTraceBus {
+    | ------------------------ method in this implementation
+...
+142 |     pub(crate) fn seed_test_sequence(&self, sequence: u64) {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `narys-core` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.78s
+     Running unittests src/lib.rs (src-tauri/target/debug/deps/narys_core-ae297e6dee434dcb)
+
+running 28 tests
+test cognition::task_graph::tests::unsupported_operational_capability_fails_closed ... ok
+test operational_trace::bus::boundary_tests::counters_saturate_and_sequence_exhaustion_is_explicit ... ok
+test cognition::task_graph::tests::empty_capability_is_rejected_only_at_the_task_graph_boundary ... ok
+test cognition::task_graph::tests::independent_steps_share_first_ready_wave_and_dependency_waits ... ok
+test cognition::task_graph::tests::cancellation_marks_pending_and_running_without_fake_completion ... ok
+test cognition::task_graph::tests::failure_blocks_transitive_dependents_but_not_independent_siblings ... ok
+test operational_trace::bus::boundary_tests::disconnected_receiver_is_removed_without_publisher_error ... ok
+test operational_trace::bus::boundary_tests::cumulative_published_live_and_disconnect_counts_are_saturating ... ok
+test policy::review_tests::flags_and_auth_cannot_replace_financial_review ... ok
+test policy::review_tests::overage_or_unknown_provider_flags_deny_even_human_consent ... ok
+test policy::review_tests::receipt_requires_scope_expiry_and_zero_paid_budget ... ok
+test cognition::task_graph::tests::task_graph_rejects_untrusted_non_machine_ids_but_keeps_planv1_contract ... ok
+test policy::tests::authentication_does_not_authorize_spending ... ok
+test policy::tests::no_other_model_or_unbounded_task ... ok
+test policy::tests::quota_absent_is_not_unlimited ... ok
+test vault::tests::missing_snapshot_never_created ... ok
+test vault::tests::symlink_rejected ... ok
+test server::tests::precancelled_task_has_no_side_effect_or_runtime ... ok
+test server::tests::specialist_never_inherits_shell_authority ... ok
+test worker::tests::attempt_claim_is_single_use ... ok
+test worker::tests::deny_all_configuration_keeps_private_state ... ok
+test worker::tests::unknown_cli_fails_before_start ... ok
+test worker::tests::session_create_error_keeps_numeric_code_without_secret_or_send ... ok
+test worker::tests::post_create_patch_error_is_not_a_completed_session_or_inference ... ok
+test worker::tests::synthetic_send_validates_response_without_retry ... ok
+test worker::tests::synthetic_cancel_and_timeout_abort_disconnect_without_resend ... ok
+test vault::tests::real_backend_opens_existing_synthetic_without_write ... ok
+test operational_trace::bus::invariants::lr9e_incremental_counters_and_frozen_oracle_preserve_exact_retention_replay_and_losses ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.42s
+
+     Running unittests src/main.rs (src-tauri/target/debug/deps/narys_core-01067201ba8222f3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/control.rs (src-tauri/target/debug/deps/control-d1edaddbc88b3a16)
+
+running 1 test
+test real_local_core_restarts_tasks_without_inference_and_blocks_unreviewed_submit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+   Doc-tests narys_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

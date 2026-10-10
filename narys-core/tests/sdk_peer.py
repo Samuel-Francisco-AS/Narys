@@ -32,6 +32,9 @@ while True:
         'overageAllowedWithExhaustedQuota':False,'remainingPercentage':100,
         'usageAllowedWithExhaustedQuota':False,'usedRequests':0}}}
     elif method == 'session.create':
+        if mode == 'create_error':
+            emit({'jsonrpc':'2.0','id':req['id'],'error':{'code':-32602,'message':'synthetic-private-secret'}})
+            continue
         summary['zero_tools'] = (p.get('availableTools') == [] and p.get('requestPermission') is True
             and p.get('mcpServers') == {} and p.get('hooks') is False and p.get('enableSkills') is False)
         assert summary['zero_tools']
@@ -48,6 +51,9 @@ while True:
         continue
     elif method == 'session.abort': summary['abort'] += 1
     elif method == 'session.detach': summary['detach'] += 1
+    elif method == 'session.options.update' and mode == 'options_error':
+        emit({'jsonrpc':'2.0','id':req['id'],'error':{'code':-32602,'message':'synthetic-private-secret'}})
+        continue
     elif method not in ('session.options.update','runtime.shutdown','session.skills.reload'):
         emit({'jsonrpc':'2.0','id':req['id'],'error':{'code':-32601,'message':'synthetic'}});continue
     emit({'jsonrpc':'2.0','id':req['id'],'result':result})
