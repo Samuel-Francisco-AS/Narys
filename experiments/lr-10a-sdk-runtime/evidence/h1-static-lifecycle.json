@@ -1,0 +1,33 @@
+{
+  "phase": "LR-10A H1",
+  "observed_at": "2026-10-10T10:23:19.302763+00:00",
+  "scope": "public_implementation_and_nonsecret_lifecycle_metadata",
+  "installed_packages": [
+    "gnome-keyring-50.0-1.fc44.x86_64",
+    "gnome-session-50.1-1.fc44.x86_64",
+    "systemd-259.9-1.fc44.x86_64"
+  ],
+  "package_query_exit_code": 0,
+  "logind_kill_user_processes": false,
+  "logind_property_query_exit_code": 0,
+  "sdk_installed_lib_sha256": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+  "sdk_auth_contract_source": "github-copilot-sdk-1.0.17/src/lib.rs:2251-2304",
+  "public_unit_sha256": {
+    "gnome-keyring-daemon.service": "49518a433e4a6aa1065370779d4ff6661b78099e903d548f8ed801bc0db92298",
+    "gnome-keyring-daemon.socket": "dc525051ed1613edb13fd84c63dd9db601690ea9bc3e547f0d13fb2f93bd44fb"
+  },
+  "conclusion": "KillUserProcesses=false does not establish safe GUI transition or credential-service survival; terminate-session explicitly kills scope processes. GNOME Keyring50 PAM close_session is a no-op, so old archive kill claims are not installed-version proof.",
+  "sources_consulted": [
+    "https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli",
+    "https://specifications.freedesktop.org/secret-service/latest/ch03.html",
+    "https://raw.githubusercontent.com/GNOME/gnome-keyring/50.0/pam/gkr-pam-module.c",
+    "https://raw.githubusercontent.com/GNOME/gnome-keyring/50.0/docs/gnome-keyring-daemon.xml",
+    "https://raw.githubusercontent.com/systemd/systemd/v259/man/loginctl.xml",
+    "https://raw.githubusercontent.com/systemd/systemd/v258/man/systemd.special.xml",
+    "https://wiki.gnome.org/Projects/GnomeKeyring/Pam",
+    "https://wiki.gnome.org/Projects/GnomeKeyring/RunningDaemon"
+  ],
+  "credential_contents_read": false,
+  "pam_or_services_modified": false,
+  "real_cli_started": false
+}

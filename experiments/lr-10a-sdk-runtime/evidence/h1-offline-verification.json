@@ -1,0 +1,21 @@
+{
+  "phase": "LR-10A H1",
+  "observed_at": "2026-10-10T10:20:58.468478+00:00",
+  "base": "356ed0fdab673a40f58b772e81977916519f7101",
+  "rust_passed": 52,
+  "python_passed": 128,
+  "new_h1_python_tests": 15,
+  "json_and_jsonl_valid": true,
+  "attributed_test_and_passive_identities_absent": true,
+  "marker_present": false,
+  "prior_experiment_tracked_files_unchanged": 205,
+  "syntax_check": "PASS",
+  "source_sha256": {
+    "h1_context.py": "e34af55ad4e8bfd198c380b4da9b177e31dddeccacb47ae79240060a804003eb",
+    "tests/test_h1_context.py": "4f2d464bf1ef5b46d5cb728332b8d4e54036dbfa22120a8f5305749f1292e149"
+  },
+  "sdk_invocations": 0,
+  "real_cli_started": false,
+  "real_inference_calls": 0,
+  "real_session_operations": 0
+}

@@ -829,3 +829,24 @@ continuam gates separados. Release17/10: integração continua fora da produçã
 nenhuma inferência ou LR-10B autorizada por este PASS de metadados.
 
 **A9-FIX-4R IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+## H1 — viabilidade de autenticação headless (10/10/2026)
+
+Preparação não disruptiva concluída; recomendação **HEADLESS_REQUIRES_USER_SETUP**.
+O [diagnóstico passivo](../experiments/lr-10a-sdk-runtime/evidence/h1-context.json)
+encontrou GNOME ativo, bus disponível e login Locked=false. O dono do Secret
+Service está no scope gráfico; sobrevivência e retorno seguro não foram
+comprovados. Nenhum logout, serviço, reboot, SDK ou CLI real foi executado no H1.
+KillUserProcesses=false e PAM50 close_session no-op impedem atribuir certeza de
+morte ao logout; tampouco garantem preservação. B/C continuam NOT_TESTED; A conserva
+seu PASS histórico, sem novo probe. Token/plaintext fallback não foi admitido.
+
+[Contrato e procedimento posterior](../experiments/lr-10a-sdk-runtime/HEADLESS-FEASIBILITY.md):
+setup humano por interface oficial de Keyring, revisão de lifecycle e aprovação
+específica antes de transição; cold-start exige boot futuro pelo usuário. Não
+confundir linger/bus/unlock com auth. 52 Rust/128 Python passaram; cleanup ECHILD,
+marker ausente, zero inferências/sessões. Estado privado/financeiro/isolamento
+continuam bloqueados. Para release0.1 em17/10, Copilot é opcional/experimental;
+priorizar caminhos existentes aprovados, sem certificar outros provedores no H1.
+
+**LR-10A H1 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
