@@ -7,6 +7,9 @@ use serde_json::{json, Value};
 use std::io::{BufRead, IsTerminal, Read, Write};
 const HELP: &str = "Narys — administração pelo terminal/SSH
   narys status | doctor | capabilities | providers | models
+  narys agent status | recover | stop | new
+  narys agent get|resume|attach|close SESSION_REF
+  narys agent detach ATTACHMENT_ID
   narys sessions [--after ID] [--limit 1..100]
   narys session ID [--after ID] [--limit 1..100]
   narys session new | resume ID | close ID
@@ -327,6 +330,16 @@ pub async fn run(mut args: Vec<String>) -> Result<(), &'static str> {
     }
     let command = match p.as_slice() {
         ["status"] => Command::Status {},
+        ["agent", "status"] => Command::AgentStatus {},
+        ["agent", "stop"] => Command::AgentRuntimeStop {},
+        ["agent", "recover"] => Command::AgentRuntimeRecover {},
+        ["agent", "new"] => Command::AgentSessionCreate {},
+        ["agent", "get" | "resume" | "attach" | "close", reference] => {
+            wire(json!({"operation":format!("agent-session-{}",p[1]),"session_ref":reference}))?
+        }
+        ["agent", "detach", attachment] => Command::AgentSessionDetach {
+            attachment_id: (*attachment).into(),
+        },
         ["capabilities"] => Command::Capabilities {},
         ["providers"] => Command::Providers {},
         ["models"] => Command::Models {},

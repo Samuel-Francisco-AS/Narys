@@ -17,3 +17,5 @@ pub mod client;
 pub mod credentials;
 
 pub mod operations;
+
+pub mod copilot;

@@ -1,6 +1,6 @@
 # Narys 0.1 — entrega agentiva com ferramentas reais (até 17/10/2026)
 
-**Atualização 10/10/2026: SERVER-1A–D ACEITA para operações headless (ver [auditoria 1D](NARYS-SERVER-1D-INDEPENDENT-AUDIT-2026-10-10.md)); MARCO S CONCLUÍDO, MARCOS AGENTIVOS A/B/R NÃO IMPLEMENTADOS.** Próximo alvo imediato LR-10B/10C e sequência B–F, com LR-11 como segundo executor a validar; testar desconexão **durante tarefa ativa** e cancelamento ativo de verdade no gate de ferramentas. Desktop legado aguarda adaptação IPC.
+**Atualização 10/10/2026: SERVER-1A–D ACEITA para operações headless (ver [auditoria 1D](NARYS-SERVER-1D-INDEPENDENT-AUDIT-2026-10-10.md)); MARCO S CONCLUÍDO, MARCOS AGENTIVOS A/B/R NÃO IMPLEMENTADOS.** LR-10B [implementada como candidata à auditoria](LR-10B-COPILOT-ADAPTER-SUPERVISOR.md), sem habilitar inferência/ferramentas. Próximo gate de execução LR-10C e sequência B–F, com LR-11 como segundo executor a validar; testar desconexão **durante tarefa ativa** e cancelamento ativo de verdade no gate de ferramentas. Desktop legado aguarda adaptação IPC.
 
 **Criado em 10/10/2026. Estado: META VINCULANTE DE PRODUTO / NÃO IMPLEMENTADA.** O usuário exige Narys operacional até **17/10/2026**, com agentes capazes de executar **trabalho real** e ferramentas disponíveis para LLMs/agentes; não apenas conversar, planejar ou simular ações.
 

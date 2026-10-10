@@ -411,3 +411,82 @@ fn official_cli_disconnected_clients_recover_cancelled_task_without_replay() {
         0
     );
 }
+#[test]
+fn specialist_queries_disconnect_reentry_and_restart_are_lazy_and_durable() {
+    let mut s = Server::start();
+    for _ in 0..8 {
+        let status = s.call(json!({"operation":"agent-status"}));
+        assert_eq!(status["data"]["runtime"]["state"], "dormant");
+        assert_eq!(status["data"]["runtime"]["process_id"], Value::Null);
+        assert_eq!(status["data"]["runtime"]["generation"], 0);
+    }
+    // The temporary HOME deliberately has no CLI. Disconnect before reading
+    // the admission response; the server-owned task survives the connection.
+    let mut client = UnixStream::connect(s.socket()).unwrap();
+    client.write_all(&serde_json::to_vec(&json!({"version":1,"request_id":"detached","command":{"operation":"agent-session-create"}})).unwrap()).unwrap();
+    client.shutdown(std::net::Shutdown::Write).unwrap();
+    drop(client);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let id = loop {
+        let tasks = s.call(json!({"operation":"tasks","namespace":"product"}));
+        if let Some(task) = tasks["data"]["tasks"].as_array().unwrap().first() {
+            break task["task_id"].as_u64().unwrap();
+        }
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let task = loop {
+        let task = s.call(json!({"operation":"task-get","task":{"namespace":"product","id":id}}));
+        if task["data"]["state"] == "failed" {
+            break task["data"].clone();
+        }
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert_eq!(task["error_code"], "cli_unavailable");
+    assert_eq!(task["sdk_send_calls"], 0);
+    let reference = task["session_ref"].clone();
+    let attach = s.call(json!({"operation":"agent-session-attach","session_ref":reference}));
+    assert_eq!(s.call(json!({"operation":"agent-session-detach","attachment_id":attach["data"]["attachment_id"]}))["data"]["task_cancelled"],false);
+    let event = s.call(json!({"operation":"events"}));
+    let text = event.to_string();
+    assert!(text.contains("agent_failed"));
+    assert!(text.contains("copilot"));
+    s.restart();
+    assert_eq!(
+        s.call(json!({"operation":"task-get","task":{"namespace":"product","id":id}}))["data"]
+            ["state"],
+        "failed"
+    );
+    assert_eq!(
+        s.call(json!({"operation":"agent-session-get","session_ref":reference}))["data"]
+            ["attachments"],
+        0
+    );
+    assert_eq!(
+        s.call(json!({"operation":"agent-session-resume","session_ref":reference}))["error_code"],
+        "session_not_resumable"
+    );
+    assert_eq!(
+        s.call(json!({"operation":"agent-status"}))["data"]["runtime"]["generation"],
+        0
+    );
+}
+#[test]
+fn specialist_maintenance_stop_is_typed_and_keeps_conversation_available() {
+    let s = Server::start();
+    let stopped = s.call(json!({"operation":"agent-runtime-stop"}));
+    assert_eq!(
+        stopped["data"]["runtime"]["admission_closed"], true,
+        "{stopped}"
+    );
+    assert_eq!(
+        s.call(json!({"operation":"agent-session-create"}))["error_code"],
+        "supervisor_stopping"
+    );
+    assert_eq!(s.call(json!({"operation":"session-create"}))["ok"], true);
+    assert_eq!(
+        s.call(json!({"operation":"status"}))["data"]["core"],
+        "running"
+    );
+}

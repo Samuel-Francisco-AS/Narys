@@ -48,7 +48,7 @@ if m.st_uid != os.getuid() or m.st_mode & 0o022 or BIN.resolve() != BIN:
     raise SystemExit('unsafe_user_bin')
 status = subprocess.run([str(CORE), 'status'], capture_output=True, check=True, timeout=10)
 data = json.loads(status.stdout)['data']
-if data.get('active_task') is not None or data.get('product_active_tasks') or data.get('execution_workers'):
+if data.get('active_task') is not None or data.get('product_active_tasks') or data.get('execution_workers') or data.get('copilot_runtime',{}).get('active_tasks') or data.get('copilot_runtime',{}).get('runtime',{}).get('leases'):
     raise SystemExit('active_work_update_blocked')
 # Strip a staged CLI before any service update; preserve prior known CLI on update.
 digest(SOURCE, built=True)

@@ -306,7 +306,7 @@ fn c4_v15_migration_failure_rolls_back_and_retries_from_v14() {
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        20
+        21
     );
 }
 #[test]

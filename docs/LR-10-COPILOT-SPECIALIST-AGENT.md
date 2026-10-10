@@ -1,8 +1,8 @@
 # LR-10 — GitHub Copilot SpecialistAgent
 
-**Estado atualizado (10/10/2026): LR-10A PASS FINAL; SERVER-1A–D APROVADA NO ESCOPO HEADLESS pela [auditoria final](NARYS-SERVER-1D-INDEPENDENT-AUDIT-2026-10-10.md). LR-10B–F seguem NÃO IMPLEMENTADAS, porém não mais pausadas por SERVER-1 já [integrada à main pela PR #25](NARYS-SERVER-1-FINAL-CLOSURE-2026-10-10.md): são a PRÓXIMA PRIORIDADE de planejamento/implementação autorizada pelo usuário, dependente dos gates de autoridade por operação e eventual autorização específica de uso real.** [Narys 0.1 com ferramentas reais até 17/10/2026](NARYS-01-AGENT-TOOLS-DELIVERY.md). A versão desktop Tauri exige adapter IPC; não reintroduzir writer paralelo.  
-**Posição atual:** LR-9 PASS → LR-10A PASS → pausa temporária B–F → NARYS-SERVER-1 → implementação agentiva B–F/Codex segundo a meta explícita de 17/10. A ordem interna pode ser reorganizada tecnicamente sem conceder privilégios implícitos.  
-**Base documental:** `main` em `f4174121a552d1c0cf9ebf8e83c332ca3cb826c8`, sem alteração funcional até o início de uma subfase.  
+**Estado atualizado (10/10/2026): LR-10A PASS FINAL; SERVER-1A–D APROVADA NO ESCOPO HEADLESS pela [auditoria final](NARYS-SERVER-1D-INDEPENDENT-AUDIT-2026-10-10.md). LR-10B está IMPLEMENTADA COMO CANDIDATA, [aguardando auditoria independente da Luna](LR-10B-COPILOT-ADAPTER-SUPERVISOR.md); LR-10C–F seguem NÃO IMPLEMENTADAS, porém não mais pausadas por SERVER-1 já [integrada à main pela PR #25](NARYS-SERVER-1-FINAL-CLOSURE-2026-10-10.md): são a PRÓXIMA PRIORIDADE de planejamento/implementação autorizada pelo usuário, dependente dos gates de autoridade por operação e eventual autorização específica de uso real.** [Narys 0.1 com ferramentas reais até 17/10/2026](NARYS-01-AGENT-TOOLS-DELIVERY.md). A versão desktop Tauri exige adapter IPC; não reintroduzir writer paralelo.
+**Posição atual:** LR-9 PASS → LR-10A PASS → pausa temporária B–F → NARYS-SERVER-1 → implementação agentiva B–F/Codex segundo a meta explícita de 17/10. A ordem interna pode ser reorganizada tecnicamente sem conceder privilégios implícitos.
+**Base documental:** `main` em `f4174121a552d1c0cf9ebf8e83c332ca3cb826c8`, sem alteração funcional até o início de uma subfase.
 **Plano de entrada:** [LR-10A — SDK & Runtime Feasibility POC](LR-10A-FEASIBILITY-POC.md).
 
 ## 1. Tese e resultado de produto
@@ -61,7 +61,7 @@ O SDK é uma interface para o CLI sobre JSON-RPC; **o próprio CLI executa seu l
 
 **Separação dos planos:** Core decide e autoriza, Copilot trabalha, Observation Plane observa, UI apresenta. O futuro AI-Native Runtime mantém sua própria fronteira e não é antecipado nesta fase.
 
-## 4. Contratos a projetar (não implementados)
+## 4. Contratos do plano (lifecycle LR-10B candidato; autoridade/resultados LR-10C/D pendentes)
 
 Contratos recomendados, sujeitos ao POC:
 
@@ -151,6 +151,7 @@ Dormant (sem processo Copilot sob ownership da Narys)
 Referência: [roteiro verificável da LR-10A](LR-10A-FEASIBILITY-POC.md).
 
 ### LR-10B — Copilot Adapter & On-Demand Supervisor
+**Implementação candidata:** [arquitetura e operação](LR-10B-COPILOT-ADAPTER-SUPERVISOR.md) · [relatório/evidências](LR-10B-DELIVERY-REPORT.md). Sem inferências novas, tools ou PASS definitivo.
 **Saída:** adapter registrado (não exposto como CognitiveProvider), contrato de sessão/lifecycle, events/control.
 - `CopilotAgentAdapter` e registry com compatibilidade com o Codex read-only.
 - `AgentRuntimeSupervisor` process-wide: limites, leases, concorrência, refcount, cleanup, failure recovery e shutdown.

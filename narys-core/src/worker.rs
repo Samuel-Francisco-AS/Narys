@@ -7,7 +7,14 @@ use sha2::{Digest, Sha256};
 use std::{fs, io::Write, os::unix::fs::OpenOptionsExt, path::Path, sync::Arc, time::Duration};
 
 pub fn validate_cli(cli: &Path) -> Result<(), &'static str> {
-    let mut image = fs::File::open(cli).map_err(|_| "cli_unavailable")?;
+    let mut image = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+        .open(cli)
+        .map_err(|_| "cli_unavailable")?;
+    if !image.metadata().map_err(|_| "cli_unavailable")?.is_file() {
+        return Err("cli_unavailable");
+    }
     let mut hash = Sha256::new();
     std::io::copy(&mut image, &mut hash).map_err(|_| "cli_read_failed")?;
     if format!("{:x}", hash.finalize()) != policy::CLI_SHA {
@@ -626,6 +633,19 @@ mod tests {
         let p = d.path().join("bad");
         fs::write(&p, b"fake").unwrap();
         assert_eq!(validate_cli(&p), Err("cli_pin_mismatch"));
+    }
+    #[test]
+    fn cli_symlink_and_fifo_are_rejected_without_blocking() {
+        let d = tempfile::tempdir().unwrap();
+        let image = d.path().join("image");
+        fs::write(&image, b"synthetic").unwrap();
+        let link = d.path().join("link");
+        std::os::unix::fs::symlink(&image, &link).unwrap();
+        assert_eq!(validate_cli(&link), Err("cli_unavailable"));
+        let fifo = d.path().join("fifo");
+        let name = std::ffi::CString::new(fifo.as_os_str().as_encoded_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
+        assert_eq!(validate_cli(&fifo), Err("cli_unavailable"));
     }
     #[test]
     fn deny_all_configuration_keeps_private_state() {

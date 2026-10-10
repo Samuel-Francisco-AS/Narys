@@ -13,7 +13,7 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(|_| PersistenceError::Migration)?;
-    if version > 20 {
+    if version > 21 {
         return Err(PersistenceError::Migration);
     }
     if version == 0 {
@@ -145,34 +145,66 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }
     if version < 17 {
-        let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
-            .map_err(|_| PersistenceError::Migration)?;
+        let tx =
+            rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+                .map_err(|_| PersistenceError::Migration)?;
         tx.execute_batch(include_str!("../../migrations/017_economy_shell.sql"))
             .map_err(|_| PersistenceError::Migration)?;
-        tx.pragma_update(None, "user_version", 17).map_err(|_| PersistenceError::Migration)?;
+        tx.pragma_update(None, "user_version", 17)
+            .map_err(|_| PersistenceError::Migration)?;
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }
     if version < 18 {
-        let tx = rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
-            .map_err(|_| PersistenceError::Migration)?;
+        let tx =
+            rusqlite::Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)
+                .map_err(|_| PersistenceError::Migration)?;
         // Older tests/repair fixtures can retain shell_settings while resetting user_version.
         let exists: bool = tx.query_row("SELECT count(*) > 0 FROM pragma_table_info('shell_settings') WHERE name='presentation_policy'", [], |r| r.get(0)).map_err(|_| PersistenceError::Migration)?;
-        if !exists { tx.execute_batch(include_str!("../../migrations/018_presentation_policy.sql")).map_err(|_| PersistenceError::Migration)?; }
-        tx.pragma_update(None, "user_version", 18).map_err(|_| PersistenceError::Migration)?;
+        if !exists {
+            tx.execute_batch(include_str!("../../migrations/018_presentation_policy.sql"))
+                .map_err(|_| PersistenceError::Migration)?;
+        }
+        tx.pragma_update(None, "user_version", 18)
+            .map_err(|_| PersistenceError::Migration)?;
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }
     if version < 19 {
-        let tx = conn.unchecked_transaction().map_err(|_| PersistenceError::Migration)?;
-        tx.execute_batch(include_str!("../../migrations/019_server_runtime.sql")).map_err(|_| PersistenceError::Migration)?;
-        tx.pragma_update(None, "user_version", 19).map_err(|_| PersistenceError::Migration)?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.execute_batch(include_str!("../../migrations/019_server_runtime.sql"))
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.pragma_update(None, "user_version", 19)
+            .map_err(|_| PersistenceError::Migration)?;
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }
     if version < 20 {
-        let tx = conn.unchecked_transaction().map_err(|_| PersistenceError::Migration)?;
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|_| PersistenceError::Migration)?;
         let details: bool = tx.query_row("SELECT count(*)>0 FROM pragma_table_info('server_events') WHERE name='details_json'",[],|r|r.get(0)).map_err(|_|PersistenceError::Migration)?;
-        if !details { tx.execute_batch("ALTER TABLE server_events ADD COLUMN details_json TEXT;").map_err(|_|PersistenceError::Migration)?; }
-        tx.execute_batch(include_str!("../../migrations/020_durable_conversation.sql")).map_err(|_| PersistenceError::Migration)?;
-        tx.pragma_update(None, "user_version", 20).map_err(|_| PersistenceError::Migration)?;
+        if !details {
+            tx.execute_batch("ALTER TABLE server_events ADD COLUMN details_json TEXT;")
+                .map_err(|_| PersistenceError::Migration)?;
+        }
+        tx.execute_batch(include_str!(
+            "../../migrations/020_durable_conversation.sql"
+        ))
+        .map_err(|_| PersistenceError::Migration)?;
+        tx.pragma_update(None, "user_version", 20)
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.commit().map_err(|_| PersistenceError::Migration)?;
+    }
+    if version < 21 {
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.execute_batch(include_str!(
+            "../../migrations/021_specialist_lifecycle.sql"
+        ))
+        .map_err(|_| PersistenceError::Migration)?;
+        tx.pragma_update(None, "user_version", 21)
+            .map_err(|_| PersistenceError::Migration)?;
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }
     Ok(())

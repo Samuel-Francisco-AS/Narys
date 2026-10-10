@@ -1,3 +1,16 @@
+# LR-10B — SpecialistAgent gerenciado (candidata)
+
+Copilot registrado no AgentRegistry, supervisor compartilhado sob demanda,
+leases limitados, lifecycle SDK oficial, sessões/ownership no SQLite autoritativo,
+reap Linux e eventos/consultas IPC. `narys agent status` é lazy; `new`/`resume`
+são operações explícitas de sessão sem prompt. Inferência e ferramentas permanecem
+fechadas; `submit` LR-10A está encerrado. Codex conserva planner read-only.
+
+[Arquitetura/operação/rollback](../docs/LR-10B-COPILOT-ADAPTER-SUPERVISOR.md) ·
+[Relatório e limites](../docs/LR-10B-DELIVERY-REPORT.md).
+**IMPLEMENTAÇÃO CANDIDATA — AGUARDANDO AUDITORIA INDEPENDENTE DA LUNA.**
+As seções LR-10A/SERVER-1 abaixo são registros herdados; não concedem autorização nova.
+
 # CLI operacional SERVER-1C
 
 Use `narys` no shell SSH do host. [Guia completo](CLI.md): instalação sem sudo,

@@ -19,6 +19,15 @@ if dropin.is_symlink() or dropin.read_bytes() != (ROOT/'ops/keyring-headless.con
     raise SystemExit('KEYRING_DROPIN_PRESERVED_UPDATE_BLOCKED')
 if f'ExecStart=%h/.local/lib/narys/narys-core serve' not in unit.read_text():
     raise SystemExit('UNKNOWN_SERVICE_PRESERVED')
+# Consult only authoritative IPC before staging/stopping; no DB or credential read.
+def assert_idle():
+    status = subprocess.run([str(binary), 'status'], capture_output=True, check=True, timeout=10)
+    data = json.loads(status.stdout)['data']
+    if (data.get('active_task') is not None or data.get('product_active_tasks') or
+            data.get('execution_workers') or data.get('copilot_runtime',{}).get('active_tasks') or
+            data.get('copilot_runtime',{}).get('runtime',{}).get('leases')):
+        raise SystemExit('ACTIVE_WORK_UPDATE_BLOCKED')
+assert_idle()
 # Preserve reviewed binary/unit before the only service stop. Database migration
 # creates its own SQLite backups/receipt; never automatically roll back new data.
 updates = HOME / '.local/state/narys/core/updates'
@@ -47,6 +56,7 @@ with os.fdopen(fd, 'wb') as target, source.open('rb') as src:
     shutil.copyfileobj(src, target)
     target.flush(); os.fsync(target.fileno())
 subprocess.run(['/usr/bin/strip', '--strip-debug', str(new)], check=True)
+assert_idle()  # Recheck after staging, immediately before the only service stop.
 subprocess.run(['/usr/bin/systemctl', '--user', 'stop', 'narys-core.service'], check=True)
 if digest(binary) != sys.argv[1] or digest(unit) != sys.argv[2]:
     raise SystemExit('INSTALLATION_CHANGED_PRESERVED')
