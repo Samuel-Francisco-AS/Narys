@@ -155,10 +155,13 @@ class MetadataPolicyTests(unittest.TestCase):
                 entry = proc / '123'
                 entry.mkdir(exist_ok=True)
                 (entry / 'comm').write_text(name)
+                fields = ['S', '1'] + ['0'] * 17 + ['100']
+                (entry / 'stat').write_text('123 (' + name + ') ' + ' '.join(fields))
                 (entry / 'exe').unlink(missing_ok=True)
                 (entry / 'exe').symlink_to('/usr/bin/python3')
-                self.assertEqual(driver.concurrency(cli, proc)['state'], 'NOT_RUN_CONCURRENCY_UNVERIFIED')
+                self.assertEqual(driver.concurrency(cli, proc)['state'], 'BLOCKED_RELEVANT_CONCURRENCY')
             (entry / 'comm').write_text('renamed-native')
+            (entry / 'stat').write_text('123 (renamed-native) ' + ' '.join(fields))
             (entry / 'exe').unlink()
             (entry / 'exe').symlink_to(cli)
             self.assertEqual(driver.concurrency(cli, proc)['copilot_processes'], 1)

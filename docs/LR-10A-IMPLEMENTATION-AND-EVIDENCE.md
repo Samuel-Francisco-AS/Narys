@@ -787,3 +787,45 @@ precisa de prova própria. Novo ensaio exige resolver a pré-condição por mét
 não invasivo revisado e nova autorização, nunca encerrar processos externos.
 
 **A9-FIX-4 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+## Adendo — A9-FIX-4R: concorrência e metadata real (10/10/2026)
+
+Correção pontual: exe EACCES isolado não comprova Copilot concorrente. O survey
+preserva UID/comm/PPID/PID-start-time, revalida identidade e separa runtime pinado,
+runtime potencial, contexto Codex, serviços essenciais, unrelated/partial e
+identidade suspeita. Somente indicadores relevantes ou identidade básica
+indisponível/instável bloqueiam METADATA_READ_ONLY; sem alegar exclusividade do UID,
+isolamento ou prova contra adversário. Survey não concede autoridade de término;
+nenhum processo externo foi encerrado. Sem force/env bypass ou financeiro aberto.
+
+Dois surveys reais examinaram105 processos same-UID:6 próprios/ancestrais/descendentes
+Codex,10 essenciais,88 unrelated e1 partial. EACCES em systemd/(sd-pam)/sshd-session
+e executable missing em zypak-sandbox ficaram registrados com identidade básica
+estável, não rotulados como Copilot. Copilot identificado0/runtime ambíguo0. Não se
+inspecionou cmdline/environ, arquivos pessoais ou conteúdos de credenciais.
+
+Nova identidade one-shot FIX-4R, evidência e reserva próprias, preservando FIX-4 e
+marker A9. Após52 Rust/113 Python PASS offline/locked/jobs2, uma única invocação
+SDK1.0.17/CLI1.0.95 pinado confirmou status e authenticated=true; GNOME/GDM/Keyring
+já ativos e coleção login desbloqueada antes/depois, sem intervenção. Zero models/
+quota/session/send/inferência/tools/login/logout. SDK shutdown graceful, harness
+ECHILD, zero recovery signals/survivors e identidades atribuídas ausentes.
+
+Drift observado before_start→after_start: inode3768738→3773129, tamanho470 constante,
+mtime/ctime1791603250606145370→1791625843024779423. Estrutura600/UID/link compatível
+em todas as fases, snapshots posteriores concordam. Correlação de fase não prova
+escritor/legitimidade/igualdade de bytes; nenhuma leitura/restore/chmod/lock pessoal.
+METADATA_AUTH_OBSERVATION=PASS_REAL, writer=INCONCLUSIVE, sessões/financeiro/ações
+BLOCKED, headless NOT_PROVEN, inferência NOT_RUN, marker ausente/não consumido.
+
+[Evidência real](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4r-metadata-confirmation.json),
+[fixtures](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4r-concurrency-fixtures.json),
+[regressões](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4r-regressions/a9-host-owned-tests.json),
+[verificação](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-4r-final-verification.json).
+135 arquivos históricos de evidence preservados byte a byte. Produção/pins/SDK/
+Cargo.lock/MSRV/Edition/Broker/IPC não alterados; Tauri completo NOT_RUN por escopo.
+Morte do worker/adversariais, auth headless/isolada, rede, estado privado e financeiro
+continuam gates separados. Release17/10: integração continua fora da produção;
+nenhuma inferência ou LR-10B autorizada por este PASS de metadados.
+
+**A9-FIX-4R IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**

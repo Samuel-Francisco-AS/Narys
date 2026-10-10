@@ -1,0 +1,453 @@
+{
+  "kind": "synthetic_only",
+  "cases": [
+    {
+      "a9_fix4r_case": "test_codex_ancestors_and_needed_descendants_are_protected_by_relations",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 0,
+        "unavailable": 0,
+        "suspicious_or_unassessable": 0,
+        "state": "METADATA_SURVEY_ACCEPTED_WITH_LIMITS",
+        "processes": [
+          {
+            "pid": 100,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "codex",
+            "ppid": 99,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": false,
+            "category": "OWN_CODEX_OR_HARNESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          },
+          {
+            "pid": 101,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "bash",
+            "ppid": 100,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": false,
+            "category": "OWN_CODEX_OR_HARNESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          },
+          {
+            "pid": 102,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "python3",
+            "ppid": 101,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": false,
+            "category": "OWN_CODEX_OR_HARNESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          },
+          {
+            "pid": 103,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "node",
+            "ppid": 100,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": false,
+            "category": "OWN_CODEX_OR_HARNESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_concurrency_acceptance_or_failure_cannot_open_other_scopes",
+      "survey": {
+        "copilot_processes": 1,
+        "ambiguous_runtimes": 0,
+        "unavailable": 0,
+        "suspicious_or_unassessable": 0,
+        "state": "BLOCKED_RELEVANT_CONCURRENCY",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "copilot",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": true,
+            "category": "CONFIRMED_COPILOT",
+            "blocking": true,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_copilot_name_with_denied_exe_remains_relevant_not_proven_native",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 1,
+        "unavailable": 1,
+        "suspicious_or_unassessable": 0,
+        "state": "BLOCKED_RELEVANT_CONCURRENCY",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "copilot",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "POTENTIALLY_CONCURRENT_RUNTIME",
+            "blocking": true,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_executable_eacces_alone_preserves_core_identity_and_allows_metadata",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 0,
+        "unavailable": 1,
+        "suspicious_or_unassessable": 0,
+        "state": "METADATA_SURVEY_ACCEPTED_WITH_LIMITS",
+        "processes": [
+          {
+            "pid": 123,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "ordinary-worker",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "PARTIALLY_INACCESSIBLE",
+            "blocking": false,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_external_essential_cannot_be_terminated_by_observation",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 0,
+        "unavailable": 1,
+        "suspicious_or_unassessable": 0,
+        "state": "METADATA_SURVEY_ACCEPTED_WITH_LIMITS",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "systemd",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "ESSENTIAL_PROCESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_gnome_and_user_services_are_protected_even_with_exe_denied",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 0,
+        "unavailable": 6,
+        "suspicious_or_unassessable": 0,
+        "state": "METADATA_SURVEY_ACCEPTED_WITH_LIMITS",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "gnome-shell",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "ESSENTIAL_PROCESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          },
+          {
+            "pid": 121,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "systemd",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "ESSENTIAL_PROCESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          },
+          {
+            "pid": 122,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "(sd-pam)",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "ESSENTIAL_PROCESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          },
+          {
+            "pid": 123,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "sshd-session",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "ESSENTIAL_PROCESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          },
+          {
+            "pid": 124,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "gnome-keyring-d",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "ESSENTIAL_PROCESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          },
+          {
+            "pid": 125,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "dbus-broker",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "ESSENTIAL_PROCESS",
+            "blocking": false,
+            "termination_admission": "DENIED_PROTECTED_PROCESS"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_missing_core_identity_still_blocks_unlike_exe_only_eacces",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 0,
+        "unavailable": 1,
+        "suspicious_or_unassessable": 1,
+        "state": "BLOCKED_RELEVANT_CONCURRENCY",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": false,
+            "uid": 1000,
+            "comm": "ordinary-worker",
+            "inspection_error": "core_identity_unavailable",
+            "category": "SUSPICIOUS_OR_UNASSESSABLE",
+            "blocking": true,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_pid_reuse_or_changed_identity_fails_closed",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 0,
+        "unavailable": 0,
+        "suspicious_or_unassessable": 1,
+        "state": "BLOCKED_RELEVANT_CONCURRENCY",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": false,
+            "uid": 1000,
+            "comm": "ordinary-worker",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": false,
+            "category": "SUSPICIOUS_OR_UNASSESSABLE",
+            "blocking": true,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_pinned_native_copilot_is_identified_even_if_renamed",
+      "survey": {
+        "copilot_processes": 1,
+        "ambiguous_runtimes": 0,
+        "unavailable": 0,
+        "suspicious_or_unassessable": 0,
+        "state": "BLOCKED_RELEVANT_CONCURRENCY",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "renamed",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": true,
+            "category": "CONFIRMED_COPILOT",
+            "blocking": true,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_process_disappears_during_scan_without_false_concurrency",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 0,
+        "unavailable": 0,
+        "suspicious_or_unassessable": 0,
+        "state": "METADATA_SURVEY_ACCEPTED_WITH_LIMITS",
+        "processes": [],
+        "vanished_during_scan": 1,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_scheduler_state_change_is_not_pid_reuse",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 0,
+        "unavailable": 0,
+        "suspicious_or_unassessable": 0,
+        "state": "METADATA_SURVEY_ACCEPTED_WITH_LIMITS",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "ordinary-worker",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": false,
+            "category": "OBSERVED_UNRELATED",
+            "blocking": false,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    },
+    {
+      "a9_fix4r_case": "test_unrelated_node_bun_are_ambiguous_and_block_without_kill_permission",
+      "survey": {
+        "copilot_processes": 0,
+        "ambiguous_runtimes": 2,
+        "unavailable": 1,
+        "suspicious_or_unassessable": 0,
+        "state": "BLOCKED_RELEVANT_CONCURRENCY",
+        "processes": [
+          {
+            "pid": 120,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "node",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "access_denied",
+            "native_image_match": null,
+            "category": "POTENTIALLY_CONCURRENT_RUNTIME",
+            "blocking": true,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          },
+          {
+            "pid": 121,
+            "identity_stable": true,
+            "uid": 1000,
+            "comm": "bun",
+            "ppid": 1,
+            "start_ticks": 100,
+            "exe_state": "observed",
+            "native_image_match": false,
+            "category": "POTENTIALLY_CONCURRENT_RUNTIME",
+            "blocking": true,
+            "termination_admission": "DENIED_NO_PROVEN_DISPOSABILITY"
+          }
+        ],
+        "vanished_during_scan": 0,
+        "scope": "METADATA_READ_ONLY",
+        "exclusivity_proven": false,
+        "processes_terminated": 0
+      }
+    }
+  ]
+}

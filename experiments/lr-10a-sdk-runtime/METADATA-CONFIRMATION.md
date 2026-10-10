@@ -105,3 +105,33 @@ See [offline verification](evidence/a9-fix-4-offline-verification.json),
 No real SDK/CLI invocation or inference occurred in this FIX. Historical GUI auth
 remains observed; current auth, catalog/quota, financial admission and genuine
 session persistence are not promoted by this policy or the offline tests.
+
+## A9-FIX-4R — proportional concurrency correction
+
+The historical FIX-4 blocked preflight above is preserved. The current survey in
+confirm_a9_metadata.py retains UID/comm/PPID/PID-start-time, checks identity twice
+and classifies pinned Copilot, potential runtime, own Codex ancestry/descendants,
+essential services, unrelated/partially inaccessible and suspicious identities.
+An exe EACCES alone no longer blocks METADATA_READ_ONLY. Known Copilot/runtime
+or missing/unstable core identity still blocks; scheduler state is not PID reuse.
+Partial observations remain explicit, never proof of absolute exclusivity or
+protection against a disguised same-UID actor. No observation authorizes killing;
+there is no terminator or force flag. No external process needed termination.
+
+`confirm_a9_metadata_recovery.py` selects a closed FIX-4R execution identity with
+fresh evidence and a9-fix-4r-runtime-reservation.json. It cannot specify arbitrary
+output/retry paths. Older evidence/reservation and the A9 inference marker remain
+untouched. The new bin reuses the tested status/auth flow and previous options;
+no new session/send/catalog/quota operation is exposed.
+
+The authorized single SDK invocation completed: authenticated=true, compatible
+native1.0.95/protocol3, graceful shutdown and ECHILD/owned identities absent.
+Config drift was observed between before_start/after_start (inode/time, size470
+unchanged); structure passed, content not read, writer INCONCLUSIVE. Session,
+financial/action admission remain BLOCKED, headless NOT_PROVEN, inference NOT_RUN.
+52 Rust/113 Python regressions passed before the probe. See
+[real evidence](evidence/a9-fix-4r-metadata-confirmation.json),
+[synthetic survey cases](evidence/a9-fix-4r-concurrency-fixtures.json),
+[offline verification](evidence/a9-fix-4r-offline-verification.json),
+[cleanup/final checks](evidence/a9-fix-4r-final-verification.json).
+This fixed diagnostic is completed; do not rerun or remove its reservation.

@@ -1,0 +1,149 @@
+   Compiling narys-lr10a-poc v0.1.0 (/home/sam/Projetos/Narys/experiments/lr-10a-sdk-runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 37.04s
+     Running unittests src/lib.rs (target/debug/deps/narys_lr10a_poc-f9a7b7e36a486142)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/a9-host-assisted.rs (target/debug/deps/a9_host_assisted-b86533c5f59596fa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/a9-metadata-confirm.rs (target/debug/deps/a9_metadata_confirm-af5a06e6e2fcfd28)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/bin/a9-metadata-confirm-r.rs (target/debug/deps/a9_metadata_confirm_r-65b80e51e5e62163)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/auth-network-probe.rs (target/debug/deps/auth_network_probe-1225708b03978db9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/boundary-fixture.rs (target/debug/deps/boundary_fixture-c0e3b9adc69fedc2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/narys_lr10a_poc-93d15f694fc5227d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/network-fixture.rs (target/debug/deps/network_fixture-5eb1717c85e7b182)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/auth_diagnostic.rs (target/debug/deps/auth_diagnostic-fec0210c56380a33)
+
+running 2 tests
+test metadata_context_contract_preserves_normal_auth_and_no_secret_override ... ok
+test synthetic_context_and_fallback_matrix_never_creates_or_sends ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/auth_network.rs (target/debug/deps/auth_network-520ba072863dadc1)
+
+running 12 tests
+test absent_auth_and_absent_gateway_fail_closed ... ok
+test allowed_fixed_operation_only_through_host_in_offline_namespace ... ok
+test default_handler_is_never_used_and_inference_is_not_implemented ... ok
+test destinations_protocols_headers_bodies_and_paths_rejected ... ok
+test explicit_sdk_token_is_runtime_exposure_not_host_containment ... ok
+test explicit_token_removed_from_environment_does_not_become_ambient_auth ... ok
+test invalid_synthetic_authorization_never_contacts_provider ... ok
+test prohibited_live_local_canary_receives_zero_connections ... ok
+test second_operation_exceeds_fixed_budget_without_retry_or_fallback ... ok
+test timeout_redirect_unauthorized_and_secret_echo_fail_closed ... ok
+test unavailable_gateway_has_no_direct_network_fallback ... ok
+test unsupported_runtime_handler_is_a_startup_gate ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+
+     Running tests/host_assisted.rs (target/debug/deps/host_assisted-c566fb2b1595a30a)
+
+running 8 tests
+test available_quota_is_not_a_pricing_or_paid_fallback_admission ... ok
+test billing_unknown_auto_and_even_mock_zero_cost_never_admit_real_send ... ok
+test concurrent_marker_claim_is_exclusive_and_persistent ... ok
+test live_binary_rejects_send_modes_and_missing_ownership_before_cli_start ... ok
+test marker_rejects_symlinks_permissions_and_existing_unknown_entries ... ok
+test preflight_uses_normal_existing_auth_without_extracting_token ... ok
+test synthetic_exact_prompt_one_send_detach_restart_resume_without_resend ... ok
+test synthetic_send_error_or_timeout_burns_attempt_no_retry ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running tests/metadata_confirmation.rs (target/debug/deps/metadata_confirmation-7a79eeb87920db75)
+
+running 4 tests
+test exactly_status_auth_shutdown_no_sensitive_method ... ok
+test structural_failure_after_auth_keeps_auth_observation_and_shutdown ... ok
+test structural_failure_stops_optional_rpc_and_still_shutdowns ... ok
+test version_mismatch_or_status_error_never_calls_auth_or_retries ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests/persistence.rs (target/debug/deps/persistence-336c5505c271addb)
+
+running 10 tests
+test corrupt_synthetic_transcript_is_not_recovered_or_rewritten ... ok
+test credential_environment_is_removed_without_extracting_values ... ok
+test empty_sessions_do_not_fake_persist_or_resume_in_either_state_namespace ... ok
+test fixtures_preserve_explicit_and_generated_ids_across_client_and_cli_restart ... ok
+test ids_are_opaque_unique_uuid_and_storage_paths_fail_closed ... ok
+test invalid_storage_root_prevents_any_runtime_launch ... ok
+test late_disconnect_fails_explicitly_without_recreating_session ... ok
+test legacy_corruption_rpc_code_is_retained_without_guessing_modern_contract ... ok
+test resume_identity_mismatch_and_failed_detach_cannot_be_reported_as_success ... ok
+test storage_and_metadata_failures_remain_distinct_from_missing_sessions ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+
+     Running tests/protocol.rs (target/debug/deps/protocol-37ef7031f8000968)
+
+running 12 tests
+test abort_timeout_late_cancel_and_shutdown_timeout_fail_closed ... ok
+test errors_never_echo_secrets_or_guess_auth_and_quota ... ok
+test event_correlation_detects_duplicates_missing_parents_and_bounded_overflow ... ok
+test failed_handshake_and_cancelled_start_reclaim_process ... ok
+test fixture_persistence_resume_after_client_restart_and_delete ... ok
+test graceful_fixture_cleanup_reclaims_owned_descendant ... ok
+test lifecycle_preserves_opaque_id_and_idle_is_not_success ... ok
+test official_deny_handler_rejects_unknown_and_managed_requests ... ok
+test path_resolution_is_explicit_and_fail_closed ... ok
+test quota_absent_invalid_zero_and_unlimited_are_distinct ... ok
+test safe_metadata_distinguishes_unauth_unknown_quota_and_unavailable_method ... ok
+test session_rpc_failure_and_detach_failure_do_not_report_success ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+
+     Running tests/security.rs (target/debug/deps/security-986ebf3ce0d907ba)
+
+running 4 tests
+test create_and_resume_deny_shell_write_unknown_and_managed_permissions_on_wire ... ok
+test raw_absence_noresult_error_and_hanging_handler_do_not_supply_explicit_denial ... ok
+test required_deny_policy_overrides_noresult_error_and_timeout_callback ... ok
+test unsupported_required_options_fail_creation_and_resume_closed ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+
+   Doc-tests narys_lr10a_poc
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
