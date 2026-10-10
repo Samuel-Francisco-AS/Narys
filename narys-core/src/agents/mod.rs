@@ -1,0 +1,10 @@
+#[path = "../../../src-tauri/src/agents/backend.rs"]
+pub mod backend;
+#[path = "../../../src-tauri/src/agents/plan_contract.rs"]
+pub mod planner;
+#[path = "../../../src-tauri/src/agents/registry_storage.rs"]
+pub mod registry;
+#[path = "../../../src-tauri/src/agents/trace.rs"]
+pub mod trace;
+#[path = "../../../src-tauri/src/agents/types.rs"]
+pub mod types;

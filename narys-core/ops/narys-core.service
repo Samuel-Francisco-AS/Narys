@@ -1,0 +1,34 @@
+[Unit]
+Description=Narys headless Core (local SSH control; Copilot on demand)
+Wants=gnome-keyring-daemon.service
+After=dbus.socket gnome-keyring-daemon.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+ExecStart=%h/.local/lib/narys/narys-core serve
+WorkingDirectory=%h/.local/state/narys/core
+Environment=PATH=/usr/bin:/bin
+Environment=XDG_RUNTIME_DIR=%t
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+UnsetEnvironment=DISPLAY WAYLAND_DISPLAY XDG_SESSION_ID COPILOT_HOME COPILOT_SDK_AUTH_TOKEN COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN
+UMask=0077
+RuntimeDirectory=narys-core
+RuntimeDirectoryMode=0700
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=270
+TimeoutStopFailureMode=terminate
+LimitCORE=0
+TasksMax=64
+MemoryHigh=600M
+MemoryMax=900M
+NoNewPrivileges=yes
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=default.target

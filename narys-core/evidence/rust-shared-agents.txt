@@ -1,0 +1,150 @@
+   Compiling assistente-3d v0.1.0 (/home/sam/Projetos/Narys/src-tauri)
+warning: fields `id`, `created_at`, and `is_current` are never read
+  --> src/persistence/identity.rs:53:35
+   |
+53 | ...ct IdentitySnapshot { pub id: i64, pub input: IdentityInput, pub created_at: String, pub supersedes_id: Option<i64>, pub is_current: b...
+   |       ----------------       ^^                                     ^^^^^^^^^^                                              ^^^^^^^^^^
+   |       |
+   |       fields in this struct
+   |
+   = note: `IdentitySnapshot` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `request_attention` is never used
+   --> src/adaptive.rs:250:14
+    |
+250 | pub async fn request_attention(app: AppHandle, reason: AttentionReason) -> Result<(), String> {
+    |              ^^^^^^^^^^^^^^^^^
+
+warning: function `require_attention` is never used
+   --> src/adaptive.rs:254:8
+    |
+254 | pub fn require_attention(app: &AppHandle, reason: AttentionReason) -> Result<(), String> {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: `assistente-3d` (lib test) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 44s
+     Running unittests src/lib.rs (src-tauri/target/debug/deps/assistente_3d_lib-20368dc843c06f5c)
+
+running 119 tests
+test agents::codex::app_server::tests::initialize_serialization ... ok
+test agents::codex::app_server::tests::fake_transport_correlates_interleaved_reply ... ok
+test agents::codex::app_server::tests::interleaved_notification_and_eof ... ok
+test agents::codex::app_server::tests::interleaved_pending_survives_rpc_timeout_protocol_and_close ... ok
+test agents::codex::app_server::tests::invalid_json_and_wrong_id_fail_closed ... ok
+test agents::codex::app_server::tests::initialize_success_and_sanitization ... ok
+test agents::codex::app_server::tests::json_rpc_error_is_rejected ... ok
+test agents::codex::app_server::tests::planner_eof_read_failure_and_malformed_json_fail_closed ... ok
+test agents::codex::app_server::tests::notification_over_limit_is_protocol_error ... ok
+test agents::codex::app_server::tests::planner_opts_into_local_experimental_thread_fields ... ok
+test agents::codex::app_server::tests::maximum_notifications_then_response_succeeds ... ok
+test agents::codex::app_server::tests::real_app_server_handshake ... ignored, requires a local Codex app-server
+test agents::codex::app_server::tests::rpc_ids_notifications_and_server_requests ... ok
+test agents::codex::app_server::tests::server_request_has_distinct_closed_code_and_unsolicited_response_is_rejected ... ok
+test agents::codex::app_server::tests::transport_eof_and_timeout_fail_closed ... ok
+test agents::codex::backend::lifecycle_tests::active_cancel_sends_one_interrupt_and_waits_for_terminal ... ok
+test agents::codex::app_server::tests::regression_planner_burst_preserves_1024_frames ... ok
+test agents::codex::backend::lifecycle_tests::async_bridge_acknowledges_events_and_maps_closed_sink ... ok
+test agents::codex::backend::lifecycle_tests::async_bridge_mirrors_cancel_without_waiting_for_full_turn ... ok
+test agents::codex::backend::lifecycle_tests::async_ready_delivery_checks_cancel_before_releasing_worker ... ok
+test agents::codex::backend::lifecycle_tests::cancel_after_thread_preparation_never_starts_inference ... ok
+test agents::codex::app_server::tests::planner_queue_frame_budget_and_undrained_reader_completion ... ok
+test agents::codex::backend::lifecycle_tests::cancel_between_session_ready_and_turn_start_is_observed ... ok
+test agents::codex::backend::lifecycle_tests::cancel_before_reading_terminal_wins_even_when_runtime_completes ... ok
+test agents::codex::backend::lifecycle_tests::cleanup_failure_and_security_failure_keep_precedence ... ok
+test agents::codex::backend::lifecycle_tests::benign_pending_after_failed_interrupt_keeps_cancel_or_sink_error ... ok
+test agents::codex::backend::lifecycle_tests::forbidden_item_while_cancelling_cannot_be_hidden_by_cancel ... ok
+test agents::codex::app_server::tests::framing_limits_message_and_probe ... ok
+test agents::codex::backend::lifecycle_tests::failure_then_independent_call_starts_clean_with_one_terminal_each ... ok
+test agents::codex::backend::lifecycle_tests::forbidden_pending_survives_interrupt_protocol_or_transport_failure ... ok
+test agents::codex::backend::lifecycle_tests::idle_turn_observes_global_timeout_without_busy_loop ... ok
+test agents::codex::backend::lifecycle_tests::forbidden_pending_survives_interrupt_ack_timeout ... ok
+test agents::codex::backend::lifecycle_tests::interrupt_failure_still_reclaims_and_returns_cancelled ... ok
+test agents::codex::backend::lifecycle_tests::interrupt_without_terminal_has_bounded_virtual_deadline ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_cancellation_observer_failure_never_changes_interrupt_or_cleanup ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_functional_sink_error_is_not_masked_by_successful_passive_trace ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_codex_display_notifications_are_exact_private_reasoning_is_never_exposed ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_private_reasoning_only_keeps_factual_output_observed_without_text ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_two_concurrent_operations_have_distinct_local_correlation ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_forbidden_protocol_still_fails_closed_without_payload_or_private_marker ... ok
+test agents::codex::app_server::tests::regression_planner_receives_more_than_256_notifications ... ok
+test agents::codex::backend::lifecycle_tests::manual_final_codex_agent_bridge_gate ... ignored, manual only: requires authenticated Codex, isolated inference and quota
+test agents::codex::backend::lifecycle_tests::malformed_pending_notification_preserves_protocol_diagnostic_on_ack_failure ... ok
+test agents::codex::backend::lifecycle_tests::precancelled_trait_object_starts_no_operation_or_event ... ok
+test agents::codex::backend::lifecycle_tests::queued_completed_during_interrupt_ack_is_drained_in_order ... ok
+test agents::codex::backend::lifecycle_tests::queued_terminal_cannot_hide_later_forbidden_pending_item ... ok
+test agents::codex::backend::lifecycle_tests::server_request_during_cancel_remains_closed_and_cleanup_runs ... ok
+test agents::codex::backend::lifecycle_tests::server_request_during_interrupt_ack_stays_closed_without_reply ... ok
+test agents::codex::backend::lifecycle_tests::sink_closed_before_turn_never_spends_inference ... ok
+test agents::codex::backend::lifecycle_tests::queued_terminal_is_inspected_even_after_interrupt_ack_failure ... ok
+test agents::codex::backend::lifecycle_tests::partial_cleanup_or_cancel_does_not_poison_next_call ... ok
+test agents::codex::backend::lifecycle_tests::sink_closed_during_work_interrupts_and_reclaims ... ok
+test agents::codex::backend::lifecycle_tests::sink_closed_on_output_interrupts_and_emits_no_text ... ok
+test agents::codex::backend::lifecycle_tests::successful_async_bridge_preserves_event_order_and_has_no_global_busy_state ... ok
+test agents::codex::backend::lifecycle_tests::terminal_event_rejection_cannot_return_success_or_duplicate_terminal ... ok
+test agents::codex::backend::lifecycle_tests::unrelated_activity_never_emits_output_observed ... ok
+test agents::codex::backend::lifecycle_tests::terminal_received_before_cancel_observation_preserves_success ... ok
+test agents::codex::backend::tests::action_items_fail_closed ... ok
+test agents::codex::backend::tests::action_notifications_and_completed_turn_items_fail_closed ... ok
+test agents::codex::backend::tests::completed_item_and_turn_correlation ... ok
+test agents::codex::backend::tests::effective_thread_requires_all_security_fields ... ok
+test agents::codex::app_server::tests::planner_message_and_total_wire_byte_budgets_fail_closed ... ok
+test agents::codex::backend::tests::cleanup_failure_cannot_turn_a_failed_or_successful_turn_into_success ... ok
+test agents::codex::backend::tests::failed_turn_and_missing_response_are_distinct ... ok
+test agents::codex::backend::tests::generic_agent_errors_compile_without_backend_dependencies ... ok
+test agents::codex::backend::tests::instruction_sources_must_be_present_and_empty_without_path_leak ... ok
+test agents::codex::backend::tests::forbidden_notifications_and_server_requests_have_closed_diagnostics ... ok
+test agents::codex::backend::tests::isolated_thread_serialization ... ok
+test agents::codex::backend::tests::malformed_permission_profile_provenance_is_rejected_without_exposure ... ok
+test agents::codex::backend::tests::invalid_plan_never_exposes_response_or_repairs_json ... ok
+test agents::codex::backend::tests::forbidden_items_have_item_diagnostic_and_cleanup ... ok
+test agents::codex::backend::tests::permission_profile_cannot_override_effective_security ... ok
+test agents::codex::backend::tests::planner_path_must_be_outside_entire_checkout ... ok
+test agents::codex::backend::tests::preparation_failure_precedes_cleanup_only_for_real_planner ... ok
+test agents::codex::backend::tests::permission_profile_provenance_accepts_absent_and_arbitrary_valid_ids ... ok
+test agents::codex::backend::tests::preparation_stage_failures_have_closed_codes ... ok
+test agents::codex::backend::tests::probe_adapter_preserves_registry_and_request_gates ... ok
+test agents::codex::backend::tests::probe_operation_keeps_generic_errors_and_success_without_diagnostic_leakage ... ok
+test agents::codex::backend::tests::production_only_planning_and_structured ... ok
+test agents::codex::backend::tests::probe_operation_preserves_closed_diagnostics_through_command_boundary ... ok
+test agents::codex::backend::tests::public_probe_serializes_only_closed_fields_and_codes ... ok
+test agents::codex::backend::tests::safe_thread_response_allows_turn_construction ... ok
+test agents::codex::backend::tests::shared_preparation_stops_before_turn_start ... ok
+test agents::codex::backend::tests::trait_object_rejects_and_cancels_without_spawn ... ok
+test agents::codex::backend::tests::turn_request_has_schema_and_no_tools ... ok
+test agents::codex::backend::tests::turn_transport_closed_protocol_and_timeout_have_closed_diagnostics ... ok
+test agents::codex::backend::tests::turn_start_failure_and_invalid_id_are_distinct ... ok
+test agents::codex::backend::tests::valid_plan_and_lifecycle_notifications_succeed_then_cleanup ... ok
+test agents::codex::status::tests::arbitrary_failure_output_fails_closed ... ok
+test agents::codex::status::tests::classifies_api_key_login ... ok
+test agents::codex::status::tests::classifies_chatgpt_login ... ok
+test agents::codex::status::tests::classifies_not_authenticated ... ok
+test agents::codex::status::tests::classifies_other_login ... ok
+test agents::codex::status::tests::fails_closed_for_unexpected_or_empty_success_output ... ok
+test agents::codex::status::tests::parses_valid_version ... ok
+test agents::codex::status::tests::positive_markers_fail_closed_when_command_fails ... ok
+test agents::planner::tests::ids_and_dependencies ... ok
+test agents::planner::tests::questions_and_size ... ok
+test agents::planner::tests::unknown_fields_and_capability ... ok
+test agents::planner::tests::valid_and_invalid_json ... ok
+test agents::planner::tests::version_and_step_limits ... ok
+test agents::registry::tests::breaks_priority_ties_by_id ... ok
+test agents::registry::tests::event_sink_failure_is_propagated_by_mock ... ok
+test agents::registry::tests::excludes_disabled_backends ... ok
+test agents::registry::tests::excludes_incompatible_capabilities ... ok
+test agents::registry::tests::executes_through_object_safe_trait_with_mock ... ok
+test agents::registry::tests::marked_cancellation_is_returned_by_mock ... ok
+test agents::registry::tests::orders_by_priority ... ok
+test agents::registry::tests::production_registry_contains_only_codex_with_two_capabilities ... ok
+test agents::registry::tests::registers_and_looks_up_by_id ... ok
+test agents::registry::tests::rejects_duplicate_id ... ok
+test agents::registry::tests::requires_all_capabilities ... ok
+test agents::codex::app_server::tests::planner_pending_rpc_reply_preserves_large_interleaved_burst ... ok
+test agents::codex::backend::lifecycle_tests::success_events_are_facts_coalesced_and_do_not_contain_output ... ok
+test agents::codex::backend::tests::wire_failures_and_server_requests_still_cleanup_without_reply ... ok
+test agents::codex::backend::lifecycle_tests::dropping_async_future_signals_worker_to_reclaim ... ok
+test agents::codex::backend::tests::regression_thousands_of_wire_deltas_complete_valid_plan_and_cleanup ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_observer_absent_failed_slow_and_3000_deltas_preserve_requests_result_and_cleanup ... ok
+test agents::codex::app_server::tests::shutdown_reaps_stuck_child ... ok
+
+test result: ok. 117 passed; 0 failed; 2 ignored; 0 measured; 990 filtered out; finished in 2.01s

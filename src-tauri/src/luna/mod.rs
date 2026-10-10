@@ -285,3 +285,5 @@ pub fn attach_conversation_events(
     crate::perf1c_probe::record("ui_attach", serde_json::json!({"taskId":id,"sessionId":session_id}));
     registry.events.attach(TaskId(id), session_id, after_sequence, channel)
 }
+
+pub mod task_id;

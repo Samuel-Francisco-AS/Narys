@@ -1,8 +1,6 @@
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
-#[serde(transparent)]
-pub struct TaskId(pub u64);
+pub use super::task_id::TaskId;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]

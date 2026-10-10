@@ -1,0 +1,391 @@
+{
+  "schema_version": 1,
+  "stage": "PREBOOT_PREPARED_NOT_OPERATIONAL_ACCEPTANCE",
+  "recorded_at_unix": 1791645544.0171905,
+  "base": "7a336649e3a359463cecaad4232d6ccb4084c4ce",
+  "sdk": "1.0.17",
+  "cli": "1.0.95",
+  "cli_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+  "metadata_probe_installed_binary_sha256": "eb63090b137596dd47f45c6577dfe1410b986f72b60b9a025585d69ab0d9002d",
+  "context": {
+    "observed_at_unix": 1791645428.867756,
+    "core": {
+      "status": {
+        "data": {
+          "active_task": null,
+          "agent_execution_authority": false,
+          "copilot": "on_demand",
+          "core": "running",
+          "profile": "HOST_ASSISTED_NOT_SANDBOX",
+          "tools": 0,
+          "trace_events": 0
+        },
+        "ok": true
+      },
+      "credentials": {
+        "data": {
+          "login_unlocked": true,
+          "service_available": true
+        },
+        "ok": true
+      }
+    },
+    "core_service": {
+      "exit_code": 0,
+      "lines": [
+        "ActiveState=active",
+        "SubState=running",
+        "UnitFileState=enabled",
+        "MainPID=46149",
+        "MemoryCurrent=331239424",
+        "TasksCurrent=1"
+      ]
+    },
+    "keyring_service": {
+      "exit_code": 0,
+      "lines": [
+        "ActiveState=active",
+        "UnitFileState=enabled",
+        "MainPID=21550"
+      ]
+    },
+    "gdm": {
+      "exit_code": 0,
+      "lines": [
+        "active"
+      ]
+    },
+    "gnome_shell": {
+      "exit_code": 0,
+      "lines": [
+        "22210"
+      ]
+    },
+    "boot_target": {
+      "exit_code": 0,
+      "lines": [
+        "multi-user.target"
+      ]
+    },
+    "linger": {
+      "exit_code": 0,
+      "lines": [
+        "Linger=yes"
+      ]
+    },
+    "login_keyring_metadata": {
+      "exists": true,
+      "uid": 1000,
+      "mode": "0o600",
+      "inode": 3768584,
+      "size": 5207,
+      "mtime_ns": 1791602000856395092,
+      "ctime_ns": 1791602000859395011
+    },
+    "stronghold_metadata": {
+      "exists": true,
+      "uid": 1000,
+      "mode": "0o600",
+      "inode": 3134764,
+      "size": 614,
+      "mtime_ns": 1790850680472346601,
+      "ctime_ns": 1791386670010181473
+    },
+    "a9_marker_present": false
+  },
+  "stronghold": {
+    "data": {
+      "existing_snapshot_opened": true,
+      "migration": false,
+      "secret_values_returned": false,
+      "writes": false
+    },
+    "ok": true
+  },
+  "metadata_probe": {
+    "attributed_processes": [
+      {
+        "basis": "launched_root",
+        "pid": 46165,
+        "start_ticks": 2280662
+      }
+    ],
+    "cleanup_complete": true,
+    "cleanup_ms": 32.33,
+    "cleanup_status": "graceful_no_recovery",
+    "config_after": {
+      "snapshot": {
+        "metadata": {
+          "bytes": 470,
+          "ctime_ns": 1791645416161914049,
+          "device": 49,
+          "gid": 1000,
+          "inode": 3785038,
+          "links": 1,
+          "mode": 384,
+          "mtime_ns": 1791645416161914049,
+          "uid": 1000
+        },
+        "state": "observed"
+      },
+      "structural_check": "PASS_METADATA_ACCESS"
+    },
+    "config_before": {
+      "snapshot": {
+        "metadata": {
+          "bytes": 470,
+          "ctime_ns": 1791644253807339036,
+          "device": 49,
+          "gid": 1000,
+          "inode": 3783430,
+          "links": 1,
+          "mode": 384,
+          "mtime_ns": 1791644253807339036,
+          "uid": 1000
+        },
+        "state": "observed"
+      },
+      "structural_check": "PASS_METADATA_ACCESS"
+    },
+    "config_writer_attribution": "INCONCLUSIVE",
+    "exit_code": 0,
+    "external_process_policy": "not_attributed_never_signalled",
+    "gui_process_absence_observed": false,
+    "harness_reaped_descendants": 0,
+    "harness_recovery_signals": 0,
+    "headless": null,
+    "kernel_children_exhausted": true,
+    "observed_owned_processes": 3,
+    "operation_outcome": "main_exit_zero",
+    "owned_survivors_after_recovery": [],
+    "owned_survivors_before_recovery": [],
+    "ownership_errors": [],
+    "ownership_scope": "private_single_invocation_subreaper",
+    "peak_owned_processes": 3,
+    "peak_process_tree_rss_bytes": 270757888,
+    "poll_interval_ms": 50,
+    "probe": "/tmp/narys-task-weIlGa",
+    "sample_kind": "fresh_process_warm_os_caches",
+    "sampled_cpu_seconds_lower_bound": 12.62,
+    "schema_version": 2,
+    "sdk_report": {
+      "host_assisted_not_sandbox": true,
+      "preflight": {
+        "auth": {
+          "authenticated": true,
+          "identity_omitted": true
+        },
+        "catalog": {
+          "models": [
+            {
+              "billing_multiplier": null,
+              "id": "auto",
+              "token_pricing_present": false
+            }
+          ],
+          "source": "models.list"
+        },
+        "quota": {
+          "snapshots": [
+            {
+              "kind": "chat",
+              "snapshot": {
+                "entitlementRequests": 0,
+                "isUnlimitedEntitlement": true,
+                "overage": 0.0,
+                "overageAllowedWithExhaustedQuota": false,
+                "remainingPercentage": 100.0,
+                "usageAllowedWithExhaustedQuota": false,
+                "usedRequests": 0
+              },
+              "state": "unlimited_reported",
+              "unit": "requests_as_reported_by_runtime"
+            },
+            {
+              "kind": "completions",
+              "snapshot": {
+                "entitlementRequests": 0,
+                "isUnlimitedEntitlement": true,
+                "overage": 0.0,
+                "overageAllowedWithExhaustedQuota": false,
+                "remainingPercentage": 100.0,
+                "usageAllowedWithExhaustedQuota": false,
+                "usedRequests": 0
+              },
+              "state": "unlimited_reported",
+              "unit": "requests_as_reported_by_runtime"
+            },
+            {
+              "kind": "premium_interactions",
+              "snapshot": {
+                "entitlementRequests": 200,
+                "isUnlimitedEntitlement": false,
+                "overage": 0.0,
+                "overageAllowedWithExhaustedQuota": false,
+                "remainingPercentage": 74.2,
+                "usageAllowedWithExhaustedQuota": false,
+                "usedRequests": 52
+              },
+              "state": "quota_available",
+              "unit": "requests_as_reported_by_runtime"
+            }
+          ],
+          "source": "account.getQuota",
+          "state": "observed"
+        }
+      },
+      "runtime": {
+        "protocol_version": 3,
+        "version": "1.0.95"
+      },
+      "sdk": "1.0.17",
+      "sdk_send_calls": 0,
+      "shutdown": "graceful",
+      "state": "metadata_observed",
+      "tools_executed": 0
+    },
+    "sdk_shutdown_verified": false,
+    "stdout_truncated": false,
+    "system_processes_after": 286,
+    "system_processes_before": 286,
+    "timed_out": false,
+    "unsampled_attributed_descendants": 0,
+    "wall_ms": 15395.39,
+    "worker_requests_no_gui": true
+  },
+  "preliminary_catalog_timeout": {
+    "data": {
+      "cleanup_complete": true,
+      "financial_admission": "AWAITING_HUMAN_FINANCIAL_REVIEW",
+      "metadata": {
+        "host_assisted_not_sandbox": true,
+        "preflight": {
+          "auth": {
+            "authenticated": true,
+            "identity_omitted": true
+          },
+          "catalog": {
+            "code": "timeout",
+            "models": null,
+            "source": "models.list"
+          },
+          "quota": {
+            "snapshots": [
+              {
+                "kind": "completions",
+                "snapshot": {
+                  "entitlementRequests": 0,
+                  "isUnlimitedEntitlement": true,
+                  "overage": 0.0,
+                  "overageAllowedWithExhaustedQuota": false,
+                  "remainingPercentage": 100.0,
+                  "usageAllowedWithExhaustedQuota": false,
+                  "usedRequests": 0
+                },
+                "state": "unlimited_reported",
+                "unit": "requests_as_reported_by_runtime"
+              },
+              {
+                "kind": "premium_interactions",
+                "snapshot": {
+                  "entitlementRequests": 200,
+                  "isUnlimitedEntitlement": false,
+                  "overage": 0.0,
+                  "overageAllowedWithExhaustedQuota": false,
+                  "remainingPercentage": 74.2,
+                  "usageAllowedWithExhaustedQuota": false,
+                  "usedRequests": 52
+                },
+                "state": "quota_available",
+                "unit": "requests_as_reported_by_runtime"
+              },
+              {
+                "kind": "chat",
+                "snapshot": {
+                  "entitlementRequests": 0,
+                  "isUnlimitedEntitlement": true,
+                  "overage": 0.0,
+                  "overageAllowedWithExhaustedQuota": false,
+                  "remainingPercentage": 100.0,
+                  "usageAllowedWithExhaustedQuota": false,
+                  "usedRequests": 0
+                },
+                "state": "unlimited_reported",
+                "unit": "requests_as_reported_by_runtime"
+              }
+            ],
+            "source": "account.getQuota",
+            "state": "observed"
+          }
+        },
+        "runtime": {
+          "protocol_version": 3,
+          "version": "1.0.95"
+        },
+        "sdk": "1.0.17",
+        "sdk_send_calls": 0,
+        "shutdown": "graceful",
+        "state": "metadata_observed",
+        "tools_executed": 0
+      }
+    },
+    "ok": true
+  },
+  "preliminary_installed_binary_sha256": "8e11215143541722e379a6a2eb51003fe01bc4756a43aec50a904be0f8f042fa",
+  "public_network_diagnostics": {
+    "authenticated": false,
+    "inference": false,
+    "default_endpoint_head": "timeout_HTTP_000",
+    "IPv4_endpoint_head": "HTTP_404_TLS_verified",
+    "RES_OPTIONS_no_aaaa_endpoint_head": "HTTP_404_TLS_verified",
+    "global_network_changes": false
+  },
+  "human_financial_authorization": {
+    "source": "explicit_chat_reply",
+    "additional_usage_budget_disabled_confirmed": true,
+    "one_sdk_send_authorized": true,
+    "billing_unit_uncertainty_accepted": true,
+    "payment_authorized": false,
+    "catalog_and_provider_flags_still_required": true
+  },
+  "real_sdk_send_calls": 0,
+  "real_sessions_created": 0,
+  "cold_start": "NOT_TESTED",
+  "operational_task": "NOT_RUN",
+  "headless_binary_dynamic_dependencies": "dbus,ssl,crypto,gcc,m,c,systemd,z; no GTK/WebKit/X11/Wayland",
+  "final_installed_binary_sha256": "1dc0a2c939b1ae38120cad05db292e9ce320465051f3ebb06bb5a35c65978ace",
+  "final_installed_binary_size_bytes": 34711008,
+  "final_idle_service": [
+    "ActiveState=active",
+    "MainPID=47075",
+    "MemoryCurrent=3747840",
+    "TasksCurrent=1"
+  ],
+  "final_idle_RSS_kib": 14716,
+  "final_idle_RSS_observed_at_unix": 1791645613.7617211,
+  "final_source_sha256": {
+    "narys-core/src/agents/mod.rs": "ddc638c42e29e2adf63b5ff69cf30486ee88c58f4e6efc1b4060207abe5e3fe7",
+    "narys-core/src/cognition/mod.rs": "85c0694dce7118317315445c3b0e0238bbc12766cf91fa453462bd12e4a02b31",
+    "narys-core/src/lib.rs": "fd22d41bb708a311ec820d831520ac3ceccd61a40a84617fbc41976abe1f9cfb",
+    "narys-core/src/main.rs": "19316ac77c8d88f87e66d1ed262373ca5c03e2b0d8adbcba76afe561747da1aa",
+    "narys-core/src/operational_trace/mod.rs": "1d3b378e36a4208b0b17657439545142ce314f2a13d55389f8a4882441586340",
+    "narys-core/src/persistence/mod.rs": "1fa97c1a3f40ea63fd978e8a3e83aab9feddd174ce677952e340110c713fa403",
+    "narys-core/src/policy.rs": "7ac25017c17f83ae2d1348990acd2e2f5f5b850ca91cd65419f4e8a20f6f003b",
+    "narys-core/src/server.rs": "3edcad927247e64ab484405bea02af0f251c0955ebe932001a3b48816cf16263",
+    "narys-core/src/vault.rs": "3b8d0ec1ab76b8a70ff9750ec84669189341fcf83c0d2aca40c8c087c11c9b96",
+    "narys-core/src/worker.rs": "84c0eee9167a76c417e6f64abd1ad27a2aa12921ffdd282d15f4a7fadcbf930a"
+  },
+  "lockfile_sha256": "3a79505ca8e6a6354c3cded01f02044d26b549257147f5c2c539f371540f22f5",
+  "tests": {
+    "core_rust_unit": 26,
+    "core_unix_integration": 1,
+    "core_python": 5,
+    "ownership_python": 25,
+    "shared_production_agents_pass": 117,
+    "shared_production_agents_ignored": 2,
+    "full_tauri_suite": "NOT_RUN: contracts extracted, full crate compiled; unrelated GUI/scheduler logic unchanged"
+  },
+  "declared_dependency_msrv_above_1_94": [],
+  "compiler": "rustc 1.98.1 Fedora; rust-version Core 1.94.0; no toolchain installed",
+  "formatting_after_tests": "whitespace only in synthetic assertion; installed artifact hashes recorded independently"
+}

@@ -961,3 +961,18 @@ ficaram iguais. Não houve login gráfico ou prova visual da tela física; timer
 não cancelado pelo agente. Nenhum novo probe SDK após o retorno.
 
 **LR-10A H3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+
+## Entrega operacional — Core headless e SpecialistAgent (10/10/2026)
+
+Nova prioridade autorizada pelo usuário: composição residente em [narys-core](../narys-core/README.md), sem Tauri/GTK/WebKit, com controle Unix do mesmo UID, Keyring existente e Copilot sob demanda. Os contratos puros de registry, plano, TaskId e SchedulerUsage foram extraídos e reexportados para reutilização sem mudar a factory gráfica Codex ou o Execution Broker. O Core reutiliza TaskGraph, trace limitado e migrações SQLite; não concede ExecutionAuthority ao especialista.
+
+[Pré-boot observado](../narys-core/evidence/preboot.json): serviço Core ativo, Stronghold pessoal existente aberto sem save/migração, SDK 1.0.17 + CLI 1.0.95 autenticado, catálogo Auto e quota recebidos, shutdown gracioso e ECHILD/cleanup completos. A primeira consulta ao catálogo expirou; seleção DNS IPv4 somente no runtime (`RES_OPTIONS=no-aaaa`) permitiu a consulta posterior. Sem alteração global de rede, TLS, boot ou Keyring. Config drift continua observação sem autoria/igualdade de conteúdo comprovadas.
+
+Testes: 26 unitários Rust + 1 integração Unix do Core; 5 Python do Core; 25 regressões FIX1; 117 testes de agentes da aplicação (2 ignorados). Compilador Fedora 1.98.1, lock offline; nenhuma atualização de SDK/CLI. Logs e comandos estão no relatório mais recente.
+
+O usuário confirmou orçamento adicional desativado e autorizou UMA chamada da franquia para alpha=2 + beta=3, aceitando explicitamente a diferença requests/AI Credits. Isso não autoriza pagamento ou retry. Catálogo, quota e flags atuais continuam obrigatórios; receipt privado vincula a autorização à tarefa e guard durável é reclamado antes do send.
+
+**Aceite operacional ainda pendente:** boot realmente sem GNOME, desbloqueio humano privado e tarefa integrada real não foram executados nesta preparação. Zero inferências e zero sessões reais novas até este registro. O modo host-assisted continua sem sandbox; H1/H2/H3 e bloqueios do modo isolado permanecem preservados.
+
+Impacto na 0.1 (17/10): Core local e credenciais sob demanda evitam manter desktop para esse fluxo. A entrega oferece especialista textual com zero ferramentas; não antecipa Android, execução de shell, edição de projetos, approvals de produção ou toda a composição cognitiva da GUI. A conclusão depende da validação final após o único reboot humano, sem abrir nova trilha de investigação.
