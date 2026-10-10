@@ -6,7 +6,7 @@
 
 Narys evolui de uma aplicação desktop Tauri 2/React/Three.js para um serviço **Core-First Rust**, com clientes leves (Termux/SSH, desktop e Android futuro). A GUI permanece uma interface opcional.
 
-**SERVER-1A candidata (10/10):** núcleo modular extraído para `narys-domain`, serviço Core com IPC v1, ownership de SQLite e takeover com backups. [Relatório único e evidências](docs/NARYS-SERVER-1A-REPORT.md). O desktop legado é recusado após takeover até consumir o serviço; Conversation/provedores no IPC e ferramentas agentivas ainda não estão integrados. SERVER-1B não iniciada.
+**SERVER-1B PASS funcional (10/10):** Conversation e providers integrados ao Core headless, com duas respostas reais Groq, histórico recuperado após reinício e persistência SQLite. [Relatório único e evidências](docs/NARYS-SERVER-1B-REPORT.md). A arquitetura extraída na SERVER-1A foi preservada; o desktop legado permanece recusado após takeover até consumir o serviço. Ferramentas agentivas continuam indisponíveis. SERVER-1C/1D não iniciadas; auditoria independente da 1B ainda pendente.
 
 **Estado:** LR-1 → LR-8.5 e UIP-0 → UIP-7 estão consolidados. **PERF-1 — Adaptive Presence & Economy Mode fechou em PASS completo em 07/10/2026**, com Economy 2D como default, Presence opt-in, Headless real e Adaptive restrito a Economy ↔ Headless.
 
@@ -18,7 +18,7 @@ Veja [LR-9 / NARYS-TERM](docs/NARYS-TERMINAL-RUNTIME-TRACK.md),
 [LR-8.5](docs/LR-8.5-COGNITIVE-RESOURCE-ECONOMY.md),
 [LR-10 (pausada)](docs/LR-10-COPILOT-SPECIALIST-AGENT.md),
 [fechamento LR-10A](docs/LR-10A-FINAL-CLOSURE-2026-10-10.md),
-[NARYS-SERVER-1 (próxima)](docs/NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md),
+[NARYS-SERVER-1 (em andamento)](docs/NARYS-SERVER-1-HEADLESS-SERVER-RUNTIME.md),
 [arquitetura Core-First](docs/NARYS-CORE-FIRST-ARCHITECTURE-2026-10-10.md),
 [meta Narys 0.1 com agentes e ferramentas](docs/NARYS-01-AGENT-TOOLS-DELIVERY.md) e
 [o plano operacional](docs/PLANO-OPERACIONAL-LUNA.md).

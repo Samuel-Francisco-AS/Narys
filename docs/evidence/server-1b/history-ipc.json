@@ -1,0 +1,275 @@
+{
+  "historical_sessions_read": 37,
+  "historical_messages_read": 94,
+  "sessions": [
+    {
+      "session_id": 1,
+      "kind": "legacy",
+      "message_count": 2,
+      "content_sha256": "0bdc3698e237bd383626f5032a9d29a830eac95579e72ab5799469a0014aeb77",
+      "has_more": false
+    },
+    {
+      "session_id": 2,
+      "kind": "legacy",
+      "message_count": 2,
+      "content_sha256": "1d3eb7ef826b4bcd9ccbfbcb6780f5245dd4075836df4a1a8719308c92b7063a",
+      "has_more": false
+    },
+    {
+      "session_id": 3,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "ffd59b33840f0f44ec94d6fcdce418f14fc5f3089930de5691b666b6074136e6",
+      "has_more": false
+    },
+    {
+      "session_id": 4,
+      "kind": "product",
+      "message_count": 4,
+      "content_sha256": "c1d7c96bc05694beaff416c40902c6ee40da9109f8b6ec5d912f0c152ba646e1",
+      "has_more": false
+    },
+    {
+      "session_id": 5,
+      "kind": "product",
+      "message_count": 4,
+      "content_sha256": "a9672566af110c4d4ce44bd3bfc630342660beaabe510168b0379edfab2b023a",
+      "has_more": false
+    },
+    {
+      "session_id": 6,
+      "kind": "product",
+      "message_count": 6,
+      "content_sha256": "2087f249d91c55a4cec43bc2a89f0005005b5cdceac6da749d870278c0d63602",
+      "has_more": false
+    },
+    {
+      "session_id": 7,
+      "kind": "product",
+      "message_count": 4,
+      "content_sha256": "169ca05ca71a97eaf0e30ddf86814968eb394229dc12f3cf46e4c46d4d97aaf2",
+      "has_more": false
+    },
+    {
+      "session_id": 8,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 9,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 10,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "8dc019ba77b51376e30968aae87417cbb327a69d809f0c3122de0be5119a4f07",
+      "has_more": false
+    },
+    {
+      "session_id": 11,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 12,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 13,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "91ac3be3a01aaeef5eeebf6e854bd94b10d43c061c47700ec34e7f0897b53a03",
+      "has_more": false
+    },
+    {
+      "session_id": 14,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "8a55699bcc3fc93b45ac0c191e90c937239800e38ca013f59aec39a939cebe70",
+      "has_more": false
+    },
+    {
+      "session_id": 15,
+      "kind": "product",
+      "message_count": 4,
+      "content_sha256": "a930d27b2048f2c6a1dd6b43e024405cad8ef8a6b1a7d03ee2e2cf82e05d9c6c",
+      "has_more": false
+    },
+    {
+      "session_id": 16,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 17,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 18,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "96394b5288fcf1da705710a0ce80f17499208e55a1429e70d7b4b5f0a4e72776",
+      "has_more": false
+    },
+    {
+      "session_id": 19,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 20,
+      "kind": "product",
+      "message_count": 4,
+      "content_sha256": "3011d287ef389d071a8d64e0095bae993bac460ed1bb16ee6c43f20ef0542052",
+      "has_more": false
+    },
+    {
+      "session_id": 21,
+      "kind": "product",
+      "message_count": 4,
+      "content_sha256": "facce9f617c818084d55528658ad5380bbe0be515001c1b0d7413ade303a0715",
+      "has_more": false
+    },
+    {
+      "session_id": 22,
+      "kind": "product",
+      "message_count": 6,
+      "content_sha256": "aeffa112ee8322c89663536e37a595a446c630f7ea8dc679b837100e2dbfabff",
+      "has_more": false
+    },
+    {
+      "session_id": 23,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "3aefd09cfe54f3ecc0113888213decdebe4ac20490e4bfe912023726758e413e",
+      "has_more": false
+    },
+    {
+      "session_id": 24,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "318f88f33001370c2853e5f528410e87f992d988aaca24d064b5aa29d1c609b4",
+      "has_more": false
+    },
+    {
+      "session_id": 25,
+      "kind": "product",
+      "message_count": 8,
+      "content_sha256": "3f53d523de5bd59406fc0745aeeaa07ecb85ccbb82e755af3645799426d1fa14",
+      "has_more": false
+    },
+    {
+      "session_id": 26,
+      "kind": "product",
+      "message_count": 4,
+      "content_sha256": "68660ab97ba9e198768715c15dcde5d8944eba55e21f2b427940c63bdef2608c",
+      "has_more": false
+    },
+    {
+      "session_id": 27,
+      "kind": "product",
+      "message_count": 6,
+      "content_sha256": "00181f0e128b86bebd0195823ea194100589cc05a6cba0ac7848009655d8f7cd",
+      "has_more": false
+    },
+    {
+      "session_id": 28,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "9ced6c90052002bce2b6db1b0868c2c7518ad9359d4de78a27e0f111f69eefd9",
+      "has_more": false
+    },
+    {
+      "session_id": 29,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "6fc64db68afdeeaa1cc206f9df368b40f5f26380acdc959d005f9a200417035e",
+      "has_more": false
+    },
+    {
+      "session_id": 30,
+      "kind": "product",
+      "message_count": 4,
+      "content_sha256": "435c4b7776e51cf1d6d2d5f756a983e5686fd0bd4ee172c6c7c555b10ff5032b",
+      "has_more": false
+    },
+    {
+      "session_id": 31,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "1b3d2d7dff4c63748658e26334b173fd2120238e57d110cd357fff4530f497a9",
+      "has_more": false
+    },
+    {
+      "session_id": 32,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "24074a3b8e6028b527f882c2adfb6a0d7ef9608dc4db336be64ba898877b3ff7",
+      "has_more": false
+    },
+    {
+      "session_id": 33,
+      "kind": "product",
+      "message_count": 6,
+      "content_sha256": "ac480b9dcb3321203bd5ff1652797674db053811b321cc1f0a951321c2a8b9a2",
+      "has_more": false
+    },
+    {
+      "session_id": 34,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 35,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "1206d80fe8edfad5f95c61cde0b9bcbc5e69ecbb27698b00a8eb2778c620febf",
+      "has_more": false
+    },
+    {
+      "session_id": 36,
+      "kind": "product",
+      "message_count": 0,
+      "content_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "has_more": false
+    },
+    {
+      "session_id": 37,
+      "kind": "product",
+      "message_count": 2,
+      "content_sha256": "60997dba2daad41b0793c44df959c1b6ee0c71d8249531f8ab75850414c3eacf",
+      "has_more": false
+    }
+  ],
+  "validation_session_close": {
+    "automatic_summary_execution": false,
+    "closed": true,
+    "session_id": 38
+  },
+  "validation_session_resume": {
+    "session_id": 38,
+    "status": "active"
+  },
+  "validation_messages_equal": true
+}

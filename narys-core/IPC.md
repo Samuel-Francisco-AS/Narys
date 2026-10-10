@@ -1,4 +1,4 @@
-# Core IPC v1 — SERVER-1A
+# Core IPC v1 — SERVER-1A / SERVER-1B
 
 Socket `$XDG_RUNTIME_DIR/narys-core/control.sock`: Unix0600, diretório0700,
 SO_PEERCRED mesmo UID nos dois lados. O UID Linux é a fronteira de confiança;
@@ -33,11 +33,11 @@ correspondente são persistidos na mesma transação. O cursor não é sessão.
 
 TaskRef `{namespace:"lr10a"|"product",id}` conserva colisões históricas entre
 headless_tasks e task_records sem renumerar IDs/recibos. result/cancel/task_id
-legados referem-se exclusivamente a lr10a. Produto futuro usará namespace product.
+legados referem-se exclusivamente a lr10a. Conversation usa namespace product.
 
-Contratos preparatórios reais em `ipc.rs`: Conversation/Sessions, TaskGet/TaskCancel,
-Providers/ProviderConfigure, Approval(approve_once/deny), ToolRequest(ListFiles,
-ReadFile, EditFile, Build, Test, Diff)/ToolResult. As operações sem integração
+Conversation/Sessions, TaskGet/TaskCancel e Providers/ProviderConfigure estão
+integrados na SERVER-1B. Contratos preparatórios em `ipc.rs`: Approval(approve_once/deny),
+ToolRequest(ListFiles, ReadFile, EditFile, Build, Test, Diff)/ToolResult. As operações sem integração
 retornam `capability_not_integrated` antes de qualquer efeito. Não são capabilities
 concluídas. Nenhum campo wire aceita origin/authority/HumanLocal/programa shell.
 Approval futura exige receipt de tarefa/operação/escopo e verificação pelo Core;

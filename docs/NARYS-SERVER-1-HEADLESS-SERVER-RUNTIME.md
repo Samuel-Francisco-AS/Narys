@@ -1,6 +1,6 @@
 # NARYS-SERVER-1 — Headless Server Runtime
 
-**Estado: SERVER-1A PASS técnico ratificado por auditoria independente (código e evidências). SERVER-1B próxima; 1C/1D não iniciadas.** [Auditoria de Luna](NARYS-SERVER-1A-INDEPENDENT-AUDIT-2026-10-10.md).
+**Estado: SERVER-1A PASS técnico ratificado por auditoria independente; SERVER-1B PASS funcional com Groq real e recuperação durável, aguardando auditoria independente. 1C/1D não iniciadas.** [Auditoria de Luna da 1A](NARYS-SERVER-1A-INDEPENDENT-AUDIT-2026-10-10.md); [relatório único da 1B](NARYS-SERVER-1B-REPORT.md).
 
 Abertura real: **2026-10-10T15:03:12-03:00**, America/Recife. Deadline absoluto: **2026-10-12T15:03:12-03:00**. Base verificada `553b51182bb477d0b777093da5bfda93239fddf9`; checkpoint `2492285`. [Relatório único SERVER-1A](NARYS-SERVER-1A-REPORT.md). O planejamento abaixo conserva as etapas posteriores; não representa aprovação da trilha inteira.
 **Direção arquitetural ratificada em 10/10/2026:** [Narys Core-First — monólito modular + thin clients](NARYS-CORE-FIRST-ARCHITECTURE-2026-10-10.md). **Meta integrada de produto:** [Narys 0.1 com agentes e ferramentas reais até 17/10/2026](NARYS-01-AGENT-TOOLS-DELIVERY.md). A decisão posterior do usuário permite extração ampla e refatoração de Conversation, Scheduler, persistência, provider runtime, protocolos e bootstrap Tauri quando técnica e operacionalmente favorável; invalida qualquer leitura desta trilha que imponha refatoração mínima como teto artificial.

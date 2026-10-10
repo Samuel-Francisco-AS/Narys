@@ -31,3 +31,9 @@ promessa de sandbox.
 CARGO_BUILD_JOBS=2 CARGO_TARGET_DIR="$PWD/src-tauri/target" \
   cargo test --offline --locked --manifest-path narys-domain/Cargo.toml --lib -- --test-threads=2
 ```
+
+SERVER-1B acrescenta o adapter durável `start_durable_conversation` ao mesmo engine
+Conversation: TaskRegistry, Scheduler e providers continuam únicos. A persistência
+`conversation_runs` compõe admissão/resultado/recovery com mensagens, TaskRecord e
+eventos no banco autoritativo. `SecretStore::existing` utiliza no Linux a leitura do
+backend Secret Service sem Unlock/Prompt e sem reconstruir chave ou snapshot.

@@ -1,0 +1,29 @@
+{
+  "pid_before": 58294,
+  "pid_after": 59212,
+  "session_equal": true,
+  "all_tasks_equal": true,
+  "states": [
+    "completed",
+    "completed",
+    "cancelled"
+  ],
+  "message_count": 5,
+  "no_provider_replay": true,
+  "status": {
+    "active_task": null,
+    "agent_execution_authority": false,
+    "authority": "narys-core",
+    "conversation_integrated": true,
+    "copilot": "on_demand",
+    "core": "running",
+    "database": "core/db/luna.sqlite3",
+    "execution_workers": 0,
+    "graphical_environment_present": false,
+    "product_active_tasks": 0,
+    "profile": "HOST_ASSISTED_NOT_SANDBOX",
+    "protocol_version": 1,
+    "tools": 0,
+    "trace_events": 0
+  }
+}
