@@ -1,0 +1,7 @@
+{
+  "cli_sha256": "ce65b0b28c16ade3cea863b17f58fb536b078041e332a4c28aef600ee4e88a25",
+  "core_sha256": "2db263de71f5abe9c755cd2ebec70e2b5853cebcf39d8bee7faf3e19b9f37c4f",
+  "source_revision": "f31f4d77ceaa6fe6c183e8ed8bd33ffd48e6f69d",
+  "source_worktree_dirty": true,
+  "checkout_required_for_cli": false
+}

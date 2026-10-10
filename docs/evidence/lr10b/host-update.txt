@@ -1,0 +1,2 @@
+CORE_UPDATED; protocol_v1_ready; reviewed binary/unit backup=/home/sam/.local/state/narys/core/updates/server-1a-ukcfzjfu
+CLI_INSTALLED /home/sam/.local/bin/narys; Core active; no checkout required for CLI/credentials
