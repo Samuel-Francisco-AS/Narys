@@ -1,0 +1,185 @@
+{
+  "schema_version": 2,
+  "probe": "synthetic-tests",
+  "sample_kind": "fresh_process_warm_os_caches",
+  "headless": true,
+  "poll_interval_ms": 50,
+  "exit_code": 0,
+  "stdout_truncated": false,
+  "timed_out": false,
+  "operation_outcome": "main_exit_zero",
+  "wall_ms": 11216.89,
+  "cleanup_ms": 35.73,
+  "peak_process_tree_rss_bytes": 206938112,
+  "peak_owned_processes": 28,
+  "sampled_cpu_seconds_lower_bound": 3.42,
+  "system_processes_before": 317,
+  "system_processes_after": 320,
+  "observed_owned_processes": 117,
+  "attributed_processes": [
+    {
+      "pid": 6709,
+      "start_ticks": 245549,
+      "basis": "launched_root"
+    },
+    {
+      "pid": 6739,
+      "start_ticks": 245588,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6754,
+      "start_ticks": 245593,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6770,
+      "start_ticks": 245599,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6787,
+      "start_ticks": 245605,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6802,
+      "start_ticks": 245612,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6818,
+      "start_ticks": 245618,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6833,
+      "start_ticks": 245624,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6848,
+      "start_ticks": 245631,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6863,
+      "start_ticks": 245636,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6878,
+      "start_ticks": 245643,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6900,
+      "start_ticks": 245650,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6918,
+      "start_ticks": 245655,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6934,
+      "start_ticks": 245661,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6950,
+      "start_ticks": 245668,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6965,
+      "start_ticks": 245700,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6980,
+      "start_ticks": 245705,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 6996,
+      "start_ticks": 245711,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 7011,
+      "start_ticks": 245717,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 7026,
+      "start_ticks": 245722,
+      "basis": "subreaper_child"
+    },
+    {
+      "pid": 7040,
+      "start_ticks": 245729,
+      "basis": "subreaper_child"
+    }
+  ],
+  "unsampled_attributed_descendants": 0,
+  "owned_survivors_before_recovery": [],
+  "owned_survivors_after_recovery": [],
+  "harness_reaped_descendants": 20,
+  "harness_recovery_signals": 0,
+  "ownership_errors": [],
+  "kernel_children_exhausted": true,
+  "cleanup_status": "graceful_no_recovery",
+  "cleanup_complete": true,
+  "ownership_scope": "private_single_invocation_subreaper",
+  "external_process_policy": "not_attributed_never_signalled",
+  "sdk_shutdown_verified": false,
+  "sdk_report": {
+    "test_exit_codes": [
+      0,
+      0
+    ],
+    "real_inference_calls": 0,
+    "real_cli_started": false
+  },
+  "provenance": {
+    "gate": "A9_HOST_ASSISTED",
+    "kind": "synthetic_and_kernel_regressions",
+    "observed_at": "2026-10-10T03:41:56.932952+00:00",
+    "commands": [
+      [
+        "/usr/bin/cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--",
+        "--test-threads=1"
+      ],
+      [
+        "/usr/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_*.py",
+        "-v"
+      ]
+    ],
+    "source_sha256": {
+      "src/host_assisted.rs": "24d736206ecf977354a18f43f7f035edf0a131fd35d4cfae686ed2d6b446cb47",
+      "src/bin/a9-host-assisted.rs": "9a9cbda9b85c163b15333b93f991912c95430c0765aa0a458e87e849c0afdd26",
+      "tests/host_assisted.rs": "edf0686cac5a161f2c96a79004c191168f5186cc182cda97b79b13922202a40f",
+      "fixtures/a9_host_cli.py": "07e6549f766b3598b86c9c46778eeefbfb5fb529b70dff2ee058c74a63602f27",
+      "tests/test_a9_host.py": "761bb55f4b93ac8797055bb0d9b2b5ee456ed193dbe187e50439f3ab296679a8",
+      "run_a9_host.py": "0a9446a9874bb088d1c013f521d7bde51530e9979e74c761149c91c6e1e5affe",
+      "verify_a9_host.py": "f4744b8175458d6048d811eeaad6a54628f68dd3bcec768607a827e90cba059f",
+      "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+      "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+    },
+    "real_inference_calls": 0,
+    "driver_exit_code": 0
+  }
+}

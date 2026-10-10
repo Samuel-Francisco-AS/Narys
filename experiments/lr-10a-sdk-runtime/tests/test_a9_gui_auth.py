@@ -30,7 +30,7 @@ def measurement(report):
 def identity_report(version='1.0.95'):
     return measurement({'native_version': version, 'version_exit_code': 0,
         'help_exit_code': 0, 'help_flags_present': {
-            '--disable-builtin-mcps': True, '--log-dir': True}})
+            '--disable-builtin-mcps': True, '--log-dir': True, '--no-auto-update': True}})
 
 
 class GuiAuthTests(unittest.TestCase):
@@ -71,6 +71,8 @@ class GuiAuthTests(unittest.TestCase):
                 self.assertIs(result['login_collection_locked'], expected)
                 argv = command.call_args.args[0]
                 self.assertIn('get-property', argv)
+                self.assertIn('--auto-start=no', argv)
+                self.assertIn('--allow-interactive-authorization=no', argv)
                 self.assertEqual(argv[-1], 'Locked')
                 self.assertNotIn('Items', argv)
                 self.assertNotIn('GetSecrets', argv)
@@ -95,10 +97,11 @@ class GuiAuthTests(unittest.TestCase):
         for version in ('1.0.91', 'unrecognized', None):
             with self.assertRaises(ValueError):
                 gui.require_version(identity_report(version), manifest)
-        report = identity_report()
-        report['sdk_report']['help_flags_present']['--disable-builtin-mcps'] = False
-        with self.assertRaises(ValueError):
-            gui.require_version(report, manifest)
+        for flag in ('--disable-builtin-mcps', '--log-dir', '--no-auto-update'):
+            report = identity_report()
+            report['sdk_report']['help_flags_present'][flag] = False
+            with self.assertRaises(ValueError):
+                gui.require_version(report, manifest)
 
     def test_cleanup_timeout_missing_exhaustion_or_survivor_fails_closed(self):
         for key, value in [('timed_out', True), ('cleanup_complete', False),
@@ -131,7 +134,7 @@ class GuiAuthTests(unittest.TestCase):
                 run.assert_not_called()
             self.assertEqual(json.loads(out.read_text())['diagnostic_error'], 'unexpected_graphical_session')
 
-    def run_main(self, marker=False, version='1.0.95'):
+    def run_main(self, marker=False, version='1.0.95', config_changed=False):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             marker_directory(home)
@@ -146,7 +149,8 @@ class GuiAuthTests(unittest.TestCase):
                     mock.patch.object(sys, 'argv', ['gui', str(cli), '--output', str(out)]), \
                     mock.patch.object(gui, 'require_runtime'), \
                     mock.patch.object(gui, 'digest', return_value='synthetic-digest'), \
-                    mock.patch.object(gui, 'config_stat', return_value={'inode': 1}), \
+                    mock.patch.object(gui, 'config_stat', side_effect=[{'inode': 1},
+                        {'inode': 1}, {'inode': 2 if config_changed else 1}]), \
                     mock.patch.object(gui, 'gui_services', side_effect=lambda _: services()) as s, \
                     mock.patch.object(gui, 'measure', side_effect=[(identity_report(version), 0),
                         (measurement({'preflight': {'auth': {'authenticated': True}}}), 1)]) as run, \
@@ -172,9 +176,22 @@ class GuiAuthTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(calls, 2)
         self.assertEqual(result['sdk_authenticated_with_gui'], 'PASS')
+        self.assertEqual(result['verification_state'], 'PASS')
         self.assertEqual(result['sdk_authenticated_headless'], 'NOT_PROVEN')
         self.assertEqual(result['financial_admission'], 'BLOCKED')
         self.assertEqual(result['a9_real_inference'], 'NOT_RUN')
+        self.assertEqual(result['real_session_operations'], 0)
+        self.assertFalse(result['marker_claimed'])
+
+    def test_auth_observation_survives_integrity_failure_without_admission(self):
+        code, result, calls, _ = self.run_main(config_changed=True)
+        self.assertEqual(code, 1)
+        self.assertEqual(calls, 2)
+        self.assertEqual(result['sdk_authenticated_with_gui'], 'PASS')
+        self.assertEqual(result['verification_state'], 'BLOCKED')
+        self.assertEqual(result['diagnostic_error'], 'configuration_or_context_changed')
+        self.assertEqual(result['financial_admission'], 'BLOCKED')
+        self.assertEqual(result['inference_calls'], 0)
         self.assertEqual(result['real_session_operations'], 0)
         self.assertFalse(result['marker_claimed'])
 

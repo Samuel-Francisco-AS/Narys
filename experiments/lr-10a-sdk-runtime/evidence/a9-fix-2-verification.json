@@ -1,0 +1,123 @@
+{
+  "phase": "LR-10A A9-FIX-2",
+  "observed_at": "2026-10-10T03:43:40.667718+00:00",
+  "initial_head": "f0ae5787c7cde7b54a1970727e2a52b43f4612f8",
+  "real_metadata_implementation_commit": "42756450fb8b942fdc2f7ec42b6ece364f3e5c73",
+  "final_classifier_real_retest": "NOT_RUN_stopped_after_config_metadata_change",
+  "final_changes_synthetic_only": [
+    "independent_auth_vs_integrity_classification",
+    "busctl_auto_start_and_interactive_authorization_disabled",
+    "required_no_auto_update_flag_check"
+  ],
+  "sdk_authenticated_with_gui_observed": true,
+  "original_artifact_preserved": true,
+  "original_top_level_blocked_reason": "configuration_or_context_changed",
+  "integrity_verification": "BLOCKED",
+  "config_metadata_preserved": false,
+  "config_writer_attribution": "INCONCLUSIVE",
+  "sdk_authenticated_headless": "NOT_PROVEN",
+  "financial_admission": "BLOCKED",
+  "a9_real_inference": "NOT_RUN",
+  "inference_calls": 0,
+  "real_session_operations": 0,
+  "marker_claimed": false,
+  "marker_present_after_validation": false,
+  "real_cli_metadata_client_invocations": 1,
+  "identity_only_cli_commands": 2,
+  "old_tracked_experiment_files_changed": [
+    "experiments/lr-10a-sdk-runtime/HOST-ASSISTED.md"
+  ],
+  "all_old_experiment_evidence_unchanged": true,
+  "production_changed": false,
+  "json_jsonl_validated": [
+    "evidence/a9-fix-2-as-run-regressions/a9-host-test-gateway.jsonl",
+    "evidence/a9-fix-2-as-run-regressions/a9-host-test-permissions.jsonl",
+    "evidence/a9-fix-2-as-run-regressions/a9-host-owned-tests.json",
+    "evidence/a9-fix-2-contract-inventory.json",
+    "evidence/a9-fix-2-final-regressions/a9-host-test-gateway.jsonl",
+    "evidence/a9-fix-2-final-regressions/a9-host-test-permissions.jsonl",
+    "evidence/a9-fix-2-final-regressions/a9-host-owned-tests.json",
+    "evidence/a9-fix-2-final-validation/a9-host-test-gateway.jsonl",
+    "evidence/a9-fix-2-final-validation/a9-host-test-permissions.jsonl",
+    "evidence/a9-fix-2-final-validation/a9-host-owned-tests.json",
+    "evidence/a9-fix-2-gui-sdk-metadata.json"
+  ],
+  "sanitization_pattern_scan": {
+    "files": [
+      "evidence/a9-fix-2-as-run-regressions/a9-host-rust-tests.txt",
+      "evidence/a9-fix-2-as-run-regressions/a9-host-test-gateway.jsonl",
+      "evidence/a9-fix-2-as-run-regressions/a9-host-test-permissions.jsonl",
+      "evidence/a9-fix-2-as-run-regressions/a9-host-python-tests.txt",
+      "evidence/a9-fix-2-as-run-regressions/a9-host-owned-tests.json",
+      "evidence/a9-fix-2-contract-inventory.json",
+      "evidence/a9-fix-2-final-regressions/a9-host-rust-tests.txt",
+      "evidence/a9-fix-2-final-regressions/a9-host-test-gateway.jsonl",
+      "evidence/a9-fix-2-final-regressions/a9-host-test-permissions.jsonl",
+      "evidence/a9-fix-2-final-regressions/a9-host-python-tests.txt",
+      "evidence/a9-fix-2-final-regressions/a9-host-owned-tests.json",
+      "evidence/a9-fix-2-final-validation/a9-host-rust-tests.txt",
+      "evidence/a9-fix-2-final-validation/a9-host-test-gateway.jsonl",
+      "evidence/a9-fix-2-final-validation/a9-host-test-permissions.jsonl",
+      "evidence/a9-fix-2-final-validation/a9-host-python-tests.txt",
+      "evidence/a9-fix-2-final-validation/a9-host-owned-tests.json",
+      "evidence/a9-fix-2-gui-sdk-metadata.json"
+    ],
+    "matches": 0,
+    "complete_secret_detection_claimed": false
+  },
+  "regressions": {
+    "a9-fix-2-as-run-regressions": {
+      "rust_passed": 48,
+      "python_passed": 67,
+      "test_exit_codes": [
+        0,
+        0
+      ],
+      "cleanup_complete": true,
+      "kernel_children_exhausted": true,
+      "attributed_identities_absent_at_verification": true,
+      "real_cli_started": false,
+      "real_inference_calls": 0
+    },
+    "a9-fix-2-final-regressions": {
+      "rust_passed": 48,
+      "python_passed": 68,
+      "test_exit_codes": [
+        0,
+        0
+      ],
+      "cleanup_complete": true,
+      "kernel_children_exhausted": true,
+      "attributed_identities_absent_at_verification": true,
+      "real_cli_started": false,
+      "real_inference_calls": 0
+    },
+    "a9-fix-2-final-validation": {
+      "rust_passed": 48,
+      "python_passed": 68,
+      "test_exit_codes": [
+        0,
+        0
+      ],
+      "cleanup_complete": true,
+      "kernel_children_exhausted": true,
+      "attributed_identities_absent_at_verification": true,
+      "real_cli_started": false,
+      "real_inference_calls": 0
+    }
+  },
+  "syntax": "ast_parse_pass",
+  "python_version": "3.14.7",
+  "toolchain": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Fedora 1.98.1-1.fc44)",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05) (Fedora 1.98.1-1.fc44)",
+    "installed_or_updated_by_poc": false
+  },
+  "source_sha256": {
+    "diagnose_a9_gui_auth.py": "349054aacac1d03aff7fb8511e0110a5d39743bfd2ed290b19a5ce9ff2c9437f",
+    "tests/test_a9_gui_auth.py": "0fd97f8e2e2b394a003aa65efd3e7d13588ac80532146f325d4178509eedf4e7",
+    "runtime-gui-candidate.json": "0924c38cfda63578cde3ff4c4045124630e89a0a78b10627ad6e0591e653db36",
+    "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+    "verify_a9_host.py": "f4744b8175458d6048d811eeaad6a54628f68dd3bcec768607a827e90cba059f"
+  }
+}

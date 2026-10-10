@@ -58,6 +58,7 @@ def gui_services(context):
     result['login_collection_locked'] = None
     if result['secrets_service_already_owned']:
         p = subprocess.run(['/usr/bin/busctl', '--user', '--timeout=2',
+            '--auto-start=no', '--allow-interactive-authorization=no',
             'get-property', 'org.freedesktop.secrets',
             '/org/freedesktop/secrets/collection/login',
             'org.freedesktop.Secret.Collection', 'Locked'],
@@ -105,7 +106,8 @@ def require_version(measurement, manifest):
     if (report.get('native_version') != manifest.get('native_version')
             or report.get('version_exit_code') != 0 or report.get('help_exit_code') != 0
             or report.get('help_flags_present', {}).get('--disable-builtin-mcps') is not True
-            or report.get('help_flags_present', {}).get('--log-dir') is not True):
+            or report.get('help_flags_present', {}).get('--log-dir') is not True
+            or report.get('help_flags_present', {}).get('--no-auto-update') is not True):
         raise ValueError('version_or_required_cli_flags_unverified')
 
 
@@ -128,6 +130,7 @@ def main():
             'profile': 'HOST_ASSISTED_WITH_GUI_NOT_SANDBOX',
             'cli_interactive_authenticated': 'USER_REPORTED_not_reproduced',
             'sdk_authenticated_with_gui': 'NOT_RUN',
+            'verification_state': 'BLOCKED',
             'sdk_authenticated_headless': 'NOT_PROVEN', 'financial_admission': 'BLOCKED',
             'a9_real_inference': 'NOT_RUN', 'inference_calls': 0,
             'real_session_operations': 0, 'marker_claimed': False,
@@ -175,6 +178,10 @@ def main():
             result['sdk_metadata'] = measurement
             result['sdk_metadata_harness_exit'] = code  # financial blocks intentionally nonzero
             require_cleanup(measurement)
+            # Authentication is an observation, not admission. A subsequent
+            # configuration integrity failure must remain visible independently.
+            result['sdk_authenticated_with_gui'] = ('PASS' if measurement.get('sdk_report', {})
+                .get('preflight', {}).get('auth', {}).get('authenticated') is True else 'BLOCKED')
             result['config_stat_after'] = config_stat()
             result['marker_present_after'] = attempt_state(context['HOME'])
             result['services_after'] = gui_services(context)
@@ -182,17 +189,17 @@ def main():
             if (before != result['config_stat_after'] or result['marker_present_after']
                     or result['services_after'] != services):
                 raise ValueError('configuration_or_context_changed')
-            result['sdk_authenticated_with_gui'] = ('PASS' if measurement.get('sdk_report', {})
-                .get('preflight', {}).get('auth', {}).get('authenticated') is True else 'BLOCKED')
             result['stage'] = 'complete'
+            result['verification_state'] = 'PASS'
         except (OSError, ValueError, KeyError) as error:
             code = error.args[0] if len(error.args) == 1 else None
             result['diagnostic_error'] = (code if isinstance(code, str) and code in ERROR_CODES
                                           else 'precondition_or_verification_failed')
-            result['sdk_authenticated_with_gui'] = 'BLOCKED'
+            if result['sdk_authenticated_with_gui'] == 'NOT_RUN':
+                result['sdk_authenticated_with_gui'] = 'BLOCKED'
         result['observed_at'] = datetime.now(timezone.utc).isoformat()
         output.write(json.dumps(result, indent=2) + '\n')
-    print(json.dumps({k: result[k] for k in ('sdk_authenticated_with_gui',
+    print(json.dumps({k: result[k] for k in ('sdk_authenticated_with_gui', 'verification_state',
                      'financial_admission', 'a9_real_inference', 'inference_calls')}))
     return 0 if result['stage'] == 'complete' else 1
 

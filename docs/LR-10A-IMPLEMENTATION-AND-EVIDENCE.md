@@ -624,3 +624,59 @@ eventual ação humana de autenticação por procedimento separado; não executa
 desbloqueio/login/GUI nem inferência por iniciativa desta POC.
 
 **LR-10A A9-FIX-1 — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE.**
+
+## Adendo — A9-FIX-2: autenticação com GNOME existente (10/10/2026)
+
+**SDK_AUTHENTICATED_WITH_GUI observado; verificação de integridade BLOCKED;
+FINANCIAL_ADMISSION BLOCKED; A9 real NOT_RUN.** Após intervenção humana externa
+(login gráfico, desbloqueio e login interativo informados pelo usuário), um único
+Client SDK 1.0.17 reconheceu auth=true, catálogo e quota com CLI nativo/RPC 1.0.95,
+protocolo 3. A POC não iniciou/parou GNOME/GDM/Keyring, nem realizou login/logout.
+Leu somente a propriedade booleana Locked, presença de contexto e stat de config.
+Não criou/retomou/excluiu sessão nem enviou inferência ou reclamou o marker.
+
+O caminho historicamente pinado agora contém SHA distinto. Um manifesto novo e
+independente identifica 1.0.95; o pin 1.0.91 permanece intacto. Sem imagem antiga
+verificada no caminho conhecido, não há contraste controlado de versões. GUI,
+credencial disponível e imagem mudaram; a causa individual da recuperação não foi
+provada. O perfil headless continua recusando GNOME e não foi retestado com GUI
+desligada. Autenticação do CLI informada pelo usuário não substitui a observação
+SDK, nem metadata valida compatibilidade de sessões ou inferência.
+
+Consulta atual em 2026-10-10T03:34:13.229631Z: models.list retornou somente Auto,
+sem multiplicador/preços/capabilities/policy; account.getQuota reportou premium
+entitlementRequests=200, usedRequests=52, remainingPercentage=74.2, overage=0 e
+flags de uso/overage após esgotamento=false. Unidades: requests_as_reported_by_runtime.
+Chat/completions indicaram unlimited explicitamente; isso não autoriza cobrança,
+nem transforma ausência de preço em custo zero. A coincidência com números
+históricos não é reutilização de evidência; houve nova consulta, sem comprovação
+independente da idade/cache do snapshot do provedor. Sem modelo de custo conhecido,
+custo máximo, enforcement de paid fallback ou estado privado autenticado comprovados,
+não há admissão financeira. Zero inferências da POC não é medição de fatura externa.
+
+**Configuração não comprovadamente preservada:** inode/timestamps de config.json
+mudaram durante o probe, tamanho igual (470 bytes). Autor desconhecido. Nenhum
+conteúdo foi lido, nenhum restore foi feito e não houve probe real adicional após
+essa detecção. A evidência original e seu status BLOCKED foram preservados; auth
+true está no campo SDK interno. A classificação final separa observação de auth
+e verificação bloqueada, testada somente por fixtures após o incidente.
+
+O SDK reportou shutdown graceful (start=569 ms, stop=810 ms); harness comprovou
+ECHILD, ausência de sobreviventes atribuídos e zero sinais de recuperação. As
+regressões finais incluem 48 Rust e 68 Python aprovados, com fixtures de GUI,
+hash/versão inválidos, segredo sintético, marker, timeout e integridade. Sem código
+de produção alterado, não se repetiu Tauri. SDK/CLI/toolchain não foram instalados
+ou atualizados pela POC; os executáveis locais Rust/Cargo 1.98.1 já estavam presentes.
+Os limites de morte do worker/descendentes adversariais e gates isolados permanecem.
+
+Evidências: [metadata original](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-2-gui-sdk-metadata.json),
+[identidades e contrato](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-2-contract-inventory.json),
+[validação final](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-2-final-validation/a9-host-owned-tests.json),
+[preservação e verificação](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-2-verification.json).
+Recomendação: FIX_AND_RETEST da integridade antes de novos probes; auditoria
+independente deve decidir como prevenir/atribuir alterações sem acessar segredos.
+Não avançar à inferência ou LR-10B. Para Narys 0.1, até 17/10, esta descoberta
+reduz a incerteza de auth com GUI, mas não libera integração de produção nem
+justifica atalhos de segurança; a priorização do trabalho restante é humana.
+
+**A9-FIX-2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**

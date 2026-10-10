@@ -94,3 +94,58 @@ See [final matrix](evidence/a9-fix-1-real-auth-matrix.json) and
 [contract comparison](evidence/a9-fix-1-contract.json). A9 real remains NOT_RUN,
 with zero real inference/session operations and no ATTEMPTED entry. Authentication
 recovery, financial admission and real A9 remain three distinct gates.
+
+## A9-FIX-2 — GUI-present metadata profile, independent of headless
+
+[diagnose_a9_gui_auth.py](diagnose_a9_gui_auth.py) requires an already running
+GNOME session, an already owned Secret Service and the login collection's boolean
+`Locked=false`. It never starts/unlocks a service. Its final property query uses
+`--auto-start=no --allow-interactive-authorization=no`. No Items, secrets, config
+contents or account identifiers are inspected. The host profile is explicitly
+**HOST_ASSISTED_WITH_GUI_NOT_SANDBOX**. Display variables are not passed to the
+CLI; the existing user's session bus/runtime context and HOME are passed, with
+PATH=/usr/bin. Token overrides, arbitrary inherited variables and COPILOT_HOME
+are excluded. This does not establish headless credential availability.
+
+The [independent candidate manifest](runtime-gui-candidate.json) pins the existing
+native CLI 1.0.95 by SHA256. The historical 1.0.91 SHA in run_a9_host.py is unchanged.
+The old native path now contains different bytes; the POC did not install or
+download them. Current package manifests say 1.0.89 while native/RPC say 1.0.95;
+package metadata is not executable identity. No verified old image was available
+at that path for a simultaneous comparison. Version and GUI/login changes cannot
+be individually credited with recovery.
+
+The metadata binary remains unchanged: no executable send/session path, no marker
+claim, no explicit token, no real tools, built-in MCPs disabled. DenyAll/zero tools
+session policy is regression-tested synthetically; no real session was created
+to exercise it. This profile does not prove system-wide plugin/MCP isolation.
+
+**Do not automatically rerun the real diagnostic after this result.** The one
+SDK metadata invocation returned authenticated=true, models=[auto] and quota,
+but config.json inode/timestamps changed during that window. Attribution is
+unknown; only stat metadata was observed. No contents were inspected/restored
+and no further real probe was run. Integrity verification and financial admission
+remain BLOCKED. Audit this change before further native probes or future A9.
+
+The executed source is preserved in commit
+`42756450fb8b942fdc2f7ec42b6ece364f3e5c73`; its original
+[metadata evidence](evidence/a9-fix-2-gui-sdk-metadata.json) is unchanged. The top
+SDK_GUI field there says BLOCKED because that source conflated integrity and auth;
+the nested real preflight.auth.authenticated is true. The final classifier separates
+these observations and is tested only synthetically after the incident. The added
+busctl flags and required no-auto-update check also have synthetic-only retests.
+
+Reproduction specification (metadata only; subject to the integrity audit above):
+`python3 experiments/lr-10a-sdk-runtime/diagnose_a9_gui_auth.py /absolute/path/to/manifest-pinned/native/copilot --output /tmp/fresh-gui-metadata.json`.
+Fresh evidence uses O_EXCL/O_NOFOLLOW and 0600. Identity/help inspection uses a
+disposable HOME; authenticated metadata uses normal host credential resolution.
+Both run inside the unchanged ownership harness with bounded timeouts. Existing
+attempt entries block execution and are never claimed or read. Unknown versions,
+missing flags, locked/unknown storage, unsafe cleanup or changed configuration
+never trigger fallback. SDK authentication observation is not financial admission.
+
+See [inventory](evidence/a9-fix-2-contract-inventory.json),
+[verification](evidence/a9-fix-2-verification.json) and
+[final synthetic/kernel regressions](evidence/a9-fix-2-final-validation/a9-host-owned-tests.json).
+SDK_AUTHENTICATED_WITH_GUI is observed; SDK_AUTHENTICATED_HEADLESS is NOT_PROVEN.
+FINANCIAL_ADMISSION remains BLOCKED; A9_REAL_INFERENCE remains NOT_RUN.
