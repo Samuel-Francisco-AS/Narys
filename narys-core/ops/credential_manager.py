@@ -76,6 +76,7 @@ class ExistingLogin:
             f'/user@{os.getuid()}.service/' in groups[0], 'credential_owner_not_user_service')
 
     def unlock(self):
+        self.password_requested = False
         # libsecret ABI uses native secure SecretValue and encrypted D-Bus Secret.
         # ctypes handles only native pointers; Python sees ciphertext, never password.
         lib = ctypes.CDLL('libsecret-1.so.0')
@@ -107,6 +108,7 @@ class ExistingLogin:
             if self.locked() is False:
                 return 'already_unlocked'
             with HumanPassword() as password:
+                self.password_requested = True
                 value = lib.secret_value_new(password.address, password.length, b'text/plain')
                 require(value, 'credential_encoding_failed')
                 try:
@@ -262,9 +264,9 @@ def main():
         return
     client.verify_backend()
     result = 'already_unlocked' if not locked else client.unlock()
-    data = {'state': result, 'login_unlocked': True, 'password_requested': result == 'unlocked'}
+    data = {'state': result, 'login_unlocked': True, 'password_requested': getattr(client, 'password_requested', False)}
     print(json.dumps({'version': 1, 'ok': True, 'data': data}) if operation == 'unlock-json'
-        else ('Cofre já desbloqueado; nenhuma senha solicitada.' if result == 'already_unlocked' else 'Cofre desbloqueado; servidor independente da conexão SSH.'))
+        else ('Cofre já desbloqueado; nenhuma senha solicitada.' if result == 'already_unlocked' and not data['password_requested'] else 'Cofre desbloqueado; servidor independente da conexão SSH.'))
 
 if __name__ == '__main__':
     try:

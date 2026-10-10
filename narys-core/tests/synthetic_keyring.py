@@ -50,6 +50,16 @@ try:
         raise AssertionError('unowned_synthetic_daemon_accepted')
     except m.Blocked as e:
         require(str(e) == 'credential_owner_not_user_service', 'synthetic_identity_error_unexpected')
+    saved_pin = m.DAEMON_SHA
+    try:
+        m.DAEMON_SHA = 'synthetic-incompatible-backend'
+        try:
+            m.ExistingLogin().verify_backend()
+            raise AssertionError('incompatible_backend_accepted')
+        except m.Blocked as e:
+            require(str(e) == 'credential_backend_incompatible', 'synthetic_pin_error_unexpected')
+    finally:
+        m.DAEMON_SHA = saved_pin
     before = {p.name: p.read_bytes() for p in (Path.home()/'.local/share/keyrings').glob('*.keyring')}
     def lock():
         client.call('org.freedesktop.Secret.Service', 'Lock', m.libraries()[1].Variant('(ao)', ([m.LOGIN],)))
@@ -74,7 +84,7 @@ try:
     print(json.dumps({'synthetic_existing_keyring':True,'encrypted_native_session':True,
         'wrong_password_rejected':True,'correct_password_unlock':True,'keyring_bytes_preserved':True,
         'locked_unlocked_metadata_diagnostics':True,'already_unlocked_no_reprompt':True,
-        'production_rejects_non_service_backend':True,'personal_vault_accessed':False,'fixture_gate_bypass_only':True}))
+        'production_rejects_non_service_backend':True,'incompatible_backend_pin_rejected':True,'personal_vault_accessed':False,'fixture_gate_bypass_only':True}))
 finally:
     daemon.terminate()
     try: daemon.wait(timeout=5)

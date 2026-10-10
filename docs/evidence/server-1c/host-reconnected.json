@@ -1,0 +1,167 @@
+{
+  "observed_at": "2026-10-10T17:43:17-03:00",
+  "status": {
+    "active_task": null,
+    "agent_execution_authority": false,
+    "authority": "narys-core",
+    "conversation_integrated": true,
+    "copilot": "on_demand",
+    "core": "running",
+    "database": "core/db/luna.sqlite3",
+    "execution_workers": 0,
+    "graphical_environment_present": false,
+    "product_active_tasks": 0,
+    "profile": "HOST_ASSISTED_NOT_SANDBOX",
+    "protocol_version": 1,
+    "tools": 0,
+    "trace_events": 0
+  },
+  "credentials": {
+    "login_unlocked": true,
+    "service_available": true,
+    "state": "unlocked",
+    "unlock_backend_compatible": true,
+    "unlock_error_code": null
+  },
+  "models": {
+    "models": [
+      {
+        "default_model": "gemini-3.8-flash",
+        "provider_id": "gemini",
+        "registered": true,
+        "remote_catalog_verified": false
+      },
+      {
+        "default_model": "openai/gpt-oss-20b",
+        "provider_id": "groq",
+        "registered": true,
+        "remote_catalog_verified": false
+      },
+      {
+        "default_model": "mistral-small-2603",
+        "provider_id": "mistral",
+        "registered": true,
+        "remote_catalog_verified": false
+      },
+      {
+        "default_model": "@cf/zai-org/glm-4.7-flash",
+        "provider_id": "cloudflare",
+        "registered": true,
+        "remote_catalog_verified": false
+      }
+    ],
+    "remote_probe": false,
+    "source": "integrated_local_catalog"
+  },
+  "doctor": {
+    "checks": {
+      "capabilities": {
+        "data": {
+          "agent_tools": false,
+          "approvals": false,
+          "authority": "narys-core",
+          "conversation": true,
+          "execution_authority_from_ipc": false,
+          "implemented": [
+            "status",
+            "credentials",
+            "events",
+            "prepare",
+            "result",
+            "cancel",
+            "conversation",
+            "sessions",
+            "session-create",
+            "session-get",
+            "session-resume",
+            "session-close",
+            "providers",
+            "provider-configure",
+            "conversation-policy",
+            "task-get",
+            "task-cancel",
+            "tasks",
+            "models"
+          ],
+          "persistence": "core/db/luna.sqlite3",
+          "protocol_version": 1,
+          "provider_configuration": true,
+          "task_namespaces": [
+            "lr10a",
+            "product"
+          ]
+        },
+        "ok": true,
+        "request_id": "cli-67183",
+        "version": 1
+      },
+      "core": {
+        "data": {
+          "active_task": null,
+          "agent_execution_authority": false,
+          "authority": "narys-core",
+          "conversation_integrated": true,
+          "copilot": "on_demand",
+          "core": "running",
+          "database": "core/db/luna.sqlite3",
+          "execution_workers": 0,
+          "graphical_environment_present": false,
+          "product_active_tasks": 0,
+          "profile": "HOST_ASSISTED_NOT_SANDBOX",
+          "protocol_version": 1,
+          "tools": 0,
+          "trace_events": 0
+        },
+        "ok": true,
+        "request_id": "cli-67183",
+        "version": 1
+      },
+      "credentials": {
+        "data": {
+          "login_unlocked": true,
+          "service_available": true,
+          "state": "unlocked",
+          "unlock_backend_compatible": true,
+          "unlock_error_code": null
+        },
+        "ok": true,
+        "request_id": "cli-67183",
+        "version": 1
+      }
+    },
+    "core_reachable": true,
+    "remote_inference": false,
+    "unlock_transport": "private_authenticated_ssh_tty"
+  },
+  "session_pages_complete": true,
+  "sessions_verified": 38,
+  "messages_verified_exact": 99,
+  "product_tasks_listed": 191,
+  "runs": [
+    {
+      "task_id": 189,
+      "state": "completed",
+      "result_equals_authority": true,
+      "result_sha256": "34c516fe8267b3231b6f50d74ce054d0314d5e5baa11fb6da74546e8157749cc"
+    },
+    {
+      "task_id": 190,
+      "state": "completed",
+      "result_equals_authority": true,
+      "result_sha256": "527f808f1866395aa1f05b58f311d88f5386e7f1febc5a34a896ad2a1d03f0de"
+    },
+    {
+      "task_id": 191,
+      "state": "cancelled",
+      "result_equals_authority": true,
+      "result_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "counts_unchanged": true,
+  "snapshot_metadata_and_bytes_unchanged": true,
+  "schema": 20,
+  "integrity": "ok",
+  "fresh_clients_cwd_tmp_no_home_or_xdg_env": true,
+  "remote_inference": false,
+  "unlock_invoked": false
+}

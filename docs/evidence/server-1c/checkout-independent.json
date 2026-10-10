@@ -1,0 +1,13 @@
+{
+  "credential_sources_temporarily_absent": true,
+  "cwd": "/tmp",
+  "home_xdg_display_env_absent": true,
+  "credentials": {
+    "login_unlocked": true,
+    "service_available": true,
+    "state": "unlocked",
+    "unlock_backend_compatible": true,
+    "unlock_error_code": null
+  },
+  "sources_restored": true
+}

@@ -1,0 +1,33 @@
+{
+  "pid": 67100,
+  "previous_pid": 66993,
+  "elapsed_seconds": 10.000099730001239,
+  "before": {
+    "cpu_ticks": 2,
+    "rss_kib": 25676,
+    "peak_rss_kib": 25676
+  },
+  "after": {
+    "cpu_ticks": 2,
+    "rss_kib": 25676,
+    "peak_rss_kib": 25676
+  },
+  "cpu_delta_seconds": 0.0,
+  "vault_diagnostics_during_sample": false,
+  "active_status": {
+    "active_task": null,
+    "agent_execution_authority": false,
+    "authority": "narys-core",
+    "conversation_integrated": true,
+    "copilot": "on_demand",
+    "core": "running",
+    "database": "core/db/luna.sqlite3",
+    "execution_workers": 0,
+    "graphical_environment_present": false,
+    "product_active_tasks": 0,
+    "profile": "HOST_ASSISTED_NOT_SANDBOX",
+    "protocol_version": 1,
+    "tools": 0,
+    "trace_events": 0
+  }
+}

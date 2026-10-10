@@ -144,7 +144,22 @@ async fn wait(
         tokio::select! { _=tokio::signal::ctrl_c()=>return Err("wait_interrupted_task_preserved"), _=tokio::time::sleep(std::time::Duration::from_millis(700))=>{} }
     }
 }
+// Tokio owns SIGINT while following tasks. During the synchronous TTY read,
+// restore normal terminal interruption so a previous follow cannot trap Ctrl-C.
+struct TerminalInterrupt(libc::sighandler_t);
+impl Drop for TerminalInterrupt {
+    fn drop(&mut self) {
+        unsafe {
+            libc::signal(libc::SIGINT, self.0);
+        }
+    }
+}
 fn line(prompt: &str) -> Result<Option<String>, &'static str> {
+    let previous = unsafe { libc::signal(libc::SIGINT, libc::SIG_DFL) };
+    if previous == libc::SIG_ERR {
+        return Err("terminal_signal_unavailable");
+    }
+    let _interrupt = TerminalInterrupt(previous);
     print!("{prompt}");
     std::io::stdout()
         .flush()

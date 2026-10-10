@@ -46,7 +46,7 @@ class Fixture:
     def close(self):
         self.closed=True;self.thread.join(2);self.sock.close();self.temp.cleanup()
 class CliTests(unittest.TestCase):
-    def test_chat_select_create_send_follow_and_exit(self):
+    def chat_case(self, interrupt=False):
         fixture=Fixture(); master,slave=pty.openpty()
         p=subprocess.Popen([str(CLI),'chat'],stdin=slave,stdout=slave,stderr=slave,env=fixture.env())
         output=b''
@@ -58,13 +58,23 @@ class CliTests(unittest.TestCase):
                 if select.select([master],[],[],.1)[0]:output+=os.read(master,65536)
         try:
             until(b'pr\xc3\xb3xima p\xc3\xa1gina):');os.write(master,b'new\n');until(b'Voc');os.write(master,b'synthetic-chat-input\n')
-            until(b'fixture-response');os.write(master,b'/exit\n');self.assertEqual(p.wait(timeout=5),0)
+            until(b'fixture-response')
+            if interrupt:
+                # Ensure the follow has completed and chat returned to its prompt.
+                time.sleep(.1);p.send_signal(__import__('signal').SIGINT)
+                self.assertEqual(p.wait(timeout=5),-__import__('signal').SIGINT)
+            else:
+                os.write(master,b'/exit\n');self.assertEqual(p.wait(timeout=5),0)
             self.assertNotIn(b'\x1b',output)
             self.assertEqual(len([c for c in fixture.calls if c['operation']=='conversation']),1)
             self.assertTrue(any(c['operation']=='task-get' for c in fixture.calls))
         finally:
             if p.poll() is None:p.kill();p.wait()
             os.close(master);os.close(slave);fixture.close()
+    def test_chat_select_create_send_follow_and_exit(self):
+        self.chat_case()
+    def test_ctrl_c_at_prompt_after_follow_exits_without_replay(self):
+        self.chat_case(True)
     def test_version_correlation_response_limits_and_uncertain_send_never_replay(self):
         for mode,code in [('version','response_correlation_mismatch'),('correlation','response_correlation_mismatch'),('oversize','response_limit'),('uncertain','response_invalid')]:
             fixture=Fixture(mode)
