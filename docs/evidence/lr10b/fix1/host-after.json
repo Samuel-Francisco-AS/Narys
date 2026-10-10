@@ -1,0 +1,125 @@
+{
+  "phase": "after_fix1_update",
+  "status": {
+    "data": {
+      "active_task": null,
+      "agent_execution_authority": false,
+      "authority": "narys-core",
+      "conversation_integrated": true,
+      "copilot": "on_demand",
+      "copilot_runtime": {
+        "active_tasks": 0,
+        "attachments": 0,
+        "capabilities": {
+          "inference_admission_integrated": false,
+          "permissions_integrated": false,
+          "textual": true,
+          "tools": false
+        },
+        "inference_gate": "not_integrated_no_send",
+        "planner_routing_enabled": false,
+        "process_observation": {
+          "processes": [],
+          "source": "core_ownership_no_runtime"
+        },
+        "registered": true,
+        "runtime": {
+          "admission_closed": false,
+          "cleanup_verified": true,
+          "generation": 0,
+          "last_error": null,
+          "leases": 0,
+          "process_id": null,
+          "runtime_ref": null,
+          "startup_failure": null,
+          "state": "dormant"
+        },
+        "specialist_id": "copilot",
+        "tools_gate": "LR-10C_required"
+      },
+      "core": "running",
+      "database": "core/db/luna.sqlite3",
+      "execution_workers": 0,
+      "graphical_environment_present": false,
+      "product_active_tasks": 0,
+      "profile": "HOST_ASSISTED_NOT_SANDBOX",
+      "protocol_version": 1,
+      "tools": 0,
+      "trace_events": 0
+    },
+    "ok": true,
+    "request_id": "cli-30159",
+    "version": 1
+  },
+  "agent_status": {
+    "data": {
+      "active_tasks": 0,
+      "attachments": 0,
+      "capabilities": {
+        "inference_admission_integrated": false,
+        "permissions_integrated": false,
+        "textual": true,
+        "tools": false
+      },
+      "inference_gate": "not_integrated_no_send",
+      "planner_routing_enabled": false,
+      "process_observation": {
+        "processes": [],
+        "source": "core_ownership_no_runtime"
+      },
+      "registered": true,
+      "runtime": {
+        "admission_closed": false,
+        "cleanup_verified": true,
+        "generation": 0,
+        "last_error": null,
+        "leases": 0,
+        "process_id": null,
+        "runtime_ref": null,
+        "startup_failure": null,
+        "state": "dormant"
+      },
+      "specialist_id": "copilot",
+      "tools_gate": "LR-10C_required"
+    },
+    "ok": true,
+    "request_id": "cli-30184",
+    "version": 1
+  },
+  "lazy_status_queries": 25,
+  "sample_start": {
+    "pid": 30130,
+    "rss_kib": 26480,
+    "cpu_ticks": 15
+  },
+  "sample_end": {
+    "pid": 30130,
+    "rss_kib": 26480,
+    "cpu_ticks": 15
+  },
+  "elapsed_seconds": 10.051201423999373,
+  "clock_ticks_per_second": 100,
+  "systemd": "ActiveState=active\nSubState=running\nNRestarts=0\nControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/narys-core.service\nMemoryCurrent=6918144\nCPUUsageNSec=153993000\nKillMode=control-group\n",
+  "cgroup_pids": [
+    "30130"
+  ],
+  "sha256": {
+    "core": "6004aecab7099e80b082da6853e8ff93a400921a5d402f5d807769d101f0c201",
+    "cli": "f9c25420347a51a56c17041a42a98096393bf2c4f59da77d76a9374a0f73937f",
+    "unit": "df7b3205ebfcf5f673e9c72fd8aea4c0bba2c697d3f15a76feaaf4028b1a0810",
+    "keyring_dropin": "1f57eb258f83f856998575b5e0aeb4e1cdb72370f7887117817f2fb8124f8f38"
+  },
+  "authority_user_version": 21,
+  "authority_integrity": "ok",
+  "authority_foreign_key_errors": 0,
+  "agent_table_counts": {
+    "agent_sessions": 0,
+    "agent_runs": 0,
+    "agent_runtime_owners": 0
+  },
+  "post_update_authority_backup": "/home/sam/.local/state/narys/core/backups/lr10b-fix1-post-update-lo_gjm3n/authority-schema021.sqlite3",
+  "authority_backup_sha256": "02955a370313ccf5fa600b52b50e05259fd8e6a996247dc98d761b2845449480",
+  "native_cli_started_for_fix": false,
+  "real_inference_calls_for_fix": 0,
+  "external_billing": "NOT_VERIFIED; not queried"
+}

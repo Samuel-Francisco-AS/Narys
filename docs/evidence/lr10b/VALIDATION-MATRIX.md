@@ -21,3 +21,47 @@ Candidata para auditoria. SDK_FIXTURE usa **o SDK Rust oficial** e subprocessos 
 | 15 | Codex Planner read-only | DOMAIN_REGRESSION + MOCK | adapter_and_registry_keep_tools_financial_gate_and_codex_planner_closed; regressão agents::codex::* (gates reais ignorados) |
 | 16 | Conversation/Scheduler/IPC | DOMAIN_REGRESSION + REAL_IPC | regressão cognition::*; conversation_sessions_product_errors_and_free_permission_are_real_ipc; official_cli_*; control |
 | 17 | Órfãos/recursos | SDK_FIXTURE + REAL_HOST | recibos kernel_children_exhausted, identidade /proc ausente, filho setsid e processo externo preservado; interrupted_startup_and_artifact_retention_are_bounded_and_recoverable; RSS/CPU/cgroup ocioso. Endurance e consumo de inferência real: NOT_VERIFIED |
+
+## LR-10B FIX-1 — Startup Ownership & Recovery Safety
+
+**CANDIDATA CORRIGIDA, AGUARDANDO REAUDITORIA INDEPENDENTE DA LUNA.**
+A matriz original acima registra o histórico; esta seção substitui a evidência de
+startup/ownership/recovery contestada pela auditoria. As provas novas executam o
+SDK oficial com peer sintético e verificam memória, SQLite e processos Linux reais.
+Nenhuma inferência/CLI autenticado é usada. Logs: [fix1/core-tests.txt](fix1/core-tests.txt).
+
+| # | Cenário exigido | Teste(s) | Invariável durável / efeitos |
+|---|---|---|---|
+| 1 | workspace após INSERT | preparation_workspace_logs_sdk_state_failures_are_durable_no_launch_and_retry_safe | stopped, verified=1; failed_before_launch; no_process_launched; SDK zero |
+| 2 | logs após INSERT | preparation_workspace_logs_sdk_state_failures_are_durable_no_launch_and_retry_safe | mesmo invariável; fixture cria arquivo bloqueante real |
+| 3 | sdk-state após INSERT | preparation_workspace_logs_sdk_state_failures_are_durable_no_launch_and_retry_safe | mesmo invariável; diretório compartilhado de estado reparado apenas na fixture |
+| 4 | persistência startup | insert_persistence_failure_blocks_memory_and_reconciles_empty_durable_intent_without_launch; launch_intent_and_terminal_persistence_faults_never_bless_cleanup; silently_ignored_safety_write_is_a_persistence_failure_not_successful_recovery | PersistenceUncertain; memória/run verified=0; estado durável último commit ou faulted; zero linhas não libera recovery |
+| 5 | imediatamente antes de launch | failure_immediately_before_sdk_invocation_concludes_durable_intent_as_no_launch | launch_intent observado, depois failed_before_launch/stopped/verified=1 por prova de não invocação |
+| 6 | pós-launch com prova | launched_failure_requires_kernel_proof_and_restart_never_replays_or_signals_external | failed_after_launch/stopped/verified=1; kernel_children_exhausted; IDs ausentes; erro original preservado |
+| 7 | pós-launch sem prova | launched_unverified_cleanup_blocks_new_generations_until_explicit_positive_recovery | faulted/verified=0 na memória, owner e run; recibo contraditório impede reentrada |
+| 8 | nova demanda recuperada | preparation_workspace_logs_sdk_state_failures_are_durable_no_launch_and_retry_safe; terminal_cleanup_bit_without_valid_evidence_cannot_bypass_reconciliation | nova geração somente após certificado positivo; um create para a demanda nova, nenhum retry do run antigo |
+| 9 | demanda bloqueada | launched_unverified_cleanup_blocks_new_generations_until_explicit_positive_recovery; lost_ownership_row_with_retained_artifacts_blocks_launch_and_recovery | memória bloqueia; factory nova também verifica autoridade/artifacts; nenhum novo runtime/session SDK |
+| 10 | restart pré-launch | restart_of_committed_preparation_recovers_no_launch_and_run_ids_without_replay; interrupted_journal_drop_is_faulted_and_prelaunch_recovery_is_positive_and_idempotent | preparing positivo → stopped/verified=1; run777 interrupted; TaskId novo maior; nenhum create durante recovery |
+| 11 | restart pós-launch | launched_failure_requires_kernel_proof_and_restart_never_replays_or_signals_external; operational_and_cleanup_persistence_failures_preserve_original_error_and_require_reconciliation | estado terminal/runs preservados; proof/persistência reconciliados; erro original não vira sucesso |
+| 12 | recovery repetido | incomplete_legacy_and_invalid_boot_records_stay_blocking_but_previous_boot_recovers; crash_at_durable_launch_intent_without_cleanup_is_never_guessed_as_prelaunch; testes acima chamam recovery duas vezes | idempotência; bootUUID válido distinto é prova, inválido não; intenção sem recibo permanece incerta |
+| 13 | cancelamento × falha | cancel_racing_before_and_after_launch_preserves_original_failure_and_durable_safety | task failed único com erro original; prova pré/pós-launch explícita; generation=1, nenhum restart |
+| 14 | processo externo | contradictory_preparation_and_external_pid_are_never_adopted_or_signalled; launched_failure_requires_kernel_proof_and_restart_never_replays_or_signals_external | sleep externo vivo após duas recoveries; descendente setsid próprio reaped; somente teste encerra seu sleep |
+| 15 | sem duplicação | restart_of_committed_preparation_recovers_no_launch_and_run_ids_without_replay; launched_unverified_cleanup_blocks_new_generations_until_explicit_positive_recovery; preparation_workspace_logs_sdk_state_failures_are_durable_no_launch_and_retry_safe | counts/distinct TaskId/sessions/owners conferidos; create somente explícito; send=0 em todos os peers |
+
+A prova adicional startup_safety_is_evidence_typed_and_never_classified_by_error_identity
+usa o mesmo código sanitizado com quatro classes e verifica o run SQLite e a memória.
+terminal_cleanup_bit_without_valid_evidence_cannot_bypass_reconciliation verifica
+também status: bit registrado=1 não é apresentado como cleanup comprovado quando o
+certificado falta. Zero linhas afetadas/falha de persistência mantém a recuperação
+bloqueada, mesmo se o SQLite ainda conserva um bit antigo não confiável.
+
+17 testes novos (16 cenários SDK/fault-injection + 1 contrato mock), com subcasos.
+Regressão final: Core: 81 unitários +11 integrações; Domain: 1059+2 doctests, dois gates
+reais ignorados; Python: 17. Contagens não substituem os invariáveis acima.
+
+Restart pré-launch é uma fixture de crash sobre journal já commitado, sem invocar
+SDK; restart/recovery do controlador é reconstruído com a mesma autoridade. Não
+se afirma ter matado o Core instalado dentro de uma inicialização Copilot real.
+NOT_VERIFIED anteriores de CLI autenticado, inferência, billing, SSH físico,
+endurance e MSRV exato permanecem. Verificar host-before/after e host-update em fix1
+para a instalação real ociosa; ela não executou agent new/resume.

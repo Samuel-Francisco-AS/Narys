@@ -244,7 +244,9 @@ Uma falha de persistência permanece PersistenceUncertain, inclusive se o cleanu
 físico depois funcionar. O erro original não é substituído pelo erro de cleanup.
 A guarda Drop registra faulted/unverified e conserva a última fronteira; nunca
 certifica limpeza em destructor. Quando o banco rejeita também esse registro,
-conserva-se o último journal durável e o diagnóstico no run vinculado/snapshot.
+conserva-se o último journal durável; o snapshot mantém o erro e o run vinculado
+registra o diagnóstico quando seu commit é possível. Falha geral de armazenamento
+preserva a operação como incerta para o recovery, sem novo launch.
 
 Admissões seguintes validam certificados terminais, e não apenas o bit verified.
 Recibos ausentes/inconsistentes são marcados faulted/verified=false. Artefatos sem
