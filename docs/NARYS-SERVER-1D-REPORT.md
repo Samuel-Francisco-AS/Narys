@@ -5,7 +5,8 @@
 ## Controle, prazo e publicação
 
 - Branch exclusiva: `narys-server-1-headless-runtime`. HEAD esperado e inicial local/remoto: `2b7c64cb7f69339167d014ac0f78f11e03454e66`.
-- Checkpoint pré-reboot: `bd59fddfb7c84943f0e002b3d8f6b12919d45fae`, igual ao remoto na retomada e antes da publicação final. HEAD da entrega final será registrado na publicação abaixo.
+- Checkpoint pré-reboot: `bd59fddfb7c84943f0e002b3d8f6b12919d45fae`, igual ao remoto na retomada e antes da publicação final.
+- **HEAD remoto de instrumentos/evidências/relatório: `398eb1bd54faf69ea0b90c8d6372cbb1f91b7dc4`**, confirmado por `git ls-remote` em **10/10/2026 18:44:45 -03**, após push exclusivo na branch. [Recibo da publicação](evidence/server-1d/publication-confirmation.json). A revisão documental subsequente registra essa confirmação; o HEAD remoto final está na mensagem de entrega e deve ser reconferido pela Luna com `git ls-remote origin refs/heads/narys-server-1-headless-runtime refs/heads/main`.
 - Main remota conferida intacta: `553b51182bb477d0b777093da5bfda93239fddf9`. Sem merge ou force-push.
 - Abertura da trilha: **10/10/2026 15:03:12 America/Recife**; primeira observação 1D: **18:03:07**. Prazo absoluto preservado: **12/10/2026 15:03:12 America/Recife**.
 - Auditoria final do host: **10/10/2026 18:36:06 -03**; última amostra ociosa: **18:36:50**. Restavam aproximadamente **44h27min** na auditoria, sem reiniciar a contagem após reboot.
