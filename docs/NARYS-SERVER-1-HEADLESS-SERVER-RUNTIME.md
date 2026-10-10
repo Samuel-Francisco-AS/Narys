@@ -1,6 +1,6 @@
 # NARYS-SERVER-1 — Headless Server Runtime
 
-**Estado: SERVER-1A implementada na branch candidata; aguardando auditoria independente. SERVER-1B não iniciada.**
+**Estado: SERVER-1A PASS técnico ratificado por auditoria independente (código e evidências). SERVER-1B próxima; 1C/1D não iniciadas.** [Auditoria de Luna](NARYS-SERVER-1A-INDEPENDENT-AUDIT-2026-10-10.md).
 
 Abertura real: **2026-10-10T15:03:12-03:00**, America/Recife. Deadline absoluto: **2026-10-12T15:03:12-03:00**. Base verificada `553b51182bb477d0b777093da5bfda93239fddf9`; checkpoint `2492285`. [Relatório único SERVER-1A](NARYS-SERVER-1A-REPORT.md). O planejamento abaixo conserva as etapas posteriores; não representa aprovação da trilha inteira.
 **Direção arquitetural ratificada em 10/10/2026:** [Narys Core-First — monólito modular + thin clients](NARYS-CORE-FIRST-ARCHITECTURE-2026-10-10.md). **Meta integrada de produto:** [Narys 0.1 com agentes e ferramentas reais até 17/10/2026](NARYS-01-AGENT-TOOLS-DELIVERY.md). A decisão posterior do usuário permite extração ampla e refatoração de Conversation, Scheduler, persistência, provider runtime, protocolos e bootstrap Tauri quando técnica e operacionalmente favorável; invalida qualquer leitura desta trilha que imponha refatoração mínima como teto artificial.
@@ -86,6 +86,6 @@ Dívidas herdadas que não reabrem LR-10A: PIN Keyring50.0 e interface GNOME nã
 
 ## 6. Sequência de controle
 
-**Estado atual: SERVER-1A implementada candidata; abertura/deadline registrados acima. SERVER-1B não iniciada.** A contagem de 48h começou na abertura real registrada acima; **não há início retroativo**. O prazo externo de 17/10 inclui **execução agentiva com ferramentas de engenharia reais**, planejada em [Narys 0.1](NARYS-01-AGENT-TOOLS-DELIVERY.md), não somente serviço de chat. Antes de iniciar, registrar hora e commit base; a cada etapa, registrar PASS ou impedimento direto. Não abrir mais de quatro etapas nem alongar prazo por upgrades estéticos. Prioridade de release 0.1: **17/10/2026**.
+**Estado atual: SERVER-1A PASS técnico; SERVER-1B é a próxima etapa.** A contagem de 48h começou na abertura real registrada acima; **não há início retroativo**. O prazo externo de 17/10 inclui **execução agentiva com ferramentas de engenharia reais**, planejada em [Narys 0.1](NARYS-01-AGENT-TOOLS-DELIVERY.md), não somente serviço de chat. Antes de iniciar, registrar hora e commit base; a cada etapa, registrar PASS ou impedimento direto. Não abrir mais de quatro etapas nem alongar prazo por upgrades estéticos. Prioridade de release 0.1: **17/10/2026**.
 
 Referências: [fechamento LR-10A](LR-10A-FINAL-CLOSURE-2026-10-10.md), [trilha LR-10 pausada](LR-10-COPILOT-SPECIALIST-AGENT.md), [Core headless](../narys-core/README.md), [PERF-1C](PERF-1C-HEADLESS-RUNTIME.md).
