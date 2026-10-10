@@ -1,0 +1,8 @@
+   Compiling narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.04s
+     Running tests/control.rs (src-tauri/target/debug/deps/control-d1edaddbc88b3a16)
+
+running 1 test
+test real_local_core_restarts_tasks_without_inference_and_blocks_unreviewed_submit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s

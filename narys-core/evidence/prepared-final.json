@@ -1,0 +1,15 @@
+{
+  "stage": "PREPARED_FOR_SINGLE_HUMAN_REBOOT",
+  "recorded_at_unix": 1791645974.2814693,
+  "change": "unlock helper gets explicit same-UID DBus socket; no password handling change",
+  "installed_binary_sha256": "bdf7b1939606d8de6bbbeb132ee3d956ccc860640b4a63d31e747e7c8f9ffba4",
+  "installed_binary_bytes": 34711352,
+  "main_source_sha256": "45e4656b9b73f0407eba95001d36290865c0a0bc4a35c7e304f4bb48de618a2e",
+  "sdk_worker_change": false,
+  "inference_calls": 0,
+  "new_real_sessions": 0,
+  "earlier_real_metadata": "preboot.json",
+  "regression": "control-final.txt",
+  "a9_marker_present": false,
+  "next_step": "human reboot, private manual unlock, one Narys-integrated task with live financial preflight"
+}

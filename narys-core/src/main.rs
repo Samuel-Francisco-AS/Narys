@@ -26,7 +26,9 @@ async fn main() {
         if args.get(1).map(String::as_str)==Some("serve"){return serve(cfg).await;}
         let operation=args.get(1).map(String::as_str).ok_or("operation_required")?;
         if operation=="unlock"{
-            let status=std::process::Command::new("/usr/bin/python3").arg(cfg.root.join("../experiments/lr-10a-sdk-runtime/h2_manual_unlock.py")).arg("unlock-existing-login").status().map_err(|_|"unlock_helper_unavailable")?;
+            let status=std::process::Command::new("/usr/bin/python3")
+                .env("DBUS_SESSION_BUS_ADDRESS",format!("unix:path={}/bus",cfg.runtime.parent().unwrap().display()))
+                .arg(cfg.root.join("../experiments/lr-10a-sdk-runtime/h2_manual_unlock.py")).arg("unlock-existing-login").status().map_err(|_|"unlock_helper_unavailable")?;
             return if status.success(){Ok(())}else{Err("manual_unlock_failed")};
         }
         let request=match operation{
