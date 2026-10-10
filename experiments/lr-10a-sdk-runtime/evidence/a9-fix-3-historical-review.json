@@ -1,0 +1,48 @@
+{
+  "sdk_auth_observed": true,
+  "config": {
+    "classification": "METADATA_CHANGE_UNATTRIBUTED",
+    "metadata_mutation": true,
+    "changed_fields": [
+      "ctime_ns",
+      "inode",
+      "mtime_ns"
+    ],
+    "writer_attribution": "INCONCLUSIVE",
+    "integrity_verification": "BLOCKED",
+    "content_equivalence": "NOT_VERIFIED",
+    "operational_admission": "BLOCKED",
+    "scope": "metadata_only",
+    "coverage": "historical_four_fields"
+  },
+  "financial_admission": "BLOCKED",
+  "a9_real_inference": "NOT_RUN",
+  "inference_calls": 0,
+  "real_session_operations": 0,
+  "marker_claimed": false,
+  "phase": "LR-10A A9-FIX-3",
+  "base": "4a75c632fc8e69fcd9511cd447489b3c1d3d5fff",
+  "schema_version": 1,
+  "kind": "offline_historical_reclassification_not_live_retest",
+  "historical_source": "a9-fix-2-gui-sdk-metadata.json",
+  "historical_source_sha256": "1b76b3f4dfdacec1835ba774402897c202813c238c23b17a38500efd77b70916",
+  "historical_observed_at": "2026-10-10T03:34:13.229631+00:00",
+  "historical_implementation_commit": "42756450fb8b942fdc2f7ec42b6ece364f3e5c73",
+  "sdk_authenticated_with_gui": "OBSERVED_REAL_PASS",
+  "sdk_authenticated_headless": "NOT_PROVEN",
+  "config_mutation_observed": true,
+  "config_writer_attribution": "INCONCLUSIVE",
+  "config_integrity_verification": "BLOCKED",
+  "a9_attempt_marker": "NOT_CLAIMED_NO_CONTENT_READ",
+  "current_cli_invocations": 0,
+  "current_authenticated_probes": 0,
+  "current_personal_config_observations": 0,
+  "process_cleanup": "NO_RUNTIME_STARTED_THIS_REVIEW",
+  "recovery_actions_performed": [],
+  "next_real_observation": "PENDING_USER_AUTHORIZATION",
+  "reviewed_at": "2026-10-10T04:10:09.933107+00:00",
+  "source_sha256": {
+    "config_integrity.py": "3db7dfe1383c84bcafdc45c7be9852e3be2abd90e1495844ec53d7e8a8bbb5d5",
+    "review_a9_config.py": "f51dcd256d9b192d4b0136c7a54315a322cf2b0c9e714e37a7f773d6f0b292c0"
+  }
+}

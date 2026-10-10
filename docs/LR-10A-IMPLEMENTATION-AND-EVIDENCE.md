@@ -680,3 +680,57 @@ reduz a incerteza de auth com GUI, mas não libera integração de produção ne
 justifica atalhos de segurança; a priorização do trabalho restante é humana.
 
 **A9-FIX-2 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+
+## Adendo — A9-FIX-3: integridade e recuperação controlada (10/10/2026)
+
+Investigação exclusivamente estática/sintética, sem CLI real, SDK metadata real,
+sessões/inferência ou claim do marker. A mutação histórica de inode/timestamps com
+tamanho igual permanece observada; não prova igualdade de bytes, corrupção,
+vazamento ou escritor. **CONFIG_WRITER_ATTRIBUTION=INCONCLUSIVE;
+CONFIG_INTEGRITY_VERIFICATION=BLOCKED.** SDK_AUTHENTICATED_WITH_GUI=
+OBSERVED_REAL_PASS refere-se somente à A9-FIX-2, headless=NOT_PROVEN,
+finance=BLOCKED, A9=NOT_RUN. Nenhum resultado anterior foi adulterado.
+
+O helper antigo segue symlinks, compara quatro campos e agrupa OSError. O módulo
+novo usa somente metadata ancorada/no-follow, distingue ausência/acesso negado/
+falha/interrupção e não abre conteúdos. O replay verifica um artefato Git fixo por
+SHA256, sem consultar config pessoal. Metadata estável é observação, não prova de
+integridade semântica/criptográfica. Mudanças desconhecidas falham fechadas. Apenas
+uma revisão sintética fixa, com FD próprio e bytes conhecidos, recebe
+LEGITIMATE_CHANGE_PROVEN no escopo da fixture. Nenhum contrato implementado aprova
+escrita real do Copilot. Auth positiva, tamanho igual e estabilidade posterior não
+são bypasses; wrappers reais antigos permanecem intactos.
+
+Documentação oficial atual descreve config.json gerenciado; SDK pinado delega
+RPC/startup/shutdown ao CLI. Atualização legítima é plausível, mas fase/escritor/
+semântica da imagem 1.0.95 não são demonstrados. O pacote nativo descreve bundle
+embutido; fonte standalone do escritor não foi encontrada nos arquivos públicos
+legíveis examinados, sem extração/instrumentação do runtime. Atualização interna,
+substituição atômica e concorrência continuam hipóteses. Não se inspecionou conteúdo
+privado, Keyring, tráfego autenticado ou memória.
+
+48 Rust e 86 Python passaram (68 anteriores +18 novos), Cargo offline/locked,
+skip download, jobs=2 e ownership FIX-1 intacto. Fixtures: estabilidade, rename
+atômico de tamanho igual, tamanho/timestamps, concorrência sincronizada, ausência/
+EACCES injetado, symlinks, interrupção/I/O, revisão legítima sintética, proveniência
+desconhecida e auth/finance independentes. ECHILD/identidades ausentes comprovados
+no escopo cooperativo. Sem Tauri/GUI: nenhum código/dependência de produção ou Rust
+mudou. Limites de morte do worker/adversariais não são resolvidos por esses testes.
+
+Nenhum chmod/lock/read-only/restore/copy/delete pessoal, opção COPILOT_HOME/
+base_directory ou serviço mudou. cwd/logs não confinam state; base_directory envolve
+auth/sessões/telemetria e session_fs não protege config global. Proposta limitada
+para eventual nova observação real permanece PENDING_USER_AUTHORIZATION, com
+riscos/condições de interrupção; não executada.
+
+Evidências: [replay](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-historical-review.json),
+[investigação](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-static-investigation.json),
+[casos](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-synthetic-cases.json),
+[regressões](../experiments/lr-10a-sdk-runtime/evidence/a9-fix-3-regressions/a9-host-owned-tests.json)
+e [contrato](../experiments/lr-10a-sdk-runtime/CONFIG-INTEGRITY.md).
+PASS parcial de fixtures/contrato; gate real BLOCKED, recomendação FIX_AND_RETEST,
+sem LR-10B. Headless futuro requer prova própria de credenciais/estado; sucesso
+com GNOME não é equivalente. O release 0.1 em 17/10 não autoriza bypass; manter
+POC fora de produção e priorização humana.
+
+**A9-FIX-3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**

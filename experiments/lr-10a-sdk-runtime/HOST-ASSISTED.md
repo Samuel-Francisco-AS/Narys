@@ -149,3 +149,15 @@ See [inventory](evidence/a9-fix-2-contract-inventory.json),
 [final synthetic/kernel regressions](evidence/a9-fix-2-final-validation/a9-host-owned-tests.json).
 SDK_AUTHENTICATED_WITH_GUI is observed; SDK_AUTHENTICATED_HEADLESS is NOT_PROVEN.
 FINANCIAL_ADMISSION remains BLOCKED; A9_REAL_INFERENCE remains NOT_RUN.
+
+## A9-FIX-3 — offline configuration integrity review
+
+The [integrity contract](CONFIG-INTEGRITY.md) classifies the historical metadata
+change independently of SDK auth. [Offline replay](review_a9_config.py) is pinned
+to the unchanged A9-FIX-2 artifact; it never launches CLI or queries personal
+config. Stable metadata is not content equivalence, and a known synthetic revision
+is not approval of a host write. Writer attribution remains INCONCLUSIVE and real
+config integrity BLOCKED. No personal recovery, permission change, lock, token copy
+or COPILOT_HOME change occurred. New probes are PENDING_USER_AUTHORIZATION;
+live wrappers remain intact. SDK_GUI auth is OBSERVED_REAL_PASS historically,
+headless NOT_PROVEN, finance BLOCKED, A9 NOT_RUN, attempt not claimed.

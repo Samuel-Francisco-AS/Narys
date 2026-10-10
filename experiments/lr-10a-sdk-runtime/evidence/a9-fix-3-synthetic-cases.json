@@ -1,0 +1,210 @@
+{
+  "phase": "LR-10A A9-FIX-3",
+  "kind": "synthetic_test_observations_not_copilot",
+  "source": "a9-fix-3-regressions/a9-host-python-tests.txt",
+  "cases": [
+    {
+      "a9_config_case": "T1_stable",
+      "evaluation": {
+        "classification": "OBSERVATIONALLY_STABLE",
+        "metadata_mutation": false,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "INCONCLUSIVE",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      }
+    },
+    {
+      "a9_config_case": "T2_equal_size_atomic_replace",
+      "evaluation": {
+        "classification": "METADATA_CHANGE_UNATTRIBUTED",
+        "metadata_mutation": true,
+        "changed_fields": [
+          "ctime_ns",
+          "inode",
+          "mtime_ns"
+        ],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      }
+    },
+    {
+      "a9_config_case": "T3_size",
+      "evaluation": {
+        "classification": "METADATA_CHANGE_UNATTRIBUTED",
+        "metadata_mutation": true,
+        "changed_fields": [
+          "bytes",
+          "ctime_ns",
+          "mtime_ns"
+        ],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      }
+    },
+    {
+      "a9_config_case": "T4_timestamp",
+      "evaluation": {
+        "classification": "METADATA_CHANGE_UNATTRIBUTED",
+        "metadata_mutation": true,
+        "changed_fields": [
+          "ctime_ns",
+          "mtime_ns"
+        ],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      }
+    },
+    {
+      "a9_config_case": "T5_concurrent_writer_stat_has_no_pid",
+      "evaluation": {
+        "classification": "METADATA_CHANGE_UNATTRIBUTED",
+        "metadata_mutation": true,
+        "changed_fields": [
+          "ctime_ns",
+          "mtime_ns"
+        ],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      }
+    },
+    {
+      "a9_config_case": "T6_missing_real_EACCES_injected",
+      "evaluation": {
+        "classification": "METADATA_UNAVAILABLE",
+        "metadata_mutation": null,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only"
+      }
+    },
+    {
+      "a9_config_case": "T7_symlink_parent_leaf_non_regular",
+      "evaluation": {
+        "classification": "VERIFICATION_FAILED",
+        "metadata_mutation": null,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only"
+      }
+    },
+    {
+      "a9_config_case": "T8_INCONCLUSIVE",
+      "evaluation": {
+        "classification": "INCONCLUSIVE",
+        "metadata_mutation": null,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "INCONCLUSIVE",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only"
+      }
+    },
+    {
+      "a9_config_case": "T8_VERIFICATION_FAILED",
+      "evaluation": {
+        "classification": "VERIFICATION_FAILED",
+        "metadata_mutation": null,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only"
+      }
+    },
+    {
+      "a9_config_case": "T9_owned_fixed_synthetic_update",
+      "evaluation": {
+        "classification": "LEGITIMATE_CHANGE_PROVEN",
+        "metadata_mutation": true,
+        "changed_fields": [
+          "ctime_ns",
+          "inode",
+          "mtime_ns"
+        ],
+        "writer_attribution": "KNOWN_SYNTHETIC_WRITER",
+        "integrity_verification": "PASS_SYNTHETIC_CONTRACT",
+        "content_equivalence": "DIFFERENT_VERIFIED_SYNTHETIC_BYTES",
+        "operational_admission": "BLOCKED",
+        "scope": "fixed_private_synthetic_fixture",
+        "coverage": "extended_metadata",
+        "proof": {
+          "owned_replacement_fd_matches_path": true,
+          "fixed_revision_verified": true,
+          "after_sha256": "3e6695b526b0e0e47d2fea0313f56108e540fd3eb799d6e3302f25727fdcb7fa"
+        }
+      }
+    },
+    {
+      "a9_config_case": "T10_unattributed_no_legitimacy_flag",
+      "evaluation": {
+        "classification": "METADATA_CHANGE_UNATTRIBUTED",
+        "metadata_mutation": true,
+        "changed_fields": [
+          "bytes",
+          "ctime_ns",
+          "mtime_ns"
+        ],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only",
+        "coverage": "extended_metadata"
+      }
+    },
+    {
+      "a9_config_case": "T11_synthetic_auth_with_inconclusive_integrity",
+      "evaluation": {
+        "classification": "INCONCLUSIVE",
+        "metadata_mutation": null,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "INCONCLUSIVE",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only"
+      }
+    },
+    {
+      "a9_config_case": "T12_integrity_failure_financial_blocked",
+      "evaluation": {
+        "classification": "METADATA_UNAVAILABLE",
+        "metadata_mutation": null,
+        "changed_fields": [],
+        "writer_attribution": "INCONCLUSIVE",
+        "integrity_verification": "BLOCKED",
+        "content_equivalence": "NOT_VERIFIED",
+        "operational_admission": "BLOCKED",
+        "scope": "metadata_only"
+      }
+    }
+  ]
+}

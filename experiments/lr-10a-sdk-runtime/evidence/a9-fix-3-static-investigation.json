@@ -1,0 +1,150 @@
+{
+  "phase": "LR-10A A9-FIX-3",
+  "observed_at": "2026-10-10T04:11:48.580862+00:00",
+  "base": "4a75c632fc8e69fcd9511cd447489b3c1d3d5fff",
+  "investigation_kind": "static_public_code_and_published_evidence_only",
+  "legacy_config_stat": {
+    "source": "run_fix2.py:21-27",
+    "fields": [
+      "inode",
+      "bytes",
+      "mtime_ns",
+      "ctime_ns"
+    ],
+    "follows_symlinks": true,
+    "content_read": false,
+    "writer_pid_available": false,
+    "errors_collapsed": "OSError -> state unavailable",
+    "stable_is_not_content_equivalence": true,
+    "same_size_new_inode_not_content_equivalence": true,
+    "historical_snapshots_not_anchored": true
+  },
+  "sdk": {
+    "version": "1.0.17",
+    "src_lib_sha256": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+    "contract_excerpt": "a9-fix-3-sdk-contract-excerpts.txt",
+    "launch": "--server --stdio --no-auto-update",
+    "use_logged_in_user": true,
+    "base_directory": "absent_in_historical_host_preflight",
+    "base_directory_scopes": [
+      "sessions",
+      "auth",
+      "telemetry_buffers"
+    ],
+    "empty_mode_disables_keytar": true,
+    "session_fs": "sessionFs.setProvider_for_session_state_not_global_config_guard",
+    "get_auth_status": "auth.getStatus_RPC",
+    "list_models": "models.list_RPC_cache",
+    "quota": "account.getQuota_RPC",
+    "shutdown": "runtime.shutdown_then_EOF_and_child_wait",
+    "no_global_config_immutability_contract_found_in_examined_paths": true
+  },
+  "installed_public_runtime_source": {
+    "native_bundle_description": "native executable carries embedded JavaScript bundle and addons",
+    "public_readable_files_examined": [
+      "npm-loader.js",
+      "node_modules/@github/copilot-linux-x64/README.md"
+    ],
+    "standalone_config_writer_source_found": false,
+    "native_bundle_not_extracted": true,
+    "native_runtime_not_executed": true,
+    "config_writer_call_graph": "NOT_DEMONSTRATED"
+  },
+  "hypotheses": [
+    {
+      "id": "H1",
+      "hypothesis": "atomic_replacement_or_delete_create",
+      "evidence": "changed inode/timestamps, same bytes count",
+      "status": "POSSIBLE_NOT_PROVEN",
+      "synthetic_equal_size_changed_bytes": "reproduced"
+    },
+    {
+      "id": "H2",
+      "hypothesis": "legitimate_internal_state_refresh_during_startup_auth_metadata_or_shutdown",
+      "evidence": "current official docs describe config as automatically managed; pinned SDK delegates to CLI",
+      "status": "POSSIBLE_NO_PINNED_WRITER_CONTRACT"
+    },
+    {
+      "id": "H3",
+      "hypothesis": "concurrent_interactive_cli_or_other_writer",
+      "evidence": "historical probe lacks writer attribution; public concurrency issue on a different version/platform",
+      "status": "POSSIBLE_NOT_OBSERVED_IN_HISTORICAL_WINDOW"
+    },
+    {
+      "id": "H4",
+      "hypothesis": "corruption_malicious_change_or_secret_leak",
+      "evidence": "no content, traffic or writer evidence",
+      "status": "NOT_ESTABLISHED"
+    },
+    {
+      "id": "H5",
+      "hypothesis": "equal_size_or_auth_true_proves_integrity",
+      "evidence": "counterexamples and independent gate tests",
+      "status": "REJECTED_AS_INFERENCE"
+    },
+    {
+      "id": "H6",
+      "hypothesis": "later_stable_snapshot_proves_previous_legitimate_write",
+      "evidence": "later snapshot cannot supply missing provenance",
+      "status": "REJECTED_AS_INFERENCE"
+    }
+  ],
+  "writer_attribution": "INCONCLUSIVE",
+  "integrity_verification": "BLOCKED",
+  "fs_events": {
+    "implemented": false,
+    "would_identify_writer": false,
+    "would_prove_content_safety": false,
+    "limits": "rename/write events lack reliable PID and semantic provenance; overflow/loss/ABA possible"
+  },
+  "recovery_actions": [],
+  "personal_config_contents_read": false,
+  "personal_config_metadata_queried_this_fix": false,
+  "current_cli_invocations": 0,
+  "current_authenticated_probes": 0,
+  "inference_calls": 0,
+  "real_session_operations": 0,
+  "official_sources": [
+    {
+      "url": "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference",
+      "retrieved_on": "2026-10-10",
+      "claim": "current config.json is automatically managed internal state; COPILOT_HOME replaces config location",
+      "pinned_1_0_95_write_proof": false
+    },
+    {
+      "url": "https://github.com/github/copilot-cli/issues/1307",
+      "retrieved_on": "2026-10-10",
+      "claim": "public concurrency report in CLI 0.0.402 on Windows, not a reproduction here",
+      "pinned_fedora_write_proof": false
+    },
+    {
+      "url": "https://github.com/github/copilot-cli/releases/tag/v1.0.95",
+      "retrieved_on": "2026-10-10",
+      "claim": "release notes do not attribute our config mutation",
+      "writer_proof": false
+    }
+  ],
+  "next_real_test": {
+    "state": "PENDING_USER_AUTHORIZATION",
+    "performed": false,
+    "goal": "phase_bounded_metadata_only_observation_under_an_explicitly_reviewed_legitimate_write_contract",
+    "existing_evidence_limit": "four fields around a whole Client invocation, no per-phase writer provenance",
+    "risk": "normal credential resolution may update shared app state or race another client",
+    "operation_limit_proposed": "one Client start/getStatus/auth.getStatus/stop; no sessions, model/quota query, inference or retry",
+    "protection_proposed": "same pinned image and ownership harness, allowlist env, private cwd/logs, stat-only anchored snapshots between phases; no readonly/locks/restore/copy of private config",
+    "conditions_before_run": [
+      "human_authorization",
+      "independent_review_of_expected_writes_and_metadata_limits",
+      "human_confirmation_no_concurrent_Copilot_activity_without_poc_killing_processes",
+      "no_claim_of_full_writer_attribution_from_filesystem_events"
+    ],
+    "stop_conditions": [
+      "unknown_or_unsafe_path",
+      "unavailable_metadata",
+      "unexpected_service_or_marker_change",
+      "timeout_or_incomplete_cleanup",
+      "first_unclassified_mutation_prevents_next_optional_phase_after_bounded_shutdown"
+    ],
+    "insufficient_to_prove_safe_content_alone": true
+  }
+}

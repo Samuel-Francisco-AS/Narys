@@ -1,0 +1,168 @@
+Public installed crate github-copilot-sdk 1.0.17, src/lib.rs
+SHA256 23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23
+Read statically only; no upstream runtime started.
+
+Lines 369-376
+369:     /// Custom session filesystem provider configuration.
+370:     ///
+371:     /// When set, the SDK calls `sessionFs.setProvider` during
+372:     /// [`Client::start`] to register a virtualizable filesystem layer with
+373:     /// the CLI. Each session created on this client must supply its own
+374:     /// [`SessionFsProvider`] via
+375:     /// [`SessionConfig::with_session_fs_provider`](crate::SessionConfig::with_session_fs_provider).
+376:     pub session_fs: Option<SessionFsConfig>,
+
+Lines 423-427
+423:     /// Override the directory where the CLI persists its state (sessions,
+424:     /// auth, telemetry buffers). When set, exported as `COPILOT_HOME` to
+425:     /// the spawned CLI process. Useful for sandboxing test runs or
+426:     /// running multiple isolated SDK instances side-by-side.
+427:     pub base_directory: Option<PathBuf>,
+
+Lines 2251-2259
+2251:         if let Some(dir) = &options.base_directory {
+2252:             command.env("COPILOT_HOME", dir);
+2253:         }
+2254:         // Empty mode disables the process-wide system keychain so the CLI
+2255:         // falls back to file-based credentials scoped to COPILOT_HOME.
+2256:         if options.mode == ClientMode::Empty {
+2257:             command.env("COPILOT_DISABLE_KEYTAR", "1");
+2258:         }
+2259:         if let Transport::Tcp {
+
+Lines 2284-2304
+2284:     /// and [`ClientOptions::use_logged_in_user`].
+2285:     ///
+2286:     /// When a token is set, adds `--auth-token-env COPILOT_SDK_AUTH_TOKEN`.
+2287:     /// When the effective `use_logged_in_user` is `false` (either explicitly
+2288:     /// or because a token was provided without an override), adds
+2289:     /// `--no-auto-login`.
+2290:     #[cfg(feature = "runtime")]
+2291:     fn auth_args(options: &ClientOptions) -> Vec<&'static str> {
+2292:         let mut args: Vec<&'static str> = Vec::new();
+2293:         if options.github_token.is_some() {
+2294:             args.push("--auth-token-env");
+2295:             args.push("COPILOT_SDK_AUTH_TOKEN");
+2296:         }
+2297:         let use_logged_in = options
+2298:             .use_logged_in_user
+2299:             .unwrap_or(options.github_token.is_none());
+2300:         if !use_logged_in {
+2301:             args.push("--no-auto-login");
+2302:         }
+2303:         args
+2304:     }
+
+Lines 2340-2356
+2340:         working_directory: &Path,
+2341:     ) -> Result<(Child, Option<process_tree::ProcessTree>, Duration)> {
+2342:         info!(cwd = ?working_directory, program = %program.display(), "spawning copilot CLI (stdio)");
+2343:         let mut command = Self::build_command(program, options, working_directory);
+2344:         command
+2345:             .args(["--server", "--stdio", "--no-auto-update"])
+2346:             .args(Self::log_level_args(options))
+2347:             .args(Self::auth_args(options))
+2348:             .args(Self::session_idle_timeout_args(options))
+2349:             .args(Self::remote_args(options))
+2350:             .args(&options.extra_args)
+2351:             .stdin(Stdio::piped());
+2352:         let spawn_start = Instant::now();
+2353:         let (child, tree) = process_tree::spawn(&mut command)?;
+2354:         let spawn_elapsed = spawn_start.elapsed();
+2355:         debug!(
+2356:             elapsed_ms = spawn_elapsed.as_millis(),
+
+Lines 3011-3036
+3011:     /// Get authentication status.
+3012:     pub async fn get_auth_status(&self) -> Result<GetAuthStatusResponse> {
+3013:         let result = self
+3014:             .call("auth.getStatus", Some(serde_json::json!({})))
+3015:             .await?;
+3016:         Ok(serde_json::from_value(result)?)
+3017:     }
+3018:
+3019:     /// List available models.
+3020:     ///
+3021:     /// When [`ClientOptions::on_list_models`] is set, returns the handler's
+3022:     /// result without making a `models.list` RPC. Otherwise queries the CLI.
+3023:     pub async fn list_models(&self) -> Result<Vec<Model>> {
+3024:         let cache = self.inner.models_cache.lock().clone();
+3025:         let models = cache
+3026:             .get_or_try_init(|| async {
+3027:                 if let Some(handler) = &self.inner.on_list_models {
+3028:                     handler.list_models().await
+3029:                 } else {
+3030:                     Ok(self.rpc().models().list().await?.models)
+3031:                 }
+3032:             })
+3033:             .await?;
+3034:         Ok(models.clone())
+3035:     }
+3036:
+
+Lines 3060-3086
+3060:     /// termination are collected into [`StopErrors`] rather than
+3061:     /// short-circuiting on the first failure — so callers see the full picture
+3062:     /// of teardown.
+3063:     ///
+3064:     /// If you have already called [`Session::disconnect`] on every
+3065:     /// session this client created, the per-session destroy step is a
+3066:     /// no-op (the router map is empty); runtime and process shutdown still run.
+3067:     ///
+3068:     /// [`Session::disconnect`]: crate::session::Session::disconnect
+3069:     ///
+3070:     /// # Cancel safety
+3071:     ///
+3072:     /// **Cancel-unsafe but recoverable.** The body sequentially destroys
+3073:     /// every registered session (each via [`Client::call`](Self::call),
+3074:     /// individually cancel-safe) before killing the child. Cancelling
+3075:     /// `stop()` mid-loop leaves some sessions still in the router map
+3076:     /// and the child still running. Recovery: call [`force_stop`](Self::force_stop)
+3077:     /// (sync, kills the child unconditionally and clears router state)
+3078:     /// or call `stop()` again with a fresh future. The documented
+3079:     /// `tokio::time::timeout(..., client.stop())` pattern in the example
+3080:     /// below uses `force_stop` as the fallback for exactly this case.
+3081:     /// Once owned-stdio exit waiting begins, cancelling `stop()` forcibly
+3082:     /// terminates that child. Concurrent `force_stop()` also interrupts the wait.
+3083:     pub async fn stop(&self) -> std::result::Result<(), StopErrors> {
+3084:         let pid = self.pid();
+3085:         info!(pid = ?pid, "stopping CLI process");
+3086:         let mut errors: Vec<Error> = Vec::new();
+
+Lines 3111-3131
+3111:             should_shutdown_runtime || self.inner.ffi_host.lock().is_some();
+3112:         if should_shutdown_runtime {
+3113:             let runtime_shutdown_start = Instant::now();
+3114:             match tokio::time::timeout(RUNTIME_SHUTDOWN_TIMEOUT, self.rpc().runtime().shutdown())
+3115:                 .await
+3116:             {
+3117:                 Ok(Ok(())) => {
+3118:                     debug!(
+3119:                         elapsed_ms = runtime_shutdown_start.elapsed().as_millis(),
+3120:                         "Client::stop runtime shutdown complete"
+3121:                     );
+3122:                 }
+3123:                 Ok(Err(e)) => {
+3124:                     warn!(
+3125:                         elapsed_ms = runtime_shutdown_start.elapsed().as_millis(),
+3126:                         error = %e,
+3127:                         "runtime.shutdown failed during Client::stop",
+3128:                     );
+3129:                     errors.push(e);
+3130:                 }
+3131:                 Err(_) => {
+
+Lines 3145-3157
+3145:         }
+3146:
+3147:         *self.inner.state.lock() = ConnectionState::Disconnected;
+3148:         *self.inner.models_cache.lock() = Arc::new(tokio::sync::OnceCell::new());
+3149:         if self.inner.owns_stdio && self.inner.child.lock().is_some() {
+3150:             let mut guard = StdioShutdownGuard {
+3151:                 client: self,
+3152:                 armed: true,
+3153:             };
+3154:             // The host flushes telemetry after stdin EOF, not after the shutdown RPC.
+3155:             // Drop ChildStdin but retain the reader and process tree until exit.
+3156:             self.inner.rpc.close_writer();
+3157:             let wait = async {

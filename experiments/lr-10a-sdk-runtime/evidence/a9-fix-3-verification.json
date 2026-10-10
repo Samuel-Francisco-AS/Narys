@@ -1,0 +1,86 @@
+{
+  "phase": "LR-10A A9-FIX-3",
+  "observed_at": "2026-10-10T04:15:25.588617+00:00",
+  "base": "4a75c632fc8e69fcd9511cd447489b3c1d3d5fff",
+  "kind": "offline_synthetic_verification",
+  "new_sources_sha256": {
+    "config_integrity.py": "3db7dfe1383c84bcafdc45c7be9852e3be2abd90e1495844ec53d7e8a8bbb5d5",
+    "review_a9_config.py": "f51dcd256d9b192d4b0136c7a54315a322cf2b0c9e714e37a7f773d6f0b292c0",
+    "tests/test_config_integrity.py": "191d8d27372d9029758a65ecb3d5f6177beba8f283bb14719da05abd6c5ef305"
+  },
+  "old_tracked_experiment_files_changed": [
+    "experiments/lr-10a-sdk-runtime/HOST-ASSISTED.md"
+  ],
+  "all_historical_evidence_unchanged": true,
+  "old_live_wrappers_and_harness_unchanged": true,
+  "production_changed": false,
+  "old_permanent_documentation_preserved_as_prefix": true,
+  "rust_tests": {
+    "passed": 48,
+    "failed": 0,
+    "kind": "sdk_against_synthetic_peers_not_cli_service"
+  },
+  "python_tests": {
+    "passed": 86,
+    "failed": 0,
+    "previous": 68,
+    "new": 18,
+    "kind": "synthetic_and_linux_kernel"
+  },
+  "syntax": "ast_parse_and_py_compile_PASS",
+  "format": "git_diff_check_PASS",
+  "json_jsonl_validated": [
+    "evidence/a9-fix-3-historical-review.json",
+    "evidence/a9-fix-3-regressions/a9-host-test-gateway.jsonl",
+    "evidence/a9-fix-3-regressions/a9-host-test-permissions.jsonl",
+    "evidence/a9-fix-3-regressions/a9-host-owned-tests.json",
+    "evidence/a9-fix-3-static-investigation.json",
+    "evidence/a9-fix-3-synthetic-cases.json"
+  ],
+  "sanitization": {
+    "pattern_matches": 0,
+    "files_checked": 9,
+    "universal_secret_detection_claimed": false
+  },
+  "current_cli_invocations": 0,
+  "current_authenticated_probes": 0,
+  "current_personal_config_metadata_queries": 0,
+  "private_config_content_reads": 0,
+  "keyring_queries": 0,
+  "real_session_operations": 0,
+  "inference_calls": 0,
+  "service_manipulations": 0,
+  "a9_attempt_marker": {
+    "exists_at_final_readonly_check": false,
+    "claimed": false,
+    "contents_read": false,
+    "directory_modified": false
+  },
+  "process_cleanup": {
+    "cleanup_complete": true,
+    "kernel_children_exhausted": true,
+    "owned_survivors_after_recovery": [],
+    "ownership_errors": [],
+    "root_pid_start_identity_absent": true,
+    "external_process_fixture_passed": true,
+    "worker_failure_containment_not_proven": true
+  },
+  "gates": {
+    "SDK_AUTHENTICATED_WITH_GUI": "OBSERVED_REAL_PASS_HISTORICAL_A9_FIX_2",
+    "SDK_AUTHENTICATED_HEADLESS": "NOT_PROVEN",
+    "CONFIG_MUTATION_OBSERVED": true,
+    "CONFIG_WRITER_ATTRIBUTION": "INCONCLUSIVE",
+    "CONFIG_INTEGRITY_VERIFICATION": "BLOCKED",
+    "FINANCIAL_ADMISSION": "BLOCKED",
+    "A9_REAL_INFERENCE": "NOT_RUN",
+    "A9_ATTEMPT_MARKER": "ABSENT_NOT_CLAIMED",
+    "PROCESS_CLEANUP": "PASS_SYNTHETIC_OWNED_SCOPE"
+  },
+  "toolchain": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Fedora 1.98.1-1.fc44)",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05) (Fedora 1.98.1-1.fc44)",
+    "python": "3.14.7",
+    "installed_or_updated_this_fix": false
+  },
+  "next_real_test": "PENDING_USER_AUTHORIZATION"
+}
