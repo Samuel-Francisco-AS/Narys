@@ -48,7 +48,29 @@ pub enum Command {
         session_id: i64,
         text: String,
     },
-    Sessions {},
+    Sessions {
+        #[serde(default)]
+        after: i64,
+        #[serde(default = "session_limit")]
+        limit: u16,
+    },
+    SessionCreate {},
+    SessionGet {
+        session_id: i64,
+        #[serde(default)]
+        after_message: i64,
+        #[serde(default = "session_limit")]
+        limit: u16,
+    },
+    SessionResume {
+        session_id: i64,
+    },
+    SessionClose {
+        session_id: i64,
+    },
+    ConversationPolicy {
+        policy: narys_domain::cognition::policy::CognitiveRolePolicy,
+    },
     TaskGet {
         task: TaskRef,
     },
@@ -59,6 +81,8 @@ pub enum Command {
     ProviderConfigure {
         provider_id: String,
         enabled: bool,
+        #[serde(default)]
+        free_tier_confirmed: bool,
     },
     Approval {
         approval_id: String,
@@ -72,6 +96,9 @@ pub enum Command {
         task: TaskRef,
         invocation_id: String,
     },
+}
+fn session_limit() -> u16 {
+    50
 }
 fn event_limit() -> u16 {
     128
@@ -153,9 +180,51 @@ impl Request {
                 return Err("invalid_event_limit")
             }
             Command::Conversation { session_id, text }
-                if *session_id <= 0 || text.trim().is_empty() || text.len() > 8192 =>
+                if *session_id <= 0 || text.trim().is_empty() || text.len() > 4096 =>
             {
                 return Err("invalid_conversation")
+            }
+            Command::Sessions { after, limit } if *after < 0 || *limit == 0 || *limit > 100 => {
+                return Err("invalid_session_page")
+            }
+            Command::SessionGet {
+                session_id,
+                after_message,
+                limit,
+            } if *session_id <= 0 || *after_message < 0 || *limit == 0 || *limit > 100 => {
+                return Err("invalid_session_page")
+            }
+            Command::SessionResume { session_id } | Command::SessionClose { session_id }
+                if *session_id <= 0 =>
+            {
+                return Err("session_invalid")
+            }
+            Command::ProviderConfigure {
+                provider_id,
+                enabled,
+                free_tier_confirmed,
+            } => {
+                if narys_domain::cognition::catalog::integration(provider_id).is_none() {
+                    return Err("provider_unavailable");
+                }
+                if *enabled && !*free_tier_confirmed {
+                    return Err("free_provider_authorization_required");
+                }
+            }
+            Command::ConversationPolicy { policy } => {
+                use narys_domain::cognition::policy::CognitiveRole;
+                policy.validate()?;
+                if policy.role != CognitiveRole::Conversation
+                    || policy.max_provider_calls > 8
+                    || policy.max_retries > 2
+                    || policy.retry_backoff_ms > 60000
+                    || policy.max_output_tokens.is_some_and(|n| n > 8192)
+                    || policy.history_max_messages > 32
+                    || policy.history_max_bytes > 65536
+                    || policy.context_max_bytes > 65536
+                {
+                    return Err("conversation_policy_limit");
+                }
             }
             _ => {}
         }
@@ -207,8 +276,14 @@ impl Response {
                     | "unsupported_protocol_version"
                     | "request_limit_or_timeout"
                     | "response_limit" => ErrorCategory::Protocol,
-                    "capability_not_integrated" => ErrorCategory::Unavailable,
-                    "runtime_busy" | "server_stopping" => ErrorCategory::Admission,
+                    "capability_not_integrated"
+                    | "provider_not_configured"
+                    | "unlock_store_unavailable" => ErrorCategory::Unavailable,
+                    "free_provider_authorization_required"
+                    | "conversation_busy"
+                    | "session_busy"
+                    | "runtime_busy"
+                    | "server_stopping" => ErrorCategory::Admission,
                     _ => ErrorCategory::Domain,
                 },
             },
@@ -240,5 +315,27 @@ mod tests {
     fn task_namespaces_are_explicit_and_agent_intent_is_not_authority() {
         let r:Request=serde_json::from_str(r#"{"version":1,"request_id":"a","command":{"operation":"tool-request","task":{"namespace":"product","id":2},"invocation":{"tool":"read_file","workspace_id":"approved","relative_path":"src/main.rs"}}}"#).unwrap();
         assert!(r.validate().is_ok());
+    }
+}
+
+#[cfg(test)]
+mod conversation_validation_tests {
+    use super::*;
+    #[test]
+    fn conversation_pages_and_financial_confirmation_have_strict_limits() {
+        for command in [
+            serde_json::json!({"operation":"conversation","session_id":1,"text":"x".repeat(4097)}),
+            serde_json::json!({"operation":"session-get","session_id":1,"limit":101}),
+            serde_json::json!({"operation":"sessions","after":-1}),
+            serde_json::json!({"operation":"provider-configure","provider_id":"groq","enabled":true}),
+            serde_json::json!({"operation":"provider-configure","provider_id":"invented","enabled":false}),
+        ] {
+            let r: Request = serde_json::from_value(
+                serde_json::json!({"version":1,"request_id":"test","command":command}),
+            )
+            .unwrap();
+            assert!(r.validate().is_err());
+        }
+        assert!(serde_json::from_value::<Request>(serde_json::json!({"version":1,"request_id":"test","command":{"operation":"conversation","session_id":1,"text":"hi","tools":["shell"]}})).is_err());
     }
 }

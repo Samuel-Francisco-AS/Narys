@@ -9,3 +9,5 @@ pub mod server;
 pub mod storage;
 pub mod vault;
 pub mod worker;
+
+pub mod conversation;

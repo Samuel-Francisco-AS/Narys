@@ -30,7 +30,7 @@ fn read(path: &Path) -> Result<Connection, &'static str> {
     let version: u64 = db
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .map_err(|_| "migration_schema_invalid")?;
-    if version != 18 && version != 19 {
+    if !(18..=20).contains(&version) {
         return Err("migration_source_schema_unsupported");
     }
     let check: String = db
@@ -145,6 +145,22 @@ pub fn initialize(config: &Config) -> Result<(), &'static str> {
                 .map_err(|_| "migration_read_failed")?
         {
             marker(&desktop)?;
+            // Preserve the authoritative pre-1B database, including WAL, before
+            // Database::open applies schema020. A failed backup prevents upgrade.
+            let version: u64 = db
+                .pragma_query_value(None, "user_version", |r| r.get(0))
+                .map_err(|_| "migration_schema_invalid")?;
+            if version < 20 {
+                let backups = config.state.join("backups");
+                mkdir(&backups)?;
+                let backup = tempfile::Builder::new()
+                    .prefix("server-1b-schema020-")
+                    .tempdir_in(&backups)
+                    .map_err(|_| "migration_backup_directory_failed")?
+                    .keep();
+                snapshot(db, &backup.join("authority-schema019.sqlite3"))?;
+                sync_parent(&backup.join("authority-schema019.sqlite3"))?;
+            }
             return Ok(());
         }
         // Two populated domain databases cannot be merged by silently choosing a winner.
@@ -358,6 +374,64 @@ mod tests {
         initialize(&c).unwrap();
         assert!(marker.exists());
         assert_eq!(fs::read_dir(c.state.join("backups")).unwrap().count(), 1);
+    }
+    #[test]
+    fn schema020_upgrade_backs_up_authority_once_before_migration() {
+        let temp = tempfile::tempdir().unwrap();
+        let c = config(temp.path());
+        let desktop = source(&c);
+        let mut conn = desktop.open().unwrap();
+        crate::persistence::conversation::create_diagnostic(&mut conn).unwrap();
+        drop(conn);
+        drop(desktop);
+        initialize(&c).unwrap();
+        let conn = c.db().unwrap();
+        conn.execute_batch("DROP TABLE conversation_runs; DROP TABLE server_provider_permissions; ALTER TABLE server_events DROP COLUMN details_json; PRAGMA user_version=19;").unwrap();
+        drop(conn);
+        drop(c);
+        let c = config(temp.path());
+        initialize(&c).unwrap();
+        let backup = fs::read_dir(c.state.join("backups"))
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .find(|p| {
+                p.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("server-1b-schema020-")
+            })
+            .unwrap();
+        let old = Connection::open(backup.join("authority-schema019.sqlite3")).unwrap();
+        assert_eq!(
+            old.pragma_query_value(None, "user_version", |r| r.get::<_, u64>(0))
+                .unwrap(),
+            19
+        );
+        assert_eq!(
+            old.query_row("SELECT count(*) FROM conversation_messages", [], |r| r
+                .get::<_, u64>(0))
+                .unwrap(),
+            2
+        );
+        let upgraded = c.db().unwrap();
+        assert_eq!(
+            upgraded
+                .pragma_query_value(None, "user_version", |r| r.get::<_, u64>(0))
+                .unwrap(),
+            20
+        );
+        assert_eq!(
+            upgraded
+                .query_row("SELECT count(*) FROM conversation_messages", [], |r| r
+                    .get::<_, u64>(0))
+                .unwrap(),
+            2
+        );
+        drop(upgraded);
+        drop(c);
+        let c = config(temp.path());
+        initialize(&c).unwrap();
+        assert_eq!(fs::read_dir(c.state.join("backups")).unwrap().count(), 2);
     }
     #[test]
     fn conflicting_populated_databases_are_preserved() {

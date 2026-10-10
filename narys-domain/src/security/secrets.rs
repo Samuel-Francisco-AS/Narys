@@ -55,6 +55,7 @@ pub enum SecretError {
     Random,
     CredentialStoreUnavailable,
     MissingUnlockKey,
+    CredentialStoreLocked,
     InvalidUnlockKey,
     InvalidStorageFile,
     LegacyPermissions,
@@ -73,6 +74,7 @@ impl SecretError {
             Self::Io => "store_io",
             Self::Random => "store_random",
             Self::CredentialStoreUnavailable => "unlock_store_unavailable",
+            Self::CredentialStoreLocked => "unlock_store_locked",
             Self::MissingUnlockKey => "unlock_key_missing",
             Self::InvalidUnlockKey => "unlock_key_invalid",
             Self::InvalidStorageFile => "storage_file_invalid",
@@ -102,6 +104,23 @@ impl SystemCredentialStore {
 }
 impl UnlockKeyStore for SystemCredentialStore {
     fn load(&self) -> Result<Option<Vec<u8>>, SecretError> {
+        #[cfg(target_os = "linux")]
+        {
+            // The keyring convenience getter unlocks locked items (and may Prompt).
+            // Use its existing Secret Service backend without Unlock/Prompt/Create.
+            use dbus_secret_service::{SecretService, EncryptionType};
+            let service=SecretService::connect(EncryptionType::Dh).map_err(|_|SecretError::CredentialStoreUnavailable)?;
+            let login=service.get_collection_by_alias("login").map_err(|_|SecretError::CredentialStoreUnavailable)?;
+            if login.is_locked().map_err(|_|SecretError::CredentialStoreUnavailable)? {return Err(SecretError::CredentialStoreLocked);}
+            let search=service.search_items(HashMap::from([("service",SERVICE),("username",ACCOUNT),("target","default")])).map_err(|_|SecretError::CredentialStoreUnavailable)?;
+            if !search.locked.is_empty() {return Err(SecretError::CredentialStoreLocked);}
+            if search.unlocked.is_empty() {return Ok(None);}
+            if search.unlocked.len()!=1 {return Err(SecretError::CredentialStoreUnavailable);}
+            let item=&search.unlocked[0];
+            item.ensure_unlocked().map_err(|_|SecretError::CredentialStoreLocked)?;
+            return item.get_secret().map(Some).map_err(|_|SecretError::CredentialStoreUnavailable);
+        }
+        #[cfg(not(target_os = "linux"))]
         match Self::entry()?.get_secret() {
             Ok(key) => Ok(Some(key)),
             Err(keyring::Error::NoEntry) => Ok(None),
@@ -581,6 +600,24 @@ mod tests {
             std::env::temp_dir().join(format!("luna-secret-{}-{nonce}", std::process::id())),
             Arc::new(FakeKeys::default()),
         )
+    }
+    #[test]
+    fn existing_locked_reader_fails_closed_without_writes_or_reconstruction() {
+        struct LockedKeys;
+        impl UnlockKeyStore for LockedKeys {
+            fn load(&self) -> Result<Option<Vec<u8>>, SecretError> { Err(SecretError::CredentialStoreLocked) }
+            fn store(&self, _: &[u8]) -> Result<(), SecretError> { panic!("existing reader must not store"); }
+            fn delete(&self) -> Result<(), SecretError> { panic!("existing reader must not delete"); }
+        }
+        let (dir, keys) = fixture();
+        let writer = SecretStore::with_key_store(dir.clone(),keys);
+        writer.set_secret(SecretKey::GroqApiKey,b"synthetic-only").unwrap();
+        let before = fs::read(dir.join(SNAPSHOT)).unwrap();
+        let reader = SecretStore::existing_with_key_store(dir.clone(),Arc::new(LockedKeys));
+        assert_eq!(reader.secret_presence(&[SecretKey::GroqApiKey]).unwrap_err().code(),"unlock_store_locked");
+        assert_eq!(fs::read(dir.join(SNAPSHOT)).unwrap(),before);
+        assert!(!dir.join(LEGACY_UNLOCK).exists());
+        fs::remove_dir_all(dir).unwrap();
     }
     #[test]
     fn existing_only_missing_store_never_creates_or_stores_key() {

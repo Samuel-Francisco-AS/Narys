@@ -172,10 +172,13 @@ pub fn history_session(conn: &Connection, id: i64) -> Result<Option<Conversation
   session(conn, id)
 }
 pub fn outbound_history(conn: &Connection, id: i64, max_messages: usize, max_bytes: usize) -> Result<Vec<SessionTurn>, PersistenceError> {
+  outbound_history_before(conn, id, max_messages, max_bytes, i64::MAX)
+}
+pub fn outbound_history_before(conn: &Connection, id: i64, max_messages: usize, max_bytes: usize, before: i64) -> Result<Vec<SessionTurn>, PersistenceError> {
   if !is_active_session(conn, id)? { return Err(PersistenceError::Read); }
-  let mut stmt = conn.prepare("SELECT role,content FROM conversation_messages WHERE session_id=?1 ORDER BY id DESC LIMIT ?2")
+  let mut stmt = conn.prepare("SELECT role,content FROM conversation_messages WHERE session_id=?1 AND id<?3 ORDER BY id DESC LIMIT ?2")
     .map_err(|_| PersistenceError::Read)?;
-  let rows = stmt.query_map(rusqlite::params![id, max_messages as i64], |row| {
+  let rows = stmt.query_map(rusqlite::params![id, max_messages as i64, before], |row| {
     Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
   }).map_err(|_| PersistenceError::Read)?;
   let mut newest = Vec::new();

@@ -13,7 +13,7 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(|_| PersistenceError::Migration)?;
-    if version > 19 {
+    if version > 20 {
         return Err(PersistenceError::Migration);
     }
     if version == 0 {
@@ -165,6 +165,14 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
         let tx = conn.unchecked_transaction().map_err(|_| PersistenceError::Migration)?;
         tx.execute_batch(include_str!("../../migrations/019_server_runtime.sql")).map_err(|_| PersistenceError::Migration)?;
         tx.pragma_update(None, "user_version", 19).map_err(|_| PersistenceError::Migration)?;
+        tx.commit().map_err(|_| PersistenceError::Migration)?;
+    }
+    if version < 20 {
+        let tx = conn.unchecked_transaction().map_err(|_| PersistenceError::Migration)?;
+        let details: bool = tx.query_row("SELECT count(*)>0 FROM pragma_table_info('server_events') WHERE name='details_json'",[],|r|r.get(0)).map_err(|_|PersistenceError::Migration)?;
+        if !details { tx.execute_batch("ALTER TABLE server_events ADD COLUMN details_json TEXT;").map_err(|_|PersistenceError::Migration)?; }
+        tx.execute_batch(include_str!("../../migrations/020_durable_conversation.sql")).map_err(|_| PersistenceError::Migration)?;
+        tx.pragma_update(None, "user_version", 20).map_err(|_| PersistenceError::Migration)?;
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }
     Ok(())

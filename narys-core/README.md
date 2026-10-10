@@ -139,3 +139,16 @@ não são autorização financeira ou agentiva.
 [resume genuíno](evidence/final-owned-session-resume.json),
 [serviços finais](evidence/final-service-state.json). A falha histórica task1
 continua [preservada](evidence/postboot-single-submission.json); não foi reclassificada.
+
+SERVER-1B connects the original Groq, Gemini, Cloudflare and Mistral adapters to the
+Core composition, using the existing Scheduler and read-only Stronghold. Conversation
+is accepted asynchronously and persisted in the same authoritative SQLite database;
+clients query product tasks and sessions after disconnect or restart. Unknown effects
+are interrupted without replay. Adapters do not make requests at boot.
+
+Use `providers`, `session-create`, `conversation <session> <text>`,
+`task-get <id>`, `task-cancel <id>`, `session-get <session>` and typed stdin `ipc`.
+See [IPC.md](IPC.md) for pagination, provider permissions and routing policy. Before
+provider enablement, confirm that its existing account/model has free quota without
+billing/overage. Credentials stay in Stronghold; no key values are accepted by IPC.
+The complete SSH/Termux CLI belongs to SERVER-1C. Agent tools/approvals remain gated.

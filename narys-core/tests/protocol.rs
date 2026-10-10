@@ -109,7 +109,6 @@ fn typed_protocol_bounds_versions_and_future_authority_are_enforced() {
         "request_limit_or_timeout"
     );
     for op in [
-        json!({"operation":"conversation","session_id":1,"text":"hello"}),
         json!({"operation":"approval","approval_id":"a","decision":"approve_once"}),
         json!({"operation":"tool-request","task":{"namespace":"product","id":1},"invocation":{"tool":"read_file","workspace_id":"w","relative_path":"/etc/passwd"}}),
     ] {
@@ -190,4 +189,111 @@ fn crashed_running_task_is_interrupted_once_and_never_retried() {
         .unwrap(),
         1
     );
+}
+
+#[test]
+fn conversation_sessions_product_errors_and_free_permission_are_real_ipc() {
+    let mut s = Server::start();
+    let providers = s.call(json!({"operation":"providers"}));
+    assert_eq!(providers["data"]["providers"].as_array().unwrap().len(), 4);
+    assert_eq!(providers["data"]["credential_store_available"], false);
+    assert_eq!(
+        s.call(json!({"operation":"provider-configure","provider_id":"groq","enabled":true}))
+            ["error_code"],
+        "free_provider_authorization_required"
+    );
+    let created = s.call(json!({"operation":"session-create"}));
+    let session = created["data"]["session_id"].as_i64().unwrap();
+    assert_eq!(
+        s.call(json!({"operation":"sessions","limit":1}))["data"]["sessions"][0]["session_id"],
+        session
+    );
+    let accepted = s.call(
+        json!({"operation":"conversation","session_id":session,"text":"synthetic-persisted-input"}),
+    );
+    assert_eq!(accepted["ok"], true);
+    assert_eq!(accepted["data"]["disconnect_cancels"], false);
+    let id = accepted["data"]["task_id"].as_u64().unwrap();
+    let get = json!({"operation":"task-get","task":{"namespace":"product","id":id}});
+    let end = Instant::now() + Duration::from_secs(10);
+    loop {
+        let t = s.call(get.clone());
+        if t["data"]["state"] == "failed" {
+            assert_eq!(
+                t["data"]["error_code"],
+                "free_provider_authorization_required"
+            );
+            break;
+        }
+        assert!(Instant::now() < end);
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        s.call(json!({"operation":"task-cancel","task":{"namespace":"product","id":id}}))["data"]
+            ["already_terminal"],
+        true
+    );
+    let messages = json!({"operation":"session-get","session_id":session});
+    let before = s.call(messages.clone());
+    assert_eq!(
+        before["data"]["messages"][0]["content"],
+        "synthetic-persisted-input"
+    );
+    s.restart();
+    assert_eq!(s.call(messages)["data"], before["data"]);
+    assert_eq!(s.call(get)["data"]["state"], "failed");
+    let next = s.call(json!({"operation":"conversation","session_id":session,"text":"second"}));
+    assert!(next["data"]["task_id"].as_u64().unwrap() > id);
+    assert_eq!(
+        s.call(json!({"operation":"conversation","session_id":999999,"text":"invalid"}))
+            ["error_code"],
+        "session_invalid"
+    );
+    assert_eq!(
+        s.call(json!({"operation":"status"}))["data"]["agent_execution_authority"],
+        false
+    );
+}
+#[test]
+fn product_crash_recovery_keeps_input_and_does_not_reuse_ids_or_replay() {
+    let mut s = Server::start();
+    let session = s.call(json!({"operation":"session-create"}))["data"]["session_id"]
+        .as_i64()
+        .unwrap();
+    // Fault injection in the existing authoritative database: uncertain run at SIGKILL.
+    let dbpath = s
+        .home
+        .path()
+        .join(".local/state/narys/core/db/luna.sqlite3");
+    let db = rusqlite::Connection::open(dbpath).unwrap();
+    db.execute(
+        "INSERT INTO conversation_messages(session_id,role,content) VALUES(?1,'user','uncertain')",
+        [session],
+    )
+    .unwrap();
+    let message = db.last_insert_rowid();
+    db.execute("INSERT INTO conversation_runs(task_id,session_id,user_message_id,state) VALUES(711,?1,?2,'running')",rusqlite::params![session,message]).unwrap();
+    drop(db);
+    s.stop(libc::SIGKILL);
+    s.child = Server::launch(s.home.path(), s.runtime.path());
+    s.ready();
+    let get = json!({"operation":"task-get","task":{"namespace":"product","id":711}});
+    let recovered = s.call(get.clone());
+    assert_eq!(recovered["data"]["state"], "interrupted");
+    assert_eq!(recovered["data"]["error_code"], "restart_never_retries");
+    s.restart();
+    assert_eq!(s.call(get)["data"], recovered["data"]);
+    let events = s.call(json!({"operation":"events"}));
+    assert_eq!(
+        events["data"]["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["task_id"] == 711 && e["code"] == "restart_never_retries")
+            .count(),
+        1
+    );
+    let accepted =
+        s.call(json!({"operation":"conversation","session_id":session,"text":"after-recovery"}));
+    assert!(accepted["data"]["task_id"].as_u64().unwrap() > 711);
 }

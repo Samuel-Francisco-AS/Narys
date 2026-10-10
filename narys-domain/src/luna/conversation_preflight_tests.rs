@@ -898,3 +898,53 @@ fn headless_same_task_id_is_cancelable_and_shutdown_blocks_new_work() {
     fixture.sessions.0.lock().unwrap().insert(fixture.session + 1);
     assert_eq!(fixture.sessions.selected().unwrap_err(), "ambiguous_product_session");
 }
+
+fn durable_start(f: &Fixture, text: &str) -> TaskId {
+    let conn=f.db.open().unwrap();
+    conn.execute("UPDATE server_provider_permissions SET enabled=1,free_tier_confirmed=1 WHERE provider_id IN ('groq','gemini')",[]).unwrap();
+    let reader=Arc::new(SecretStore::existing_with_key_store(f.dir.join("secrets"),f.keys.clone()));
+    start_durable_conversation(f.registry.clone(),f.db.clone(),f.runtime.clone(),reader,f.sessions.clone(),f.session,text.into()).unwrap()
+}
+fn durable_wait(f:&Fixture,id:TaskId,state:&str)->Value {
+    let deadline=std::time::Instant::now()+Duration::from_secs(30);
+    loop {
+        let task=crate::persistence::conversation_runs::get(&f.db.open().unwrap(),id.0).unwrap();
+        if task["state"]==state && f.registry.worker_count()==0 {return task;}
+        assert!(std::time::Instant::now()<deadline,"{task}");std::thread::sleep(Duration::from_millis(10));
+    }
+}
+#[test]
+fn durable_shared_engine_fixed_preferred_auto_persist_provenance_and_exclude_current_input_from_history() {
+    for mode in [RoutingMode::Fixed,RoutingMode::Preferred,RoutingMode::Auto] {
+        let f=Fixture::new(&[SecretKey::GroqApiKey,SecretKey::GeminiApiKey]);
+        f.configure(mode,if mode==RoutingMode::Fixed{&["groq"]}else{&["gemini","groq"]});
+        let bytes=fs::read(f.dir.join("secrets/luna-lr3.stronghold")).unwrap();
+        let mut conn=f.db.open().unwrap();conversation::append_exchange_to_session(&mut conn,f.session,"old-user","old-answer").unwrap();
+        let id=durable_start(&f,"durable-user");f.registry.events.detach_main();
+        let task=durable_wait(&f,id,"completed");assert_eq!(task["result"]["text"],"answer");assert_eq!(task["policy"]["routingMode"],mode.as_str());
+        let requests=f.requests.lock().unwrap();assert_eq!(requests.len(),1);assert_eq!(requests[0].input,"durable-user");assert_eq!(requests[0].history.len(),2);drop(requests);
+        assert_eq!(conversation::session(&conn,f.session).unwrap().unwrap().messages.len(),4);
+        assert_eq!(crate::persistence::conversation_runs::recover(&mut conn).unwrap(),0);
+        let selected:String=conn.query_row("SELECT details_json FROM server_events WHERE task_id=?1 AND code='provider_selected'",[id.0],|r|r.get(0)).unwrap();assert!(selected.contains("persisted-model"));
+        assert_eq!(fs::read(f.dir.join("secrets/luna-lr3.stronghold")).unwrap(),bytes);
+        assert_eq!(task_history::max_id(&conn).unwrap(),id.0);
+    }
+}
+#[test]
+fn durable_cancel_keeps_input_rejects_duplicate_and_never_invokes_provider() {
+    let f=Fixture::new(&[SecretKey::GroqApiKey]);let gate=InstalledGate::new(&f.sessions,false);
+    let id=durable_start(&f,"cancelled-durable-input");gate.gate.entered();
+    assert!(start_durable_conversation(f.registry.clone(),f.db.clone(),f.runtime.clone(),f.store.clone(),f.sessions.clone(),f.session,"duplicate".into()).is_err());
+    assert!(f.registry.cancel(id));assert!(f.registry.cancel(id));gate.gate.release();
+    assert!(durable_wait(&f,id,"cancelled")["result"].is_null());
+    let messages=conversation::session(&f.db.open().unwrap(),f.session).unwrap().unwrap().messages;
+    assert_eq!(messages.len(),1);assert_eq!(messages[0].content,"cancelled-durable-input");assert!(f.requests.lock().unwrap().is_empty());
+    assert!(!f.registry.cancel(id));
+}
+#[test]
+fn durable_permission_gate_precedes_secret_access_and_any_provider_effect() {
+    let f=Fixture::new(&[SecretKey::GroqApiKey]);let loads=f.keys.loads.load(Ordering::SeqCst);
+    let id=start_durable_conversation(f.registry.clone(),f.db.clone(),f.runtime.clone(),f.store.clone(),f.sessions.clone(),f.session,"blocked-user".into()).unwrap();
+    assert_eq!(durable_wait(&f,id,"failed")["error_code"],"free_provider_authorization_required");
+    assert_eq!(f.keys.loads.load(Ordering::SeqCst),loads);assert!(f.requests.lock().unwrap().is_empty());
+}

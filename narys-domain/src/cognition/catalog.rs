@@ -102,6 +102,7 @@ pub struct ProviderInfo {
 }
 
 pub struct CatalogInfos {
+    pub credential_store_error_code: Option<&'static str>,
     pub providers: Vec<ProviderInfo>,
     pub credential_store_available: bool,
 }
@@ -111,6 +112,7 @@ pub fn infos(statuses: &[ProviderStatus], store: &SecretStore) -> CatalogInfos {
     let ids: Vec<_> = INTEGRATIONS.iter().map(|item| item.id).collect();
     let presence = configured_many(store, &ids);
     let credential_store_available = presence.is_ok();
+    let credential_store_error_code = presence.as_ref().err().map(|e|e.code());
     let configured = presence.unwrap_or_default();
     let providers = statuses
         .iter()
@@ -131,6 +133,7 @@ pub fn infos(statuses: &[ProviderStatus], store: &SecretStore) -> CatalogInfos {
         })
         .collect();
     CatalogInfos {
+        credential_store_error_code,
         providers,
         credential_store_available,
     }

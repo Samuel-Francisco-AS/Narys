@@ -86,7 +86,7 @@ pub fn insert_with_subtasks_in_transaction(
 /// history. Invalid persisted identities prevent startup rather than reuse.
 pub fn max_id(conn: &Connection) -> Result<u64, PersistenceError> {
     let maximum: u64 = conn.query_row(
-        "SELECT MAX(id) FROM (SELECT COALESCE(MAX(task_id),0) AS id FROM main.task_records UNION ALL SELECT COALESCE(MAX(root_task_id),0) FROM main.cognitive_checkpoints UNION ALL SELECT COALESCE(MAX(root_task_id),0) FROM main.cognitive_continuations)",
+        "SELECT MAX(id) FROM (SELECT COALESCE(MAX(task_id),0) AS id FROM main.task_records UNION ALL SELECT COALESCE(MAX(root_task_id),0) FROM main.cognitive_checkpoints UNION ALL SELECT COALESCE(MAX(root_task_id),0) FROM main.cognitive_continuations UNION ALL SELECT COALESCE(MAX(task_id),0) FROM main.conversation_runs)",
         [], |r| r.get(0),
     ).map_err(|_| PersistenceError::Read)?;
     if maximum > crate::cognitive_resources::MAX_HANDOFF_SEQUENCE {

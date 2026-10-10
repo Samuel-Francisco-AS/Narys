@@ -442,7 +442,24 @@ pub fn start_conversation_with_policy(
     channel: Channel<TaskEvent>,
     attachment: TaskAttachmentPolicy,
 ) -> Result<TaskId, String> {
-    // This is the entire synchronous IPC path: structural checks and registration.
+    start_conversation_inner(registry, db, runtime, store, sessions, session_id, message, channel, attachment, false)
+}
+
+/// Server adapter: same engine, Scheduler and TaskRegistry; durable admission before acceptance.
+/// Call from a blocking worker (SQLite admission), with the Tokio handle available.
+pub fn start_durable_conversation(
+    registry: Arc<TaskRegistry>, db: Database, runtime: Arc<ProviderRuntime>, store: Arc<SecretStore>,
+    sessions: CurrentRunSessions, session_id: i64, message: String,
+) -> Result<TaskId, String> {
+    start_conversation_inner(registry, db, runtime, store, sessions, session_id, message,
+        Channel::from_sender(|_| Ok(())), TaskAttachmentPolicy::HeadlessSafe, true)
+}
+fn start_conversation_inner(
+    registry: Arc<TaskRegistry>, db: Database, runtime: Arc<ProviderRuntime>, store: Arc<SecretStore>,
+    sessions: CurrentRunSessions, session_id: i64, message: String, channel: Channel<TaskEvent>,
+    attachment: TaskAttachmentPolicy, durable: bool,
+) -> Result<TaskId, String> {
+    // This is the entire synchronous desktop IPC path: structural checks and registration.
     // Session/SQLite/Stronghold validation belongs to the blocking preflight worker.
     if message.trim().is_empty() || message.len() > 4096 {
         return Err("conversation_input_invalid".into());
@@ -459,6 +476,19 @@ pub fn start_conversation_with_policy(
             Err(error) => { registry.remove(id); return Err(error); }
         },
     };
+    let channel = if durable {
+        let admitted = (|| {
+            let mut conn = db.open().map_err(|e|e.code())?;
+            crate::persistence::conversation_runs::admit(&mut conn, id.0, session_id, &message)
+        })();
+        if let Err(code) = admitted {
+            let _ = channel.send(TaskEvent { task_id: id, sequence: 1, state: TaskState::Failed,
+                kind: TaskEventKind::TaskFailed { detail: code.into() } });
+            registry.remove(id);
+            return Err(code.into());
+        }
+        TaskEventSink::Durable { inner: Box::new(channel), database: db.clone() }
+    } else { channel };
     *registry
         .foreground_provider_tasks
         .lock()
@@ -520,12 +550,17 @@ pub fn start_conversation_with_policy(
                     })?;
                     let policy = snapshot.routing;
                     let allocation = snapshot.allocation;
+                    if durable { crate::persistence::conversation_runs::policy_snapshot(&conn,id.0,&policy)?; }
                     preflight_stage("credentials", || {
-                        crate::cognition::catalog::validate_policy(
-                            &policy,
-                            &preflight_runtime.scheduler.status(),
-                            &store,
-                        )
+                        if durable {
+                            crate::cognition::catalog::validate_policy_registered(&policy,&preflight_runtime.scheduler.status())?;
+                            let ids: Vec<_> = policy.targets.iter().map(|t|t.provider_id.as_str()).collect();
+                            let configured=crate::cognition::catalog::configured_many(&store,&ids).map_err(|e|e.code())?;
+                            if ids.iter().any(|id|configured.get(*id)!=Some(&true)) {return Err("provider_not_configured");}
+                            Ok(())
+                        } else {
+                            crate::cognition::catalog::validate_policy(&policy,&preflight_runtime.scheduler.status(),&store)
+                        }
                     })?;
                     let timeouts = preflight_stage("timeouts", || policy.load_timeouts(&conn))
                         .map_err(|e| e.code())?;
@@ -533,11 +568,12 @@ pub fn start_conversation_with_policy(
                         return Err("cancelled");
                     }
                     let (context, history) = preflight_stage("history_context", || {
-                        let history = conversation::outbound_history(
-                            &conn,
-                            session_id,
-                            policy.history_max_messages as usize,
-                            policy.history_max_bytes as usize,
+                        let before = if durable {
+                            conn.query_row("SELECT user_message_id FROM conversation_runs WHERE task_id=?1",[id.0],|r|r.get::<_,i64>(0)).map_err(|_|"read_failed")?
+                        } else { i64::MAX };
+                        let history = conversation::outbound_history_before(
+                            &conn, session_id, policy.history_max_messages as usize,
+                            policy.history_max_bytes as usize, before,
                         )
                         .map_err(|e| e.code())?;
                         let context = ContextBuilder::build(
@@ -687,10 +723,14 @@ pub fn start_conversation_with_policy(
             let db_write = db.clone();
             let user = message.clone();
             let answer = result.text.clone();
+            let durable_result = result.clone();
             crate::runtime::spawn_blocking(move || {
                 let mut conn = db_write.open().map_err(|e| e.code())?;
-                conversation::append_exchange_to_session(&mut conn, session_id, &user, &answer)
-                    .map_err(|e| e.code())
+                if durable {
+                    crate::persistence::conversation_runs::finish(&mut conn,id.0,"completed",None,Some(&durable_result))
+                } else {
+                    conversation::append_exchange_to_session(&mut conn, session_id, &user, &answer).map_err(|e| e.code())
+                }
             })
             .await
             .map_err(|_| "worker_failed")??;
@@ -736,8 +776,12 @@ pub fn start_conversation_with_policy(
         };
         let db_record = db.clone();
         let write = crate::runtime::spawn_blocking(move || {
-            let conn = db_record.open()?;
-            task_history::insert(&conn, &record)
+            let mut conn = db_record.open()?;
+            if durable {
+                if record.state == "completed" { return Ok(()); }
+                crate::persistence::conversation_runs::finish(&mut conn,id.0,&record.state,record.error_code.as_deref(),None)
+                    .map_err(|_|crate::persistence::database::PersistenceError::Write)
+            } else { task_history::insert(&conn, &record) }
         })
         .await;
         if !matches!(write, Ok(Ok(()))) {

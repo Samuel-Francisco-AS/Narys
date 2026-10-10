@@ -1,8 +1,13 @@
 //! Existing snapshot only. No creation, migration, chmod, save or secret output.
+#[cfg(test)]
 use iota_stronghold::{KeyProvider, SnapshotPath, Stronghold};
-use std::{fs, os::unix::fs::MetadataExt, path::Path};
+use std::path::Path;
+#[cfg(test)]
+use std::{fs, os::unix::fs::MetadataExt};
+#[cfg(test)]
 use zeroize::Zeroizing;
 
+#[cfg(test)]
 fn secure(path: &Path, directory: bool) -> Result<(), &'static str> {
     let m = fs::symlink_metadata(path).map_err(|_| "existing_vault_missing")?;
     if m.uid() != unsafe { libc::geteuid() }
@@ -15,24 +20,13 @@ fn secure(path: &Path, directory: bool) -> Result<(), &'static str> {
     Ok(())
 }
 pub fn existing_status(directory: &Path) -> Result<(), &'static str> {
-    secure(directory, true)?;
-    if directory
-        .join("luna-lr3.unlock")
-        .try_exists()
-        .map_err(|_| "vault_metadata_failed")?
-    {
-        return Err("legacy_migration_not_authorized");
-    }
-    let path = directory.join("luna-lr3.stronghold");
-    secure(&path, false)?;
-    // Same service/account and key-provider contract as security/secrets.rs.
-    // Normal application credential resolution; no value leaves this module.
-    let key = keyring::Entry::new("br.com.assistente3d.app", "stronghold-unlock-v1")
-        .map_err(|_| "credential_store_unavailable")?
-        .get_secret()
-        .map_err(|_| "existing_unlock_key_unavailable")?;
-    open_existing(&path, key)
+    let store = narys_domain::security::secrets::SecretStore::existing(directory.into());
+    store
+        .secret_presence(&[narys_domain::security::secrets::SecretKey::GroqApiKey])
+        .map(|_| ())
+        .map_err(|e| e.code())
 }
+#[cfg(test)]
 fn open_existing(path: &Path, key: Vec<u8>) -> Result<(), &'static str> {
     let key = Zeroizing::new(key);
     secure(path, false)?;

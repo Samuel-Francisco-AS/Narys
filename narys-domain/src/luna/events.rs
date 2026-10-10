@@ -14,11 +14,19 @@ pub enum TaskAttachmentPolicy { UiBound, HeadlessSafe }
 
 pub enum TaskEventSink {
     UiBound(Channel<TaskEvent>),
+    Durable { inner: Box<TaskEventSink>, database: crate::persistence::database::Database },
     HeadlessSafe(Arc<Mutex<Observation>>),
 }
 impl TaskEventSink {
     pub fn send(&self, event: TaskEvent) -> Result<(), String> {
         match self {
+            Self::Durable { inner, database } => {
+                if matches!(event.kind, TaskEventKind::TaskStarted | TaskEventKind::ContextBuilt { .. } | TaskEventKind::ProviderQueued { .. } | TaskEventKind::ProviderAdmitted { .. } | TaskEventKind::ProviderSelected { .. } | TaskEventKind::ProviderRetry { .. } | TaskEventKind::ProviderFallback { .. } | TaskEventKind::ProviderOutputObserved { .. }) {
+                    let mut conn = database.open().map_err(|e|e.code().to_owned())?;
+                    crate::persistence::conversation_runs::observe(&mut conn, &event).map_err(str::to_owned)?;
+                }
+                inner.send(event)
+            }
             Self::UiBound(channel) => channel.send(event).map_err(|_| "channel_closed".into()),
             Self::HeadlessSafe(observation) => {
                 let mut observation = observation.lock().map_err(|_| "event_broker_failed")?;
@@ -47,7 +55,7 @@ impl TaskEventSink {
         }
     }
     pub fn policy(&self) -> TaskAttachmentPolicy {
-        match self { Self::UiBound(_) => TaskAttachmentPolicy::UiBound, Self::HeadlessSafe(_) => TaskAttachmentPolicy::HeadlessSafe }
+        match self { Self::UiBound(_) => TaskAttachmentPolicy::UiBound, Self::HeadlessSafe(_) | Self::Durable { .. } => TaskAttachmentPolicy::HeadlessSafe }
     }
 }
 impl From<Channel<TaskEvent>> for TaskEventSink {

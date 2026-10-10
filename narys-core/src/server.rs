@@ -265,15 +265,15 @@ impl Core {
         }
         match command {
             Command::Capabilities {} => Ok(
-                json!({"protocol_version":ipc::VERSION,"authority":"narys-core","persistence":"core/db/luna.sqlite3","task_namespaces":["lr10a","product"],"implemented":["status","credentials","events","prepare","result","cancel"],"conversation":false,"provider_configuration":false,"approvals":false,"agent_tools":false,"execution_authority_from_ipc":false}),
+                json!({"protocol_version":ipc::VERSION,"authority":"narys-core","persistence":"core/db/luna.sqlite3","task_namespaces":["lr10a","product"],"implemented":["status","credentials","events","prepare","result","cancel","conversation","sessions","session-create","session-get","session-resume","session-close","providers","provider-configure","conversation-policy","task-get","task-cancel"],"conversation":true,"provider_configuration":true,"approvals":false,"agent_tools":false,"execution_authority_from_ipc":false}),
             ),
             Command::Events { after, limit } => {
                 let db = self.config.db()?;
                 let min: Option<u64> = db
                     .query_row("SELECT min(sequence) FROM server_events", [], |r| r.get(0))
                     .map_err(|_| "event_read_failed")?;
-                let mut query=db.prepare("SELECT sequence,namespace,task_id,code,created_at FROM server_events WHERE sequence>?1 ORDER BY sequence LIMIT ?2").map_err(|_|"event_read_failed")?;
-                let rows=query.query_map(rusqlite::params![after,limit as u64+1],|r|Ok(json!({"sequence":r.get::<_,u64>(0)?,"namespace":r.get::<_,String>(1)?,"task_id":r.get::<_,Option<u64>>(2)?,"code":r.get::<_,String>(3)?,"created_at":r.get::<_,String>(4)?}))).map_err(|_|"event_read_failed")?;
+                let mut query=db.prepare("SELECT sequence,namespace,task_id,code,created_at,details_json FROM server_events WHERE sequence>?1 ORDER BY sequence LIMIT ?2").map_err(|_|"event_read_failed")?;
+                let rows=query.query_map(rusqlite::params![after,limit as u64+1],|r|Ok(json!({"sequence":r.get::<_,u64>(0)?,"namespace":r.get::<_,String>(1)?,"task_id":r.get::<_,Option<u64>>(2)?,"code":r.get::<_,String>(3)?,"created_at":r.get::<_,String>(4)?,"details":r.get::<_,Option<String>>(5)?.and_then(|s|serde_json::from_str::<Value>(&s).ok())}))).map_err(|_|"event_read_failed")?;
                 let mut events = rows
                     .collect::<Result<Vec<_>, _>>()
                     .map_err(|_| "event_read_failed")?;
@@ -287,10 +287,31 @@ impl Core {
                     json!({"events":events,"next_sequence":next,"has_more":has_more,"complete":min.is_none_or(|m|after.saturating_add(1)>=m),"durable":true,"retention_events":4096}),
                 )
             }
-            Command::TaskGet { task } | Command::TaskCancel { task }
-                if matches!(task.namespace, TaskNamespace::Product) =>
-            {
-                Err("capability_not_integrated")
+            Command::TaskGet { task } if matches!(task.namespace, TaskNamespace::Product) => {
+                crate::persistence::conversation_runs::get(&self.config.db()?, task.id)
+            }
+            Command::TaskCancel { task } if matches!(task.namespace, TaskNamespace::Product) => {
+                let _admission = self.services.conversation_admission.lock().await;
+                let mut conn = self.config.db()?;
+                let existing = crate::persistence::conversation_runs::get(&conn, task.id)?;
+                let cancelled = self.services.tasks.cancel(crate::TaskId(task.id));
+                if cancelled {
+                    let tx = conn.transaction().map_err(|_| "write_failed")?;
+                    crate::persistence::conversation_runs::event(
+                        &tx,
+                        Some(task.id),
+                        "cancellation_requested",
+                        None,
+                    )?;
+                    tx.commit().map_err(|_| "write_failed")?;
+                }
+                let terminal = matches!(
+                    existing["state"].as_str(),
+                    Some("completed" | "cancelled" | "failed" | "interrupted")
+                );
+                Ok(
+                    json!({"task_id":task.id,"namespace":"product","state":existing["state"],"cancellation_requested":cancelled || existing["state"]=="cancelled","already_terminal":!cancelled && terminal,"commit_in_progress":!cancelled && !terminal}),
+                )
             }
             Command::TaskGet { task } => {
                 self.request(json!({"operation":"result","task_id":task.id}))
@@ -300,13 +321,20 @@ impl Core {
                 self.request(json!({"operation":"cancel","task_id":task.id}))
                     .await
             }
-            Command::Conversation { .. }
-            | Command::Sessions {}
+            conversation @ (Command::Conversation { .. }
+            | Command::Sessions { .. }
+            | Command::SessionCreate {}
+            | Command::SessionGet { .. }
+            | Command::SessionResume { .. }
+            | Command::SessionClose { .. }
             | Command::Providers {}
             | Command::ProviderConfigure { .. }
-            | Command::Approval { .. }
-            | Command::ToolRequest { .. }
-            | Command::ToolResult { .. } => Err("capability_not_integrated"),
+            | Command::ConversationPolicy { .. }) => {
+                self.services.conversation_command(conversation).await
+            }
+            Command::Approval { .. } | Command::ToolRequest { .. } | Command::ToolResult { .. } => {
+                Err("capability_not_integrated")
+            }
             legacy => {
                 self.request(serde_json::to_value(legacy).map_err(|_| "invalid_request")?)
                     .await
@@ -322,7 +350,7 @@ impl Core {
     async fn request(self: &Arc<Self>, v: Value) -> Result<Value, &'static str> {
         match v["operation"].as_str().ok_or("invalid_operation")? {
             "status" => Ok(
-                json!({"core":"running","profile":"HOST_ASSISTED_NOT_SANDBOX","copilot":"on_demand","active_task":self.active.lock().await.as_ref().map(|x|x.0),"tools":0,"agent_execution_authority":false,"trace_events":self.trace.stats().published,"protocol_version":ipc::VERSION,"authority":"narys-core","database":"core/db/luna.sqlite3","conversation_integrated":false,"product_active_tasks":self.services.tasks.active_count(),"execution_workers":self.services.execution.worker_count(),"graphical_environment_present":std::env::var_os("DISPLAY").is_some()||std::env::var_os("WAYLAND_DISPLAY").is_some()}),
+                json!({"core":"running","profile":"HOST_ASSISTED_NOT_SANDBOX","copilot":"on_demand","active_task":self.active.lock().await.as_ref().map(|x|x.0),"tools":0,"agent_execution_authority":false,"trace_events":self.trace.stats().published,"protocol_version":ipc::VERSION,"authority":"narys-core","database":"core/db/luna.sqlite3","conversation_integrated":true,"product_active_tasks":self.services.tasks.active_count(),"execution_workers":self.services.execution.worker_count(),"graphical_environment_present":std::env::var_os("DISPLAY").is_some()||std::env::var_os("WAYLAND_DISPLAY").is_some()}),
             ),
             "credentials" => Ok(credentials(&self.config).await),
             "stronghold" => {
@@ -330,14 +358,14 @@ impl Core {
                 if credentials(&self.config).await["login_unlocked"] != true {
                     return Err("manual_unlock_required");
                 }
-                let path = self
-                    .config
-                    .home
-                    .join(".local/share/br.com.assistente3d.app");
-                let status =
-                    tokio::task::spawn_blocking(move || crate::vault::existing_status(&path))
-                        .await
-                        .map_err(|_| "vault_worker_failed")?;
+                let store = self.services.secrets.clone();
+                let status = tokio::task::spawn_blocking(move || {
+                    store
+                        .secret_presence(&[narys_domain::security::secrets::SecretKey::GroqApiKey])
+                        .map_err(|e| e.code())
+                })
+                .await
+                .map_err(|_| "vault_worker_failed")?;
                 status?;
                 Ok(
                     json!({"existing_snapshot_opened":true,"writes":false,"migration":false,"secret_values_returned":false}),
@@ -648,7 +676,9 @@ pub async fn serve(config: Config) -> Result<(), &'static str> {
         return Err("core_already_running");
     }
     crate::storage::initialize(&config)?;
-    let db = config.db()?;
+    let mut db = config.db()?;
+    crate::persistence::conversation_runs::recover(&mut db)?;
+    // No background summary, continuation resume, or provider call at boot.
     let tx = db
         .unchecked_transaction()
         .map_err(|_| "task_storage_failed")?;
@@ -735,7 +765,10 @@ pub async fn serve(config: Config) -> Result<(), &'static str> {
     while let Some(result) = connections.join_next().await {
         let _ = result;
     }
-    while core.busy.available_permits() == 0 {
+    while core.busy.available_permits() == 0
+        || core.services.tasks.worker_count() > 0
+        || core.services.tasks.active_count() > 0
+    {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     if !core
