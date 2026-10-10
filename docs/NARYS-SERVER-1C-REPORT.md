@@ -4,9 +4,9 @@
 
 ## Controle e referências
 
-Repositório `Samuel-Francisco-AS/Narys`; única branch `narys-server-1-headless-runtime`. HEAD inicial conferido, limpo e igual ao remoto: **`4ad89d14e1666647dd92b1737a81c716d057692d`**. Main local permanece **`553b51182bb477d0b777093da5bfda93239fddf9`**, sem alterações/merge/push. Implementação instalada e publicada na branch: **`45a15d1e3cdb0e8c6afe5340758fde602061521b`**. Commit posterior registra este relatório, evidências do host e um caso sintético adicional de pin incompatível; não muda o código de produção instalado. HEAD remoto final da entrega será conferido após esse push e informado na resposta final, como nas entregas anteriores.
+Repositório `Samuel-Francisco-AS/Narys`; única branch `narys-server-1-headless-runtime`. HEAD inicial conferido, limpo e igual ao remoto: **`4ad89d14e1666647dd92b1737a81c716d057692d`**. Main local permanece **`553b51182bb477d0b777093da5bfda93239fddf9`**, sem alterações/merge/push. Implementação instalada e publicada na branch: **`06ef4076380ed2723b9c567f5323104ec596e846`**. A revisão final inclui correção de Ctrl-C no prompt depois de acompanhar uma tarefa e diagnóstico correto quando o estado do cofre muda durante o desbloqueio. O commit posterior só atualiza relatório/evidências; não muda a produção instalada. HEAD remoto final da entrega será conferido após esse push e informado na resposta final, como nas entregas anteriores.
 
-Prazo absoluto preservado: **12/10/2026 às 15:03:12 America/Recife**. Abertura da trilha permanece 10/10 às 15:03:12; nenhum relógio foi reiniciado. Serviço instalado e verificado em **10/10/2026, aproximadamente 17:43 (-03)**, com mais de 45 horas restantes. Não foram criadas etapas extras.
+Prazo absoluto preservado: **12/10/2026 às 15:03:12 America/Recife**. Abertura da trilha permanece 10/10 às 15:03:12; nenhum relógio foi reiniciado. Serviço instalado inicialmente às 17:43 e atualização final verificada em **2026-10-10T17:49:11-03:00**, com mais de 45 horas restantes. Não foram criadas etapas extras.
 
 Fontes revisadas: relatórios e auditorias independentes 1A/1B, arquitetura Core-First de 10/10, planejamento SERVER-1 atualizado, README e IPC v1. A solução conserva o domínio compartilhado, a Conversation Engine, Scheduler, SecretStore e o SQLite autoritativo. Não há nova camada cognitiva, novo banco, novo cofre ou migração de schema.
 
@@ -70,7 +70,7 @@ Tasks são workers do Core. Receipt e estado duráveis sobrevivem ao cliente; Ct
 | Gate | Resultado / evidência |
 |---|---|
 | Core Rust final | **33 unitários +1 control +8 protocol =42 PASS**, zero falhas; [log](evidence/server-1c/core-tests.txt) |
-| Python final | **16 PASS**:3 CLI,7 manager de credenciais,6 operacionais herdados; [log](evidence/server-1c/python-tests.txt) |
+| Python final | **17 PASS**:4 CLI,7 manager de credenciais,6 operacionais herdados; [log](evidence/server-1c/python-tests.txt) |
 | GNOME50 real, cofre descartável | Sessão cifrada nativa, locked/unlocked status, senha incorreta recusada, correta desbloqueia, unlocked sem reprompt, pin incompatível e daemon fora do user-service recusados, bytes preservados; [prova](evidence/server-1c/synthetic-keyring.json) |
 | Build/format | build locked/offline dos dois binários e fmt PASS; [build](evidence/server-1c/build.txt), [fmt](evidence/server-1c/fmt.txt); git diff --check PASS |
 | Serviço instalado | status/doctor/models/credentials/sessions/tasks/result/cancel e reconexão PASS; fontes dos adapters temporariamente ausentes sem afetar credentials; [independência do checkout](evidence/server-1c/checkout-independent.json) |
@@ -86,14 +86,14 @@ Primeira rodada identificou runtime de teste sem modo0700 e expectativa antiga d
 
 `ops/install_cli.py` instalou **`/home/sam/.local/bin/narys`**, modo0700, sem sudo, dotfiles ou alteração global. Se o shell não inclui `~/.local/bin`, use o caminho completo. CLI funciona no host acessado por SSH; não há build Android/Termux nesta entrega.
 
-Updater validou hashes Core/unit anteriores e fez backup privado em `~/.local/state/narys/core/updates/server-1a-3vpjs550` (ver path exato no [log](evidence/server-1c/install.txt); prefixo herdado). Atualizou somente nosso Core, preservando Keyring, boot, unit/políticas e dados. [Manifesto instalado](evidence/server-1c/installed-artifacts.json):
+Updater validou hashes Core/unit anteriores e fez backup privado em `~/.local/state/narys/core/updates/server-1a-eq2fb8r_ (ver path exato no [log](evidence/server-1c/install.txt); prefixo herdado). Atualizou somente nosso Core, preservando Keyring, boot, unit/políticas e dados. [Manifesto instalado](evidence/server-1c/installed-artifacts.json):
 
-- Revision instalada: `45a15d1e3cdb0e8c6afe5340758fde602061521b`; worktree limpa durante instalação.
-- CLI SHA-256: `f549dd8fc92b467f35e742266f33cf78a930b9b99673c2d9ed276ed1a5136e98`.
-- Core SHA-256: `d2b937de218897be9ca2250b5c4f849164b7f7124f23f6a8a425f4d68cbce4bd`.
+- Revision instalada: `06ef4076380ed2723b9c567f5323104ec596e846`; worktree limpa durante instalação.
+- CLI SHA-256: `5719709444be4a62503a6ddfbdd6ecb9a3049944541fd26d1a9030e9a9032328`.
+- Core SHA-256: `6a68ae32e967eb2d196b890424e9ac9114ebe5a0e9de6636d7be97d97c98c8bd`.
 - Unit SHA-256 preservado: `df7b3205ebfcf5f673e9c72fd8aea4c0bba2c697d3f15a76feaaf4028b1a0810`.
 
-Serviço active, PID **67100**, linger=yes, Keyring original PID1395 preservado, nenhum processo GNOME Shell/Copilot e nenhum worker/tarefa ativa/órfão. [Processos](evidence/server-1c/processes.json). A [amostra ociosa isolada](evidence/server-1c/idle.json), após restart controlado e sem diagnósticos de cofre, durou **10,000s**, mediu **25.676KiB RSS (~25,1MiB)** e **0,00s CPU adicional**. Não é benchmark prolongado nem avaliação nova do pico transitório Stronghold observado na 1B.
+Serviço active, PID **68612**, linger=yes, Keyring original PID1395 preservado, nenhum processo GNOME Shell/Copilot e nenhum worker/tarefa ativa/órfão. [Processos](evidence/server-1c/processes.json). A [amostra ociosa isolada](evidence/server-1c/idle.json), após restart controlado e sem diagnósticos de cofre, durou **10,000s**, mediu **25.440KiB RSS (~24.8MiB)** e **0,00s CPU adicional**. Não é benchmark prolongado nem avaliação nova do pico transitório Stronghold observado na 1B.
 
 ## Limites e encaminhamento
 

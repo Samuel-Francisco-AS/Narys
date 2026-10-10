@@ -1,16 +1,15 @@
 {
-  "pid": 67100,
-  "previous_pid": 66993,
-  "elapsed_seconds": 10.000099730001239,
+  "pid": 68507,
+  "elapsed_seconds": 10.000105341001472,
   "before": {
     "cpu_ticks": 2,
-    "rss_kib": 25676,
-    "peak_rss_kib": 25676
+    "rss_kib": 25440,
+    "peak_rss_kib": 25440
   },
   "after": {
     "cpu_ticks": 2,
-    "rss_kib": 25676,
-    "peak_rss_kib": 25676
+    "rss_kib": 25440,
+    "peak_rss_kib": 25440
   },
   "cpu_delta_seconds": 0.0,
   "vault_diagnostics_during_sample": false,

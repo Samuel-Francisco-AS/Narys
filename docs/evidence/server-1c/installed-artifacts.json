@@ -1,7 +1,7 @@
 {
-  "cli_sha256": "f549dd8fc92b467f35e742266f33cf78a930b9b99673c2d9ed276ed1a5136e98",
-  "core_sha256": "d2b937de218897be9ca2250b5c4f849164b7f7124f23f6a8a425f4d68cbce4bd",
-  "source_revision": "45a15d1e3cdb0e8c6afe5340758fde602061521b",
+  "cli_sha256": "5719709444be4a62503a6ddfbdd6ecb9a3049944541fd26d1a9030e9a9032328",
+  "core_sha256": "6a68ae32e967eb2d196b890424e9ac9114ebe5a0e9de6636d7be97d97c98c8bd",
+  "source_revision": "06ef4076380ed2723b9c567f5323104ec596e846",
   "source_worktree_dirty": false,
   "checkout_required_for_cli": false,
   "unit_sha256": "df7b3205ebfcf5f673e9c72fd8aea4c0bba2c697d3f15a76feaaf4028b1a0810"

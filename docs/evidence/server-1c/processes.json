@@ -1,7 +1,7 @@
 {
   "core_processes": {
     "exit_code": 0,
-    "output": "    PID    PPID STAT COMMAND\n  67100    1344 Ss   narys-core\n"
+    "output": "    PID    PPID STAT COMMAND\n  68612    1344 Ss   narys-core\n"
   },
   "gui_copilot_processes": {
     "exit_code": 1,
@@ -9,7 +9,7 @@
   },
   "service": {
     "exit_code": 0,
-    "output": "ActiveState=active\nMainPID=67100\nNRestarts=0\n"
+    "output": "ActiveState=active\nMainPID=68612\nNRestarts=0\n"
   },
   "keyring_service": {
     "exit_code": 0,
