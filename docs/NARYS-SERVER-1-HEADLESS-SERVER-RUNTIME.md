@@ -1,9 +1,11 @@
 # NARYS-SERVER-1 — Headless Server Runtime
 
-**Estado: PRÓXIMA TRILHA A INICIAR / PRIORIDADE MÁXIMA.**
+**Estado: SERVER-1A implementada na branch candidata; aguardando auditoria independente. SERVER-1B não iniciada.**
+
+Abertura real: **2026-10-10T15:03:12-03:00**, America/Recife. Deadline absoluto: **2026-10-12T15:03:12-03:00**. Base verificada `553b51182bb477d0b777093da5bfda93239fddf9`; checkpoint `2492285`. [Relatório único SERVER-1A](NARYS-SERVER-1A-REPORT.md). O planejamento abaixo conserva as etapas posteriores; não representa aprovação da trilha inteira.
 **Direção arquitetural ratificada em 10/10/2026:** [Narys Core-First — monólito modular + thin clients](NARYS-CORE-FIRST-ARCHITECTURE-2026-10-10.md). **Meta integrada de produto:** [Narys 0.1 com agentes e ferramentas reais até 17/10/2026](NARYS-01-AGENT-TOOLS-DELIVERY.md). A decisão posterior do usuário permite extração ampla e refatoração de Conversation, Scheduler, persistência, provider runtime, protocolos e bootstrap Tauri quando técnica e operacionalmente favorável; invalida qualquer leitura desta trilha que imponha refatoração mínima como teto artificial.
 **Decisão registrada:** 10/10/2026, após PASS FINAL da LR-10A.
-**Prazo máximo absoluto de execução:** **48 horas corridas a partir da abertura efetiva da trilha** (a abertura ainda não ocorreu neste documento; não criar hora fictícia). **Máximo de quatro etapas**. **Meta externa:** Narys 0.1 utilizável até 17/10/2026.
+**Prazo máximo absoluto de execução:** **48 horas corridas a partir da abertura efetiva da trilha** (abertura real registrada acima; sem contagem retroativa). **Máximo de quatro etapas**. **Meta externa:** Narys 0.1 utilizável até 17/10/2026.
 **Ordem vinculante:** LR-10A PASS FINAL → **LR-10 PAUSADA** (B–F) → **NARYS-SERVER-1** → retomada explícita da LR-10 conforme decisão do usuário.
 
 ## 1. Missão de produto
@@ -16,7 +18,7 @@ A aplicação gráfica desktop e o avatar continuam opcionais. O servidor não p
 
 ## 2. Regras de execução / urgência
 
-- Uma branch de implementação curta baseada na `main` atual verificada. **Nenhuma alteração de código é iniciada neste registro documental.**
+- Uma branch de implementação curta baseada na `main` atual verificada. A implementação SERVER-1A está rastreada no relatório vinculado acima.
 - No máximo **quatro etapas numeradas** (abaixo). Não abrir H*, FIX* ou complementos para hipótese, polimento ou discussão. Corrigir dentro da etapa atual quando possível; FIX explícita **somente se absolutamente necessária** para funcionamento confiável (bloqueio funcional, perda de dados, regressão severa ou vulnerabilidade relevante).
 - Metodologia: a Luna apresenta opções concretas com risco, tempo e trade-off; usuário decide; Luna escreve o prompt; Codex executa e comprova. O Codex resolve erros comuns autonomamente e só interrompe por criticidade real ou decisão que exceda autoridade.
 - Escolher a **melhor arquitetura efetiva**, não a menor alteração de linhas. Codex está autorizado a extrair **integralmente** Conversation/Scheduler/Registry/State ou refatorar profundamente o Tauri, mover módulos para Rust reutilizável e migrar dados **quando necessário para um servidor unificado e operacional**. Reutilizar subsistemas quando vantajoso; não preservar acoplamentos por inércia. Exigir decisões de migração, ownership e regressões pertinentes. Não expandir para UI Android completa, avatar, AI-Native Runtime ou projetos não relacionados.
@@ -84,6 +86,6 @@ Dívidas herdadas que não reabrem LR-10A: PIN Keyring50.0 e interface GNOME nã
 
 ## 6. Sequência de controle
 
-**Estado atual: PLANEJADA, PRÓXIMA A INICIAR COM URGÊNCIA.** A contagem de 48h começa quando a branch/primeira etapa for efetivamente aberta; **não há início retroativo**. O prazo externo de 17/10 inclui **execução agentiva com ferramentas de engenharia reais**, planejada em [Narys 0.1](NARYS-01-AGENT-TOOLS-DELIVERY.md), não somente serviço de chat. Antes de iniciar, registrar hora e commit base; a cada etapa, registrar PASS ou impedimento direto. Não abrir mais de quatro etapas nem alongar prazo por upgrades estéticos. Prioridade de release 0.1: **17/10/2026**.
+**Estado atual: SERVER-1A implementada candidata; abertura/deadline registrados acima. SERVER-1B não iniciada.** A contagem de 48h começou na abertura real registrada acima; **não há início retroativo**. O prazo externo de 17/10 inclui **execução agentiva com ferramentas de engenharia reais**, planejada em [Narys 0.1](NARYS-01-AGENT-TOOLS-DELIVERY.md), não somente serviço de chat. Antes de iniciar, registrar hora e commit base; a cada etapa, registrar PASS ou impedimento direto. Não abrir mais de quatro etapas nem alongar prazo por upgrades estéticos. Prioridade de release 0.1: **17/10/2026**.
 
 Referências: [fechamento LR-10A](LR-10A-FINAL-CLOSURE-2026-10-10.md), [trilha LR-10 pausada](LR-10-COPILOT-SPECIALIST-AGENT.md), [Core headless](../narys-core/README.md), [PERF-1C](PERF-1C-HEADLESS-RUNTIME.md).

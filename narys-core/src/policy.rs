@@ -41,7 +41,7 @@ pub fn reviewed_receipt(v: &Value, id: u64) -> Result<(), &'static str> {
     }
     Ok(())
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TaskInput {
     pub objective: String,

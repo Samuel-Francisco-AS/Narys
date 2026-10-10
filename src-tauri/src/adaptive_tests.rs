@@ -126,9 +126,9 @@ fn transient_close_preserves_preference_and_bounded_allowlisted_telemetry() {
 fn migration_preserves_legacy_opt_in_new_default_and_reopen() {
     for mode in ["economy", "presence"] {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
-        conn.execute_batch(include_str!("../migrations/017_economy_shell.sql")).unwrap();
+        conn.execute_batch(include_str!("../../narys-domain/migrations/017_economy_shell.sql")).unwrap();
         conn.execute("UPDATE shell_settings SET presentation_mode=?1", [mode]).unwrap();
-        conn.execute_batch(include_str!("../migrations/018_presentation_policy.sql")).unwrap();
+        conn.execute_batch(include_str!("../../narys-domain/migrations/018_presentation_policy.sql")).unwrap();
         let settings = shell_settings::load(&conn).unwrap();
         assert_eq!(serde_json::to_value(settings.presentation_policy).unwrap(), mode);
     }

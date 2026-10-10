@@ -1,11 +1,8 @@
-pub mod runtime;
-pub(crate) mod events;
-pub(crate) mod task;
+pub use narys_domain::luna::{events, runtime, task, task_id};
 
 use std::sync::Arc;
 
 use crate::cognition::gemini_commands::CurrentRunSessions;
-use crate::cognition::policy::{self, CognitiveRole, RoutingMode};
 use crate::cognition::scheduler::ProviderStatus;
 use crate::cognition::ProviderRuntime;
 #[cfg(debug_assertions)]
@@ -32,7 +29,12 @@ pub fn start_mock_task(
     AuditEvent::new(Action::CommandInvoked, Outcome::Allowed)
         .with_detail("start_mock_task")
         .emit();
-    runtime::start(registry.inner().clone(), db.inner().clone(), channel).inspect_err(|_| {
+    runtime::start(
+        registry.inner().clone(),
+        db.inner().clone(),
+        adapt_channel(channel),
+    )
+    .inspect_err(|_| {
         AuditEvent::new(Action::SecurityError, Outcome::Failed)
             .with_detail("task_registration_failed")
             .emit();
@@ -70,19 +72,7 @@ pub async fn cancel_task(
     Ok(accepted)
 }
 
-pub(crate) async fn cancel_task_core(
-    registry: &TaskRegistry,
-    db: &Database,
-    root: TaskId,
-) -> Result<bool, &'static str> {
-    validation::task_id(root.0)?;
-    let active = registry.cancel(root);
-    let durable = crate::persistence::continuations::with_connection(db, move |conn| {
-        crate::persistence::continuations::ContinuationRepository::cancel(conn, root.0)
-    })
-    .await?;
-    Ok(active || durable)
-}
+pub use narys_domain::luna::cancel_task_core;
 
 #[tauri::command]
 pub fn start_orchestrator_planning(
@@ -102,7 +92,7 @@ pub fn start_orchestrator_planning(
         runtime.inner().clone(),
         store.inner().clone(),
         objective,
-        channel,
+        adapt_channel(channel),
     )
 }
 
@@ -124,7 +114,7 @@ pub fn start_task_graph(
         runtime.inner().clone(),
         store.inner().clone(),
         objective,
-        channel,
+        adapt_channel(channel),
     )
 }
 
@@ -145,7 +135,7 @@ pub fn start_mock_cognition_task(
         db.inner().clone(),
         cognition.inner().clone(),
         scenario,
-        channel,
+        adapt_channel(channel),
     )
 }
 
@@ -157,21 +147,7 @@ pub fn cognition_provider_status(
     cognition.status()
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConversationProviderState {
-    provider_id: String,
-    display_name: String,
-    configured: bool,
-    cooldown_ms: u64,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConversationRoutingStatus {
-    routing_mode: RoutingMode,
-    targets: Vec<ConversationProviderState>,
-}
+pub use narys_domain::luna::{routing_status_from_backend, ConversationRoutingStatus};
 
 #[tauri::command]
 pub async fn conversation_routing_status(
@@ -187,45 +163,6 @@ pub async fn conversation_routing_status(
     })
     .await
     .map_err(|_| "worker_failed".to_owned())?
-}
-
-fn routing_status_from_backend(
-    db: &Database,
-    statuses: &[ProviderStatus],
-    store: &SecretStore,
-) -> Result<ConversationRoutingStatus, String> {
-    let conn = db.open().map_err(|e| e.code().to_owned())?;
-    let policy =
-        policy::load(&conn, CognitiveRole::Conversation).map_err(|e| e.code().to_owned())?;
-    crate::cognition::catalog::validate_policy_registered(&policy, statuses)
-        .map_err(str::to_owned)?;
-    let ids: Vec<_> = policy
-        .targets
-        .iter()
-        .map(|target| target.provider_id.as_str())
-        .collect();
-    // Informative UX only. The later task always revalidates its own backend snapshot.
-    let configured = crate::cognition::catalog::configured_many(store, &ids).unwrap_or_default();
-    Ok(ConversationRoutingStatus {
-        routing_mode: policy.routing_mode,
-        targets: policy
-            .targets
-            .iter()
-            .map(|target| ConversationProviderState {
-                provider_id: target.provider_id.clone(),
-                display_name: crate::cognition::catalog::integration(&target.provider_id)
-                    .map(|item| item.display_name)
-                    .unwrap_or(&target.provider_id)
-                    .to_owned(),
-                configured: configured.get(&target.provider_id) == Some(&true),
-                cooldown_ms: statuses
-                    .iter()
-                    .find(|status| status.id == target.provider_id)
-                    .map(|status| status.cooldown_ms)
-                    .unwrap_or(0),
-            })
-            .collect(),
-    })
 }
 
 #[tauri::command]
@@ -247,7 +184,7 @@ pub fn start_conversation_task(
         sessions.inner().clone(),
         session_id,
         message,
-        channel,
+        adapt_channel(channel),
         events::TaskAttachmentPolicy::HeadlessSafe,
     )
 }
@@ -266,8 +203,14 @@ pub fn get_current_interaction(
 ) -> Result<InteractionSnapshot, String> {
     let session_id = sessions.selected()?;
     #[cfg(feature = "perf1c-probe")]
-    crate::perf1c_probe::record("ui_get_current_interaction", serde_json::json!({"sessionId":session_id}));
-    Ok(InteractionSnapshot { session_id, task: session_id.and_then(|id| registry.events.snapshot(id)) })
+    crate::perf1c_probe::record(
+        "ui_get_current_interaction",
+        serde_json::json!({"sessionId":session_id}),
+    );
+    Ok(InteractionSnapshot {
+        session_id,
+        task: session_id.and_then(|id| registry.events.snapshot(id)),
+    })
 }
 
 #[tauri::command]
@@ -279,11 +222,27 @@ pub fn attach_conversation_events(
     after_sequence: u32,
     channel: Channel<TaskEvent>,
 ) -> Result<events::TaskObservation, String> {
-    if sessions.selected()? != Some(session_id) { return Err("session_invalid".into()); }
+    if sessions.selected()? != Some(session_id) {
+        return Err("session_invalid".into());
+    }
     let id = validation::task_id(task_id).map_err(str::to_owned)?;
     #[cfg(feature = "perf1c-probe")]
-    crate::perf1c_probe::record("ui_attach", serde_json::json!({"taskId":id,"sessionId":session_id}));
-    registry.events.attach(TaskId(id), session_id, after_sequence, channel)
+    crate::perf1c_probe::record(
+        "ui_attach",
+        serde_json::json!({"taskId":id,"sessionId":session_id}),
+    );
+    registry.events.attach(
+        TaskId(id),
+        session_id,
+        after_sequence,
+        adapt_channel(channel),
+    )
 }
 
-pub mod task_id;
+fn adapt_channel(channel: Channel<TaskEvent>) -> narys_domain::channel::Channel<TaskEvent> {
+    narys_domain::channel::Channel::from_sender(move |event| {
+        channel
+            .send(event)
+            .map_err(|_| std::io::Error::other("subscriber_closed"))
+    })
+}

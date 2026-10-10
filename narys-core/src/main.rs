@@ -1,4 +1,5 @@
 use narys_core::{
+    ipc,
     server::{serve, Config},
     worker,
 };
@@ -32,15 +33,21 @@ async fn main() {
             return if status.success(){Ok(())}else{Err("manual_unlock_failed")};
         }
         let request=match operation{
-            "status"|"credentials"|"stronghold"|"copilot"|"events"|"session-check"=>json!({"operation":operation}),
+            "status"|"credentials"|"stronghold"|"copilot"|"events"|"session-check"|"capabilities"=>json!({"operation":operation}),
             "prepare" if args.len()==4=>json!({"operation":"prepare","task":{"objective":args[2],"model":"auto","included_only_approval":true},"expected":args[3]}),
             "submit"|"cancel"|"result"|"resume-check" if args.len()==3=>json!({"operation":operation,"task_id":args[2].parse::<u64>().map_err(|_|"invalid_task_id")?}),
             _=>return Err("invalid_command")
         };
+        let command:ipc::Command=serde_json::from_value(request).map_err(|_|"invalid_command")?;
+        let request=ipc::Request{version:ipc::VERSION,request_id:format!("cli-{}",std::process::id()),command};
+        request.validate()?;
         let mut stream=tokio::net::UnixStream::connect(cfg.runtime.join("control.sock")).await.map_err(|_|"core_service_unavailable")?;
+        if stream.peer_cred().map_err(|_|"peer_identity_unavailable")?.uid()!=unsafe{libc::geteuid()}{return Err("server_identity_mismatch");}
         stream.write_all(serde_json::to_string(&request).unwrap().as_bytes()).await.map_err(|_|"request_write_failed")?;stream.shutdown().await.map_err(|_|"request_shutdown_failed")?;
-        let mut out=String::new();stream.take(4*1024*1024).read_to_string(&mut out).await.map_err(|_|"response_read_failed")?;
-        let v:serde_json::Value=serde_json::from_str(&out).map_err(|_|"response_invalid")?;println!("{}",serde_json::to_string_pretty(&v).unwrap());
+        let mut out=String::new();tokio::time::timeout(std::time::Duration::from_secs(265),stream.take((ipc::MAX_RESPONSE_BYTES+1) as u64).read_to_string(&mut out)).await.map_err(|_|"response_timeout")?.map_err(|_|"response_read_failed")?;
+        if out.len()>ipc::MAX_RESPONSE_BYTES{return Err("response_limit");}
+        let v:serde_json::Value=serde_json::from_str(&out).map_err(|_|"response_invalid")?;if v["version"]!=ipc::VERSION || v["request_id"]!=request.request_id{return Err("response_correlation_mismatch");}
+        println!("{}",serde_json::to_string_pretty(&v).unwrap());
         if v["ok"]==true{Ok(())}else{Err("operation_blocked")}
     }.await;
     if let Err(code) = outcome {

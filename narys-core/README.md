@@ -1,4 +1,31 @@
-# Narys Core headless — LR-10A
+# Narys Core — servidor modular (SERVER-1A)
+
+Fundação operacional consolidada em `narys-domain`, independente de Tauri.
+Core é dono de SQLite, recovery, leases e ciclo de vida; desktop legado usa os
+mesmos contratos e fica bloqueado após takeover até migrar seus comandos ao IPC.
+Conversation/provedores estão extraídos, mas ainda não conectados ao IPC do
+servidor: integração e gate real pertencem à SERVER-1B. Ferramentas agentivas
+continuam indisponíveis. [Relatório único](../docs/NARYS-SERVER-1A-REPORT.md).
+
+SQLite autoritativo: `~/.local/state/narys/core/db/luna.sqlite3`. Primeiro boot
+consolida snapshot da base desktop + tarefas LR-10A, com backups privados e
+migration019 aditiva. IDs permanecem nos namespaces de origem; recibos não são
+alterados. Nenhuma migração de Stronghold. Não iniciar binário desktop antigo
+que desconheça a fence; backups não são autorização para rollback destrutivo.
+
+Systemd --user com readiness notify, single-writer lease, socket0600 e peer UID,
+limites de IPC, shutdown e restart sem replay. [Contrato v1](IPC.md).
+
+```sh
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 \
+  CARGO_TARGET_DIR="$PWD/src-tauri/target" \
+  /usr/bin/cargo test --offline --locked --manifest-path narys-core/Cargo.toml
+~/.local/lib/narys/narys-core capabilities
+~/.local/lib/narys/narys-core status
+~/.local/lib/narys/narys-core events
+```
+
+## Registro histórico LR-10A (autorização encerrada)
 
 **Validação integrada real concluída:** Core após cold boot sem GNOME, credenciais
 existentes desbloqueadas manualmente, Copilot SDK textual, resposta `5`, resultado
@@ -9,7 +36,7 @@ Esta é uma implementação candidata; não concede aprovação de produção ou
 ## Composição e limites
 
 Core independente de Tauri/GTK/WebKit/X11/Wayland, residente sob systemd --user.
-Reutiliza AgentBackend/Registry, PlanV1/TaskGraph, TaskId, OperationalTraceBus
+O baseline histórico reutilizava AgentBackend/Registry, PlanV1/TaskGraph, TaskId, OperationalTraceBus
 limitado e migrações SQLite. Banco próprio em `~/.local/state/narys/core/db`;
 interrupção não autoriza reenvio. Factory gráfica Codex, ExecutionBroker,
 ExecutionAuthority/HumanLocal, IPC, Scheduler e políticas LR-8.5 preservados.

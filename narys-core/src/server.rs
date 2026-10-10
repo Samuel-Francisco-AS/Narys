@@ -1,13 +1,15 @@
 use crate::{
-    agents::planner::{PlanCapability, PlanStepV1, PlanV1},
+    agents::plan_contract::{PlanCapability, PlanStepV1, PlanV1},
     agents::{
         backend::{AgentBackend, AgentFuture},
         registry::AgentRegistry,
         types::*,
     },
     cognition::task_graph::TaskGraph,
+    ipc::{self, Command, Request, Response, TaskNamespace},
     operational_trace::*,
     persistence::database::Database,
+    persistence::ownership::WriterLease,
     policy::{self, TaskInput},
 };
 use serde_json::{json, Value};
@@ -18,7 +20,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, OnceLock,
     },
     time::Duration,
 };
@@ -35,6 +37,7 @@ pub struct Config {
     pub root: PathBuf,
     pub cli: PathBuf,
     pub binary: PathBuf,
+    pub database: OnceLock<Database>,
 }
 pub fn mkdir(path: &Path) -> Result<(), &'static str> {
     if !path.exists() {
@@ -86,10 +89,12 @@ impl Config {
             root,
             cli,
             binary: std::env::current_exe().map_err(|_| "binary_unavailable")?,
+            database: OnceLock::new(),
         })
     }
     pub fn db(&self) -> Result<rusqlite::Connection, &'static str> {
-        Database::new(self.state.join("db"))
+        self.database
+            .get_or_init(|| Database::new(self.state.join("db")))
             .open()
             .map_err(|e| e.code())
     }
@@ -250,23 +255,76 @@ struct Core {
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
     busy: Arc<tokio::sync::Semaphore>,
     trace: Arc<OperationalTraceBus>,
+    stopping: AtomicBool,
+    services: crate::runtime::RuntimeServices,
 }
 impl Core {
+    async fn dispatch(self: &Arc<Self>, command: Command) -> Result<Value, &'static str> {
+        if self.stopping.load(Ordering::Acquire) {
+            return Err("server_stopping");
+        }
+        match command {
+            Command::Capabilities {} => Ok(
+                json!({"protocol_version":ipc::VERSION,"authority":"narys-core","persistence":"core/db/luna.sqlite3","task_namespaces":["lr10a","product"],"implemented":["status","credentials","events","prepare","result","cancel"],"conversation":false,"provider_configuration":false,"approvals":false,"agent_tools":false,"execution_authority_from_ipc":false}),
+            ),
+            Command::Events { after, limit } => {
+                let db = self.config.db()?;
+                let min: Option<u64> = db
+                    .query_row("SELECT min(sequence) FROM server_events", [], |r| r.get(0))
+                    .map_err(|_| "event_read_failed")?;
+                let mut query=db.prepare("SELECT sequence,namespace,task_id,code,created_at FROM server_events WHERE sequence>?1 ORDER BY sequence LIMIT ?2").map_err(|_|"event_read_failed")?;
+                let rows=query.query_map(rusqlite::params![after,limit as u64+1],|r|Ok(json!({"sequence":r.get::<_,u64>(0)?,"namespace":r.get::<_,String>(1)?,"task_id":r.get::<_,Option<u64>>(2)?,"code":r.get::<_,String>(3)?,"created_at":r.get::<_,String>(4)?}))).map_err(|_|"event_read_failed")?;
+                let mut events = rows
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|_| "event_read_failed")?;
+                let has_more = events.len() > limit as usize;
+                events.truncate(limit as usize);
+                let next = events
+                    .last()
+                    .and_then(|e| e["sequence"].as_u64())
+                    .unwrap_or(after);
+                Ok(
+                    json!({"events":events,"next_sequence":next,"has_more":has_more,"complete":min.is_none_or(|m|after.saturating_add(1)>=m),"durable":true,"retention_events":4096}),
+                )
+            }
+            Command::TaskGet { task } | Command::TaskCancel { task }
+                if matches!(task.namespace, TaskNamespace::Product) =>
+            {
+                Err("capability_not_integrated")
+            }
+            Command::TaskGet { task } => {
+                self.request(json!({"operation":"result","task_id":task.id}))
+                    .await
+            }
+            Command::TaskCancel { task } => {
+                self.request(json!({"operation":"cancel","task_id":task.id}))
+                    .await
+            }
+            Command::Conversation { .. }
+            | Command::Sessions {}
+            | Command::Providers {}
+            | Command::ProviderConfigure { .. }
+            | Command::Approval { .. }
+            | Command::ToolRequest { .. }
+            | Command::ToolResult { .. } => Err("capability_not_integrated"),
+            legacy => {
+                self.request(serde_json::to_value(legacy).map_err(|_| "invalid_request")?)
+                    .await
+            }
+        }
+    }
+    fn event(&self, id: Option<u64>, namespace: &str, code: &str) -> Result<(), &'static str> {
+        let mut db = self.config.db()?;
+        let tx = db.transaction().map_err(|_| "event_persist_failed")?;
+        crate::storage::event(&tx, id, namespace, code)?;
+        tx.commit().map_err(|_| "event_persist_failed")
+    }
     async fn request(self: &Arc<Self>, v: Value) -> Result<Value, &'static str> {
         match v["operation"].as_str().ok_or("invalid_operation")? {
             "status" => Ok(
-                json!({"core":"running","profile":"HOST_ASSISTED_NOT_SANDBOX","copilot":"on_demand","active_task":self.active.lock().await.as_ref().map(|x|x.0),"tools":0,"agent_execution_authority":false,"trace_events":self.trace.stats().published}),
+                json!({"core":"running","profile":"HOST_ASSISTED_NOT_SANDBOX","copilot":"on_demand","active_task":self.active.lock().await.as_ref().map(|x|x.0),"tools":0,"agent_execution_authority":false,"trace_events":self.trace.stats().published,"protocol_version":ipc::VERSION,"authority":"narys-core","database":"core/db/luna.sqlite3","conversation_integrated":false,"product_active_tasks":self.services.tasks.active_count(),"execution_workers":self.services.execution.worker_count(),"graphical_environment_present":std::env::var_os("DISPLAY").is_some()||std::env::var_os("WAYLAND_DISPLAY").is_some()}),
             ),
             "credentials" => Ok(credentials(&self.config).await),
-            "events" => {
-                let batch = self
-                    .trace
-                    .replay(0, BatchLimits::default())
-                    .map_err(|_| "trace_unavailable")?;
-                Ok(
-                    json!({"events":batch.events.iter().map(|e|{let code=match e.kind(){OperationalKind::State{code,..}|OperationalKind::Critical{code,..}=>Some(code.as_str()),_=>None};json!({"sequence":e.sequence(),"task_id":e.provenance().task_id.map(|x|x.0),"code":code})}).collect::<Vec<_>>(),"complete":batch.replay_complete,"has_more":batch.has_more}),
-                )
-            }
             "stronghold" => {
                 let _permit = self.busy.try_acquire().map_err(|_| "runtime_busy")?;
                 if credentials(&self.config).await["login_unlocked"] != true {
@@ -328,8 +386,13 @@ impl Core {
                 let dir = self.create_job_dir()?;
                 private_write(&dir.join("task.json"), &serde_json::to_vec(&input).unwrap())?;
                 let db = self.config.db()?;
-                db.execute("INSERT INTO headless_tasks(directory,objective,expected,state) VALUES(?1,?2,?3,'prepared')",rusqlite::params![dir.to_str(),input.objective,expected]).map_err(|_|"task_persist_failed")?;
-                let id = db.last_insert_rowid();
+                let tx = db
+                    .unchecked_transaction()
+                    .map_err(|_| "task_persist_failed")?;
+                tx.execute("INSERT INTO headless_tasks(directory,objective,expected,state) VALUES(?1,?2,?3,'prepared')",rusqlite::params![dir.to_str(),input.objective,expected]).map_err(|_|"task_persist_failed")?;
+                let id = tx.last_insert_rowid();
+                crate::storage::event(&tx, Some(id as u64), "lr10a", "prepared")?;
+                tx.commit().map_err(|_| "task_persist_failed")?;
                 Ok(
                     json!({"task_id":id,"workspace":dir.join("workspace"),"state":"prepared","no_inference":true}),
                 )
@@ -371,7 +434,14 @@ impl Core {
                     &dir.join("financial-reviewed.json"),
                     &serde_json::to_vec(&receipt).unwrap(),
                 )?;
-                if db.execute("UPDATE headless_tasks SET state='running' WHERE id=?1 AND state='prepared'",[id]).map_err(|_|"task_claim_failed")?!=1{return Err("task_claim_failed");}
+                {
+                    let tx = db
+                        .unchecked_transaction()
+                        .map_err(|_| "task_claim_failed")?;
+                    if tx.execute("UPDATE headless_tasks SET state='running' WHERE id=?1 AND state='prepared'",[id]).map_err(|_|"task_claim_failed")?!=1{return Err("task_claim_failed");}
+                    crate::storage::event(&tx, Some(id), "lr10a", "running")?;
+                    tx.commit().map_err(|_| "task_claim_failed")?;
+                }
                 let cancelled = Arc::new(AtomicBool::new(false));
                 *self.active.lock().await = Some((id, cancelled.clone()));
                 let core = self.clone();
@@ -428,6 +498,12 @@ impl Core {
                         .backend
                         .execute(&request, &cancelled, &mut event)
                         .await;
+                    let mut completion_guard = core.active.lock().await;
+                    let result = if cancelled.load(Ordering::Acquire) {
+                        Err(AgentError::Cancelled)
+                    } else {
+                        result
+                    };
                     let (mut state, output, mut code) = match result {
                         Ok(r) if r.output.trim() == expected => ("completed", Some(r.output), None),
                         Ok(r) => {
@@ -468,32 +544,61 @@ impl Core {
                         state = "failed";
                         code = Some("completion_evidence_persist_failed");
                     }
-                    if let Ok(db) = core.config.db() {
-                        if db.execute("UPDATE headless_tasks SET state=?1,result=?2,error_code=?3 WHERE id=?4",rusqlite::params![state,output,code,id]).ok()!=Some(1){state="persistence_failed";}
-                    } else {
+                    let persisted = (|| -> Result<(), &'static str> {
+                        let mut db = core.config.db()?;
+                        let tx = db.transaction().map_err(|_| "task_completion_failed")?;
+                        if tx.execute("UPDATE headless_tasks SET state=?1,result=?2,error_code=?3 WHERE id=?4 AND state='running'",rusqlite::params![state,output,code,id]).map_err(|_|"task_completion_failed")?!=1{return Err("task_completion_failed");}
+                        crate::storage::event(&tx, Some(id), "lr10a", state)?;
+                        tx.commit().map_err(|_| "task_completion_failed")
+                    })();
+                    if persisted.is_err() {
                         state = "persistence_failed";
                     }
                     trace(&core.trace, id, state);
-                    *core.active.lock().await = None;
+                    *completion_guard = None;
                     drop(permit);
                 });
-                Ok(json!({"task_id":id,"state":"running","sdk_send_limit":1,"no_retry":true}))
+                Ok(
+                    json!({"task_id":id,"namespace":"lr10a","state":"running","sdk_send_limit":1,"no_retry":true}),
+                )
             }
             "cancel" => {
                 let id = v["task_id"].as_u64().ok_or("invalid_task_id")?;
-                let a = self.active.lock().await;
-                if let Some((active, c)) = &*a {
-                    if *active == id {
+                let active = self.active.lock().await;
+                if let Some((active_id, c)) = &*active {
+                    if *active_id == id {
                         c.store(true, Ordering::Release);
-                        return Ok(json!({"cancellation_requested":true}));
+                        self.event(Some(id), "lr10a", "cancellation_requested")?;
+                        return Ok(
+                            json!({"task_id":id,"namespace":"lr10a","cancellation_requested":true}),
+                        );
                     }
                 }
-                Err("task_not_active")
+                let db = self.config.db()?;
+                let state: String = db
+                    .query_row("SELECT state FROM headless_tasks WHERE id=?1", [id], |r| {
+                        r.get(0)
+                    })
+                    .map_err(|_| "task_not_found")?;
+                if state == "prepared" {
+                    let tx = db
+                        .unchecked_transaction()
+                        .map_err(|_| "task_cancel_failed")?;
+                    tx.execute("UPDATE headless_tasks SET state='cancelled',error_code='cancelled_before_send' WHERE id=?1 AND state='prepared'",[id]).map_err(|_|"task_cancel_failed")?;
+                    crate::storage::event(&tx, Some(id), "lr10a", "cancelled_before_send")?;
+                    tx.commit().map_err(|_| "task_cancel_failed")?;
+                    return Ok(
+                        json!({"task_id":id,"namespace":"lr10a","state":"cancelled","cancellation_requested":true}),
+                    );
+                }
+                Ok(
+                    json!({"task_id":id,"namespace":"lr10a","state":state,"cancellation_requested":state=="cancelled","already_terminal":true}),
+                )
             }
             "result" => {
                 let id = v["task_id"].as_u64().ok_or("invalid_task_id")?;
                 let db = self.config.db()?;
-                db.query_row("SELECT state,result,error_code,directory FROM headless_tasks WHERE id=?1",[id],|r|Ok(json!({"task_id":id,"state":r.get::<_,String>(0)?,"result":r.get::<_,Option<String>>(1)?,"error_code":r.get::<_,Option<String>>(2)?,"private_directory":r.get::<_,String>(3)?}))).map_err(|_|"task_not_found")
+                db.query_row("SELECT state,result,error_code,directory FROM headless_tasks WHERE id=?1",[id],|r|Ok(json!({"task_id":id,"namespace":"lr10a","state":r.get::<_,String>(0)?,"result":r.get::<_,Option<String>>(1)?,"error_code":r.get::<_,Option<String>>(2)?,"private_directory":r.get::<_,String>(3)?}))).map_err(|_|"task_not_found")
             }
             _ => Err("operation_not_allowed"),
         }
@@ -511,13 +616,52 @@ impl Core {
         Ok(dir)
     }
 }
+fn notify(message: &str) -> Result<(), &'static str> {
+    use std::os::linux::net::SocketAddrExt;
+    use std::os::unix::net::{SocketAddr, UnixDatagram};
+    let Some(path) = std::env::var_os("NOTIFY_SOCKET") else {
+        return Ok(());
+    };
+    let socket = UnixDatagram::unbound().map_err(|_| "readiness_notify_failed")?;
+    let bytes = path.as_encoded_bytes();
+    let addr = if bytes.first() == Some(&b'@') {
+        SocketAddr::from_abstract_name(&bytes[1..])
+    } else {
+        SocketAddr::from_pathname(Path::new(&path))
+    }
+    .map_err(|_| "readiness_notify_failed")?;
+    socket
+        .send_to_addr(message.as_bytes(), &addr)
+        .map_err(|_| "readiness_notify_failed")?;
+    Ok(())
+}
 pub async fn serve(config: Config) -> Result<(), &'static str> {
+    // Must precede SQLite migration/recovery and stale socket cleanup.
+    let _process_lease = WriterLease::acquire(&config.runtime.join("server.lock"))
+        .map_err(|_| "core_already_running")?;
+    // The pre-SERVER-1A daemon did not participate in the writer lease. Refuse
+    // a live legacy socket before touching either database or recovery state.
+    if UnixStream::connect(config.runtime.join("control.sock"))
+        .await
+        .is_ok()
+    {
+        return Err("core_already_running");
+    }
+    crate::storage::initialize(&config)?;
     let db = config.db()?;
-    db.execute_batch("CREATE TABLE IF NOT EXISTS headless_tasks(id INTEGER PRIMARY KEY,directory TEXT NOT NULL,objective TEXT NOT NULL,expected TEXT NOT NULL,state TEXT NOT NULL,result TEXT,error_code TEXT); UPDATE headless_tasks SET state='interrupted',error_code='restart_never_retries' WHERE state='running';").map_err(|_|"task_storage_failed")?;
+    let tx = db
+        .unchecked_transaction()
+        .map_err(|_| "task_storage_failed")?;
+    tx.execute("INSERT INTO server_events(namespace,task_id,code) SELECT 'lr10a',id,'restart_never_retries' FROM headless_tasks WHERE state='running'",[]).map_err(|_|"task_storage_failed")?;
+    tx.execute("UPDATE headless_tasks SET state='interrupted',error_code='restart_never_retries' WHERE state='running'",[]).map_err(|_|"task_storage_failed")?;
+    tx.commit().map_err(|_| "task_storage_failed")?;
     drop(db);
     let socket = config.runtime.join("control.sock");
-    // systemd RuntimeDirectory is private. A live peer blocks duplicate daemons.
-    if socket.exists() {
+    if let Ok(meta) = fs::symlink_metadata(&socket) {
+        use std::os::unix::fs::{FileTypeExt, MetadataExt};
+        if !meta.file_type().is_socket() || meta.uid() != unsafe { libc::geteuid() } {
+            return Err("unsafe_stale_socket");
+        }
         if UnixStream::connect(&socket).await.is_ok() {
             return Err("core_already_running");
         }
@@ -526,36 +670,82 @@ pub async fn serve(config: Config) -> Result<(), &'static str> {
     let listener = UnixListener::bind(&socket).map_err(|_| "local_socket_bind_failed")?;
     fs::set_permissions(&socket, fs::Permissions::from_mode(0o600))
         .map_err(|_| "socket_permissions_failed")?;
+    let services = crate::runtime::RuntimeServices::new(
+        config
+            .database
+            .get()
+            .ok_or("runtime_database_missing")?
+            .clone(),
+        config.home.join(".local/share/br.com.assistente3d.app"),
+    )?;
     let core = Arc::new(Core {
         config: Arc::new(config),
         active: Mutex::new(None),
         busy: Arc::new(tokio::sync::Semaphore::new(1)),
         trace: OperationalTraceBus::process_wide(),
+        stopping: AtomicBool::new(false),
+        services,
     });
-    eprintln!("narys_core_ready local_same_uid zero_tools");
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
         .map_err(|_| "shutdown_signal_unavailable")?;
+    let slots = Arc::new(tokio::sync::Semaphore::new(ipc::MAX_CONNECTIONS));
+    let mut connections = tokio::task::JoinSet::new();
+    core.event(None, "runtime", "ready")?;
+    notify("READY=1")?;
+    eprintln!("narys_core_ready protocol_v1 local_same_uid zero_tools");
     loop {
         tokio::select! {
             _=term.recv()=>break,
             _=tokio::signal::ctrl_c()=>break,
-            connection=listener.accept()=>{let (mut stream,_)=connection.map_err(|_|"socket_accept_failed")?;
+            Some(_)=connections.join_next(), if !connections.is_empty()=>{},
+            connection=listener.accept()=>{
+                let (mut stream,_)=connection.map_err(|_|"socket_accept_failed")?;
                 if stream.peer_cred().map_err(|_|"peer_identity_unavailable")?.uid()!=unsafe{libc::geteuid()}{continue;}
-                let core=core.clone();tokio::spawn(async move{
-                    let mut data=vec![];let read=tokio::time::timeout(Duration::from_secs(5),(&mut stream).take(16385).read_to_end(&mut data)).await;
-                    let result=if matches!(read,Ok(Ok(_)))&&data.len()<=16384{match serde_json::from_slice(&data){Ok(v)=>core.request(v).await,Err(_)=>Err("invalid_request")}}else{Err("request_limit_or_timeout")};
-                    let response=match result{Ok(v)=>json!({"ok":true,"data":v}),Err(c)=>json!({"ok":false,"error_code":c})};
-                    let _=stream.write_all(serde_json::to_string(&response).unwrap().as_bytes()).await;
+                let Ok(slot)=slots.clone().try_acquire_owned() else { continue; };
+                let core=core.clone();connections.spawn(async move{
+                    let _slot=slot;
+                    let mut data=vec![];
+                    let read=tokio::time::timeout(Duration::from_secs(5),(&mut stream).take((ipc::MAX_REQUEST_BYTES+1) as u64).read_to_end(&mut data)).await;
+                    let mut id=String::new();
+                    let result=if matches!(read,Ok(Ok(_)))&&data.len()<=ipc::MAX_REQUEST_BYTES {
+                        match serde_json::from_slice::<Request>(&data) {
+                            Ok(request)=>{
+                                // Echo only validated public correlation IDs.
+                                match request.validate() {
+                                    Ok(())=>{id=request.request_id;core.dispatch(request.command).await},
+                                    Err(code)=>Err(code),
+                                }
+                            }, Err(_)=>Err("invalid_request"),
+                        }
+                    }else{Err("request_limit_or_timeout")};
+                    let mut bytes=serde_json::to_vec(&Response::new(&id,result)).unwrap();
+                    if bytes.len()>ipc::MAX_RESPONSE_BYTES {bytes=serde_json::to_vec(&Response::new(&id,Err("response_limit"))).unwrap();}
+                    let _=tokio::time::timeout(Duration::from_secs(5),stream.write_all(&bytes)).await;
                 });
             }
         }
     }
+    core.stopping.store(true, Ordering::Release);
+    core.services.shutdown();
+    drop(listener);
+    notify("STOPPING=1")?;
     if let Some((_, cancel)) = &*core.active.lock().await {
         cancel.store(true, Ordering::Release);
+    }
+    while let Some(result) = connections.join_next().await {
+        let _ = result;
     }
     while core.busy.available_permits() == 0 {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
+    if !core
+        .services
+        .execution
+        .wait_shutdown(Duration::from_secs(10))
+    {
+        return Err("execution_shutdown_incomplete");
+    }
+    core.event(None, "runtime", "stopped")?;
     fs::remove_file(socket).map_err(|_| "socket_cleanup_failed")?;
     eprintln!("narys_core_stopped");
     Ok(())
@@ -572,6 +762,7 @@ mod tests {
             root: d.into(),
             cli: d.join("never-launch"),
             binary: d.join("never-launch"),
+            database: OnceLock::new(),
         })
     }
     #[tokio::test]

@@ -106,7 +106,7 @@ fn human_interactive_policy_does_not_expire_at_artificial_hour_structured_policy
     let elapsed = MAX_TIMEOUT + Duration::from_secs(1);
     assert!(!PtyLifecycle::HumanInteractive.expired(elapsed, MAX_TIMEOUT));
     assert!(PtyLifecycle::Bounded.expired(elapsed, MAX_TIMEOUT));
-    assert!(include_str!("../execution/broker.rs").contains("Instant::now() >= deadline"));
+    assert!(include_str!("../../../narys-domain/src/execution/broker.rs").contains("Instant::now() >= deadline"));
 }
 #[test]
 fn attachment_drop_and_disconnect_preserve_running_pty() {

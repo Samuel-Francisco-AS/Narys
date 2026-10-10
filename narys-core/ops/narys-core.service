@@ -6,7 +6,9 @@ StartLimitIntervalSec=60
 StartLimitBurst=3
 
 [Service]
-Type=simple
+Type=notify
+NotifyAccess=main
+TimeoutStartSec=30
 ExecStart=%h/.local/lib/narys/narys-core serve
 WorkingDirectory=%h/.local/state/narys/core
 Environment=PATH=/usr/bin:/bin

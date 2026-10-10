@@ -1,0 +1,312 @@
+{
+  "observed_at": "2026-10-10T15:33:33.184420-03:00",
+  "start": "2026-10-10T15:03:12-03:00",
+  "deadline": "2026-10-12T15:03:12-03:00",
+  "remaining_seconds": 170978,
+  "authority": {
+    "schema": 19,
+    "integrity": "ok",
+    "tables": {
+      "checkpoint_task_policies": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_checkpoints": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuation_units": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuations": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_rate_state": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_role_allocation_policies": {
+        "count": 4,
+        "sha256": "f8d3966916a98889ed66538a53b2cc3304d0573a6c99ed36a7ab752b45a65f98"
+      },
+      "cognitive_role_policies": {
+        "count": 4,
+        "sha256": "6c982b1cfeb3cb6e39a8b2053d4291ff873df57668831014e7d0b8f625172be8"
+      },
+      "cognitive_role_targets": {
+        "count": 4,
+        "sha256": "b42bb1bb9cb3b7351cb3b62a83a54f1d00ef755670c6a7bfd59695d17d99315a"
+      },
+      "conversation_messages": {
+        "count": 94,
+        "sha256": "f573239c5e7f083bdf13e84ee709acf6e8646bfc2362ebc54df5b5038d88f418"
+      },
+      "conversation_sessions": {
+        "count": 37,
+        "sha256": "57659477ceb71903d66445a7e27b9c3802f367eafb4afac4ab15dda2cdad94b5"
+      },
+      "gemini_provider_settings": {
+        "count": 1,
+        "sha256": "89e1a0d215211cdd921e2d3539570761f66e5043ca66ed5047dad2b14f894403"
+      },
+      "general_settings": {
+        "count": 1,
+        "sha256": "8555369d21bd1bd1f594fe8fb5a1b1928dc34d0ae2fdbfdc8fa860fc3c02d1c2"
+      },
+      "headless_tasks": {
+        "count": 2,
+        "sha256": "022e270e7f3c2e134735251053802188ad8ed1890273672401259680bb124090"
+      },
+      "identity_snapshots": {
+        "count": 1,
+        "sha256": "b3e5d67e85b7dcc712c2798a01d4956047f88d8e1564fcc828d5ff2360746799"
+      },
+      "memory_records": {
+        "count": 4,
+        "sha256": "0059fa400e34a00b43d3ec784b5150f7429f34b23fa1c9a3d140dd4047faaa8d"
+      },
+      "provider_timeout_settings": {
+        "count": 4,
+        "sha256": "ff316e5e0c3ddeb0f4796f4b3481e4ebbcd142bc34b7a01ae63998f49fb3cad4"
+      },
+      "server_events": {
+        "count": 3,
+        "sha256": "850ea4c9290c65eba072200e9f1ff17918736e778ddf5bffcd0602d86b0a8897"
+      },
+      "server_migrations": {
+        "count": 1,
+        "sha256": "2fb4a65e4c33f66206cf80de674bf023d288e4cfd5d35efb7846286a335080b2"
+      },
+      "shell_settings": {
+        "count": 1,
+        "sha256": "5509c3b2a20d234cf5d2332feb1aa6111e10ca4af4c15ff775bacd29410c4935"
+      },
+      "task_records": {
+        "count": 188,
+        "sha256": "7206a231fc71137b7818edf0d6a534db2f161457391398a9870c2bb70b00b975"
+      },
+      "task_subtask_records": {
+        "count": 39,
+        "sha256": "1f8907304110d6da8a8f9590f6e92534ddbeeab733bfb328a6b1828031631908"
+      }
+    }
+  },
+  "desktop": {
+    "schema": 18,
+    "integrity": "ok",
+    "tables": {
+      "checkpoint_task_policies": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_checkpoints": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuation_units": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_continuations": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_rate_state": {
+        "count": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "cognitive_role_allocation_policies": {
+        "count": 4,
+        "sha256": "f8d3966916a98889ed66538a53b2cc3304d0573a6c99ed36a7ab752b45a65f98"
+      },
+      "cognitive_role_policies": {
+        "count": 4,
+        "sha256": "6c982b1cfeb3cb6e39a8b2053d4291ff873df57668831014e7d0b8f625172be8"
+      },
+      "cognitive_role_targets": {
+        "count": 4,
+        "sha256": "b42bb1bb9cb3b7351cb3b62a83a54f1d00ef755670c6a7bfd59695d17d99315a"
+      },
+      "conversation_messages": {
+        "count": 94,
+        "sha256": "f573239c5e7f083bdf13e84ee709acf6e8646bfc2362ebc54df5b5038d88f418"
+      },
+      "conversation_sessions": {
+        "count": 37,
+        "sha256": "57659477ceb71903d66445a7e27b9c3802f367eafb4afac4ab15dda2cdad94b5"
+      },
+      "gemini_provider_settings": {
+        "count": 1,
+        "sha256": "89e1a0d215211cdd921e2d3539570761f66e5043ca66ed5047dad2b14f894403"
+      },
+      "general_settings": {
+        "count": 1,
+        "sha256": "8555369d21bd1bd1f594fe8fb5a1b1928dc34d0ae2fdbfdc8fa860fc3c02d1c2"
+      },
+      "identity_snapshots": {
+        "count": 1,
+        "sha256": "b3e5d67e85b7dcc712c2798a01d4956047f88d8e1564fcc828d5ff2360746799"
+      },
+      "memory_records": {
+        "count": 4,
+        "sha256": "0059fa400e34a00b43d3ec784b5150f7429f34b23fa1c9a3d140dd4047faaa8d"
+      },
+      "provider_timeout_settings": {
+        "count": 4,
+        "sha256": "ff316e5e0c3ddeb0f4796f4b3481e4ebbcd142bc34b7a01ae63998f49fb3cad4"
+      },
+      "shell_settings": {
+        "count": 1,
+        "sha256": "5509c3b2a20d234cf5d2332feb1aa6111e10ca4af4c15ff775bacd29410c4935"
+      },
+      "task_records": {
+        "count": 188,
+        "sha256": "7206a231fc71137b7818edf0d6a534db2f161457391398a9870c2bb70b00b975"
+      },
+      "task_subtask_records": {
+        "count": 39,
+        "sha256": "1f8907304110d6da8a8f9590f6e92534ddbeeab733bfb328a6b1828031631908"
+      }
+    }
+  },
+  "migration": {
+    "backup_directory": "/home/sam/.local/state/narys/core/backups/server-1a-L0o8Y4",
+    "desktop_tables_equal": {
+      "checkpoint_task_policies": true,
+      "cognitive_checkpoints": true,
+      "cognitive_continuation_units": true,
+      "cognitive_continuations": true,
+      "cognitive_rate_state": true,
+      "cognitive_role_allocation_policies": true,
+      "cognitive_role_policies": true,
+      "cognitive_role_targets": true,
+      "conversation_messages": true,
+      "conversation_sessions": true,
+      "gemini_provider_settings": true,
+      "general_settings": true,
+      "identity_snapshots": true,
+      "memory_records": true,
+      "provider_timeout_settings": true,
+      "shell_settings": true,
+      "task_records": true,
+      "task_subtask_records": true
+    },
+    "all_desktop_tables_equal": true,
+    "legacy_task_ids_results_equal": true,
+    "desktop_source_equal_backup": true,
+    "fence_present": true
+  },
+  "service": {
+    "pid": 46798,
+    "state": "active",
+    "linger": "yes",
+    "default_target": "multi-user.target",
+    "rss": "VmRSS:\t   14292 kB",
+    "gui_environment_present": false,
+    "gnome_shell_count": 0,
+    "copilot_count": 0,
+    "socket_mode": "0o600",
+    "linked_gui_libraries": []
+  },
+  "protocol": {
+    "status": {
+      "data": {
+        "active_task": null,
+        "agent_execution_authority": false,
+        "authority": "narys-core",
+        "conversation_integrated": false,
+        "copilot": "on_demand",
+        "core": "running",
+        "database": "core/db/luna.sqlite3",
+        "execution_workers": 0,
+        "graphical_environment_present": false,
+        "product_active_tasks": 0,
+        "profile": "HOST_ASSISTED_NOT_SANDBOX",
+        "protocol_version": 1,
+        "tools": 0,
+        "trace_events": 0
+      },
+      "ok": true,
+      "request_id": "cli-46801",
+      "version": 1
+    },
+    "capabilities": {
+      "data": {
+        "agent_tools": false,
+        "approvals": false,
+        "authority": "narys-core",
+        "conversation": false,
+        "execution_authority_from_ipc": false,
+        "implemented": [
+          "status",
+          "credentials",
+          "events",
+          "prepare",
+          "result",
+          "cancel"
+        ],
+        "persistence": "core/db/luna.sqlite3",
+        "protocol_version": 1,
+        "provider_configuration": false,
+        "task_namespaces": [
+          "lr10a",
+          "product"
+        ]
+      },
+      "ok": true,
+      "request_id": "cli-46802",
+      "version": 1
+    },
+    "events": {
+      "data": {
+        "complete": true,
+        "durable": true,
+        "events": [
+          {
+            "code": "ready",
+            "created_at": "2026-10-10T18:33:06.029Z",
+            "namespace": "runtime",
+            "sequence": 1,
+            "task_id": null
+          },
+          {
+            "code": "stopped",
+            "created_at": "2026-10-10T18:33:33.070Z",
+            "namespace": "runtime",
+            "sequence": 2,
+            "task_id": null
+          },
+          {
+            "code": "ready",
+            "created_at": "2026-10-10T18:33:33.119Z",
+            "namespace": "runtime",
+            "sequence": 3,
+            "task_id": null
+          }
+        ],
+        "has_more": false,
+        "next_sequence": 3,
+        "retention_events": 4096
+      },
+      "ok": true,
+      "request_id": "cli-46803",
+      "version": 1
+    }
+  },
+  "vault_metadata": {
+    "inode": 3134764,
+    "size": 614,
+    "mode": "0o600",
+    "mtime_ns": 1790850680472346601,
+    "ctime_ns": 1791386670010181473
+  },
+  "closed_authorization_metadata": {
+    "inode": 3787185,
+    "size": 233,
+    "mode": "0o600",
+    "mtime_ns": 1791650738220143670,
+    "ctime_ns": 1791650738220143670
+  }
+}
