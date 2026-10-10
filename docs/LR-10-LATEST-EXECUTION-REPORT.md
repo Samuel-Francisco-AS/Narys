@@ -1,281 +1,126 @@
-# NARYS — LR-10A / H3
+# Narys — Core headless + Copilot SpecialistAgent
 
-**Real Headless Credential Validation — Fedora44 — 10/10/2026**
+**Estado: implementação operacional preparada; aceite final pendente do único reboot humano e da tarefa real. Auditoria independente pendente.** Nenhuma nova trilha H/FIX foi criada.
 
-**HEADLESS_MANUAL_UNLOCK_PASS_REAL**, limitado a desbloqueio humano do cofre
-existente e autenticação metadata-only do Copilot **após login gráfico anterior,
-sem reboot**. Não equivale a cold-start, acesso Stronghold pessoal, admissão
-financeira, inferência, sandbox ou integração operacional da Narys.
+## Identificação
 
-**LR-10A H3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
+- Execução: 10/10/2026, Fedora 44, SSH/tmux, prioridade operacional determinada pelo usuário.
+- Branch exclusiva: `lr-10a-sdk-runtime-feasibility`. Base local/remota verificada: `7a336649e3a359463cecaad4232d6ccb4084c4ce`.
+- Implementação testada/publicada: [`284a31f00c7e5db3bdb728a83bc452ad641270b0`](https://github.com/Samuel-Francisco-AS/Narys/commit/284a31f00c7e5db3bdb728a83bc452ad641270b0).
+- HEAD documental verificável no [histórico da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility). Este documento será consolidado com a validação pós-boot; não contém SHA autorreferencial.
+- `main` local/remota preservada: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`. Sem PR, merge, rebase, reset ou force-push. H1/H2/H3 e experimentos históricos preservados.
 
-## 1. Identificação e Git
+## Implementação e arquivos
 
-- Branch exclusiva: `lr-10a-sdk-runtime-feasibility`.
-- HEAD inicial local/remoto: `d7d9eb4c4d97ffb19edba2e2015bdb93b849eb66`.
-- Implementação testada e ensaio real: [78392e29dcb20014d12cc808f8207073cdff7477](https://github.com/Samuel-Francisco-AS/Narys/commit/78392e29dcb20014d12cc808f8207073cdff7477).
-  Seus hashes de fontes/binário correspondem à execução; não houve mudança de
-  código depois do ensaio. O commit técnico foi publicado e HEAD remoto conferido.
-- Main local/remota preservada: `6603a78bd34cfffbd019ced8fa870d9bea02a7fb`.
-- HEAD documental final: commit mais recente deste arquivo no
-  [histórico verificável da branch](https://github.com/Samuel-Francisco-AS/Narys/commits/lr-10a-sdk-runtime-feasibility/docs/LR-10-LATEST-EXECUTION-REPORT.md).
-  Este commit documental altera **somente este relatório**, sem SHA autorreferencial.
-- Workspace inicial limpo. Alterações intermediárias eram preparação H3 do
-  próprio agente; nenhum trabalho humano foi descartado. Sem PR, merge, rebase,
-  reset, force-push ou alterações em main.
+[Narys Core](../narys-core/README.md) é um crate Edition 2021 independente de Tauri, com processo residente de uma thread Tokio e controle por Unix socket 0600, SO_PEERCRED do mesmo UID, sem porta TCP. Unidade [narys-core.service](../narys-core/ops/narys-core.service) habilitada e ativa; Copilot inicia somente por solicitação explícita. Restart do Core recupera resultados SQLite e marca tarefas interrompidas sem reenviá-las.
 
-## 2. Autorização e limites
+- [server.rs](../narys-core/src/server.rs): administração SSH, registry real do especialista, TaskGraph, trace limitado, persistência, cancelamento e verificação independente do resultado/arquivo.
+- [worker.rs](../narys-core/src/worker.rs): SDK autenticado, preflight, sessão privada, único send guarded, eventos sanitizados, abort/disconnect/shutdown.
+- [policy.rs](../narys-core/src/policy.rs): quota/modelo, admissão humana separada, receipt privado por tarefa, expiração 30 minutos e zero pagamento adicional autorizado.
+- [vault.rs](../narys-core/src/vault.rs): abre snapshot/client existentes com a chave resolvida normalmente no credential store; não cria key/client, salva, migra ou retorna segredos.
+- [ops](../narys-core/ops/): instalação conservadora, atualização somente com hashes revisados, status de credenciais, harness FIX1 reutilizado, revisão financeira humana e coleta segura.
+- [testes](../narys-core/tests/): socket/persistência/restart reais com HOME sintético, peer JSON-RPC sintético, bloqueios e políticas.
+- `src-tauri/src/agents/{registry_storage,plan_contract}.rs`, `cognition/scheduler_usage.rs`, `luna/task_id.rs`: extrações dos contratos puros. Os arquivos originais reexportam os mesmos tipos/comportamentos. `SchedulerUsage.providers_used` continua `Vec<String>` (o alias ProviderId já era String). A factory gráfica continua somente Codex.
+- Cargo/lock próprios, README, evidências e adendo permanente LR-10A. Cargo.toml/lock/MSRV/Edition da aplicação original não foram alterados.
 
-O usuário autorizou encerrar a sessão gráfica, depois confirmou especificamente
-parada temporária do GDM, trabalho gráfico salvo e acesso SSH/Termux independente.
-Ele armou rollback administrativo em SSH privado, parou o GDM, desbloqueou a
-coleção no terminal privado e iniciou novamente o GDM. Senhas nunca foram
-solicitadas no chat/capturadas pelo agente. Não houve reboot, target permanente,
-PAM, senha alterada, cofre novo, migração, --replace, token explícito, login/logout
-Copilot, plano/pagamento ou inferência.
+O especialista oferece **tarefas textuais com zero ferramentas**; não recebe HumanLocal/ExecutionAuthority. Execution Broker, regras LR-8.5, Scheduler, IPC release, UI e runtime 3D permanecem inalterados. Não há engine de approvals de produção nem execução agentiva de shell/edição. O Core grava apenas seu resultado em workspace explicitamente preparado. Este Core mínimo não substitui todos os provedores e fluxos cognitivos da GUI.
 
-H3 autorizou no máximo **uma** invocação SDK metadata-only, após desbloqueio:
-Client start, getStatus, auth.getStatus e shutdown. A futura autorização A9 não
-foi consumida. Sessões/modelos/quota/ferramentas/send/retry permanecem proibidos.
+## Configuração persistente e credenciais
 
-## 3. Transição, rollback e recuperação observados
+Foi instalado [drop-in mínimo](../narys-core/ops/keyring-headless.conf) no user manager, sem reiniciar/substituir o daemon existente. Keyring service/socket e Core habilitados. `Linger=yes` e `multi-user.target` já estavam configurados no host quando esta entrega começou; a implementação não ativou linger nem mudou boot. GDM permanece ativo nesta preparação.
 
-[Pré-condições autorizadas](../experiments/lr-10a-sdk-runtime/evidence/h3-authorized-transition-preconditions.json)
-identificaram a sessão Wayland2, sshd ativo, Codex/tmux fora do scope gráfico.
-O Codex no user manager tinha PartOf apenas no scope remoto, sem BindsTo gráfico;
-exigir PartOf totalmente vazio inicialmente bloqueou a preparação, e a inspeção
-passiva subsequente comprovou a dependência remota segura. Nenhuma sessão foi
-encerrada por essa inspeção.
+Desbloqueio: comando `narys-core unlock` executa o helper H2/H3 em terminal humano privado. Ele exige daemon GNOME Keyring 50.0 pinado, mesmo UID/user manager, coleção login existente, ausência real de GUI e transporte DH/AES. Interface GNOME interna/não suportada: pin/condições inválidos bloqueiam. Não solicita senha em chat, argumento, env ou logs; não cria coleção. Senha somente no SSH privado, sem eco. Python não oferece garantia de apagamento físico de memória.
 
-O primeiro timer foi verificado no system manager: waiting/transient, root,
-oneshot, vínculo e ação exata `/usr/bin/systemctl start gdm.service`, prazo30min.
-[StopUnit sem interação](../experiments/lr-10a-sdk-runtime/evidence/h3-gdm-stop-request.json)
-e [sudo -n restrito](../experiments/lr-10a-sdk-runtime/evidence/h3-gdm-stop-noninteractive-authority.json)
-retornaram exit1; GDM continuou ativo. Não houve prompt/captura de senha.
-O humano efetuou a parada no SSH privado; nenhuma terminação por nome/PID genérico
-foi usada. Ele substituiu o timer por `narys-h3-gui-rollback-2.timer` e desativou o
-anterior. O novo vínculo, autoridade, ação e prazo foram novamente verificados.
+O Stronghold **pessoal existente foi aberto com sucesso nesta preparação**, status-only, sem save/migração/chave substituta. Metadados do snapshot original e de login.keyring estão na [evidência](../narys-core/evidence/preboot.json). Não se leu config.json pessoal, enumeraram itens pessoais ou copiaram/exportaram tokens. A chave do Stronghold foi resolvida internamente como operação normal da aplicação e mantida fora da resposta.
 
-[Após parar GDM](../experiments/lr-10a-sdk-runtime/evidence/h3-post-user-gdm-stop-context.json):
-sem Wayland/X11 do usuário, GDM ou GNOME Shell; alvo gráfico inativo; user manager,
-bus, SSH/tmux/Codex presentes. Ambos os daemons Keyring anteriores saíram.
-**Não houve transferência automática do Secret Service.**
+## SDK, rede e preflight real
 
-[Antes do SDK](../experiments/lr-10a-sdk-runtime/evidence/h3-after-manual-unlock.json)
-restavam1283,30s no rollback. O agente não cancelou nenhum timer.
-[Retorno final](../experiments/lr-10a-sdk-runtime/evidence/h3-gdm-recovery-confirmed.json):
-o usuário informou ativação do GDM; active/running confirmado, identidades
-protegidas preservadas, mesmo owner do Secret Service e metadados do cofre iguais.
-Não houve login gráfico nem inspeção da tela física. Nenhum GNOME Shell, inclusive
-no UID do greeter, foi observado nessa inspeção; pode aparecer posteriormente.
-Restaurar o serviço GDM não comprova uma sessão gráfica autenticada.
+SDK exato `github-copilot-sdk=1.0.17`, runtime não bundled. CLI nativo 1.0.95, protocolo RPC 3, SHA-256 `9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99`, validado por invocação. Sem download/update/login/logout. Construção offline com rustc/cargo Fedora 1.98.1; MSRV declarado Core 1.94.0. Cargo metadata não encontrou pacote com MSRV declarado superior a 1.94; não foi executado compilador 1.94 nesta entrega.
 
-## 4. Serviço existente e desbloqueio humano
+Primeiro preflight integrado: auth=true/quota recebida, catálogo expirou em 15s, shutdown/cleanup completos. Diagnóstico público sem autenticação: endpoint Copilot com conexão padrão expirou; IPv4 e `RES_OPTIONS=no-aaaa` retornaram HTTP404 com TLS normal. Aplicado somente ao ambiente do CLI, com timeout catálogo 30s e sem retry pela Narys. Segundo preflight integrado: **auth=true, catálogo real somente Auto e quota recebida**.
 
-[Pré-condições do serviço](../experiments/lr-10a-sdk-runtime/evidence/h3-service-start-preconditions.json):
-nenhum owner/daemon ativo; login.keyring preexistente, regular, UID1000,0600,
-sem symlink nos componentes verificados. Conteúdo não lido. Daemon instalado50.0
-confirmado por pacote e SHA
-`c7c5ad270c98fc0c9466031a08a037d650a918786036579003d9bcca4844481e`.
+A falha é compatível com o [relato upstream de IPv6/Node SEA](https://github.com/github/copilot-cli/issues/2361), mas essa issue trata outra versão/OS e não comprova por si a causa no Fedora. A prova local é o contraste observado e a consulta posterior bem-sucedida. `no-aaaa` é uma opção diagnóstica glibc, afeta DNS/NSS desse processo, não protege destinos nem credenciais; é incompatível com DNSSEC feito pela aplicação. Não se alteraram resolver/firewall/rede global, nem desabilitou TLS. Consulte também o manpage instalado `resolv.conf(5)`.
 
-Iniciamos **somente a unidade user instalada** gnome-keyring-daemon.service e
-sua socket, sem enable/linger. [Override somente runtime](../experiments/lr-10a-sdk-runtime/evidence/h3-credential-service-start.json)
-em `/run/user/1000/systemd/user/gnome-keyring-daemon.service.d/90-narys-h3-context.conf`:
+Quota recebida por `account.getQuota`: premium entitlement 200, usedRequests 52, remainingPercentage 74.2, overage 0; ambas as flags `overageAllowedWithExhaustedQuota`/`usageAllowedWithExhaustedQuota` false. **Unidades: requests informadas pelo runtime**, não AI Credits. A resposta RPC foi recebida agora; não se comprova a atualização do saldo no servidor nem ausência de cache. Não se reutilizou apenas o histórico H3/FIX2.
 
-```ini
-[Service]
-UnsetEnvironment=XDG_SESSION_ID DISPLAY WAYLAND_DISPLAY
-LimitCORE=0
-TimeoutStopFailureMode=terminate
-```
+## Autorização financeira e tentativa
 
-Não altera ambiente global do user manager, HOME/COPILOT_HOME, armazenamento,
-PAM ou unidade em /usr. Remove dependência de contexto gráfico herdado; não se
-inspecionou environ do daemon para alegar qual variável anterior ele possuía.
-LimitCORE impede core dumps desta unidade; não constitui proteção integral de RAM.
-Override permanece em /run; serviço/socket intencionalmente ativos não são órfãos.
+O usuário confirmou explicitamente orçamento adicional desativado e autorizou **uma única chamada da franquia**, Auto somente se elegível, apesar da diferença de unidades e custo máximo em AI Credits não comprovado pelo SDK pinado. Nenhum pagamento adicional, fallback pago ou retry foi autorizado. Essa decisão será associada ao objetivo exato e task ID no receipt privado antes do envio após boot.
 
-[Pré-unlock](../experiments/lr-10a-sdk-runtime/evidence/h3-before-manual-unlock.json):
-owner PID21550/start1642719 no user manager, fora de scope gráfico, alias login
-existente e Locked=true. Helper H2 pinado, inalterado, sem coleção nova/replace.
-O humano executou em outro SSH privado:
+Autenticação não aprova gastos: quota disponível, catálogo real Auto e flags atuais false continuam obrigatórios. Sessão recebe limite 0,5 AI Credits **soft**, não um teto financeiro garantido. [Limites oficiais](https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/session-limits) e [billing atual](https://docs.github.com/en/copilot/concepts/billing-and-usage/individuals/billing) distinguem esses conceitos. Uma operação SDK não garante uma única requisição/unidade interna faturável.
+
+Guard `send-attempt.json`: O_EXCL0600, fsync do arquivo/diretório antes do único send; timeout/crash não liberam reenvio. Receipt exclusivo de uma tarefa; alterações do objetivo invalidam admissão. Não há retry, resumo automático, compaction infinita ou fallback de modelo. Marker histórico A9 permanece ausente/intacto, sem reutilização das reservas antigas. **Até esta preparação: zero inferências e zero sessões reais novas.** Não se afirma zero cobrança externa medida do conjunto da conta.
+
+## Testes e comandos executados
 
 ```sh
-cd /home/sam/Projetos/Narys
-python3 experiments/lr-10a-sdk-runtime/h2_manual_unlock.py unlock-existing-login
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 \
+RUSTC=/usr/bin/rustc RUSTDOC=/usr/bin/rustdoc \
+CARGO_TARGET_DIR="$PWD/src-tauri/target" \
+/usr/bin/cargo test --offline --locked --manifest-path narys-core/Cargo.toml
+
+# Regressão da composição original afetada:
+COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 \
+RUSTC=/usr/bin/rustc RUSTDOC=/usr/bin/rustdoc \
+/usr/bin/cargo test --offline --locked --manifest-path src-tauri/Cargo.toml --lib agents::
+
+python3 -m unittest discover -s narys-core/tests -p 'test_*.py'
+python3 -m unittest discover -s experiments/lr-10a-sdk-runtime/tests -p test_measure.py
+python3 -m py_compile narys-core/ops/*.py narys-core/tests/*.py
+systemd-analyze --user verify ~/.config/systemd/user/narys-core.service
 ```
 
-Informou `LOGIN_UNLOCKED`; verificamos Locked=false sem itens/segredos.
-A extensão GNOME é interna **não suportada**, versionada50.0; helper exige
-libsecret DH/AES e nega plain. Esse contrato não vira API pública estável.
-Não gravamos/capturamos senha e não afirmamos zeroização/swap seguro de Python.
-Metadados do login.keyring mantiveram-se iguais após startup/unlock/SDK/retorno;
-isso não prova equivalência criptográfica do conteúdo.
-
-## 5. Implementação e arquivos
-
-No [commit técnico](https://github.com/Samuel-Francisco-AS/Narys/commit/78392e29dcb20014d12cc808f8207073cdff7477):
-
-- [h3_recovery.py](../experiments/lr-10a-sdk-runtime/h3_recovery.py): classificador
-  passivo do rollback inicial; para o segundo, vinculamos explicitamente a unidade
-  `-2.service` antes de aplicar o mesmo contrato de ação/root. Identidade efetiva
-  preservada nas evidências; não há force ou concessão de autoridade SDK.
-- [h3_headless.py](../experiments/lr-10a-sdk-runtime/h3_headless.py): contexto real,
-  ausência GUI, owner/PID/start/UID/SHA, alias existente, Locked e marker.
-- [h3_metadata.py](../experiments/lr-10a-sdk-runtime/h3_metadata.py) e
-  [entrypoint Rust](../experiments/lr-10a-sdk-runtime/src/bin/h3-metadata-confirm.rs):
-  reutilizam opções, protocolo e harness existentes; identidade H3 independente,
-  duas reservas fixas O_EXCL, sem argumentos de retry/force. Corrige somente o
-  rótulo GUI do confirmer compartilhado para o perfil headless qualificado.
-- [Testes headless](../experiments/lr-10a-sdk-runtime/tests/test_h3_headless.py)
-  e [recuperação](../experiments/lr-10a-sdk-runtime/tests/test_h3_recovery.py): nove
-  casos novos; GUI/erro não viram ausência, pin/marker negam acesso, one-shot
-  permanece consumido após falha, ação/autoridade/timer inválidos bloqueiam.
-- [Guia H3](../experiments/lr-10a-sdk-runtime/HEADLESS-HOST-VALIDATION.md), README,
-  adendo permanente e evidências novas `evidence/h3-*`.
-
-Não alteramos FIX1–H2, suas evidências, produção, Broker/ExecutionAuthority,
-AgentRegistry, TaskGraph/LR8.5, IPC, UI, MSRV/Edition ou dependências.
-[Verificação](../experiments/lr-10a-sdk-runtime/evidence/h3-delivery-verification.json)
-comparou552 arquivos históricos experimentais/produção: somente README mudou;
-os demais permaneceram byte a byte iguais. Documentos permanentes receberam adendo.
-
-## 6. Única execução SDK real
-
-[Evidência](../experiments/lr-10a-sdk-runtime/evidence/h3-metadata-real.json),
-concluída **2026-10-10T13:35:47.432477Z**, contém hashes exatos de fontes/binário.
-SDK `github-copilot-sdk=1.0.17`, CLI nativo1.0.95 SHA
-`9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99`;
-protocolo3 esperado. Binário H3 SHA
-`e4a39f123ff97cf5341e4b1e619a5a6f59aa01e6b20c60535a0bf1aad77b748f`.
-
-Uma inicialização, um status, um auth status: **authenticated=true**, shutdown
-Rust graceful. SDK pode fazer connect/ping internos; não se alegam somente quatro
-pacotes RPC nem equivalência a unidades faturáveis. Zero inferências/sessões,
-modelos/quota/tools; sem retry. Estado/autenticação por resolução normal do host,
-sem token explícito ou cópia de credenciais. Não isolamos qual armazenamento
-interno o CLI utilizou; o sucesso combinado não prova exclusividade causal do
-Keyring. Não introduzimos fallback plaintext.
-
-Config apresentou drift inode/mtime/ctime em after_start; tamanho permaneceu
-estável, estrutura PASS_METADATA_ACCESS. Autoria INCONCLUSIVE e conteúdo
-NOT_VERIFIED; não lemos/restauramos config nem declaramos legítima a escrita.
-Metadata pode ser aceito observacionalmente com drift; nenhuma admissão sensível
-herda esse resultado. O HEADLESS_AUTH da política genérica continua NOT_PROVEN:
-o gate H3 é confirmado separadamente por contexto real antes/depois e SDK.
-
-Reserva [h3-runtime-reservation.json](../experiments/lr-10a-sdk-runtime/evidence/h3-runtime-reservation.json)
-consumida, evidência O_EXCL também. **Não repetir/apagar reservas.** Marker de
-inferência A9 não criado/lido/consumido: somente existência verificada.
-
-## 7. Gates H3
-
-| Gate | Resultado | Evidência/limite |
+| Verificação | Resultado | Evidência |
 |---|---|---|
-| USER_GUI_SESSION_ABSENT | PASS_REAL durante ensaio | logind sem Wayland/X11 do usuário |
-| GNOME_SHELL_PROCESS_ABSENT | PASS_REAL durante ensaio | ps exit1, GDM parado; não DISPLAY filtrado |
-| SSH_ACCESS_PRESERVED | PASS_REAL | SSH/tmux/Codex e identidades preservados |
-| RECOVERY_PATH_VERIFIED | PASS_REAL | timer root registrado; retorno GDM active/running observado |
-| USER_DBUS_AVAILABLE | PASS_REAL | socket/bus acessíveis, sem ativação arbitrária |
-| HEADLESS_SECRET_SERVICE | PASS_REAL | mesma unidade instalada, owner no user manager |
-| EXISTING_LOGIN_COLLECTION | PASS_REAL | alias existente; identidade/metadados do arquivo preservados |
-| MANUAL_UNLOCK | PASS_REAL | humano informou sucesso; Locked true→false observado |
-| STRONGHOLD_PERSONAL_ACCESS | NOT_TESTED | secret_presence pode escrever/ajustar/migrar; não chamado |
-| COPILOT_SDK_HEADLESS_AUTH | PASS_REAL | única invocação real authenticated=true |
-| PROCESS_CLEANUP | PASS_REAL | ECHILD, PID/start ausentes, sem recuperação forçada |
-| COLD_START_HEADLESS | NOT_TESTED | nenhuma reinicialização; cenário pós-login gráfico |
-| FINANCIAL_ADMISSION | BLOCKED | nenhum modelo/quota/custo/fallback novo comprovado |
-| REAL_INFERENCE | NOT_RUN | zero send, prompts, inferências ou ferramentas |
-| A9_ATTEMPT_MARKER | PASS_REAL preservação | ausente/não reclamado; conteúdo não lido |
+| Core Rust: TaskGraph/trace/vault/policy/SDK fixture | 26 PASS | [log](../narys-core/evidence/rust-core.txt) |
+| Core real Unix/SQLite/restart em HOME sintético | 1 PASS | mesmo log; submit não autorizado bloqueado sem CLI/send |
+| Core Python/unidades/segurança local | 5 PASS | [log](../narys-core/evidence/python-core.txt) |
+| FIX1: ownership/subreaper/pidfd/external preservation | 25 PASS | [log](../narys-core/evidence/python-ownership.txt) |
+| Aplicação: agentes/registry/planner/Codex | 117 PASS, 2 ignored | [log](../narys-core/evidence/rust-shared-agents.txt) |
+| Rustfmt direcionado, sintaxe Python, JSON, diff check | PASS | comandos executados; sem alterações de formatação em módulos não afetados |
+| Unidade systemd / dependências binárias | PASS | unidade instalada verificada; ldd sem GTK/WebKit/X11/Wayland |
+| Sessão/send/cancel/timeout | PASS_FIXTURE | peer sintético; uma chamada, abort/detach, guard e PID reclamado |
+| Sessão/send pelo provedor real | NOT_RUN | reservado à validação final após boot |
 
-SESSION_ADMISSION e AGENT_ACTION_ADMISSION **BLOCKED**. Gates de A9_ISOLATED
-(auth/rede/contenção) não foram resolvidos por HOST_ASSISTED.
+Falhas iniciais locais de fixtures (permissão temporária, wire `configDir`/resposta `success`) foram corrigidas; não foram usadas para afirmar sucesso real. Otimização scrypt igual à produção evita teste de snapshot sintético prolongado. Logs finais registram somente testes efetivamente aprovados. Não houve teste gráfico. A aplicação completa compilou para os 117 testes direcionados; não se repetiu a suíte inteira de 1107, porque Broker/IPC/UI/Scheduler não mudaram e os contratos extraídos têm regressão proporcional.
 
-## 8. Testes, comandos e recursos
+## Lifecycle, recursos e limites
 
-[Verificação offline](../experiments/lr-10a-sdk-runtime/evidence/h3-offline-verification.json)
-e [harness de regressão](../experiments/lr-10a-sdk-runtime/evidence/h3-regressions/a9-host-owned-tests.json):
-**52 Rust +158 Python PASS**, incluindo nove novos H3, zero CLI real nessas fixtures.
-Quatro testes Rust direcionados de metadata passaram antes da regressão completa;
-21 H2 também passaram. Nove H3 retestados após formatação final do novo entrypoint.
-Formatação, py_compile, JSON/JSONL e diff check aprovados. /usr/bin/rustfmt não
-existia; utilizamos rustfmt da toolchain stable já instalada, sem download.
-Uma quebra vazia extra no final do log Rust novo foi removida para diff check,
-sem alterar testes/resultados. Logs [Rust](../experiments/lr-10a-sdk-runtime/evidence/h3-regressions/a9-host-rust-tests.txt)
-e [Python](../experiments/lr-10a-sdk-runtime/evidence/h3-regressions/a9-host-python-tests.txt).
+[Preflight real](../narys-core/evidence/preboot.json): wall15.395s, peak tree RSS270757888 bytes, CPU amostrada >=12.62s, cleanup32.33ms, 3 processos observados, ECHILD=true, zero sinais de recuperação, zero sobreviventes atribuídos. `cleanup_status=graceful_no_recovery`; SDK report.shutdown=graceful. `measure.py.sdk_shutdown_verified=false` permanece por desenho: o harness não atesta o SDK; as duas fontes não devem ser confundidas. GUI ainda presente nesse probe.
 
-Comandos principais executados:
+Binário instalado final: SHA `1dc0a2c939b1ae38120cad05db292e9ce320465051f3ebb06bb5a35c65978ace`, 34711008 bytes (debug stripped). RSS idle final observado14716KiB/uma thread. MemoryCurrent systemd inclui page cache de binário/CLI, não equivale ao RSS; não apresentar como heap. O probe usou o artefato `eb63090...`; depois houve somente proteção adicional de zeroização de chave no caminho de erro e formatação de assertion sintética. Os hashes/source manifest distinguem as implementações.
+
+Timeouts: catálogo30s, send120s, harness240s, parada systemd270s. Core TERM solicita cancelamento e aguarda o harness. FIX1 reutilizado intacto; sinais somente em processos atribuídos com identidade kernel/pidfds. Cgroup limita a unidade Core/workers; Keyring está separado. Morte inesperada do supervisor/descendentes adversariais continuam limites conhecidos; não há supervisor de produção nem proteção contra processos do mesmo UID. Logs de runtime/estado ficam privados, não versionados; journal somente labels fixos.
+
+Config drift não implica corrupção nem escrita legítima: observação estrutural/metadados antes/depois, autoria INCONCLUSIVE. Não houve restauração/lock/chmod de config pessoal. O perfil continua HOST_ASSISTED_NOT_SANDBOX, com rede do host. O modo isolado e seus bloqueios auth/rede/supervisão não foram resolvidos por essa entrega.
+
+## Aceite operacional e único reboot pendente
+
+| Requisito | Estado atual |
+|---|---|
+| SSH/user manager/tmux preservados | PASS observado nesta preparação |
+| Core systemd residente / Copilot sob demanda | PASS_REAL pré-boot |
+| Keyring existente + desbloqueio sem GUI | PASS histórico H3 pós-login; cold boot NOT_TESTED |
+| Stronghold pessoal existente aberto sem migração | PASS_REAL pré-boot; pós-boot NOT_TESTED |
+| Auth SDK + catálogo/quota pela Narys | PASS_REAL pré-boot com GUI presente |
+| Boot realmente sem GNOME | NOT_TESTED nesta entrega |
+| Tarefa alpha2+beta3 pela Narys | NOT_RUN, única tentativa autorizada preservada |
+| Resultado/arquivo/task graph/trace/shutdown dessa tarefa | NOT_RUN |
+| Integração operacional concluída | **NÃO declarada** |
+
+Checklist curto, **somente no SSH privado do usuário**:
 
 ```sh
-COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 RUSTC=/usr/bin/rustc RUSTDOC=/usr/bin/rustdoc /usr/bin/cargo build --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml --bin h3-metadata-confirm --offline --locked
-COPILOT_SKIP_CLI_DOWNLOAD=1 CARGO_BUILD_JOBS=2 RUSTC=/usr/bin/rustc RUSTDOC=/usr/bin/rustdoc /usr/bin/cargo test --manifest-path experiments/lr-10a-sdk-runtime/Cargo.toml --test metadata_confirmation --offline --locked -- --test-threads=1
-python3 experiments/lr-10a-sdk-runtime/verify_a9_host.py --artifacts-dir experiments/lr-10a-sdk-runtime/evidence/h3-regressions
-python3 -m unittest discover -s experiments/lr-10a-sdk-runtime/tests -p 'test_h3_*.py' -v
-python3 -m py_compile experiments/lr-10a-sdk-runtime/h3_recovery.py experiments/lr-10a-sdk-runtime/h3_headless.py experiments/lr-10a-sdk-runtime/h3_metadata.py
-python3 experiments/lr-10a-sdk-runtime/h3_metadata.py
+# Uma reinicialização humana; nunca pedir senha administrativa no chat.
+sudo systemctl reboot
+# Após reconectar por SSH/Termux:
+~/.local/lib/narys/narys-core status
+~/.local/lib/narys/narys-core credentials
+~/.local/lib/narys/narys-core unlock
 ```
 
-O último comando foi executado **uma vez** e está bloqueado por reservas existentes.
-Não é instrução para reexecutar. Cargo usa compilador instalado1.98.1; não foi
-instalado/atualizado1.94. SDK/lock/MSRV/Edition preservados. Suíte Tauri/UI completa
-NOT_RUN por ausência de alteração em produção; não houve prova UI.
+Informar apenas `BOOT_HEADLESS / CORE_ATIVO / LOGIN_UNLOCKED` ou código sanitizado. Senha somente no terminal privado, não compartilhar saída com dados pessoais. Depois Codex confirma contexto/Stronghold, prepara o workspace autorizado, registra a autorização financeira já recebida e executa **uma** submissão pela Narys, sem retry. Resultado esperado5, arquivo relido, eventos/shutdown/ownership verificados. GDM não será iniciado nem boot alterado durante essa validação.
 
-Medição real com caches aquecidos: start2781ms, stop889ms, total4787,38ms,
-cleanup30,8ms, pico RSS somada267.878.400bytes (~255,47MiB), CPU amostrada como
-limite inferior1,92s, pico3 processos possuídos. Contagem global229→230 não prova
-órfãos: as provas são ECHILD/identidades possuídas ausentes. [Amostra daemon](../experiments/lr-10a-sdk-runtime/evidence/h3-daemon-resource-sample.json)
-RSS10.948.608bytes (~10,44MiB), PID/start/UID validados. Não são memória incremental
-nem benchmark frio; sem alegação de economia total comparada ao GNOME.
+## Decisão e release
 
-## 9. Segurança e limites residuais
-
-[Safety pós-SDK](../experiments/lr-10a-sdk-runtime/evidence/h3-post-sdk-safety.json)
-confirma zero sinais de recuperação, nenhum survivor possuído, ECHILD e arquivo
-Keyring observacionalmente estável. O harness genérico tem sdk_shutdown_verified
-false por schema legado; shutdown específico vem do relatório Rust graceful,
-com cleanup independente do kernel. Não reclassificamos FIX1.
-
-Daemon de credenciais intencionalmente gerido por systemd é serviço do host;
-não matar para “limpar” fixtures. SSH/sshd, tmux, Codex, systemd e bus preservados.
-Não há orfandade experimental conhecida. Morte inesperada do worker, descendentes
-adversariais, reparenting/namespaces não cobertos e tarefas D-state continuam
-limites: nenhum supervisor definitivo foi implementado.
-
-Sem tokens, itens, conteúdo config/Keyring/Stronghold, argv/env de processos,
-strace, dumps ou tráfego autenticado nos artefatos. Scan de padrões conhecidos
-de segredo é um check adicional, não prova universal de ausência de segredos.
-Metadados seguros/IDs Linux são publicados; identificadores de conta não.
-Builtin MCP desabilitado; nenhuma sessão/caminho de ferramenta foi exercido.
-DenyAll/zero tools anteriores preservados, sem alegação de cobertura de todos os
-hooks/extensões pelo teste de metadata. HOST_ASSISTED não oferece sandbox.
-
-Arquivo de preparação inicial h3-pretransition-context conserva a observação
-anterior à correção do classificador de root ausente: seu resultado já era BLOCKED,
-nunca autorizou SDK. Hash dessa preparação não equivale ao código final. As
-pré-condições aprovadas e o ensaio real usam hashes posteriores verificáveis.
-
-## 10. Produto, pendências e decisão
-
-Recomendação: manual unlock tem **viabilidade real pós-login gráfico** para o
-Copilot metadata. GNOME Shell não é requisito permanente desse cenário observado.
-Não declarar servidor Narys/Stronghold pessoal/headless cold-start prontos.
-Linger=no: continuidade após último SSH e boot inteiramente headless não foram
-validados. Serviço instalado é sob demanda e override é temporário em /run.
-
-Próximos passos proporcionais, sob autorização/auditoria futura: validação de
-boot feito pelo humano, mesmo mecanismo manual e ciclo do user manager; contrato
-Stronghold de status sem efeitos incidentais; financeiro/modelo/custo máximo e
-estado de sessão privado antes de A9. Não iniciar isso nesta H3 nem consumir a
-inferência futura. Não escolher migração criptográfica por conveniência.
-
-Release0.1 alvo17/10/2026: a prova reduz a dependência gráfica para credenciais
-Copilot neste cenário, sem tornar esse SDK requisito de todas as funcionalidades.
-Priorizar caminhos já aprovados enquanto cold-start/Stronghold/finanças permanecem
-pendentes. Não houve LR10B, integração operacional, Android ou nova autoridade.
-
-**Zero inferências enviadas pela POC nesta H3; saldo/cobrança externa não medidos.**
-Não houve consulta atual de quota nem afirmação de saldo zero/ilimitado. Uma futura
-chamada SDK não garante uma única requisição/unidade faturável interna.
-
-**LR-10A H3 IMPLEMENTAÇÃO CANDIDATA — aguardando auditoria independente da Luna.**
-Nenhum PASS definitivo da LR10A/LR10 ou autorização de avanço foi atribuído.
+Implementação funcional preparada e publicada; aceite integrado pendente da ação humana acima. Não avançar à produção nem declarar LR-10A PASS definitivo. O Core mínimo atende a operação local de especialista textual e baixo custo idle; UI Android, acesso de escrita/shell e composição de todos os provedores da GUI ficam fora desta entrega. Para 17/10, concluir essa validação única oferece decisão operacional concreta sem novos ciclos investigativos. Auditoria independente continua pendente após o resultado consolidado.
