@@ -1,0 +1,91 @@
+{
+  "phase": "LR-10A A9-FIX-2",
+  "observed_at": "2026-10-10T03:38:27.408902+00:00",
+  "base": "f0ae5787c7cde7b54a1970727e2a52b43f4612f8",
+  "user_intervention": {
+    "source": "user_statement_not_reproduced_by_poc",
+    "gnome_physical_login": true,
+    "keyring_login_unlocked_reported": true,
+    "cli_signed_in_successfully_reported": true,
+    "cli_version_reported": "1.0.95",
+    "github_mcp_connected_reported": true,
+    "credentials_changed_by_poc": false
+  },
+  "current_shell_resolution": {
+    "source": "shutil.which + public npm loader inspection",
+    "loader_home_relative": ".local/share/fnm/node-versions/v24.18.0/installation/lib/node_modules/@github/copilot/npm-loader.js",
+    "loader_sha256": "0ea824a86be5757533fdb092eff7050871bd7a711a46babde0ffe0e44ac5ad88",
+    "native_home_relative": ".local/share/fnm/node-versions/v24.18.0/installation/lib/node_modules/@github/copilot/node_modules/@github/copilot-linux-x64/copilot",
+    "native_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+    "native_version_measured": "1.0.95",
+    "package_manifest_version": "1.0.89",
+    "package_version_is_not_effective_binary_version": true,
+    "interactive_process_path_not_independently_observed": true
+  },
+  "historical_runtime": {
+    "native_sha256": "be17b42705ca17490098d7b87f293300d72a094d125b6bb2b2557dc4a0a4f8a8",
+    "version_historical": "1.0.91",
+    "sha_matches_current_known_path": false,
+    "old_image_sdk_retest": "NOT_RUN_no_verified_old_image_at_known_path",
+    "global_update_performed_by_poc": false,
+    "download_performed_by_poc": false,
+    "cause_of_external_binary_change": "UNKNOWN_not_attributed"
+  },
+  "sdk": {
+    "version": "1.0.17",
+    "default_features": false,
+    "features": [
+      "runtime"
+    ],
+    "installed_source_lib_sha256": "23c99946ab6fa84ebee723fba58992ec4487f26e05fb209add570badeb39fa23",
+    "runtime_archive_reference": "1.0.93",
+    "associated_archive_not_used_or_acquired": true,
+    "version_not_updated": true
+  },
+  "compatibility_observed": {
+    "native_version": "1.0.95",
+    "rpc_version": "1.0.95",
+    "protocol": 3,
+    "auth_getStatus": "authenticated_true",
+    "models_list": "auto_only",
+    "account_getQuota": "observed",
+    "sdk_shutdown": "graceful",
+    "sessions_or_inference_compatibility": "NOT_RUN",
+    "old_vs_new_version_causality": "INCONCLUSIVE_context_and_image_changed"
+  },
+  "configuration_window": {
+    "metadata_only": true,
+    "before": {
+      "inode": 3768587,
+      "bytes": 470,
+      "mtime_ns": 1791602000869867688,
+      "ctime_ns": 1791602000869867688
+    },
+    "after": {
+      "inode": 3768738,
+      "bytes": 470,
+      "mtime_ns": 1791603250606145370,
+      "ctime_ns": 1791603250606145370
+    },
+    "equal": false,
+    "writer_attribution": "UNKNOWN",
+    "contents_or_credential_values_inspected": false,
+    "automatically_restored": false,
+    "additional_real_probes_after_change": 0
+  },
+  "official_sources": [
+    {
+      "url": "https://github.com/github/copilot-cli/releases/tag/v1.0.95",
+      "retrieved_on": "2026-10-10",
+      "linux_keyring_recovery_not_proven_by_release_notes": true
+    },
+    {
+      "url": "https://github.com/github/copilot-sdk/blob/main/docs/auth/authenticate.md",
+      "retrieved_on": "2026-10-10",
+      "latest_doc_not_pinned_contract_proof": true
+    }
+  ],
+  "inference_calls": 0,
+  "real_session_operations": 0,
+  "financial_admission": "BLOCKED"
+}

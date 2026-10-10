@@ -1,0 +1,277 @@
+{
+  "phase": "LR-10A A9-FIX-2",
+  "base": "f0ae5787c7cde7b54a1970727e2a52b43f4612f8",
+  "schema_version": 1,
+  "profile": "HOST_ASSISTED_WITH_GUI_NOT_SANDBOX",
+  "cli_interactive_authenticated": "USER_REPORTED_not_reproduced",
+  "sdk_authenticated_with_gui": "BLOCKED",
+  "sdk_authenticated_headless": "NOT_PROVEN",
+  "financial_admission": "BLOCKED",
+  "a9_real_inference": "NOT_RUN",
+  "inference_calls": 0,
+  "real_session_operations": 0,
+  "marker_claimed": false,
+  "gui_or_service_started_stopped_by_poc": false,
+  "environment_presence": {
+    "HOME": true,
+    "PATH": true,
+    "DBUS_SESSION_BUS_ADDRESS": true,
+    "XDG_RUNTIME_DIR": true,
+    "XDG_CONFIG_HOME": false,
+    "XDG_DATA_HOME": false,
+    "XDG_CACHE_HOME": false,
+    "GH_CONFIG_DIR": false,
+    "COPILOT_HOME": false,
+    "DISPLAY": false,
+    "WAYLAND_DISPLAY": false,
+    "GH_TOKEN": false,
+    "GITHUB_TOKEN": false,
+    "COPILOT_GITHUB_TOKEN": false,
+    "COPILOT_SDK_AUTH_TOKEN": false,
+    "GITHUB_COPILOT_API_TOKEN": false,
+    "COPILOT_DISABLE_KEYTAR": false
+  },
+  "stage": "sdk_metadata",
+  "runtime_manifest": {
+    "schema_version": 1,
+    "profile": "HOST_ASSISTED_WITH_GUI_NOT_SANDBOX",
+    "sdk_version": "1.0.17",
+    "native_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+    "native_version": "1.0.95",
+    "selection": "explicit_canonical_native_path",
+    "purpose": "Independent metadata-only candidate; does not replace historical CLI pin"
+  },
+  "legacy_pin_matches_selected_image": false,
+  "source_sha256": {
+    "diagnose_a9_gui_auth.py": "db4e8eaa9970d98f341ad200e437a1d0ddab2c334b2d95fd7ed9781275cdd3a2",
+    "runtime-gui-candidate.json": "0924c38cfda63578cde3ff4c4045124630e89a0a78b10627ad6e0591e653db36",
+    "diagnose_a9_auth.py": "d27ddc4c78e20ccd85f3fc7ebe6d5e60e896dee868272c7f63b252c8c724f847",
+    "src/host_assisted.rs": "24d736206ecf977354a18f43f7f035edf0a131fd35d4cfae686ed2d6b446cb47",
+    "src/bin/a9-host-assisted.rs": "9a9cbda9b85c163b15333b93f991912c95430c0765aa0a458e87e849c0afdd26",
+    "measure.py": "f6159a4b7a586a0aebc4acd8b20b8fa1d8179a30c5ced45f731ef8010f3ab82e",
+    "Cargo.toml": "f1c6c9e5d22577e8b6ecdc06dfc4220ae39ddd2bbc59b88cf6b9bb94207d8c9e",
+    "Cargo.lock": "9f080387274fcec39710b5499606d8cd073d51c0811358c718707d466221d803"
+  },
+  "binary_sha256": "9f1d6389e79e947507556078804b80ae8e7a9a6d014e3e32dcda6d47fac852c1",
+  "config_stat_before": {
+    "inode": 3768587,
+    "bytes": 470,
+    "mtime_ns": 1791602000869867688,
+    "ctime_ns": 1791602000869867688
+  },
+  "marker_present_before": false,
+  "services_before": {
+    "gnome-shell_running": true,
+    "gdm_running": true,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true,
+    "login_collection_locked": false,
+    "locked_property_exit_code": 0
+  },
+  "runtime_inspection": {
+    "schema_version": 2,
+    "probe": "identity",
+    "sample_kind": "fresh_process_warm_os_caches",
+    "headless": true,
+    "poll_interval_ms": 50,
+    "exit_code": 0,
+    "stdout_truncated": false,
+    "timed_out": false,
+    "operation_outcome": "main_exit_zero",
+    "wall_ms": 1604.18,
+    "cleanup_ms": 31.82,
+    "peak_process_tree_rss_bytes": 276848640,
+    "peak_owned_processes": 3,
+    "sampled_cpu_seconds_lower_bound": 1.8,
+    "system_processes_before": 315,
+    "system_processes_after": 315,
+    "observed_owned_processes": 4,
+    "attributed_processes": [
+      {
+        "pid": 5169,
+        "start_ticks": 199817,
+        "basis": "launched_root"
+      }
+    ],
+    "unsampled_attributed_descendants": 0,
+    "owned_survivors_before_recovery": [],
+    "owned_survivors_after_recovery": [],
+    "harness_reaped_descendants": 0,
+    "harness_recovery_signals": 0,
+    "ownership_errors": [],
+    "kernel_children_exhausted": true,
+    "cleanup_status": "graceful_no_recovery",
+    "cleanup_complete": true,
+    "ownership_scope": "private_single_invocation_subreaper",
+    "external_process_policy": "not_attributed_never_signalled",
+    "sdk_shutdown_verified": false,
+    "sdk_report": {
+      "native_version": "1.0.95",
+      "version_exit_code": 0,
+      "help_exit_code": 0,
+      "help_flags_present": {
+        "--disable-builtin-mcps": true,
+        "--log-dir": true,
+        "--no-auto-update": true
+      },
+      "raw_output_persisted": false,
+      "normal_auth_used": false,
+      "inference_calls": 0
+    }
+  },
+  "runtime_inspection_harness_exit": 0,
+  "sdk_metadata": {
+    "schema_version": 2,
+    "probe": "preflight",
+    "sample_kind": "fresh_process_warm_os_caches",
+    "headless": true,
+    "poll_interval_ms": 50,
+    "exit_code": 1,
+    "stdout_truncated": false,
+    "timed_out": false,
+    "operation_outcome": "main_exit_nonzero",
+    "wall_ms": 2573.7,
+    "cleanup_ms": 36.21,
+    "peak_process_tree_rss_bytes": 255492096,
+    "peak_owned_processes": 2,
+    "sampled_cpu_seconds_lower_bound": 0.98,
+    "system_processes_before": 315,
+    "system_processes_after": 315,
+    "observed_owned_processes": 2,
+    "attributed_processes": [
+      {
+        "pid": 5205,
+        "start_ticks": 199980,
+        "basis": "launched_root"
+      }
+    ],
+    "unsampled_attributed_descendants": 0,
+    "owned_survivors_before_recovery": [],
+    "owned_survivors_after_recovery": [],
+    "harness_reaped_descendants": 0,
+    "harness_recovery_signals": 0,
+    "ownership_errors": [],
+    "kernel_children_exhausted": true,
+    "cleanup_status": "graceful_no_recovery",
+    "cleanup_complete": true,
+    "ownership_scope": "private_single_invocation_subreaper",
+    "external_process_policy": "not_attributed_never_signalled",
+    "sdk_shutdown_verified": false,
+    "sdk_report": {
+      "attempt_marker_claimed": false,
+      "blockers": [
+        "auto_cost_unknown",
+        "billing_units_and_maximum_cost_unverified",
+        "no_paid_fallback_enforcement_unverified",
+        "private_authenticated_session_state_unverified"
+      ],
+      "fixture_unchanged": true,
+      "gate": "A9_HOST_ASSISTED",
+      "gui_started": false,
+      "host_assisted_not_sandbox": true,
+      "model_selected": null,
+      "persistence": "NOT_RUN_pre_send_blocked",
+      "preflight": {
+        "auth": {
+          "authenticated": true,
+          "identity_omitted": true
+        },
+        "catalog": {
+          "models": [
+            {
+              "billing_multiplier": null,
+              "capabilities_present": false,
+              "id": "auto",
+              "policy_present": false,
+              "token_pricing_present": false
+            }
+          ],
+          "source": "models.list"
+        },
+        "quota": {
+          "snapshots": [
+            {
+              "kind": "premium_interactions",
+              "snapshot": {
+                "entitlementRequests": 200,
+                "isUnlimitedEntitlement": false,
+                "overage": 0.0,
+                "overageAllowedWithExhaustedQuota": false,
+                "remainingPercentage": 74.2,
+                "usageAllowedWithExhaustedQuota": false,
+                "usedRequests": 52
+              },
+              "state": "quota_available",
+              "unit": "requests_as_reported_by_runtime"
+            },
+            {
+              "kind": "completions",
+              "snapshot": {
+                "entitlementRequests": 0,
+                "isUnlimitedEntitlement": true,
+                "overage": 0.0,
+                "overageAllowedWithExhaustedQuota": false,
+                "remainingPercentage": 100.0,
+                "usageAllowedWithExhaustedQuota": false,
+                "usedRequests": 0
+              },
+              "state": "unlimited_reported",
+              "unit": "requests_as_reported_by_runtime"
+            },
+            {
+              "kind": "chat",
+              "snapshot": {
+                "entitlementRequests": 0,
+                "isUnlimitedEntitlement": true,
+                "overage": 0.0,
+                "overageAllowedWithExhaustedQuota": false,
+                "remainingPercentage": 100.0,
+                "usageAllowedWithExhaustedQuota": false,
+                "usedRequests": 0
+              },
+              "state": "unlimited_reported",
+              "unit": "requests_as_reported_by_runtime"
+            }
+          ],
+          "source": "account.getQuota",
+          "state": "observed"
+        }
+      },
+      "response_received": false,
+      "runtime": {
+        "protocol_version": 3,
+        "version": "1.0.95"
+      },
+      "sdk": "1.0.17",
+      "sdk_send_calls": 0,
+      "shutdown": "graceful",
+      "start_ms": 569,
+      "state": "BLOCKED_PRE_SEND",
+      "stop_ms": 810,
+      "task_result_validated": false,
+      "workspace_private": true
+    }
+  },
+  "sdk_metadata_harness_exit": 1,
+  "config_stat_after": {
+    "inode": 3768738,
+    "bytes": 470,
+    "mtime_ns": 1791603250606145370,
+    "ctime_ns": 1791603250606145370
+  },
+  "marker_present_after": false,
+  "services_after": {
+    "gnome-shell_running": true,
+    "gdm_running": true,
+    "gnome-keyring-daemon_running": true,
+    "secrets_service_already_owned": true,
+    "bus_query_exit_code": 0,
+    "runtime_bus_socket_accessible": true,
+    "login_collection_locked": false,
+    "locked_property_exit_code": 0
+  },
+  "diagnostic_error": "configuration_or_context_changed",
+  "observed_at": "2026-10-10T03:34:13.229631+00:00"
+}

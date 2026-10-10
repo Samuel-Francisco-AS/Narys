@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "profile": "HOST_ASSISTED_WITH_GUI_NOT_SANDBOX",
+  "sdk_version": "1.0.17",
+  "native_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+  "native_version": "1.0.95",
+  "selection": "explicit_canonical_native_path",
+  "purpose": "Independent metadata-only candidate; does not replace historical CLI pin"
+}
