@@ -1,6 +1,6 @@
 # LR-10B — Copilot Adapter & On-Demand Supervisor
 
-**LR-10B — CANDIDATA CORRIGIDA, AGUARDANDO REAUDITORIA INDEPENDENTE DA LUNA.**
+**ESTADO VIGENTE: LR-10B ENCERRADA — PASS FINAL DELIMITADO.** [Auditoria independente](LR-10B-INDEPENDENT-AUDIT-2026-10-10.md) e [fechamento/PR #26](LR-10B-FINAL-CLOSURE-2026-10-10.md). O restante deste documento preserva a arquitetura e a cronologia da candidata.
 Base verificada: `main` / `origin/main` em `21be6382d146c99056d8dc99e6a13e2fa0dbe489`.
 Branch: `lr-10b-copilot-adapter-supervisor`. Sem PR, merge ou PASS definitivo.
 
