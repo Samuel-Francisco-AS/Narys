@@ -18,4 +18,5 @@ pub mod credentials;
 
 pub mod operations;
 
+pub mod agent_authority;
 pub mod copilot;

@@ -13,7 +13,7 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(|_| PersistenceError::Migration)?;
-    if version > 21 {
+    if version > 22 {
         return Err(PersistenceError::Migration);
     }
     if version == 0 {
@@ -204,6 +204,16 @@ pub fn apply(conn: &Connection) -> Result<(), PersistenceError> {
         ))
         .map_err(|_| PersistenceError::Migration)?;
         tx.pragma_update(None, "user_version", 21)
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.commit().map_err(|_| PersistenceError::Migration)?;
+    }
+    if version < 22 {
+        let tx = conn
+            .unchecked_transaction()
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.execute_batch(include_str!("../../migrations/022_agent_approvals.sql"))
+            .map_err(|_| PersistenceError::Migration)?;
+        tx.pragma_update(None, "user_version", 22)
             .map_err(|_| PersistenceError::Migration)?;
         tx.commit().map_err(|_| PersistenceError::Migration)?;
     }

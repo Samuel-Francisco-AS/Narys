@@ -35,7 +35,8 @@ pub fn session_config(workspace: &Path) -> SessionConfig {
         .with_model("auto")
         .with_working_directory(workspace)
         .with_available_tools(Vec::<String>::new())
-        .deny_all_permissions();
+        .with_permission_handler(super::tool_boundary::permissions())
+        .with_hooks(super::tool_boundary::hooks());
     config.enable_file_hooks = Some(false);
     config.enable_host_git_operations = Some(false);
     config.enable_skills = Some(false);
@@ -51,7 +52,7 @@ pub fn session_config(workspace: &Path) -> SessionConfig {
     config.instruction_directories = Some(vec![]);
     config.custom_agents = Some(vec![]);
     config.additional_directories = Some(vec![]);
-    config.hooks = Some(false);
+    config.hooks = Some(true);
     // Cross-session search/index integration, not a transcript flush guarantee.
     config.enable_session_store = Some(true);
     config
@@ -62,7 +63,8 @@ pub fn resume_config(id: github_copilot_sdk::SessionId, workspace: &Path) -> Res
         .with_model("auto")
         .with_working_directory(workspace)
         .with_available_tools(Vec::<String>::new())
-        .deny_all_permissions();
+        .with_permission_handler(super::tool_boundary::permissions())
+        .with_hooks(super::tool_boundary::hooks());
     config.allow_transcript_recovery = Some(false);
     config.enable_file_hooks = Some(false);
     config.enable_host_git_operations = Some(false);
@@ -79,6 +81,6 @@ pub fn resume_config(id: github_copilot_sdk::SessionId, workspace: &Path) -> Res
     config.instruction_directories = Some(vec![]);
     config.custom_agents = Some(vec![]);
     config.additional_directories = Some(vec![]);
-    config.hooks = Some(false);
+    config.hooks = Some(true);
     config
 }

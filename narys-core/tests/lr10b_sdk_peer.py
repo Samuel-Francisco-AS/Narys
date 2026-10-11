@@ -7,7 +7,7 @@ import sys
 import time
 
 root = Path(ROOT)
-counts = {'create':0,'resume':0,'detach':0,'abort':0,'send':0,'permissions_denied':0}
+counts = {'create':0,'resume':0,'detach':0,'abort':0,'send':0,'permissions_denied':0,'hooks_denied':0,'empty_hook_outputs':0}
 
 def save():
     (root/'counts.json').write_text(json.dumps(counts))
@@ -38,6 +38,12 @@ while True:
         k,v=line.decode().split(':',1);headers[k.lower()]=v.strip()
     request=json.loads(sys.stdin.buffer.read(int(headers['content-length'])))
     if 'method' not in request:
+        if request.get('id')==900000:
+            output=request.get('result',{}).get('output',{})
+            if output.get('permissionDecision')=='deny': counts['hooks_denied']+=1
+            elif MODE=='malformed_hook' and output=={}: counts['empty_hook_outputs']+=1
+            else: (root/'unapproved-effect').write_text('hook bypass')
+            save()
         if request.get('id')=='permission-probe':
             assert 'denied' in json.dumps(request).lower()
             counts['permissions_denied']+=1;save()
@@ -54,7 +60,8 @@ while True:
         assert params.get('availableTools')==[]
         assert params.get('mcpServers')=={}
         assert params.get('requestPermission') is True
-        for name in ('enableSkills','hooks','enableConfigDiscovery','enableHostGitOperations','enableOnDemandInstructionDiscovery','requestExtensions','requestMcpApps'):
+        assert params.get('hooks') is True
+        for name in ('enableSkills','enableConfigDiscovery','enableHostGitOperations','enableOnDemandInstructionDiscovery','requestExtensions','requestMcpApps'):
             assert params.get(name) is False,(name,params.get(name))
         assert str(params.get('configDir')).endswith('/session-state')
         save()
@@ -87,5 +94,9 @@ while True:
             emit({'jsonrpc':'2.0','method':'session.event','params':{'sessionId':params['sessionId'],'event':{
                 'id':'permission-event','parentId':None,'timestamp':'2026-10-10T00:00:00Z','type':'permission.requested',
                 'data':{'sessionId':params['sessionId'],'requestId':'permission-probe','permissionRequest':{'kind':'shell','fullCommandText':'echo forbidden'}}}}})
+        elif MODE in ('hook','malformed_hook'):
+            input={'sessionId':params['sessionId'],'timestamp':1,'cwd':params.get('workingDirectory','/tmp'),'toolName':'bash','toolArgs':{'command':'fixture private secret'}}
+            if MODE=='malformed_hook': input={'toolName':'bash'}
+            emit({'jsonrpc':'2.0','id':900000,'method':'hooks.invoke','params':{'sessionId':params['sessionId'],'hookType':'preToolUse','input':input}})
     emit({'jsonrpc':'2.0','id':request['id'],'result':result})
     save()

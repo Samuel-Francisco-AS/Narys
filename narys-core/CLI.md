@@ -70,14 +70,24 @@ narys provider groq enable --confirm-free
 narys policy set < politica-conversation.json
 narys approval RECEIPT_ID approve-once
 narys approval RECEIPT_ID deny
+narys approvals --pending
+narys approval RECEIPT_ID
+narys agent policy
+narys agent yolo-revoke
 ```
 
 Use `--confirm-free` apenas após confirmar pessoalmente plano sem cobrança e quota
 para o provider. O Core não ativa overage, upgrade ou fallback pago. `policy set`
 aceita o contrato `CognitiveRolePolicy` existente (camelCase), validado pelo Core,
 com os limites IPC documentados. `policy show` devolve a visão de providers/política
-completa. Approvals/ferramentas ainda retornam `capability_not_integrated`; não
-executam shell nem transformam texto do modelo em autorização humana.
+completa. Na candidata LR-10C, consulta/histórico/negação de approval estão
+integrados. IDs têm formato `ap-` seguido de64hex minúsculo. Aprovação positiva
+retorna `human_approval_channel_unavailable`; ferramentas retornam
+`agent_execution_boundary_unavailable`. O canal humano não está operacionalmente
+separado do runtime nativo; mesmo UID/TTY/SSH não permite autoaprovação. Não há shell
+genérico ou authority agentiva por IPC. `agent policy` apresenta os motivos BLOCKED.
+YOLO é solicitação explícita com TTL/escopo, ainda bloqueada, e não autoriza custos.
+[Contrato LR-10C](../docs/LR-10C-AUTHORITY-APPROVAL-SANDBOX.md).
 
 ## Backend de desbloqueio
 

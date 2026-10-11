@@ -18,6 +18,7 @@ pub struct RuntimeServices {
     pub agents: AgentRegistry,
     pub execution: Arc<ExecutionBroker>,
     pub copilot: Arc<crate::copilot::CopilotLifecycle>,
+    pub authority: Arc<crate::agent_authority::AuthorityService>,
 }
 impl RuntimeServices {
     pub fn new(database: Database, secret_directory: PathBuf) -> Result<Self, &'static str> {
@@ -117,6 +118,9 @@ impl RuntimeServices {
             }),
         )?;
         Ok(Self {
+            authority: Arc::new(crate::agent_authority::AuthorityService::new(
+                database.clone(),
+            )?),
             secrets,
             tasks,
             providers,
@@ -129,6 +133,9 @@ impl RuntimeServices {
         })
     }
     pub fn shutdown(&self) {
+        // Revocation precedes cancellation of specialist work. Failure never
+        // opens execution; C has no effectful native admission path.
+        let _ = self.authority.revoke_all();
         self.copilot.request_shutdown();
         self.tasks.shutdown();
         self.execution.request_shutdown();

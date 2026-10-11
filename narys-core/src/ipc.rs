@@ -115,6 +115,25 @@ pub enum Command {
         approval_id: String,
         decision: ApprovalDecision,
     },
+    Approvals {
+        #[serde(default)]
+        after: u64,
+        #[serde(default = "session_limit")]
+        limit: u16,
+        #[serde(default)]
+        pending_only: bool,
+    },
+    ApprovalGet {
+        approval_id: String,
+    },
+    AgentPolicy {},
+    AgentYoloRequest {
+        task: TaskRef,
+        session_ref: crate::agents::lifecycle::AgentSessionRef,
+        ttl_seconds: u16,
+        acknowledge_unisolated: bool,
+    },
+    AgentYoloRevoke {},
     ToolRequest {
         task: TaskRef,
         invocation: ToolInvocation,
@@ -191,6 +210,30 @@ impl Request {
             return Err("invalid_request_id");
         }
         match &self.command {
+            Command::Approval { approval_id, .. } | Command::ApprovalGet { approval_id } => {
+                crate::agent_authority::validate_id(approval_id)?;
+            }
+            Command::Approvals { after, limit, .. }
+                if *after > i64::MAX as u64 || *limit == 0 || *limit > 100 =>
+            {
+                return Err("invalid_approval_page")
+            }
+            Command::AgentYoloRequest {
+                task,
+                session_ref,
+                ttl_seconds,
+                acknowledge_unisolated,
+            } => {
+                narys_domain::security::validation::task_id(task.id)?;
+                session_ref.validate()?;
+                if !matches!(task.namespace, TaskNamespace::Product)
+                    || *ttl_seconds == 0
+                    || *ttl_seconds > 300
+                    || !acknowledge_unisolated
+                {
+                    return Err("yolo_scope_invalid");
+                }
+            }
             Command::AgentSessionGet { session_ref }
             | Command::AgentSessionResume { session_ref }
             | Command::AgentSessionAttach { session_ref }

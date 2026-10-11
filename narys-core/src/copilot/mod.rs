@@ -4,6 +4,7 @@ pub mod sdk_policy;
 mod startup;
 pub mod store;
 pub mod supervisor;
+pub mod tool_boundary;
 use crate::{
     agents::{
         backend::{AgentBackend, AgentFuture},
@@ -137,7 +138,7 @@ impl CopilotLifecycle {
         "capabilities":CopilotAgentAdapter::capabilities(),"registered":true,"planner_routing_enabled":false,
         "process_observation":sdk::process_snapshot(&self.database),
         "active_tasks":self.controls.lock().unwrap().len(),"attachments":self.attachments.lock().unwrap().len(),
-        "inference_gate":"not_integrated_no_send","tools_gate":"LR-10C_required"})
+        "inference_gate":"not_integrated_no_send","tools_gate":"LR-10C_boundary_unavailable_native_tools_denied"})
     }
     pub fn session(&self, reference: &AgentSessionRef) -> Result<Value, &'static str> {
         let mut v = store::session(&self.database.open().map_err(|e| e.code())?, reference)?;

@@ -10,7 +10,7 @@ import tempfile
 import threading
 import time
 import unittest
-CLI = Path(__file__).resolve().parents[2] / 'src-tauri/target/debug/narys'
+CLI = Path(os.environ.get('NARYS_TEST_CLI', Path(__file__).resolve().parents[2] / 'src-tauri/target/debug/narys'))
 class Fixture:
     def __init__(self, mode='normal'):
         self.temp=tempfile.TemporaryDirectory(prefix='narys-cli-fixture-')

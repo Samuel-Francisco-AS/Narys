@@ -23,6 +23,10 @@ const HELP: &str = "Narys — administração pelo terminal/SSH
   narys provider ID disable | enable --confirm-free
   narys policy show | set             (set: política JSON via stdin)
   narys approval ID approve-once | deny
+  narys approvals [--pending] [--after SEQUENCE] [--limit 1..100]
+  narys approval ID
+  narys agent policy | yolo-revoke
+  narys agent yolo-request TASK SESSION_REF SECONDS --acknowledge-unisolated
 Acrescente --json para resposta IPC estruturada. Unlock requer shell SSH
 interativo autenticado, TTY privado, sem redirecionamento. Não envie senha no chat.
 Ctrl-C encerra o acompanhamento, preservando a tarefa admitida no servidor.
@@ -283,6 +287,8 @@ pub async fn run(mut args: Vec<String>) -> Result<(), &'static str> {
     let mut timeout = 300;
     let mut waiting = false;
     let mut confirm = false;
+    let mut pending_only = false;
+    let mut acknowledge_unisolated = false;
     let mut pos = vec![];
     let mut i = 0;
     while i < args.len() {
@@ -300,6 +306,8 @@ pub async fn run(mut args: Vec<String>) -> Result<(), &'static str> {
             }
             "--wait" => waiting = true,
             "--confirm-free" => confirm = true,
+            "--pending" => pending_only = true,
+            "--acknowledge-unisolated" => acknowledge_unisolated = true,
             a if a.starts_with("--") => return Err("unknown_option"),
             _ => pos.push(args[i].clone()),
         }
@@ -318,10 +326,14 @@ pub async fn run(mut args: Vec<String>) -> Result<(), &'static str> {
             "--namespace" => matches!(p.first(), Some(&"task" | &"tasks" | &"cancel")),
             "--wait" | "--timeout" => p.first() == Some(&"task"),
             "--after" | "--limit" => {
-                matches!(p.first(), Some(&"sessions" | &"tasks" | &"events"))
-                    || (p.len() == 2 && p[0] == "session" && number(p[1]).is_ok())
+                matches!(
+                    p.first(),
+                    Some(&"sessions" | &"tasks" | &"events" | &"approvals")
+                ) || (p.len() == 2 && p[0] == "session" && number(p[1]).is_ok())
             }
             "--confirm-free" => p.len() == 3 && p[0] == "provider" && p[2] == "enable",
+            "--pending" => p.as_slice() == ["approvals"],
+            "--acknowledge-unisolated" => p.len() == 5 && p[0] == "agent" && p[1] == "yolo-request",
             _ => false,
         };
         if !allowed {
@@ -331,6 +343,19 @@ pub async fn run(mut args: Vec<String>) -> Result<(), &'static str> {
     let command = match p.as_slice() {
         ["status"] => Command::Status {},
         ["agent", "status"] => Command::AgentStatus {},
+        ["agent", "policy"] => Command::AgentPolicy {},
+        ["agent", "yolo-revoke"] => Command::AgentYoloRevoke {},
+        ["agent", "yolo-request", task, session_ref, ttl] if acknowledge_unisolated => wire(
+            json!({"operation":"agent-yolo-request","task":{"namespace":"product","id":number(task)?},"session_ref":session_ref,"ttl_seconds":number(ttl)?,"acknowledge_unisolated":true}),
+        )?,
+        ["approvals"] => Command::Approvals {
+            after,
+            limit: limit as u16,
+            pending_only,
+        },
+        ["approval", id] => Command::ApprovalGet {
+            approval_id: (*id).into(),
+        },
         ["agent", "stop"] => Command::AgentRuntimeStop {},
         ["agent", "recover"] => Command::AgentRuntimeRecover {},
         ["agent", "new"] => Command::AgentSessionCreate {},

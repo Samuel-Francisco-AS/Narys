@@ -110,13 +110,43 @@ impl Core {
         }
         match command {
             Command::AgentRuntimeStop {} => {
-                self.services.copilot.shutdown().await?;
+                let revocation = self.services.authority.revoke_all();
+                let stopped = self.services.copilot.shutdown().await;
+                revocation?;
+                stopped?;
                 Ok(self.services.copilot.status())
             }
             Command::AgentRuntimeRecover {} => {
                 self.services.copilot.recover_runtime_ownership().await
             }
-            Command::AgentStatus {} => Ok(self.services.copilot.status()),
+            Command::AgentStatus {} => {
+                let mut status = self.services.copilot.status();
+                status["authority_policy"] = self.services.authority.availability();
+                Ok(status)
+            }
+            Command::AgentPolicy {} => Ok(self.services.authority.availability()),
+            Command::Approvals {
+                after,
+                limit,
+                pending_only,
+            } => self.services.authority.list(after, limit, pending_only),
+            Command::ApprovalGet { approval_id } => self.services.authority.get(&approval_id),
+            Command::Approval {
+                approval_id,
+                decision,
+            } => match decision {
+                ipc::ApprovalDecision::ApproveOnce => {
+                    self.services.authority.approve_from_ipc(&approval_id)
+                }
+                ipc::ApprovalDecision::Deny => self.services.authority.deny(&approval_id),
+            },
+            Command::AgentYoloRequest { .. } => {
+                Err("human_yolo_channel_unavailable_execution_disabled")
+            }
+            Command::AgentYoloRevoke {} => {
+                self.services.authority.revoke_yolo()?;
+                Ok(json!({"revoked":true,"execution_enabled":false}))
+            }
             Command::AgentSessionCreate {} => self.services.copilot.admit(
                 crate::agents::lifecycle::AgentLifecycleOperation::Create,
                 None,
@@ -134,7 +164,7 @@ impl Core {
             }
             Command::AgentSessionClose { session_ref } => self.services.copilot.close(&session_ref),
             Command::Capabilities {} => Ok(
-                json!({"protocol_version":ipc::VERSION,"authority":"narys-core","persistence":"core/db/luna.sqlite3","task_namespaces":["lr10a","product"],"implemented":["status","credentials","events","prepare","result","cancel","conversation","sessions","session-create","session-get","session-resume","session-close","providers","provider-configure","conversation-policy","task-get","task-cancel","tasks","models","agent-status","agent-runtime-recover","agent-runtime-stop","agent-session-create","agent-session-get","agent-session-resume","agent-session-attach","agent-session-detach","agent-session-close"],"conversation":true,"provider_configuration":true,"approvals":false,"agent_tools":false,"execution_authority_from_ipc":false}),
+                json!({"protocol_version":ipc::VERSION,"authority":"narys-core","persistence":"core/db/luna.sqlite3","task_namespaces":["lr10a","product"],"implemented":["status","credentials","events","prepare","result","cancel","conversation","sessions","session-create","session-get","session-resume","session-close","providers","provider-configure","conversation-policy","task-get","task-cancel","tasks","models","agent-status","agent-runtime-recover","agent-runtime-stop","agent-session-create","agent-session-get","agent-session-resume","agent-session-attach","agent-session-detach","agent-session-close","agent-policy","approvals","approval-get","approval","agent-yolo-request","agent-yolo-revoke"],"conversation":true,"provider_configuration":true,"approvals":true,"human_approve_once":false,"agent_tools":false,"execution_authority_from_ipc":false}),
             ),
             Command::Models {} => {
                 let status = self.services.providers.scheduler.status();
@@ -178,11 +208,15 @@ impl Core {
             }
             Command::TaskCancel { task } if matches!(task.namespace, TaskNamespace::Product) => {
                 if crate::copilot::store::contains(&self.config.db()?, task.id)? {
-                    return self.services.copilot.cancel(task.id);
+                    let revocation = self.services.authority.cancel_task(task.id);
+                    let cancellation = self.services.copilot.cancel(task.id);
+                    revocation?;
+                    return cancellation;
                 }
                 let _admission = self.services.conversation_admission.lock().await;
                 let mut conn = self.config.db()?;
                 let existing = crate::persistence::conversation_runs::get(&conn, task.id)?;
+                let revocation = self.services.authority.cancel_task(task.id);
                 let cancelled = self.services.tasks.cancel(crate::TaskId(task.id));
                 if cancelled {
                     let tx = conn.transaction().map_err(|_| "write_failed")?;
@@ -198,6 +232,7 @@ impl Core {
                     existing["state"].as_str(),
                     Some("completed" | "cancelled" | "failed" | "interrupted")
                 );
+                revocation?;
                 Ok(
                     json!({"task_id":task.id,"namespace":"product","state":existing["state"],"cancellation_requested":cancelled || existing["state"]=="cancelled","already_terminal":!cancelled && terminal,"commit_in_progress":!cancelled && !terminal}),
                 )
@@ -221,8 +256,8 @@ impl Core {
             | Command::ConversationPolicy { .. }) => {
                 self.services.conversation_command(conversation).await
             }
-            Command::Approval { .. } | Command::ToolRequest { .. } | Command::ToolResult { .. } => {
-                Err("capability_not_integrated")
+            Command::ToolRequest { .. } | Command::ToolResult { .. } => {
+                Err("agent_execution_boundary_unavailable")
             }
             legacy => {
                 self.request(serde_json::to_value(legacy).map_err(|_| "invalid_request")?)
@@ -375,6 +410,7 @@ pub async fn serve(config: Config) -> Result<(), &'static str> {
     let mut db = config.db()?;
     crate::persistence::conversation_runs::recover(&mut db)?;
     crate::copilot::store::recover(&mut db)?;
+    crate::agent_authority::recover(&mut db)?;
     // No background summary, continuation resume, or provider call at boot.
     let tx = db
         .unchecked_transaction()

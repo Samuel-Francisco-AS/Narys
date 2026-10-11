@@ -108,12 +108,8 @@ fn typed_protocol_bounds_versions_and_future_authority_are_enforced() {
         s.raw(&vec![b'x'; narys_core::ipc::MAX_REQUEST_BYTES + 1])["error_code"],
         "request_limit_or_timeout"
     );
-    for op in [
-        json!({"operation":"approval","approval_id":"a","decision":"approve_once"}),
-        json!({"operation":"tool-request","task":{"namespace":"product","id":1},"invocation":{"tool":"read_file","workspace_id":"w","relative_path":"/etc/passwd"}}),
-    ] {
-        assert_eq!(s.call(op)["error_code"], "capability_not_integrated");
-    }
+    assert_eq!(s.call(json!({"operation":"approval","approval_id":format!("ap-{}","0".repeat(64)),"decision":"approve_once"}))["error_code"],"human_approval_channel_unavailable");
+    assert_eq!(s.call(json!({"operation":"tool-request","task":{"namespace":"product","id":1},"invocation":{"tool":"read_file","workspace_id":"w","relative_path":"/etc/passwd"}}))["error_code"],"agent_execution_boundary_unavailable");
     assert_eq!(
         s.call(json!({"operation":"status"}))["data"]["execution_workers"],
         0
@@ -360,7 +356,7 @@ fn official_cli_human_json_pages_permissions_and_unlock_denial() {
         let value: Value = serde_json::from_slice(&out.stdout).unwrap();
         assert_eq!(value["ok"], false);
         if args[0] == "approval" {
-            assert_eq!(value["error_code"], "capability_not_integrated");
+            assert_eq!(value["error_code"], "invalid_approval_id");
         }
     }
     for operation in ["unlock", "credentials-unlock"] {
@@ -373,6 +369,81 @@ fn official_cli_human_json_pages_permissions_and_unlock_denial() {
     assert_eq!(
         s.call(json!({"operation":"status"}))["data"]["graphical_environment_present"],
         false
+    );
+}
+
+#[test]
+fn lr10c_same_uid_subprocess_cannot_self_approve_or_activate_yolo_and_queries_are_safe() {
+    let s = Server::start();
+    let page = s.cli(&[
+        "approvals",
+        "--pending",
+        "--after",
+        "0",
+        "--limit",
+        "10",
+        "--json",
+    ]);
+    assert!(
+        page.status.success(),
+        "{}",
+        String::from_utf8_lossy(&page.stderr)
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&page.stdout).unwrap()["data"]["approvals"],
+        json!([])
+    );
+    let session_ref = format!("cs-{}", "0".repeat(32));
+    let request = s.cli(&[
+        "agent",
+        "yolo-request",
+        "1",
+        &session_ref,
+        "60",
+        "--acknowledge-unisolated",
+        "--json",
+    ]);
+    assert!(!request.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&request.stdout).unwrap()["error_code"],
+        "human_yolo_channel_unavailable_execution_disabled"
+    );
+    assert_eq!(
+        s.call(json!({"operation":"agent-policy"}))["data"]["isolated_execution"],
+        "BLOCKED"
+    );
+    assert_eq!(
+        s.call(json!({"operation":"approvals","pending_only":true}))["data"]["approvals"],
+        json!([])
+    );
+    let code = r#"import json,socket,sys
+s=socket.socket(socket.AF_UNIX);s.connect(sys.argv[1])
+s.sendall(json.dumps({'version':1,'request_id':'same-uid-agent','command':{'operation':'approval','approval_id':'ap-'+'0'*64,'decision':'approve_once'}}).encode());s.shutdown(socket.SHUT_WR)
+out=b''
+while True:
+ p=s.recv(4096)
+ if not p:break
+ out+=p
+print(out.decode())
+"#;
+    let out = Command::new("/usr/bin/python3")
+        .args(["-I", "-c", code])
+        .arg(s.socket())
+        .env_clear()
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let response: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(response["error_code"], "human_approval_channel_unavailable");
+    assert_eq!(s.call(json!({"operation":"agent-yolo-request","task":{"namespace":"product","id":1},"session_ref":format!("cs-{}","0".repeat(32)),"ttl_seconds":60,"acknowledge_unisolated":true}))["error_code"],"human_yolo_channel_unavailable_execution_disabled");
+    assert_eq!(
+        s.call(json!({"operation":"agent-yolo-revoke"}))["data"]["execution_enabled"],
+        false
+    );
+    assert_eq!(s.call(json!({"operation":"approval","approval_id":format!("ap-{}","0".repeat(64)),"decision":"approve_once","origin":"HumanLocal"}))["ok"],false);
+    assert_eq!(
+        s.call(json!({"operation":"status"}))["data"]["execution_workers"],
+        0
     );
 }
 #[test]

@@ -1,8 +1,9 @@
 # Core IPC v1 — SERVER-1A / SERVER-1B
 
 Socket `$XDG_RUNTIME_DIR/narys-core/control.sock`: Unix0600, diretório0700,
-SO_PEERCRED mesmo UID nos dois lados. O UID Linux é a fronteira de confiança;
-processos desse UID não são isolados. Sem listener TCP. Uma conexão por request:
+SO_PEERCRED mesmo UID nos dois lados. O UID Linux identifica o cliente local;
+processos desse UID não são isolados e isso **não prova intenção humana** nem
+concede autoridade agentiva/approval positiva. Sem listener TCP. Uma conexão por request:
 JSON UTF-8, cliente encerra a metade de escrita, servidor responde e fecha.
 
 ```json
@@ -139,3 +140,44 @@ O adapter está registrado, mas eleição de planner/inferência continuam bloqu
 Approval/tool requests seguem capability_not_integrated. Submit LR-10A está fechado;
 legacy copilot/session-check/resume-check não acionam mais o harness experimental.
 [Contrato técnico completo](../docs/LR-10B-COPILOT-ADAPTER-SUPERVISOR.md).
+
+## LR-10C — contratos e bloqueios efetivos da candidata
+
+O histórico acima descreve os gates anteriores. A candidata LR-10C integra
+consultas/negação, mantendo aprovação positiva e efeitos nativos bloqueados.
+Nenhuma nova rota concede HumanLocal ou contém shell/argv/programa/env.
+
+| Operação | Campos | Resultado |
+|---|---|---|
+| agent-policy | nenhum | Policy version, default assisted, disponibilidade BLOCKED por perfil e motivos; nunca inicia subprocesso |
+| approvals | after u64(default0), limit1..100(default50), pending_only bool(defaultfalse) | Registros sanitizados/cursor/history; sem executar/reconstituir grants |
+| approval-get | approval_id ap- +64hex minúsculo | Contexto sanitizado, digest, expiry, estado/reason; authority=false |
+| approval | approval_id, decision approve_once/deny | deny reduz authority; approve_once sempre human_approval_channel_unavailable |
+| agent-yolo-request | TaskRef product, session_ref cs-HEX, ttl_seconds1..300, acknowledge_unisolated=true | human_yolo_channel_unavailable_execution_disabled; nenhum consentimento por UID |
+| agent-yolo-revoke | nenhum | Revoga consentimento volátil; execution_enabled=false |
+| tool-request / tool-result | contratos anteriores | agent_execution_boundary_unavailable antes de efeitos |
+
+`capabilities.approvals=true` significa consulta/negação integradas;
+`human_approve_once=false`, `agent_tools=false`, `execution_authority_from_ipc=false`
+explicitam as indisponibilidades. Não existe emissão operacional de grant por
+wire. O socket acessível a mesmo UID não é canal de emissão humana confiável.
+Uma resposta recebida nesse socket pode negar, mas não aprovar uma ação.
+
+Estados: pending, approved, denied, expired, cancelled, consumed, interrupted.
+Approved aparece em fixtures positivas Core, não é emitido pela IPC operacional.
+SQLite schema022 persiste apenas auditoria; capability é privada em memória.
+Restart interrompe pending/approved e não restaura YOLO/grants. Cancel de tarefa
+revoga authority antes de interromper o lifecycle/worker pertinente.
+
+```sh
+narys agent policy
+narys approvals --pending
+narys approval ap-HEX64
+narys approval ap-HEX64 deny
+narys approval ap-HEX64 approve-once # indisponível com segurança
+narys agent yolo-revoke
+```
+
+Paginação também está na CLI: `narys approvals --pending --after SEQUENCE --limit 100`.
+`ap-HEX64` no exemplo é placeholder, não um ID válido nem token.
+[Boundary/threat model](../docs/LR-10C-AUTHORITY-APPROVAL-SANDBOX.md).

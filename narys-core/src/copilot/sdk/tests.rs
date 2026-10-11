@@ -2,6 +2,29 @@ use super::*;
 use crate::agents::lifecycle::AgentLifecycleOperation;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[tokio::test]
+async fn pre_tool_hook_denies_before_synthetic_effect_and_malformed_hook_is_not_a_boundary() {
+    for mode in ["hook", "malformed_hook"] {
+        let d = tempfile::tempdir().unwrap();
+        let f = fixture(d.path(), mode);
+        let r = f.start_owned().await.unwrap();
+        r.session(
+            &invocation(d.path(), AgentLifecycleOperation::Create, None),
+            &Cancellation::default(),
+            Arc::new(|_| {}),
+        )
+        .await
+        .unwrap();
+        r.stop().await.unwrap();
+        assert!(!d.path().join("unapproved-effect").exists());
+        assert_eq!(counts(d.path())["send"], 0);
+        if mode == "hook" {
+            assert_eq!(counts(d.path())["hooks_denied"], 1);
+        } else {
+            assert_eq!(counts(d.path())["empty_hook_outputs"], 1);
+        }
+    }
+}
 fn fixture(d: &Path, mode: &str) -> SdkRuntimeFactory {
     let script = d.join("fixture-cli");
     fs::write(
