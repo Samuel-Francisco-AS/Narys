@@ -1,0 +1,166 @@
+warning: unused imports: `ProviderInvocationConfig`, `ProviderSelection`, and `ProviderTarget`
+  --> /home/sam/Projetos/Narys/narys-domain/src/luna/runtime.rs:18:46
+   |
+18 |         ContextBundle, ProviderCapabilities, ProviderInvocationConfig, ProviderMessage,
+   |                                              ^^^^^^^^^^^^^^^^^^^^^^^^
+19 |         ProviderRole, ProviderSelection, ProviderTarget, ProviderTaskRequest, SchedulerError,
+   |                       ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `context_generation` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `label` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/transport.rs:21:8
+   |
+20 | impl TimeoutPhase {
+   | ----------------- method in this implementation
+21 |     fn label(self) -> &'static str {
+   |        ^^^^^
+
+warning: fields `provider`, `model`, `phase`, `attempt`, `configured_ms`, and `elapsed_ms` are never read
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/transport.rs:33:9
+   |
+32 | pub(super) struct TimeoutDiagnostic {
+   |                   ----------------- fields in this struct
+33 |     pub provider: &'static str,
+   |         ^^^^^^^^
+34 |     pub model: String,
+   |         ^^^^^
+35 |     pub phase: TimeoutPhase,
+   |         ^^^^^
+36 |     pub attempt: u32,
+   |         ^^^^^^^
+37 |     pub configured_ms: u64,
+   |         ^^^^^^^^^^^^^
+38 |     pub elapsed_ms: u64,
+   |         ^^^^^^^^^^
+   |
+   = note: `TimeoutDiagnostic` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `safe_line` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/transport.rs:41:12
+   |
+40 | impl TimeoutDiagnostic {
+   | ---------------------- method in this implementation
+41 |     pub fn safe_line(&self) -> String {
+   |            ^^^^^^^^^
+
+warning: `narys-domain` (lib) generated 5 warnings (run `cargo fix --lib -p narys-domain` to apply 1 suggestion)
+   Compiling narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+warning: constant `MAX_TTL` is never used
+  --> src/agent_authority/mod.rs:21:7
+   |
+21 | const MAX_TTL: Duration = Duration::from_secs(300);
+   |       ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `AgentAuthority` is never constructed
+  --> src/agent_authority/mod.rs:26:19
+   |
+26 | pub(crate) struct AgentAuthority([u8; 32]);
+   |                   ^^^^^^^^^^^^^^
+
+warning: fields `digest`, `deadline`, `financial_deadline`, and `boundary_deadline` are never read
+  --> src/agent_authority/mod.rs:29:5
+   |
+27 | struct Grant {
+   |        ----- fields in this struct
+28 |     context: AgentOperationContext,
+29 |     digest: String,
+   |     ^^^^^^
+30 |     deadline: Instant,
+   |     ^^^^^^^^
+...
+33 |     financial_deadline: Instant,
+   |     ^^^^^^^^^^^^^^^^^^
+34 |     boundary_deadline: Instant,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: struct `ExecutionBoundary` is never constructed
+  --> src/agent_authority/mod.rs:38:8
+   |
+38 | struct ExecutionBoundary {
+   |        ^^^^^^^^^^^^^^^^^
+
+warning: struct `FinancialAdmission` is never constructed
+  --> src/agent_authority/mod.rs:42:8
+   |
+42 | struct FinancialAdmission {
+   |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `HumanChannel` is never constructed
+  --> src/agent_authority/mod.rs:55:8
+   |
+55 | struct HumanChannel {
+   |        ^^^^^^^^^^^^
+
+warning: field `epoch` is never read
+  --> src/agent_authority/mod.rs:71:5
+   |
+69 | pub struct AuthorityService {
+   |            ---------------- field in this struct
+70 |     database: Database,
+71 |     epoch: String,
+   |     ^^^^^
+
+warning: function `identifier` is never used
+  --> src/agent_authority/mod.rs:94:4
+   |
+94 | fn identifier(value: &str) -> bool {
+   |    ^^^^^^^^^^
+
+warning: function `validate_workspace` is never used
+   --> src/agent_authority/mod.rs:101:4
+    |
+101 | fn validate_workspace(root: &Path) -> Result<(u64, u64)> {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `validate_path` is never used
+   --> src/agent_authority/mod.rs:119:4
+    |
+119 | fn validate_path(root: &Path, relative: &Path, allow_new: bool) -> Result<()> {
+    |    ^^^^^^^^^^^^^
+
+warning: function `binding` is never used
+   --> src/agent_authority/mod.rs:153:4
+    |
+153 | fn binding(context: &AgentOperationContext) -> Result<String> {
+    |    ^^^^^^^
+
+warning: function `summary` is never used
+   --> src/agent_authority/mod.rs:211:4
+    |
+211 | fn summary(context: &AgentOperationContext) -> Value {
+    |    ^^^^^^^
+
+warning: methods `request`, `approve`, `execute`, and `activate_yolo` are never used
+   --> src/agent_authority/mod.rs:308:8
+    |
+285 | impl AuthorityService {
+    | --------------------- methods in this implementation
+...
+308 |     fn request(
+    |        ^^^^^^^
+...
+363 |     fn approve(&self, id: &str, channel: &HumanChannel, expected_digest: &str) -> Result<()> {
+    |        ^^^^^^^
+...
+389 |     fn execute<T>(
+    |        ^^^^^^^
+...
+514 |     fn activate_yolo(
+    |        ^^^^^^^^^^^^^
+
+warning: `narys-core` (lib) generated 13 warnings
+    Finished `release` profile [optimized] target(s) in 1m 52s

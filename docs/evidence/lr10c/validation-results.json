@@ -1,0 +1,229 @@
+{
+  "status": "LR-10C — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE DA LUNA.",
+  "generated_utc": "2026-10-11T02:06:04.825433+00:00",
+  "source_commit": "5dd1cbcd6ca8f5fa7f369fd77a3c31e32fc2ee3f",
+  "base_main": "e77c721beb091d6191b79f18b14cfa882b77babe",
+  "branch": "lr-10c-authority-approval-sandbox",
+  "scope": {
+    "algorithm_and_sdk_peer": "PASS fixtures only",
+    "linux_sandbox": "PASS tested disposable offline subprocesses only",
+    "human_positive_approval": "BLOCKED",
+    "native_assisted_execution": "BLOCKED",
+    "native_isolated_execution": "BLOCKED",
+    "real_yolo_execution": "BLOCKED",
+    "positive_runtime_integration": "PARTIAL",
+    "authenticated_tool_boundary": "NOT_VERIFIED",
+    "final_audit": "PENDING_LUNA"
+  },
+  "core": {
+    "command": "CARGO_BUILD_JOBS=1 cargo test --manifest-path narys-core/Cargo.toml --offline --locked",
+    "exit_code": 0,
+    "log": "core-tests.txt",
+    "suites": [
+      {
+        "result": "ok",
+        "passed": 103,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0,
+        "seconds": 13.93
+      },
+      {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0,
+        "seconds": 0.0
+      },
+      {
+        "result": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0,
+        "seconds": 0.0
+      },
+      {
+        "result": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0,
+        "seconds": 0.27
+      },
+      {
+        "result": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0,
+        "seconds": 0.9
+      },
+      {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0,
+        "seconds": 0.25
+      }
+    ]
+  },
+  "domain": {
+    "command": "CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=narys-core/target cargo test --manifest-path narys-domain/Cargo.toml --offline --locked -- --test-threads=1",
+    "exit_code": 0,
+    "log": "domain-tests.txt",
+    "suites": [
+      {
+        "result": "ok",
+        "passed": 1059,
+        "failed": 0,
+        "ignored": 2,
+        "measured": 0,
+        "filtered_out": 0,
+        "seconds": 677.55
+      },
+      {
+        "result": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 0,
+        "seconds": 0.08
+      }
+    ]
+  },
+  "python": {
+    "command": "NARYS_TEST_CLI=/home/sam/Projetos/Narys/narys-core/target/debug/narys python3 -m unittest discover -s narys-core/tests -p test_*.py -v",
+    "exit_code": 0,
+    "passed": 17,
+    "seconds": 2.539,
+    "log": "python-tests.txt"
+  },
+  "release": {
+    "command": "CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=src-tauri/target cargo build --manifest-path narys-core/Cargo.toml --release --offline --locked",
+    "exit_code": 0,
+    "incremental_seconds": 112,
+    "previous_cold_seconds": 813,
+    "log": "release-build.txt",
+    "binary_artifacts": {
+      "src-tauri/target/release/narys": {
+        "sha256": "c96f882e846a8517e3e4864a54bb6f12011802794938fa749c610654e572eba0",
+        "size": 2001560
+      },
+      "src-tauri/target/release/narys-core": {
+        "sha256": "5b4b1dd7658b644cb2b71662efb5057cfa424277152b03e5493f886d86ec0048",
+        "size": 24586608
+      }
+    },
+    "deployed": false
+  },
+  "hygiene": {
+    "log": "hygiene.json",
+    "exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "domain_formatting_scope": "new contracts and migration; existing unrelated formatting not rewritten"
+  },
+  "totals": {
+    "passed": 1195,
+    "failed": 0,
+    "ignored": 2
+  },
+  "ignored": [
+    {
+      "test": "agents::codex::app_server::tests::real_app_server_handshake",
+      "reason": "requires a local Codex app-server; real gate outside authorized synthetic validation"
+    },
+    {
+      "test": "agents::codex::backend::lifecycle_tests::manual_final_codex_agent_bridge_gate",
+      "reason": "requires authenticated Codex, isolated inference and quota; explicitly not authorized"
+    }
+  ],
+  "not_run": [
+    "authenticated inference or agent tools",
+    "--ignored gates",
+    "exact MSRV Rust 1.94",
+    "frontend/GUI builds/tests (unchanged scope)",
+    "installed service deploy/restart",
+    "production endurance/cost benchmark"
+  ],
+  "run_history": [
+    {
+      "log": "initial-check.txt",
+      "result": "PASS cargo check offline"
+    },
+    {
+      "log": "authority-initial-compile-errors.txt",
+      "result": "FAIL six E0282 fixture closure return inference errors; corrected with execute::<()>"
+    },
+    {
+      "log": null,
+      "result": "FAIL E0308 temporary broad replacement on SQLite execute; corrected; intermediate raw output overwritten, not retained"
+    },
+    {
+      "log": "core-initial-failures.txt",
+      "result": "95 PASS, 5 FAIL: four schema importer ranges and hook fixture RPC string id; corrected ranges and numeric id"
+    },
+    {
+      "log": "core-intermediate-pass.txt",
+      "result": "114 PASS"
+    },
+    {
+      "log": "core-contracts-pass.txt",
+      "result": "117 PASS"
+    },
+    {
+      "log": "domain-initial-schema-failures.txt",
+      "result": "1049 PASS, 10 FAIL, 2 ignored: schema 021 expected constants; updated to 022, future rejected schema to 023"
+    },
+    {
+      "log": "domain-under-build-load.txt",
+      "result": "1055 PASS, 4 FAIL, 2 ignored: local HTTP/timeout fixtures under concurrent compilation memory/swap pressure; same deadlines/assertions retained"
+    },
+    {
+      "log": "python-initial-pass.txt",
+      "result": "17 PASS"
+    },
+    {
+      "log": "release-cold-build.txt",
+      "result": "PASS"
+    },
+    {
+      "log": "core-tests.txt",
+      "result": "117 PASS after real CLI parser flag correction"
+    },
+    {
+      "log": "domain-tests.txt",
+      "result": "1061 PASS, 2 ignored integral serial retest without concurrent builds"
+    },
+    {
+      "log": "python-tests.txt",
+      "result": "17 PASS final"
+    },
+    {
+      "log": "release-build.txt",
+      "result": "PASS final functional source; subsequent cfg(test)-only sandbox comment clarified same-device bind limitation, no executable behavior change"
+    }
+  ],
+  "authorization_limits": {
+    "inference_calls": 0,
+    "authenticated_agent_tool_calls": 0,
+    "ai_credit_consumption": 0,
+    "real_yolo_enabled": false,
+    "host_security_changes": false,
+    "real_credential_reads": false,
+    "global_installs": false
+  },
+  "evidence_normalization": "Only trailing empty lines in text logs removed for git whitespace hygiene; no test output removed."
+}

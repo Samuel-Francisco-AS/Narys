@@ -1,0 +1,1422 @@
+    Blocking waiting for file lock on build directory
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling indexmap v2.14.2
+   Compiling zlib-rs v0.6.8
+   Compiling ureq v3.4.2
+   Compiling smallvec v1.16.2
+   Compiling futures-task v0.3.34
+   Compiling tracing v0.1.44
+   Compiling futures-util v0.3.34
+   Compiling serde_json v1.0.151
+   Compiling getrandom v0.3.4
+   Compiling rusqlite v0.31.0
+   Compiling synstructure v0.14.0
+   Compiling flate2 v1.1.10
+   Compiling zip v8.6.0
+   Compiling serde_derive v1.0.229
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling tokio-macros v2.7.2
+   Compiling zeroize_derive v1.5.0
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling thiserror-impl v1.0.69
+   Compiling libsodium-sys-stable v1.24.0
+   Compiling tokio v1.52.3
+   Compiling thiserror-impl v2.0.21
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling thiserror v1.0.69
+   Compiling filedescriptor v0.8.3
+   Compiling serde v1.0.229
+   Compiling portable-pty v0.9.0
+   Compiling thiserror v2.0.21
+   Compiling zeroize v1.9.1
+   Compiling bincode v1.3.3
+   Compiling icu_provider v2.3.1
+   Compiling serde_urlencoded v0.7.1
+   Compiling generic-array v0.14.7
+   Compiling der v0.7.10
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling block-padding v0.3.3
+   Compiling universal-hash v0.5.1
+   Compiling digest v0.10.7
+   Compiling inout v0.1.4
+   Compiling crypto-bigint v0.5.5
+   Compiling cipher v0.4.4
+   Compiling hmac v0.12.1
+   Compiling sha2 v0.10.9
+   Compiling signature v2.2.0
+   Compiling aes v0.8.4
+   Compiling hkdf v0.12.4
+   Compiling sec1 v0.7.3
+   Compiling spki v0.7.3
+   Compiling rfc6979 v0.4.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling polyval v0.6.2
+   Compiling aead v0.5.2
+   Compiling ghash v0.5.1
+   Compiling ed25519 v2.2.3
+   Compiling salsa20 v0.10.2
+   Compiling chacha20 v0.9.1
+   Compiling ctr v0.9.2
+   Compiling pbkdf2 v0.12.2
+   Compiling poly1305 v0.8.0
+   Compiling aes-gcm v0.10.3
+   Compiling scrypt v0.11.0
+   Compiling elliptic-curve v0.13.8
+   Compiling blake2 v0.10.6
+   Compiling ecdsa v0.16.9
+   Compiling chacha20poly1305 v0.10.1
+   Compiling tokio-util v0.7.20
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling k256 v0.13.4
+   Compiling x25519-dalek v2.0.1
+   Compiling ed25519-zebra v4.2.0
+   Compiling tokio-rustls v0.24.1
+   Compiling iota-crypto v0.23.2
+   Compiling h2 v0.3.27
+   Compiling cbc v0.1.2
+   Compiling url v2.5.8
+   Compiling dbus-secret-service v4.1.0
+   Compiling keyring v3.6.3
+   Compiling hyper v0.14.32
+   Compiling hyper-rustls v0.24.2
+   Compiling reqwest v0.11.27
+   Compiling stronghold-runtime v2.0.1
+   Compiling stronghold_engine v2.0.1
+   Compiling iota_stronghold v2.1.0
+   Compiling narys-domain v0.1.0 (/home/sam/Projetos/Narys/narys-domain)
+warning: irrefutable `if let` pattern
+   --> src/cognition/task_graph_runtime/c3_tests.rs:303:16
+    |
+303 |             if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+    = note: `#[warn(irrefutable_let_patterns)]` on by default
+
+warning: method `context_generation` is never used
+   --> src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: irrefutable `if let` pattern
+   --> src/cognition/orchestrator.rs:818:16
+    |
+818 |             if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+  --> src/cognition/task_graph_runtime/c4_tests.rs:29:16
+   |
+29 |             if let crate::channel::InvokeResponseBody::Json(json) = body {
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this pattern will always match, so the `if let` is useless
+   = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> src/cognition/task_graph_runtime/c4_tests/storage_tests.rs:484:12
+    |
+484 |         if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> src/cognition/task_graph_runtime/c4_tests/terminal_fix1_tests.rs:110:12
+    |
+110 |         if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> src/cognition/task_graph_runtime_tests.rs:408:12
+    |
+408 |         if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> src/cognition/task_graph_runtime_tests.rs:426:12
+    |
+426 |         if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> src/cognition/task_graph_runtime_tests.rs:446:12
+    |
+446 |         if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> src/luna/conversation_preflight_tests.rs:287:16
+    |
+287 |             if let crate::channel::InvokeResponseBody::Json(json) = body {
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: irrefutable `if let` pattern
+   --> src/luna/events.rs:143:16
+    |
+143 |             if let crate::channel::InvokeResponseBody::Json(body) = body {
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this pattern will always match, so the `if let` is useless
+    = help: consider replacing the `if let` with a `let`
+
+warning: `narys-domain` (lib) generated 1 warning
+warning: `narys-domain` (lib test) generated 10 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 42s
+     Running unittests src/lib.rs (narys-core/target/debug/deps/narys_domain-2051aa60b45d8147)
+
+running 1061 tests
+test agents::codex::app_server::tests::json_rpc_error_is_rejected ... ok
+test agents::codex::app_server::tests::initialize_serialization ... ok
+test agents::codex::app_server::tests::invalid_json_and_wrong_id_fail_closed ... ok
+test agents::codex::app_server::tests::fake_transport_correlates_interleaved_reply ... ok
+test agents::codex::app_server::tests::planner_eof_read_failure_and_malformed_json_fail_closed ... ok
+test agents::codex::app_server::tests::notification_over_limit_is_protocol_error ... ok
+test agents::codex::app_server::tests::maximum_notifications_then_response_succeeds ... ok
+test agents::codex::app_server::tests::interleaved_notification_and_eof ... ok
+test agents::codex::app_server::tests::real_app_server_handshake ... ignored, requires a local Codex app-server
+test agents::codex::app_server::tests::planner_opts_into_local_experimental_thread_fields ... ok
+test agents::codex::app_server::tests::regression_planner_burst_preserves_1024_frames ... ok
+test agents::codex::app_server::tests::rpc_ids_notifications_and_server_requests ... ok
+test agents::codex::app_server::tests::server_request_has_distinct_closed_code_and_unsolicited_response_is_rejected ... ok
+test agents::codex::app_server::tests::planner_queue_frame_budget_and_undrained_reader_completion ... ok
+test agents::codex::app_server::tests::transport_eof_and_timeout_fail_closed ... ok
+test agents::codex::app_server::tests::interleaved_pending_survives_rpc_timeout_protocol_and_close ... ok
+test agents::codex::backend::lifecycle_tests::active_cancel_sends_one_interrupt_and_waits_for_terminal ... ok
+test agents::codex::app_server::tests::initialize_success_and_sanitization ... ok
+test agents::codex::backend::lifecycle_tests::async_ready_delivery_checks_cancel_before_releasing_worker ... ok
+test agents::codex::backend::lifecycle_tests::async_bridge_mirrors_cancel_without_waiting_for_full_turn ... ok
+test agents::codex::backend::lifecycle_tests::async_bridge_acknowledges_events_and_maps_closed_sink ... ok
+test agents::codex::backend::lifecycle_tests::benign_pending_after_failed_interrupt_keeps_cancel_or_sink_error ... ok
+test agents::codex::backend::lifecycle_tests::cancel_after_thread_preparation_never_starts_inference ... ok
+test agents::codex::backend::lifecycle_tests::cancel_between_session_ready_and_turn_start_is_observed ... ok
+test agents::codex::app_server::tests::regression_planner_receives_more_than_256_notifications ... ok
+test agents::codex::backend::lifecycle_tests::cancel_before_reading_terminal_wins_even_when_runtime_completes ... ok
+test agents::codex::backend::lifecycle_tests::cleanup_failure_and_security_failure_keep_precedence ... ok
+test agents::codex::backend::lifecycle_tests::forbidden_item_while_cancelling_cannot_be_hidden_by_cancel ... ok
+test agents::codex::backend::lifecycle_tests::failure_then_independent_call_starts_clean_with_one_terminal_each ... ok
+test agents::codex::app_server::tests::planner_message_and_total_wire_byte_budgets_fail_closed ... ok
+test agents::codex::backend::lifecycle_tests::idle_turn_observes_global_timeout_without_busy_loop ... ok
+test agents::codex::backend::lifecycle_tests::interrupt_failure_still_reclaims_and_returns_cancelled ... ok
+test agents::codex::backend::lifecycle_tests::interrupt_without_terminal_has_bounded_virtual_deadline ... ok
+test agents::codex::backend::lifecycle_tests::forbidden_pending_survives_interrupt_protocol_or_transport_failure ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_cancellation_observer_failure_never_changes_interrupt_or_cleanup ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_codex_display_notifications_are_exact_private_reasoning_is_never_exposed ... ok
+test agents::codex::backend::lifecycle_tests::forbidden_pending_survives_interrupt_ack_timeout ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_forbidden_protocol_still_fails_closed_without_payload_or_private_marker ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_private_reasoning_only_keeps_factual_output_observed_without_text ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_functional_sink_error_is_not_masked_by_successful_passive_trace ... ok
+test agents::codex::app_server::tests::framing_limits_message_and_probe ... ok
+test agents::codex::backend::lifecycle_tests::manual_final_codex_agent_bridge_gate ... ignored, manual only: requires authenticated Codex, isolated inference and quota
+test agents::codex::backend::lifecycle_tests::lr9d_two_concurrent_operations_have_distinct_local_correlation ... ok
+test agents::codex::backend::lifecycle_tests::malformed_pending_notification_preserves_protocol_diagnostic_on_ack_failure ... ok
+test agents::codex::backend::lifecycle_tests::precancelled_trait_object_starts_no_operation_or_event ... ok
+test agents::codex::backend::lifecycle_tests::queued_completed_during_interrupt_ack_is_drained_in_order ... ok
+test agents::codex::backend::lifecycle_tests::queued_terminal_cannot_hide_later_forbidden_pending_item ... ok
+test agents::codex::backend::lifecycle_tests::server_request_during_cancel_remains_closed_and_cleanup_runs ... ok
+test agents::codex::backend::lifecycle_tests::server_request_during_interrupt_ack_stays_closed_without_reply ... ok
+test agents::codex::backend::lifecycle_tests::partial_cleanup_or_cancel_does_not_poison_next_call ... ok
+test agents::codex::backend::lifecycle_tests::sink_closed_before_turn_never_spends_inference ... ok
+test agents::codex::backend::lifecycle_tests::queued_terminal_is_inspected_even_after_interrupt_ack_failure ... ok
+test agents::codex::backend::lifecycle_tests::sink_closed_during_work_interrupts_and_reclaims ... ok
+test agents::codex::backend::lifecycle_tests::sink_closed_on_output_interrupts_and_emits_no_text ... ok
+test agents::codex::backend::lifecycle_tests::terminal_event_rejection_cannot_return_success_or_duplicate_terminal ... ok
+test agents::codex::backend::lifecycle_tests::terminal_received_before_cancel_observation_preserves_success ... ok
+test agents::codex::backend::tests::action_items_fail_closed ... ok
+test agents::codex::backend::lifecycle_tests::unrelated_activity_never_emits_output_observed ... ok
+test agents::codex::backend::tests::action_notifications_and_completed_turn_items_fail_closed ... ok
+test agents::codex::backend::lifecycle_tests::successful_async_bridge_preserves_event_order_and_has_no_global_busy_state ... ok
+test agents::codex::backend::tests::completed_item_and_turn_correlation ... ok
+test agents::codex::backend::tests::effective_thread_requires_all_security_fields ... ok
+test agents::codex::backend::tests::failed_turn_and_missing_response_are_distinct ... ok
+test agents::codex::backend::tests::cleanup_failure_cannot_turn_a_failed_or_successful_turn_into_success ... ok
+test agents::codex::backend::tests::generic_agent_errors_compile_without_backend_dependencies ... ok
+test agents::codex::backend::tests::instruction_sources_must_be_present_and_empty_without_path_leak ... ok
+test agents::codex::backend::tests::forbidden_notifications_and_server_requests_have_closed_diagnostics ... ok
+test agents::codex::backend::tests::isolated_thread_serialization ... ok
+test agents::codex::backend::tests::malformed_permission_profile_provenance_is_rejected_without_exposure ... ok
+test agents::codex::backend::tests::permission_profile_cannot_override_effective_security ... ok
+test agents::codex::backend::tests::permission_profile_provenance_accepts_absent_and_arbitrary_valid_ids ... ok
+test agents::codex::backend::tests::planner_path_must_be_outside_entire_checkout ... ok
+test agents::codex::backend::tests::invalid_plan_never_exposes_response_or_repairs_json ... ok
+test agents::codex::backend::tests::preparation_failure_precedes_cleanup_only_for_real_planner ... ok
+test agents::codex::backend::tests::forbidden_items_have_item_diagnostic_and_cleanup ... ok
+test agents::codex::backend::tests::preparation_stage_failures_have_closed_codes ... ok
+test agents::codex::backend::tests::probe_adapter_preserves_registry_and_request_gates ... ok
+test agents::codex::backend::tests::production_only_planning_and_structured ... ok
+test agents::codex::backend::tests::public_probe_serializes_only_closed_fields_and_codes ... ok
+test agents::codex::backend::tests::probe_operation_preserves_closed_diagnostics_through_command_boundary ... ok
+test agents::codex::backend::tests::probe_operation_keeps_generic_errors_and_success_without_diagnostic_leakage ... ok
+test agents::codex::backend::tests::safe_thread_response_allows_turn_construction ... ok
+test agents::codex::backend::tests::trait_object_rejects_and_cancels_without_spawn ... ok
+test agents::codex::backend::tests::turn_request_has_schema_and_no_tools ... ok
+test agents::codex::backend::tests::shared_preparation_stops_before_turn_start ... ok
+test agents::codex::backend::tests::turn_start_failure_and_invalid_id_are_distinct ... ok
+test agents::codex::backend::tests::valid_plan_and_lifecycle_notifications_succeed_then_cleanup ... ok
+test agents::codex::backend::tests::turn_transport_closed_protocol_and_timeout_have_closed_diagnostics ... ok
+test agents::codex::status::tests::arbitrary_failure_output_fails_closed ... ok
+test agents::codex::status::tests::classifies_api_key_login ... ok
+test agents::codex::status::tests::classifies_chatgpt_login ... ok
+test agents::codex::status::tests::classifies_not_authenticated ... ok
+test agents::codex::status::tests::classifies_other_login ... ok
+test agents::codex::status::tests::fails_closed_for_unexpected_or_empty_success_output ... ok
+test agents::codex::status::tests::parses_valid_version ... ok
+test agents::codex::status::tests::positive_markers_fail_closed_when_command_fails ... ok
+test agents::planner::tests::ids_and_dependencies ... ok
+test agents::codex::app_server::tests::planner_pending_rpc_reply_preserves_large_interleaved_burst ... ok
+test agents::planner::tests::questions_and_size ... ok
+test agents::planner::tests::valid_and_invalid_json ... ok
+test agents::planner::tests::unknown_fields_and_capability ... ok
+test agents::planner::tests::version_and_step_limits ... ok
+test agents::registry::tests::event_sink_failure_is_propagated_by_mock ... ok
+test agents::registry::tests::excludes_disabled_backends ... ok
+test agents::registry::tests::breaks_priority_ties_by_id ... ok
+test agents::registry::tests::excludes_incompatible_capabilities ... ok
+test agents::registry::tests::executes_through_object_safe_trait_with_mock ... ok
+test agents::registry::tests::orders_by_priority ... ok
+test agents::registry::tests::marked_cancellation_is_returned_by_mock ... ok
+test agents::registry::tests::production_registry_contains_only_codex_with_two_capabilities ... ok
+test agents::registry::tests::registers_and_looks_up_by_id ... ok
+test agents::registry::tests::rejects_duplicate_id ... ok
+test agents::registry::tests::requires_all_capabilities ... ok
+test cognition::admission::tests::invalid_config_is_rejected_and_zero_queue_or_bypasses_are_valid ... ok
+test cognition::admission::tests::counters_saturate_at_json_bound_and_snapshot_counts_classes_coherently ... ok
+test cognition::admission_tests::aborting_wait_or_running_permit_cleans_up ... ok
+test cognition::admission_tests::admission_snapshot_and_events_contain_only_local_metadata ... ok
+test cognition::admission_tests::bounded_overtaking_protects_background_at_one_and_two_bypasses ... ok
+test cognition::admission_tests::cancellation_from_admitted_event_prevents_invocation ... ok
+test cognition::admission_tests::cap_one_fifo_serializes_same_class ... ok
+test cognition::admission_tests::cap_two_admits_two_and_third_waits_without_preemption ... ok
+test cognition::admission_tests::event_sink_closed_at_queued_or_admitted_never_invokes_provider ... ok
+test cognition::admission_tests::all_provider_terminal_paths_release_permit ... ok
+test cognition::admission_tests::fallback_releases_source_before_acquiring_destination ... ok
+test cognition::admission_tests::interactive_and_task_overtake_background_but_same_class_is_fifo ... ok
+test cognition::admission_tests::preflight_authentication_releases_admission_without_factual_request ... ok
+test cognition::admission_tests::local_saturation_and_quota_zero_preserve_ranking_selection_score_and_affinity ... ok
+test cognition::admission_tests::provider_states_are_independent ... ok
+test agents::codex::backend::lifecycle_tests::success_events_are_facts_coalesced_and_do_not_contain_output ... ok
+test cognition::admission_tests::queue_full_is_local_terminal_without_retry_fallback_or_cooldown ... ok
+test agents::codex::backend::tests::wire_failures_and_server_requests_still_cleanup_without_reply ... ok
+test cognition::admission_tests::scheduler_concurrency_one_two_and_third_request ... ok
+test agents::codex::backend::lifecycle_tests::dropping_async_future_signals_worker_to_reclaim ... ok
+test cognition::allocation_policy::runtime_tests::b4_auto_none_before_any_event_reservation_admission_or_provider ... ok
+test cognition::admission_tests::queue_timeout_is_separate_terminal_and_does_not_consume_request_timeout ... ok
+test cognition::admission_tests::retry_reacquires_and_releases_permit_before_backoff ... ok
+test cognition::allocation_policy::runtime_tests::b4_conversation_wiring_reaches_b3 ... ok
+test agents::codex::backend::tests::regression_thousands_of_wire_deltas_complete_valid_plan_and_cleanup ... ok
+test agents::codex::backend::lifecycle_tests::lr9d_observer_absent_failed_slow_and_3000_deltas_preserve_requests_result_and_cleanup ... ok
+test cognition::allocation_policy::runtime_tests::b4_final_integrated_persisted_deny_zero_paid_http_then_allow_new_task ... ok
+test cognition::allocation_policy::runtime_tests::b4_fixed_preferred_no_economics_even_with_missing_table ... ok
+test cognition::allocation_policy::runtime_tests::b4_persisted_explicit_auto_expand_only_authorized_providers ... ok
+test cognition::allocation_policy::runtime_tests::b4_orchestrator_wiring_reaches_b3 ... ok
+test cognition::allocation_policy::runtime_tests::b4_scheduler_chain_and_resources_have_no_database_policy_authority ... ok
+test cognition::allocation_policy::runtime_tests::b4_persisted_profile_changes_winner_new_task_and_old_snapshot_stays_immutable ... ok
+test cognition::allocation_policy::runtime_tests::b4_persisted_quality_floor_filters_insufficient_and_unknown ... ok
+test cognition::allocation_policy::runtime_tests::b4_settings_api_returns_only_local_config_from_same_read_boundary ... ok
+test cognition::allocation_policy::runtime_tests::b4_save_during_429_503_keeps_frozen_chain_variants_scores_and_paid_exclusions ... ok
+test cognition::admission_tests::queued_cancellation_and_release_race_never_invoke_or_leak ... ok
+test cognition::allocation_policy::runtime_tests::b4_summary_wiring_reaches_b3 ... ok
+test cognition::allocation_policy::runtime_tests::b4_persisted_reserve_null_thresholds_do_not_invent_reserve ... ok
+test cognition::allocation_policy::tests::b4_composite_save_roundtrip_and_role_mismatch ... ok
+test cognition::allocation_policy::tests::b4_atomic_read_snapshot_across_concurrent_composite_save_and_multiple_roles ... ok
+test cognition::allocation_policy::runtime_tests::b4_worker_wiring_initial_allocation_then_fixed_execution ... ok
+test cognition::allocation_policy::tests::b4_composite_second_write_failure_rolls_back_both_policies_and_targets ... ok
+test cognition::allocation_policy::tests::b4_dto_deserialize_never_bypasses_constructors ... ok
+test cognition::allocation_policy::tests::b4_fixed_preferred_skip_missing_or_corrupt_allocation_auto_fails_closed ... ok
+test cognition::allocation_policy::tests::b4_future_version_rejected ... ok
+test cognition::allocation_policy::tests::b4_fresh_v13_defaults_and_idempotence ... ok
+test cognition::allocation_policy::tests::b4_load_rejects_missing_and_corrupt_rows_with_sanitized_errors ... ok
+test cognition::allocation_policy::tests::b4_migration_013_failure_rolls_back_and_can_retry ... ok
+test cognition::allocation_policy::tests::b4_profiles_variants_floor_and_money_reserve_roundtrip ... ok
+test cognition::allocation_policy::tests::b4_save_validates_before_writing_and_roles_stay_independent ... ok
+test cognition::allocation_policy::tests::b4_sql_allow_without_currency ... ok
+test cognition::allocation_policy::tests::b4_sql_currency_long ... ok
+test cognition::allocation_policy::tests::b4_sql_allow_without_micros ... ok
+test cognition::allocation_policy::tests::b4_sql_currency_lowercase ... ok
+test cognition::allocation_policy::tests::b4_sql_currency_non_ascii ... ok
+test cognition::allocation_policy::tests::b4_sql_currency_short ... ok
+test cognition::allocation_policy::tests::b4_sql_deny_with_budget ... ok
+test cognition::allocation_policy::tests::b4_sql_foreign_key_cascade ... ok
+test cognition::allocation_policy::tests::b4_sql_micros_fractional ... ok
+test cognition::allocation_policy::tests::b4_sql_micros_negative ... ok
+test cognition::allocation_policy::tests::b4_sql_micros_overflow ... ok
+test cognition::allocation_policy::tests::b4_sql_only_reduced ... ok
+test cognition::allocation_policy::tests::b4_sql_percent_fractional ... ok
+test cognition::allocation_policy::tests::b4_sql_paid_enum ... ok
+test cognition::allocation_policy::tests::b4_sql_only_reserve ... ok
+test cognition::allocation_policy::tests::b4_sql_percent_negative ... ok
+test cognition::allocation_policy::tests::b4_sql_percent_over_100 ... ok
+test cognition::allocation_policy::tests::b4_sql_profile ... ok
+test cognition::allocation_policy::tests::b4_sql_tier_256 ... ok
+test cognition::allocation_policy::tests::b4_sql_role_unknown ... ok
+test cognition::allocation_policy::tests::b4_sql_reserve_above_reduced ... ok
+test cognition::bounded_json::tests::fix5_byte_guard_counts_utf8_and_json_escapes_across_every_boundary ... ok
+test cognition::bounded_json::tests::fix5_byte_guard_rejects_invalid_surrogates_and_bounds_duplicate_content ... ok
+test cognition::allocation_policy::tests::b4_sql_tier_fractional ... ok
+test agents::codex::app_server::tests::shutdown_reaps_stuck_child ... ok
+test cognition::catalog::tests::catalog_exposes_gemini_integration_default_model ... ok
+test cognition::catalog::tests::catalog_requires_registered_enabled_stream_provider_and_exposes_no_secret ... ok
+test cognition::allocation_policy::tests::b4_sql_tier_negative ... ok
+test cognition::cloudflare::tests::finish_reason_is_required_and_classified_without_exposing_reasoning ... ok
+test cognition::allocation_policy::tests::b4_summary_disable_cleanup_rolls_back_on_failure ... ok
+test cognition::cloudflare::tests::malformed_and_statuses_fail_closed ... ok
+test cognition::cloudflare::tests::parser_splits_events_done_and_hides_reasoning ... ok
+test cognition::cloudflare::tests::payload_has_minimal_context_and_uses_model_specific_low_reasoning ... ok
+test cognition::allocation_policy::tests::b4_sql_variant ... ok
+test cognition::allocation_policy::tests::b4_v12_upgrade_preserves_routing_and_b3_defaults ... ok
+test cognition::cloudflare::tests::usage_is_optional_but_valid_usage_is_parsed ... ok
+test cognition::cloudflare::tests::rate_fix_terminal_usage_requires_official_final_chunk_not_done_or_prior_sample ... ok
+test cognition::allocation_policy::runtime_tests::b4_persisted_paid_guards_currency_unknown_exceeded_zero_and_prepaid ... ok
+test cognition::fix5_tests::fix5_conservative_planner_calls_and_output_exhaustion_prevent_extra_http ... FAILED
+test cognition::fix5_tests::fix5_event_coalescing_hundreds_of_chunks_and_scheduler_byte_guard ... ok
+test cognition::fix5_tests::fix5_capability_mode_rejects_unproven_targets_before_credentials_or_http ... ok
+test cognition::fix5_tests::fix5_conservative_planner_accounting_real_http_retry_unknown_usage ... ok
+test cognition::cloudflare::tests::duplicate_finish_reason_is_idempotent_but_conflict_fails_closed ... ok
+test cognition::fix5_tests::fix5_scheduler_rejects_fixed_incompatible_mode_without_selection_or_remote_call ... ok
+test cognition::fix5_tests::fix5_http_timeout_phases_are_real_and_diagnostics_sanitized ... FAILED
+test cognition::cloudflare::tests::rate_fix_observed_adapter_refunds_only_proven_terminal_usage ... ok
+test cognition::fix5_tests::fix5_tls_stall_fixture_waits_for_client_close ... ok
+test cognition::fix5_tests::fix5_structured_groq_payload_uses_real_schema_and_core_validation ... ok
+test cognition::fix5_tests::fix5_output_byte_limit_real_http_below_exact_and_early_overflow ... ok
+test cognition::catalog::route_tests::resilience_task_graph_multirole_preflight_opens_vault_once_and_remains_fail_closed ... ok
+test cognition::catalog::route_tests::validates_every_target_credentials_and_ignores_cooldown_for_saving has been running for over 60 seconds
+test cognition::cloudflare::tests::local_http_lifecycle_covers_split_valid_eof_timeout_and_internal_code has been running for over 60 seconds
+test cognition::cloudflare::tests::local_http_lifecycle_covers_split_valid_eof_timeout_and_internal_code ... FAILED
+test cognition::catalog::route_tests::validates_every_target_credentials_and_ignores_cooldown_for_saving ... ok
+test cognition::fix5_tests::fix5_structured_planner_accepts_exact_max_plan_bytes_and_standalone_mode ... ok
+test cognition::gemini::tests::network_failure_remains_unavailable ... ok
+test cognition::gemini::tests::official_error_codes_fail_closed_except_explicit_transients ... ok
+test cognition::gemini::tests::parser_never_emits_thought_or_unknown_delta ... ok
+test cognition::gemini::tests::provider_defaults_are_omitted_and_explicit_values_preserved ... ok
+test cognition::gemini::tests::event_sink_closed_stops_stream_without_retry ... ok
+test cognition::gemini::tests::rate_limit_diagnostic_allowlists_code_and_excludes_private_fields ... ok
+test cognition::gemini::tests::explicit_session_history_reaches_http_without_other_sessions_or_private_context ... ok
+test cognition::gemini::tests::idle_timeout_and_cancel_interrupt_http_stream ... ok
+test cognition::gemini::tests::rate_fix_completed_usage_is_definitive_and_refunds_only_excess_accounting ... ok
+test cognition::gemini::tests::rate_limit_http_date_enters_scheduler_cooldown ... ok
+test cognition::fix5_tests::fix5_structured_groq_invalid_syntax_shape_and_semantics_fail_closed has been running for over 60 seconds
+test cognition::fix5_tests::fix5_structured_groq_invalid_syntax_shape_and_semantics_fail_closed ... FAILED
+test cognition::gemini::tests::completion_status_is_required_and_only_completed_succeeds has been running for over 60 seconds
+test cognition::gemini::tests::resumed_session_is_the_only_history_in_fake_http_outbound ... ok
+test cognition::gemini::tests::sqlite_context_scheduler_fake_http_and_conversation ... ok
+test cognition::gemini::tests::scheduler_uses_smaller_request_or_budget_limit ... ok
+test cognition::groq::tests::model_and_http_mapping_fail_closed ... ok
+test cognition::groq::tests::none_thinking_omits_reasoning_effort ... ok
+test cognition::groq::tests::parser_handles_split_sse_usage_and_ignores_reasoning ... ok
+test cognition::groq::tests::payload_is_provider_specific_private_and_reasoning_hidden ... ok
+test cognition::gemini::tests::http_error_classes_and_retry_after has been running for over 60 seconds
+test cognition::gemini::tests::http_error_code_takes_priority_and_fallback_is_bounded has been running for over 60 seconds
+test cognition::gemini::tests::unavailable_diagnostics_leave_public_and_persisted_error_sanitized ... ok
+test cognition::gemini::tests::completion_status_is_required_and_only_completed_succeeds ... ok
+test cognition::gemini::tests::request_privacy_stream_usage_and_secret_lifecycle ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_e_cancel_queued_before_boundary_and_commit ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_f_cancel_after_loopback_http_keeps_accounting ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_g_admitted_background_survives_new_foreground ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_g_background_waits_without_foreground_preemption ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_h_local_capacity_is_pre_http_terminal_for_preferred ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_i_fixed_never_falls_back ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_i_output_forbids_retry_and_fallback ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_i_rate_limited_fallback_cooldown_without_health_failure ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_i_unavailable_fallback_does_not_recover_source ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_j_integrated_circuit_single_probe_recovery_and_reopen ... ok
+test cognition::gemini::tests::http_error_classes_and_retry_after ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_l_daily_request_budget_is_durable_and_enforced ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_l_durable_uncertainty_never_becomes_known_credit ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_l_restart_keeps_window_daily_budget_and_resets_health ... ok
+test cognition::gemini::tests::http_error_code_takes_priority_and_fallback_is_bounded ... ok
+test cognition::mistral::tests::malformed_and_statuses_fail_closed ... ok
+test cognition::mistral::tests::malformed_typed_content_fails_closed ... ok
+test cognition::mistral::tests::parser_splits_events_done_and_hides_reasoning ... ok
+test cognition::mistral::tests::payload_has_minimal_context_and_hides_reasoning ... ok
+test cognition::mistral::tests::payload_uses_mistral_contract_without_unknown_reasoning_field ... ok
+test cognition::groq::tests::rate_fix_streaming_done_does_not_make_usage_definitive_for_accounting ... ok
+test cognition::mistral::tests::typed_reasoning_content_emits_only_text_and_supports_string_transition ... ok
+test cognition::mistral::tests::usage_is_optional_but_valid_usage_is_parsed ... ok
+test cognition::operational_tests::operational_active_calls_queue_classes_and_cleanup_are_visible ... ok
+test cognition::operational_tests::operational_all_registered_ids_align_and_unknown_is_preserved_without_calls ... ok
+test cognition::operational_tests::operational_command_permissions_and_memory_only_dependency_boundary ... ok
+test cognition::operational_tests::operational_existing_policy_update_preserves_unedited_sections_and_accounting ... ok
+test cognition::operational_tests::operational_open_half_open_probe_and_cooldown_are_read_only ... ok
+test cognition::operational_tests::operational_persistence_failed_survives_read_with_database_inaccessible ... ok
+test cognition::operational_tests::operational_saturation_and_private_provider_data_cannot_enter_json ... ok
+test cognition::operational_tests::operational_usage_partial_quota_constraints_and_retry_hint_are_independent ... ok
+test cognition::orchestrator::tests::fixed_routing_and_provider_specific_configuration_are_policy_driven ... ok
+test cognition::orchestrator::tests::integrated_plan_cancellation_wins_and_sink_close_stops_observed_output ... ok
+test cognition::orchestrator::tests::integrated_plan_rejects_invalid_and_semantically_invalid_json ... ok
+test cognition::orchestrator::tests::integrated_plan_selects_fixed_gemini_and_groq_and_validates_output ... ok
+test cognition::orchestrator::tests::model_output_acceptance_matches_plan_parse_boundary ... ok
+test cognition::orchestrator::tests::model_output_errors_are_allowlisted_and_never_include_raw_output ... ok
+test cognition::orchestrator::tests::model_prompt_uses_plan_schema_and_explicit_invariants ... ok
+test cognition::groq::tests::rate_fix_complete_nonstreaming_usage_is_definitive_for_accounting ... ok
+test cognition::orchestrator::tests::planning_input_budget_counts_instruction_and_objective_bytes ... ok
+test cognition::orchestrator::tests::preferred_auto_plan_transport_fallback_and_invalid_output_boundary ... ok
+test cognition::orchestrator::tests::request_is_strict_and_has_no_history_or_tools ... ok
+test cognition::lr8e_gate_tests::lr8e_gate_k_real_taskgraph_workers_provenance_and_consolidation ... ok
+test cognition::orchestrator::tests::start_task_cancel_during_preflight_finishes_cancelled_without_provider_or_plan ... ok
+test cognition::orchestrator::tests::start_task_preflight_failure_finishes_without_provider_or_plan ... ok
+test cognition::orchestrator::tests::start_task_returns_task_id_before_preflight_and_keeps_task_active ... ok
+test cognition::orchestrator::tests::strict_plan_boundary_accepts_only_valid_raw_json ... ok
+test cognition::orchestrator::tests::task_summaries_are_factual_for_each_terminal_state ... ok
+test cognition::policy::tests::all_roles_roundtrip_auto_order_and_independent_configuration ... ok
+test cognition::policy::tests::cardinality_duplicates_invalid_target_and_budget_fail_closed ... ok
+test cognition::policy::tests::corrupt_persisted_thinking_order_and_cardinality_are_rejected ... ok
+test cognition::policy::tests::v8_to_v11_preserves_existing_roles_and_adds_worker_defaults ... ok
+test cognition::rate::operational_read_tests::operational_rate_projects_reset_without_mutating_live_accounting ... ok
+test cognition::rate_tests::active_unbounded_external_call_remains_uncertain_after_fresh_headers ... ok
+test cognition::rate_tests::adapter_preflight_without_http_releases_permit_and_rate ... ok
+test cognition::rate_tests::admission_full_and_timeout_return_rate_reservation ... ok
+test cognition::rate_tests::all_four_dimensions_reserve_known_capacity_and_zero_blocks ... ok
+test cognition::rate_tests::cancellation_and_abort_while_queued_roll_back_without_provider ... ok
+test cognition::rate_tests::cancellation_during_local_http_commit_rolls_back_without_factual_request ... ok
+test cognition::rate_tests::cancellation_during_unbounded_durable_commit_rolls_back_marker_on_graceful_drop ... ok
+test cognition::rate_tests::cancelled_pure_reservation_and_drop_return_all_credit ... ok
+test cognition::rate_tests::concurrent_late_headers_cannot_restore_exhausted_credit_or_refund_new_facts ... ok
+test cognition::rate_tests::context_rotation_drops_old_quota_rejects_late_headers_and_preserves_history_and_peers ... ok
+test cognition::rate_tests::crash_with_live_unbounded_http_guard_preserves_durable_uncertainty ... ok
+test cognition::rate_tests::credential_era_invalidates_legacy_cooldown_and_rejects_late_old_429 ... ok
+test cognition::rate_tests::credential_rotation_preserves_local_uncertainty_and_only_exact_reset_clears_it ... ok
+test cognition::rate_tests::cumulative_prefix_can_increase_debit_but_cannot_prove_a_refund ... ok
+test cognition::rate_tests::cumulative_usage_and_no_usage_preserve_uncertainty_after_finish_and_restart ... ok
+test cognition::rate_tests::definitive_usage_clears_only_its_own_marker_and_reset_overflow_clears_nothing ... ok
+test cognition::rate_tests::durable_failure_denies_before_http_and_failed_refund_never_creates_disk_credit ... ok
+test cognition::rate_tests::external_uncertainty_requires_fresh_remaining_or_legitimate_reset ... ok
+test cognition::rate_tests::factual_resets_delay_absolute_past_and_exact_boundaries_use_monotonic_time ... ok
+test cognition::rate_tests::failed_violated_bound_persistence_has_durable_recovery_marker ... ok
+test cognition::rate_tests::http_success_error_cancel_and_abort_keep_consumed_request ... ok
+test cognition::rate_tests::invalid_policies_are_rejected_and_policy_change_does_not_zero_same_window ... ok
+test cognition::rate_tests::invalid_timestamp_overflow_and_missing_wall_clock_never_synthesize_refill ... ok
+test cognition::rate_tests::local_fixed_window_is_explicit_and_pending_reservations_cross_boundaries_safely ... ok
+test cognition::rate_tests::local_policy_provenance_is_distinct_and_telemetry_configuration_is_not_external_capacity ... ok
+test cognition::rate_tests::local_window_overflow_never_resets_consumption_before_validation ... ok
+test cognition::rate_tests::malformed_persisted_local_state_is_a_typed_startup_failure ... ok
+test cognition::rate_tests::missing_or_partial_facts_cannot_refill_exhausted_unknown_reset ... ok
+test cognition::rate_tests::old_window_usage_does_not_refund_or_debit_new_window ... ok
+test cognition::rate_tests::provider_and_model_constraints_combine_without_model_promotion ... ok
+test cognition::rate_tests::rate_ambiguous_duplicate_relative_reset_cannot_extend_or_restore_deadline ... ok
+test cognition::rate_tests::rate_ambiguous_later_delay_or_unix_reset_preserves_uncertainty_before_refresh ... ok
+test cognition::rate_tests::rate_ambiguous_partial_headers_never_invent_or_reparse_a_reset ... ok
+test cognition::rate_tests::rate_ambiguous_reset_without_safe_conversion_revokes_auto_refill ... ok
+test cognition::rate_tests::rate_ambiguous_smaller_or_equal_reset_never_accelerates_accepted_deadline ... ok
+test cognition::rate_tests::rate_independent_fact_restores_revoked_temporal_authority_during_overlap ... ok
+test cognition::rate_tests::rate_old_credential_reset_cannot_revoke_or_accelerate_current_deadline ... ok
+test cognition::rate_tests::rate_ordering_older_http_response_only_tightens_without_reset_or_double_debit ... ok
+test cognition::rate_tests::rate_ordering_older_token_ceiling_survives_proven_refund ... ok
+test cognition::rate_tests::rate_ordering_priority_overtaking_uses_http_start_not_reservation_order ... ok
+test cognition::rate_tests::rate_ordering_reversed_reservations_and_independent_fact_barrier ... ok
+test cognition::rate_tests::rate_ordering_stale_partial_headers_cannot_refill_or_clear_token_uncertainty ... ok
+test cognition::rate_tests::rate_overlap_history_survives_peer_finish_and_isolated_call_recovers_fresh_authority ... ok
+test cognition::rate_tests::rate_overlap_later_reset_revokes_early_refill_and_isolated_call_recovers ... ok
+test cognition::rate_tests::rate_overlap_later_started_header_still_tightens_after_peer_finishes ... ok
+test cognition::rate_tests::rate_overlap_old_credential_era_does_not_join_current_isolated_calls ... ok
+test cognition::rate_tests::rate_overlap_preserves_completed_uncertainty_and_does_not_replay_reset ... ok
+test cognition::rate_tests::rate_overlap_transitive_group_survives_original_peers_but_not_quiescence ... ok
+test cognition::rate_tests::response_remaining_does_not_double_debit_its_already_started_request ... ok
+test cognition::rate_tests::restart_cannot_erase_write_ahead_local_reservations_and_graceful_rollback_is_durable ... ok
+test cognition::rate_tests::restart_known_utc_boundary_and_backward_wall_clock_are_safe ... ok
+test cognition::rate_tests::restart_preserves_local_daily_requests_tokens_and_discards_remote_context ... ok
+test cognition::rate_tests::retries_reserve_each_attempt_and_backoff_holds_no_future_reservation ... ok
+test cognition::rate_tests::retry_hits_rate_gate_and_remote_fallback_has_independent_ledger ... ok
+test cognition::rate_tests::rotation_before_http_wins_and_local_daily_budget_survives_context_change ... ok
+test cognition::rate_tests::scheduler_rate_block_is_local_before_admission_no_cooldown_retry_or_fallback ... ok
+test cognition::rate_tests::simultaneous_reservations_are_atomic_at_remaining_one ... ok
+test cognition::rate_tests::sink_closed_queued_or_admitted_rolls_back_and_cancellation_admitted_wins ... ok
+test cognition::groq::tests::real_adapter_contract_stream_usage_and_secret_isolation ... ok
+test cognition::rate_tests::task_budget_is_distinct_from_daily_budget_and_snapshot_excludes_content ... ok
+test cognition::rate_tests::token_overflow_saturates_and_never_refunds_uncertain_saturated_debits ... ok
+test cognition::rate_tests::token_reconciliation_less_equal_unknown_greater_and_absent_bound ... ok
+test cognition::rate_tests::two_scheduler_tasks_at_remaining_one_only_one_crosses_http ... ok
+test cognition::rate_tests::unbounded_definitive_usage_is_durable_even_before_guard_drop_and_idempotent ... ok
+test cognition::rate_tests::unbounded_preflight_and_cancelled_reservations_leave_no_durable_uncertainty ... ok
+test cognition::mistral::tests::rate_fix_streaming_done_preserves_only_observational_usage_and_uncertainty ... ok
+test cognition::rate_tests::unbounded_storage_failure_at_prefix_final_or_drop_never_recovers_known_credit ... ok
+test cognition::rate_tests::unknown_is_neither_unlimited_nor_zero_and_limit_only_never_guesses_reset ... ok
+test cognition::rate_tests::unresolved_local_tokens_deny_stale_headroom_at_reserve_and_queued_http_revalidation ... ok
+test cognition::rate_tests::unbounded_storage_failure_at_write_ahead_or_started_never_allows_http ... ok
+test cognition::resilience_tests::resilience_aborted_future_drops_probe ... ok
+test cognition::resilience_tests::resilience_admission_queue_full_and_timeout_release_probe ... ok
+test cognition::resilience_tests::resilience_actual_scheduler_neutral_results_never_open_probe ... ok
+test cognition::orchestrator::tests::multi_target_preflight_rejects_unconfigured_secondary_with_one_terminal ... ok
+test cognition::orchestrator::tests::start_task_cancel_after_provider_starts_finishes_cancelled_without_plan ... ok
+test cognition::resilience_tests::resilience_atomic_concurrent_probe_bound ... ok
+test cognition::resilience_tests::resilience_breaker_open_while_backoff_prevents_retry ... ok
+test cognition::resilience_tests::resilience_auto_gates_after_b2_score_and_ranking ... ok
+test cognition::resilience_tests::resilience_admitted_callback_cancellation_releases_probe_before_http ... ok
+test cognition::resilience_tests::resilience_boundary_denial_preserves_preferred_one_call_budget ... ok
+test cognition::resilience_tests::resilience_cap_applies_before_jitter_and_exponential_never_wraps ... ok
+test cognition::resilience_tests::resilience_config_defaults_validation_and_test_override ... ok
+test cognition::resilience_tests::resilience_cooldown_before_open_expiry_stays_open ... ok
+test cognition::resilience_tests::resilience_cooldown_during_backoff_prevents_retry_and_allows_authorized_fallback ... ok
+test cognition::resilience_tests::resilience_cooldown_larger_extends_deadline ... ok
+test cognition::resilience_tests::resilience_cooldown_smaller_concurrent_result_cannot_shorten ... ok
+test cognition::resilience_tests::resilience_deadline_overflow_is_flagged_bounded_and_fail_closed ... ok
+test cognition::resilience_tests::resilience_equal_jitter_lower_bound_ceil ... ok
+test cognition::resilience_tests::resilience_equal_jitter_upper_bound ... ok
+test cognition::resilience_tests::resilience_event_sink_closed_before_provider_releases_probe_at_each_stage ... ok
+test cognition::resilience_tests::resilience_every_neutral_probe_releases_without_opening ... ok
+test cognition::resilience_tests::resilience_exact_threshold_and_below_threshold ... ok
+test cognition::resilience_tests::resilience_exponential_base_preserved ... ok
+test cognition::resilience_tests::resilience_factual_cooldown_hints_keep_closed_semantics ... ok
+test cognition::resilience_tests::resilience_factual_cooldown_hints_keep_probe_semantics ... ok
+test cognition::resilience_tests::resilience_factual_retry_hint_is_never_operational_policy ... ok
+test cognition::resilience_tests::resilience_fallback_destination_does_not_share_source_breaker ... ok
+test cognition::resilience_tests::resilience_fixed_open_has_no_hidden_alternative ... ok
+test cognition::resilience_tests::resilience_http_boundary_rechecks_health_and_era_after_adapter_preflight ... ok
+test cognition::resilience_tests::resilience_injected_rng_out_of_bounds_is_bounded ... ok
+test cognition::resilience_tests::resilience_late_http_generation_error_is_factual_but_ignored_for_current_health ... ok
+test cognition::resilience_tests::resilience_cancelled_and_aborted_running_probe_never_leak ... ok
+test cognition::resilience_tests::resilience_cancellation_during_backoff_prevents_new_attempt ... ok
+test cognition::resilience_tests::resilience_old_generation_results_and_permits_cannot_mutate_new_era ... ok
+test cognition::resilience_tests::resilience_local_preflight_timeout_and_authentication_cannot_change_health ... ok
+test cognition::resilience_tests::resilience_one_hundred_429_never_open_or_require_probe ... ok
+test cognition::resilience_tests::resilience_open_before_cooldown_expiry_does_not_spend_probe ... ok
+test cognition::resilience_tests::resilience_neutral_closed_errors_never_increment_or_reset ... ok
+test cognition::resilience_tests::resilience_open_half_open_exact_monotonic_boundary_and_wall_clock_irrelevance ... ok
+test cognition::resilience_tests::resilience_open_blocks_before_rate_admission_provider_and_task_call_budget ... ok
+test cognition::resilience_tests::resilience_cancellation_or_abort_while_probe_queued_releases_both_guards ... ok
+test cognition::resilience_tests::resilience_post_http_core_budget_rejection_cannot_degrade_health ... ok
+test cognition::resilience_tests::resilience_preferred_cooldown_while_queued_preserves_one_call_budget ... ok
+test cognition::resilience_tests::resilience_preferred_skips_open_preserves_authorized_order ... ok
+test cognition::resilience_tests::resilience_preflight_without_http_cannot_fail_or_close_probe ... ok
+test cognition::resilience_tests::resilience_previous_circuit_epoch_cannot_close_new_probe ... ok
+test cognition::resilience_tests::resilience_probe_configuration_is_bounded_even_above_one ... ok
+test cognition::resilience_tests::resilience_preferred_gate_closed_while_queued_advances_in_authorized_order ... ok
+test cognition::resilience_tests::resilience_probe_success_closes_and_resets_failures ... ok
+test cognition::resilience_tests::resilience_probe_timeout_reopens_with_fresh_duration ... ok
+test cognition::resilience_tests::resilience_provider_isolation_destination_success_never_closes_source ... ok
+test cognition::resilience_tests::resilience_partial_output_still_prevents_retry_and_fallback ... ok
+test cognition::resilience_tests::resilience_probe_unavailable_reopens_with_fresh_duration ... ok
+test cognition::resilience_tests::resilience_queued_closed_attempt_rechecks_open_before_invoking_adapter ... ok
+test cognition::resilience_tests::resilience_rate_limited_missing_hint_defaults_to_three_seconds ... ok
+test cognition::resilience_tests::resilience_rate_capacity_and_daily_block_release_probe_neutrally ... ok
+test cognition::resilience_tests::resilience_rate_state_unavailable_releases_probe_without_failure ... ok
+test cognition::resilience_tests::resilience_retry_after_never_calls_jitter ... ok
+test cognition::resilience_tests::resilience_retry_after_preserves_fallback_and_fixed_without_jitter ... ok
+test cognition::resilience_tests::resilience_retry_denied_at_http_boundary_does_not_commit_new_call ... ok
+test cognition::resilience_tests::resilience_retry_releases_every_resource_then_reacquires_and_accounts_exactly ... ok
+test cognition::resilience_tests::resilience_rotation_clears_circuit_cooldown_and_old_probe_cannot_close_or_release_new_probe ... ok
+test cognition::resilience_tests::resilience_running_call_is_not_preempted_by_peer_open_or_allowed_to_close_it ... ok
+test cognition::resilience_tests::resilience_running_closed_failure_after_recovery_counts_in_current_closed ... ok
+test cognition::resilience_tests::resilience_running_closed_success_after_recovery_resets_current_closed ... ok
+test cognition::resilience_tests::resilience_snapshot_is_read_only_allowlisted_and_content_free ... ok
+test cognition::resilience_tests::resilience_success_resets_closed_failures ... ok
+test cognition::resilience_tests::resilience_summary_background_operational_gate_returns_transient_contract ... ok
+test cognition::resilience_tests::resilience_task_budget_limits_retries_and_never_counts_skipped_open_target ... ok
+test cognition::resilience_tests::resilience_restart_clears_health_preserves_durable_daily_windows_and_uncertainty ... ok
+test cognition::resilience_tests::resilience_temporary_open_does_not_erase_affinity_or_change_scores ... ok
+test cognition::resilience_tests::resilience_timeout_increments_eligible_failure ... ok
+test cognition::resilience_tests::resilience_unavailable_hint_can_open_and_cool_simultaneously ... ok
+test cognition::resilience_tests::resilience_unavailable_without_hint_increments_failure ... ok
+test cognition::resilience_tests::resilience_zero_backoff_never_calls_rng ... ok
+test cognition::resilience_tests::resilience_two_tasks_exactly_one_half_open_probe_before_other_gates ... ok
+test cognition::scheduler::tests::affinity_storage_evicts_oldest_success_and_refreshes_bounded_entries ... ok
+test cognition::scheduler::tests::task_graph_ranking_respects_authorized_order_fixed_and_auto ... ok
+test cognition::summary::tests::bounded_input_preserves_first_recent_order_and_utf8 ... ok
+test cognition::summary::tests::delayed_provider_does_not_block_close_and_worker_sleeps_without_pending ... ok
+test cognition::summary::tests::fake_provider_success_transient_terminal_and_invalid ... ok
+test cognition::summary::tests::fixed_groq_summary_accepts_output_without_changing_messages ... ok
+test cognition::summary::tests::foreground_defers_pending_summary_until_last_task_finishes ... ok
+test cognition::summary::lr9d_tests::summary_passive_lifecycle_no_transcript_raw_metadata_and_identical_process_outcome ... ok
+test cognition::summary::tests::lr8b_queued_summary_is_overtaken_by_interactive_and_keeps_foreground_fast_path ... ok
+test cognition::summary::tests::lr8b_summary_local_admission_failure_defers_without_immediate_retry ... ok
+test cognition::summary::tests::headless_summary_runs_without_presentation_and_shutdown_stops_waiter ... ok
+test cognition::summary::tests::strict_output_rejects_fences_controls_and_empty ... ok
+test cognition::summary::tests::summary_request_uses_its_own_role_policy ... ok
+test cognition::summary::tests::summary_revalidates_snapshot_before_any_provider_request ... ok
+test cognition::summary::uip6b_budget_tests::summary_budget_changes_transcript_and_preserves_first_user_when_possible ... ok
+test cognition::task_graph::tests::cancellation_marks_pending_and_running_without_fake_completion ... ok
+test cognition::task_graph::tests::empty_capability_is_rejected_only_at_the_task_graph_boundary ... ok
+test cognition::task_graph::tests::failure_blocks_transitive_dependents_but_not_independent_siblings ... ok
+test cognition::task_graph::tests::independent_steps_share_first_ready_wave_and_dependency_waits ... ok
+test cognition::task_graph::tests::task_graph_rejects_untrusted_non_machine_ids_but_keeps_planv1_contract ... ok
+test cognition::task_graph::tests::unsupported_operational_capability_fails_closed ... ok
+test cognition::task_graph_handoff::tests::c3_a_recovery_cannot_be_shadowed_by_temp_history_or_checkpoint_tables ... ok
+test cognition::summary::tests::preferred_auto_summary_preserve_claim_and_reject_invalid_json_without_fallback ... ok
+test cognition::task_graph_handoff::tests::c3_a_recovery_preserves_task_id_ceiling_and_rejects_invalid_history ... ok
+test cognition::task_graph_handoff::tests::c3_a_restart_checkpoint_root_above_terminal_history_never_reuses_id ... ok
+test cognition::task_graph_handoff::tests::c3_j_committed_unknown_receipt_is_rejected_by_c1_boundary_even_without_row_mismatch ... ok
+test cognition::task_graph_runtime::c3_tests::c3_allocation_unavailable_is_not_provider_failed_or_a_new_execution ... ok
+test cognition::task_graph_runtime::c3_tests::c3_b_c_n_auto_changes_resource_and_access_path_only_after_a_is_committed ... ok
+test cognition::gemini::tests::sse_error_codes_share_http_mapper has been running for over 60 seconds
+test cognition::task_graph_runtime::c3_tests::c3_e_same_winner_is_unchanged_not_a_false_handoff_change ... ok
+test cognition::task_graph_runtime::c3_tests::c3_f_policy_is_captured_once_settings_cannot_expand_the_task_universe ... ok
+test cognition::task_graph_runtime::c3_tests::c3_g_checkpoint_uses_actual_pin_when_winner_differs_from_config_first_and_later_rank ... ok
+test cognition::task_graph_runtime::c3_tests::c3_h_cancellation_after_committed_receipt_wins_before_successor_request ... ok
+test cognition::task_graph_runtime::c3_tests::c3_h_cancellation_in_successor_started_callback_is_rechecked_by_scheduler ... ok
+test cognition::task_graph_runtime::c3_tests::c3_i_failed_checkpoint_write_blocks_dependents_and_has_local_error ... ok
+test cognition::mistral::tests::local_http_lifecycle_covers_split_thinking_eof_http_and_cancel ... ok
+test cognition::task_graph_runtime::c3_tests::c3_d_cross_model_and_effort_on_same_resource_and_access_path ... ok
+test cognition::task_graph_runtime::c3_tests::c3_k_partial_output_failure_never_recreates_a_or_creates_boundary ... ok
+test cognition::task_graph_runtime::c3_tests::c3_j_unknown_effect_in_durable_predecessor_blocks_successor ... ok
+test cognition::task_graph_runtime::c3_tests::c3_l_fixed_target_is_preserved_when_scarcity_changes ... ok
+test cognition::gemini::tests::sse_error_codes_share_http_mapper ... ok
+test cognition::task_graph_runtime::c3_tests::c3_o_parallel_units_overlap_with_separate_pins_and_receipts ... ok
+test cognition::task_graph_runtime::c3_tests::c3_m_preferred_order_and_d3_distribution_ignore_economic_scarcity ... ok
+test cognition::task_graph_runtime::c3_tests::c3_o_reallocating_b_while_a_runs_never_changes_a_pin_or_serializes_them ... ok
+test cognition::task_graph_runtime::c3_tests::c3_p_corrupt_or_changed_receipt_cannot_release_a_dependent ... ok
+test cognition::task_graph_runtime::c3_tests::c3_p_dependency_links_are_exact_with_multi_parent_and_out_of_order_plan ... ok
+test cognition::task_graph_runtime::c3_tests::c3_p_valid_but_different_checkpoint_sequence_does_not_match_receipt ... ok
+test cognition::task_graph_runtime::c3_tests::c3_q_events_and_ledger_reconstruct_allocations_without_cognitive_content ... ok
+test cognition::task_graph_runtime::c3_tests::c3_r_prepared_unit_cannot_be_allocated_twice_or_given_another_policy_target_list ... ok
+test cognition::task_graph_runtime::c3_tests::c3_r_every_unit_has_one_execution_one_receipt_and_never_replays_a ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_cancel_preserves_committed_unit_with_unknown_effect_without_normalizing ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_a_g_h_paused_command_cancel_is_atomic_before_reopen ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_d_cancel_deferred_commit_failure_rolls_back_and_can_retry ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_f_late_result_after_cancel_intent_or_terminal_cannot_commit ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_b_c_paused_command_history_failures_roll_back_every_terminal_write ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_e_running_cancel_intent_survives_crash_and_cannot_resume ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_j_cancel_intent_before_completion_transaction_wins ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_j_completion_committed_before_cancel_is_not_rewritten ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_running_command_persists_intent_and_signals_atomic_flag ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_i_concurrent_paused_and_running_cancels_are_idempotent ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_running_command_write_failure_is_not_reported_as_durable_success ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_v16_migration_failure_does_not_advance_version_and_retry_succeeds ... ok
+test cognition::task_graph_runtime::c4_tests::cancellation_fix2_tests::c4_fix2_v15_upgrade_preserves_ledger_policy_history_and_rate_state ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_a_d_t_cross_resource_reads_facts_only_at_next_boundary ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_b_same_resource_model_effort_changes ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_c_unchanged_selection_is_not_a_false_transition ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_e_paid_only_deny_persists_pause_zero_paid_calls_and_accounting ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_f_original_allow_known_cost_permits_paid_candidate ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_g_unknown_economics_stays_unknown_and_is_not_a_paid_pause ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_g_unknown_paid_cost_is_not_zero_or_authorized ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_h_cancel_after_committed_a_prevents_b ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_j_checkpoint_failure_rolls_back_result_and_blocks_b ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_i_cancel_paused_survives_restart_and_resume_is_terminal ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_k_result_write_failure_rolls_back_checkpoint_and_policy ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_m_x_concurrent_resumes_claim_once_and_do_not_duplicate_b ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_n_partial_output_crash_after_a_never_replays_b ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_l_restart_real_resume_restores_exact_dependency_without_replaying_a ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_o_committed_effect_remains_non_replayable_after_restart ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_p_unknown_effect_stays_uncertain_no_successor ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_q_root_identity_fence_includes_manifest_even_when_corrupt ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_r_fixed_restart_preserves_explicit_target ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_s_preferred_restart_preserves_explicit_order ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_u_parallel_units_keep_independent_pins_and_results ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_v_policy_freeze_settings_changes_do_not_authorize_old_task ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_w_selection_score_and_boundary_reason_remain_distinct_and_sanitized ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_z_v14_upgrade_preserves_b4_checkpoints_history_and_rate_schema ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_changed_identity_context_pauses_without_replaying_a ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_cancel_resume_preserves_terminal_state_and_never_started_descendants ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_dispatch_marker_failure_means_zero_provider_calls ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_claim_write_failure_is_atomic_and_makes_zero_new_calls ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_durable_cancel_between_resume_claim_and_dispatch_wins_without_registry_flag ... ok
+test cognition::task_graph_runtime::c4_tests::lr85c_final_y_corrupt_result_or_checkpoint_never_dispatches ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_finish_completed_requires_all_exact_receipts_and_results ... ok
+test cognition::groq::tests::http_finish_reason_is_a_required_terminal_contract has been running for over 60 seconds
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_lease_from_before_restart_cannot_start_another_unit ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_legacy_terminal_history_contradiction_cannot_resume ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_manifest_and_all_unit_rows_rollback_atomically ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_manifest_is_validated_and_identity_cannot_attach_to_old_work ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_manifest_root_mismatch_is_rejected_without_losing_high_water_mark ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_missing_not_started_row_is_corruption_not_a_new_unit ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_missing_result_does_not_turn_receipt_into_dispatch_authorization ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_pause_write_failure_fails_closed_instead_of_dispatching_b ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_result_byte_bounds_fail_before_checkpoint_write ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_schema_and_fixtures_do_not_introduce_sensitive_context_fields ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_result_invalid_utf8_fails_closed ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_result_retry_is_idempotent_but_conflicting_content_is_rejected ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_result_wrong_unit_or_provider_is_rejected ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_terminal_state_write_failure_never_reports_completed ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_v15_migration_failure_rolls_back_and_retries_from_v14 ... ok
+test cognition::task_graph_runtime::c4_tests::storage_tests::c4_uncertain_branch_blocks_dependents_but_independent_unit_can_resume ... ok
+test cognition::task_graph_runtime::c4_tests::terminal_fix1_tests::c4_fix1_e_cancel_wins_over_pending_economic_pause_and_commits_history ... ok
+test cognition::task_graph_runtime::c4_tests::terminal_fix1_tests::c4_fix1_e_durable_cancel_wins_over_completed_without_registry_flag ... ok
+test cognition::task_graph_runtime::c4_tests::terminal_fix1_tests::c4_fix1_e_resume_terminal_writer_observes_cancel_committed_after_last_result ... ok
+test cognition::task_graph_runtime::c4_tests::terminal_fix1_tests::c4_fix1_g_deferred_fk_commit_failure_rolls_back_history_and_terminal_state ... ok
+test cognition::task_graph_runtime::c4_tests::terminal_fix1_tests::c4_fix1_rollback_with_pause_failure_leaves_running_for_startup_recovery ... ok
+test cognition::task_graph_runtime::c4_tests::terminal_fix1_tests::c4_fix1_f_completed_cancelled_failed_have_exact_terminal_history ... ok
+test cognition::task_graph_runtime::c4_tests::terminal_fix1_tests::c4_fix1_c_d_resume_history_rollback_then_recovery_finalizes_without_replay ... ok
+test cognition::resilience_tests::resilience_real_groq_http_errors_open_only_after_factual_boundary ... ok
+test cognition::task_graph_runtime_tests::invalid_planner_id_fails_before_any_worker_subtask_starts ... ok
+test cognition::task_graph_runtime_tests::completed_worker_is_preserved_when_sibling_is_cancelled ... ok
+test cognition::task_graph_runtime_tests::independent_workers_overlap_use_distinct_providers_and_persist_provenance ... ok
+test cognition::task_graph_runtime_tests::c4_fix1_a_b_initial_path_history_failures_roll_back_terminal_and_history ... ok
+test cognition::task_graph_runtime_tests::lr8b_task_graph_cap_two_admits_parallel_same_provider_workers_with_provenance ... ok
+test cognition::task_graph_runtime_tests::lr8b_task_graph_cap_one_serializes_same_provider_workers_with_provenance ... ok
+test cognition::resilience_tests::resilience_real_secret_observer_noop_and_rotation_respect_health_and_budgets ... ok
+test cognition::rate_tests::successful_secret_mutations_invalidate_api_keys_cloudflare_token_and_account has been running for over 60 seconds
+test cognition::task_graph_runtime_tests::root_cancel_propagates_to_parallel_workers_and_never_completes ... ok
+test cognition::task_graph_runtime_tests::root_cancel_requested_by_task_started_callback_is_cancelled_without_provider_call ... ok
+test cognition::task_graph_runtime_tests::fix5_production_structured_invalid_planner_never_starts_workers_and_terminal_is_unique ... ok
+test cognition::task_graph_worker::tests::structured_worker_result_is_strict_and_bounded ... ok
+test cognition::task_graph_worker::tests::worker_instruction_is_static_and_never_promotes_subtask_content ... ok
+test cognition::telemetry_tests::lr8a_fix_default_provider_preflight_never_fabricates_request ... ok
+test cognition::telemetry_tests::lr8a_fix_factual_retry_after_is_independent_of_operational_clamp ... ok
+test cognition::task_graph_runtime_tests::production_groq_incomplete_plan_fails_before_any_worker_is_compiled_or_started ... ok
+test cognition::task_graph_runtime_tests::production_cloudflare_is_skipped_as_structured_planner_but_remains_worker ... ok
+test cognition::task_graph_runtime_tests::worker_channel_failure_is_failed_and_stops_parallel_sibling ... ok
+test cognition::task_graph_runtime_tests::root_worker_budget_blocks_new_wave_before_exceeding_call_limit ... ok
+test cognition::task_graph_runtime_tests::production_structured_groq_plan_through_scheduler_and_dispatch_two_workers ... ok
+test cognition::groq::tests::http_finish_reason_is_a_required_terminal_contract ... ok
+test cognition::telemetry_tests::lr8a_fix_quota_scopes_isolate_two_models_and_provider ... ok
+test cognition::telemetry_tests::lr8a_fix_registry_ids_never_disappear_from_telemetry ... ok
+test cognition::telemetry_tests::lr8c_groq_http_fixture_consumes_body_split_after_headers_before_closing ... ok
+test cognition::telemetry_tests::telemetry_absent_usage_stays_unknown_and_d3_accounting_stays_conservative ... ok
+test cognition::telemetry_tests::telemetry_cancel_after_start_counts_request_without_tokens ... ok
+test cognition::telemetry_tests::telemetry_cancel_before_invocation_and_sink_failure_never_count ... ok
+test cognition::telemetry_tests::telemetry_concurrent_snapshots_are_consistent_and_monotonic ... ok
+test cognition::telemetry_tests::telemetry_extreme_usage_saturates_and_invalid_values_are_ignored ... ok
+test cognition::telemetry_tests::telemetry_factual_retry_date_and_ambiguous_values_use_controlled_clock ... ok
+test cognition::telemetry_tests::telemetry_fallback_only_counts_invoked_providers_and_preserves_cooldown ... ok
+test cognition::telemetry_tests::telemetry_independent_usage_dimensions_preserve_unknown_and_zero ... ok
+test cognition::telemetry_tests::telemetry_partial_output_preserves_no_retry_no_fallback ... ok
+test cognition::telemetry_tests::telemetry_preflight_failure_does_not_count_remote_request ... ok
+test cognition::telemetry_tests::lr8a_fix_groq_real_headers_isolate_models_and_map_rpd_tpm ... ok
+test cognition::telemetry_tests::lr8a_fix_gemini_incomplete_keeps_only_valid_terminal_usage ... ok
+test cognition::telemetry_tests::lr8a_fix_groq_rejected_non_streaming_keeps_valid_usage ... ok
+test cognition::telemetry_tests::lr8a_fix_http_retry_date_is_factual_without_changing_error_or_cooldown ... ok
+test cognition::telemetry_tests::telemetry_production_structured_groq_counts_once_even_if_core_rejects_budget ... ok
+test cognition::telemetry_tests::telemetry_quotas_do_not_change_ranking_but_lr8c_enforces_selected_capacity ... ok
+test cognition::telemetry_tests::telemetry_real_retry_counts_two_requests_without_fictitious_failed_usage ... ok
+test cognition::telemetry_tests::telemetry_repeated_cumulative_usage_is_idempotent ... ok
+test cognition::telemetry_tests::telemetry_retry_after_positive_negative_and_extreme_fixtures ... ok
+test cognition::telemetry_tests::telemetry_snapshot_has_no_sensitive_input_output_model_or_headers ... ok
+test cognition::telemetry_tests::telemetry_success_isolated_exactly_one_request_and_usage_once ... ok
+test cognition::telemetry_tests::telemetry_unknown_dimensions_and_invalid_metadata_are_not_zero ... ok
+test cognition::tests::cancellation_prevents_fallback_and_normal_is_deterministic ... ok
+test cognition::tests::conservative_output_reserves_current_and_future_attempts_before_retry_events ... ok
+test cognition::tests::context_builder_selects_current_active_filtered_bounded_and_optional_conversation ... ok
+test cognition::tests::disabled_provider_is_never_called_and_output_budget_is_respected ... ok
+test cognition::tests::event_sink_failure_stops_before_provider_during_stream_and_before_retry ... ok
+test cognition::tests::explicit_provider_and_unbounded_output ... ok
+test cognition::tests::fixed_transient_error_never_calls_alternative_and_preferred_healthy_wins ... ok
+test cognition::tests::mock_streaming_cancellation_and_error_classes ... ok
+test cognition::tests::partial_stream_failure_does_not_retry_or_fallback ... ok
+test cognition::tests::preferred_groq_precedes_higher_priority_gemini_and_falls_back_to_it ... ok
+test cognition::tests::registry_filters_disabled_capability_and_orders_priority ... ok
+test cognition::tests::retry_policy_obeys_call_budget_retry_limit_rate_limit_and_first_chunk ... ok
+test cognition::tests::scheduler_fallback_cooldown_budget_retry_and_usage ... ok
+test cognition::tests::scheduler_retries_only_transient_errors_before_a_chunk ... ok
+test cognition::telemetry_tests::telemetry_production_cancellation_after_http_starts_counts_without_tokens ... ok
+test cognition::tests::selection_modes_cooldown_and_transient_fallback ... ok
+test cognition::tests::smart_routing::affinity_failure_cooldown_and_successful_alternative_update_the_winner ... ok
+test cognition::tests::smart_routing::auto_is_authorized_deterministic_and_policy_position_beats_registry_priority ... ok
+test cognition::tests::smart_routing::auto_affinity_requires_real_cost_is_session_scoped_and_disappears_on_restart ... ok
+test cognition::tests::smart_routing::auto_ties_respect_ordinal_and_priority_is_only_a_secondary_component ... ok
+test cognition::tests::smart_routing::fixed_preferred_and_removed_targets_ignore_affinity_for_ordering ... ok
+test cognition::tests::smart_routing::hard_gates_prevent_calls_for_unknown_disabled_incompatible_or_invalid_targets ... ok
+test cognition::tests::smart_routing::preferred_cooldown_skips_call_and_events_and_budget_can_stop_before_third ... ok
+test cognition::tests::smart_routing::preferred_three_targets_follow_policy_order_and_keep_independent_invocations ... ok
+test cognition::tests::smart_routing::retries_spend_budget_before_advancing_chain ... ok
+test cognition::tests::smart_routing::terminal_errors_and_partial_output_never_advance_chain ... ok
+test cognition::tests::target_configuration_isolated_across_fixed_preferred_and_fallback ... ok
+test cognition::tests::task_graph_conservatively_accounts_unknown_output_usage ... ok
+test cognition::tests::unavailable_retry_after_falls_back_only_with_budget_and_auth_is_generic ... ok
+test cognitive_resources::allocation_tests::b1_absent_effort_is_not_supported_even_when_model_tier_suffices ... ok
+test cognitive_resources::allocation_tests::b1_availability_unknown_is_preserved_at_each_layer ... ok
+test cognitive_resources::allocation_tests::b1_candidate_rejects_invalid_descriptors_without_echoing_payload ... ok
+test cognitive_resources::allocation_tests::b1_capability_false_is_explicitly_unsupported ... ok
+test cognitive_resources::allocation_tests::b1_capability_true_proves_model_gate ... ok
+test cognitive_resources::allocation_tests::b1_capability_unknown_never_proves_sufficiency ... ok
+test cognitive_resources::allocation_tests::b1_disabled_excludes_without_changing_availability ... ok
+test cognitive_resources::allocation_tests::b1_economics_do_not_change_eligibility_or_report ... ok
+test cognitive_resources::allocation_tests::b1_effort_catalog_unknown_does_not_prove_support ... ok
+test cognitive_resources::allocation_tests::b1_effort_specific_tier_is_used_without_addition ... ok
+test cognitive_resources::allocation_tests::b1_effort_unavailable_excludes_only_when_selected ... ok
+test cognitive_resources::allocation_tests::b1_effort_unknown_tier_uses_model_assessment_without_mutation ... ok
+test cognitive_resources::allocation_tests::b1_enabled_unknown_is_unresolved ... ok
+test cognitive_resources::allocation_tests::b1_fix1_binding_conflict_precedes_duplicate_variant ... ok
+test cognitive_resources::allocation_tests::b1_fix1_bounds_precede_all_universe_conflicts ... ok
+test cognitive_resources::allocation_tests::b1_fix1_different_resources_may_share_domain_with_divergent_economics ... ok
+test cognitive_resources::allocation_tests::b1_fix1_different_runtime_ids_are_valid_in_both_namespaces ... ok
+test cognitive_resources::allocation_tests::b1_fix1_distinct_local_resources_are_exempt_from_runtime_uniqueness ... ok
+test cognitive_resources::allocation_tests::b1_fix1_equal_cloned_snapshots_are_accepted_without_pointer_identity ... ok
+test cognitive_resources::allocation_tests::b1_fix1_multiple_model_effort_variants_share_one_coherent_resource ... ok
+test cognitive_resources::allocation_tests::b1_fix1_provider_and_agent_runtime_namespaces_remain_independent ... ok
+test cognitive_resources::allocation_tests::b1_fix1_same_agent_runtime_cannot_bind_different_resource_ids ... ok
+test cognitive_resources::allocation_tests::b1_fix1_same_identity_requires_equal_facts_provenance_and_timestamps ... ok
+test cognitive_resources::allocation_tests::b1_fix1_same_provider_runtime_cannot_bind_different_resource_ids ... ok
+test cognitive_resources::allocation_tests::b1_fix1_same_resource_id_requires_equal_complete_identity_and_origin ... ok
+test cognitive_resources::allocation_tests::b1_fix1_snapshot_conflict_precedes_binding_and_duplicate_conflicts_globally ... ok
+test cognitive_resources::allocation_tests::b1_known_lower_effort_tier_cannot_be_masked_by_higher_model ... ok
+test cognitive_resources::allocation_tests::b1_model_catalog_unknown_and_known_absence_are_distinct ... ok
+test cognitive_resources::allocation_tests::b1_model_unavailable_excludes ... ok
+test cognitive_resources::allocation_tests::b1_multiple_failures_have_canonical_order_and_contradiction_precedence ... ok
+test cognitive_resources::allocation_tests::b1_no_expansion_no_winner_and_caller_order_is_preserved ... ok
+test cognitive_resources::allocation_tests::b1_opaque_quality_and_effort_labels_never_prove_a_tier ... ok
+test cognitive_resources::allocation_tests::b1_policy_contracts_validate_reserve_budget_and_conservative_defaults ... ok
+test cognitive_resources::allocation_tests::b1_policy_profiles_modes_and_spend_contracts_do_not_affect_gates ... ok
+test cognitive_resources::allocation_tests::b1_quality_below_floor_excludes ... ok
+test cognitive_resources::allocation_tests::b1_quality_equal_to_floor_is_sufficient ... ok
+test cognitive_resources::allocation_tests::b1_quality_unknown_with_floor_is_unresolved ... ok
+test cognitive_resources::allocation_tests::b1_quality_unknown_without_floor_does_not_exclude ... ok
+test cognitive_resources::allocation_tests::b1_report_serialization_is_bounded_and_contains_only_safe_evidence ... ok
+test cognitive_resources::allocation_tests::b1_request_bounds_duplicates_and_empty_authorized_universe ... ok
+test cognitive_resources::allocation_tests::b1_requirements_are_bounded_unique_and_quality_tiers_stay_bounded ... ok
+test cognitive_resources::allocation_tests::b1_resource_classes_do_not_imply_support_or_authority ... ok
+test cognitive_resources::allocation_tests::b1_resource_true_never_becomes_model_proof ... ok
+test cognitive_resources::allocation_tests::b1_resource_unavailable_excludes ... ok
+test cognitive_resources::allocation_tests::b1_runtime_false_vetoes_model_true_and_both_layers_can_be_required ... ok
+test cognitive_resources::allocation_tests::b1_runtime_scope_uses_only_runtime_proof ... ok
+test cognitive_resources::fix1_tests::fix1_billing_identity_survives_separate_capture_and_domain_reads_fail_closed ... ok
+test cognitive_resources::fix1_tests::fix1_bounded_tiers_and_economic_values_fail_closed ... ok
+test cognitive_resources::fix1_tests::fix1_effort_specific_economics_survive_snapshot_and_variant_without_name_ranking ... ok
+test cognitive_resources::fix1_tests::fix1_generic_specialist_allowance_needs_no_provider_or_rate_authority ... ok
+test cognitive_resources::fix1_tests::fix1_model_cognitive_tiers_are_explicit_and_names_do_not_define_capacity ... ok
+test cognitive_resources::fix1_tests::fix1_same_domain_identical_evidence_and_distinct_units_are_explicit ... ok
+test cognitive_resources::fix1_tests::fix1_same_effort_name_can_have_different_facts_on_different_resources ... ok
+test cognitive_resources::fix1_tests::fix1_unknown_allowance_fields_stay_independent_for_every_resource_class ... ok
+test cognitive_resources::fix1_tests::fix1_unknown_effort_facts_do_not_inherit_model_assessments_or_id_semantics ... ok
+test cognitive_resources::fix2_tests::fix2_dimension_ids_are_bounded_and_all_units_remain_distinct ... ok
+test cognitive_resources::fix2_tests::fix2_execution_duplicate_dimensions_and_bounds_fail_closed ... ok
+test cognitive_resources::fix2_tests::fix2_multidimensional_cost_survives_model_effort_snapshot_and_variant ... ok
+test cognitive_resources::fix2_tests::fix2_requests_share_unit_but_duplicate_dimension_fails_atomically ... ok
+test cognitive_resources::fix2_tests::fix2_specialist_percent_windows_coexist_without_lr8 ... ok
+test cognitive_resources::fix2_tests::fix2_unknown_and_unreported_costs_never_create_zero_or_dimensions ... ok
+test cognitive_resources::fix3_tests::fix3_consumption_without_state_remains_valid_and_does_not_create_state ... ok
+test cognitive_resources::fix3_tests::fix3_effort_mismatch_is_rejected_in_every_effort_even_for_unknown_amount ... ok
+test cognitive_resources::fix3_tests::fix3_model_and_effort_share_dimension_without_unit_or_cost_merging ... ok
+test cognitive_resources::fix3_tests::fix3_model_consumption_matches_declared_dimension_unit ... ok
+test cognitive_resources::fix3_tests::fix3_model_mismatch_is_rejected_in_every_model_even_for_unknown_amount ... ok
+test cognitive_resources::fix3_tests::fix3_rejected_registration_is_atomic_with_existing_resources ... ok
+test cognitive_resources::fix3_tests::fix3_shared_billing_domain_does_not_reconcile_other_resource_units ... ok
+test cognitive_resources::handoff_tests::c1_a_fresh_unit_at_confirmed_boundary_is_eligible ... ok
+test cognitive_resources::handoff_tests::c1_b_completed_receipt_permits_successor_without_previous_replay ... ok
+test cognitive_resources::handoff_tests::c1_before_start_boundary_must_identify_requested_unit_exactly ... ok
+test cognitive_resources::handoff_tests::c1_boundary_kind_and_predecessor_presence_must_agree ... ok
+test cognitive_resources::handoff_tests::c1_c_running_unit_cannot_change_allocation ... ok
+test cognitive_resources::handoff_tests::c1_cancelled_lifecycle_blocks_even_without_cancellation_flag ... ok
+test cognitive_resources::handoff_tests::c1_completed_without_confirmed_boundary_does_not_allow_successor ... ok
+test cognitive_resources::handoff_tests::c1_completion_receipt_must_identify_previous_unit_exactly ... ok
+test cognitive_resources::handoff_tests::c1_cross_task_predecessor_is_rejected ... ok
+test cognitive_resources::handoff_tests::c1_d_partial_output_cannot_handoff_or_replay_same_unit ... ok
+test cognitive_resources::handoff_tests::c1_e_committed_effect_forbids_replay_but_can_allow_distinct_successor ... ok
+test cognitive_resources::handoff_tests::c1_f_unknown_effect_blocks_automatic_replay_and_continuation ... ok
+test cognitive_resources::handoff_tests::c1_g_cancellation_before_dispatch_blocks_fresh_and_successor_units ... ok
+test cognitive_resources::handoff_tests::c1_h_not_started_with_started_effects_is_contradictory ... ok
+test cognitive_resources::handoff_tests::c1_i_auxiliary_hashmap_insertion_iteration_order_cannot_change_decisions ... ok
+test cognitive_resources::handoff_tests::c1_i_equal_facts_give_equal_decisions_without_mutation ... ok
+test cognitive_resources::handoff_tests::c1_incomplete_predecessor_cannot_be_laundered_as_new_unit ... ok
+test cognitive_resources::handoff_tests::c1_j_decision_serializes_only_numeric_ids_and_enum_reasons ... ok
+test cognitive_resources::handoff_tests::c1_k_contract_has_no_commercial_or_runtime_authority_dependency ... ok
+test cognitive_resources::handoff_tests::c1_matrix_fails_closed_for_all_lifecycle_effect_and_boundary_combinations ... ok
+test cognitive_resources::handoff_tests::c1_reason_precedence_is_explicit_under_multiple_blockers ... ok
+test cognitive_resources::handoff_tests::c1_reused_identity_forbids_replay_in_both_conflicting_views ... ok
+test cognitive_resources::handoff_tests::c1_same_or_older_identity_never_becomes_a_successor ... ok
+test cognitive_resources::handoff_tests::c1_started_terminal_or_uncertain_requested_units_are_never_fresh ... ok
+test cognitive_resources::handoff_tests::c1_unit_identity_and_checkpoint_sequences_are_bounded_monotonic ... ok
+test cognitive_resources::provider_bridge::tests::b3_429_never_reintroduces_paid_candidate_or_replans ... ok
+test cognitive_resources::provider_bridge::tests::b3_adapter_false_and_unknown_quality_floor_cannot_be_promoted ... ok
+test cognitive_resources::provider_bridge::tests::b3_affinity_profile_weights_can_trade_context_against_reserve ... ok
+test cognitive_resources::provider_bridge::tests::b3_affinity_real_success_to_b2_zero_context_and_restart ... ok
+test cognitive_resources::provider_bridge::tests::b3_allocation_initialization_error_cannot_block_explicit_modes ... ok
+test cognitive_resources::provider_bridge::tests::b3_cancellation_before_and_after_selection_and_call_budget_still_gate ... ok
+test cognitive_resources::provider_bridge::tests::b3_candidate_signals_keep_ordinal_clamp_priority_and_neutral_unknown_affinity ... ok
+test cognitive_resources::provider_bridge::tests::b3_capabilities_are_runtime_scoped_and_never_copied_to_models ... ok
+test cognitive_resources::provider_bridge::tests::b3_collapse_multiple_providers_variants_uses_global_best_order ... ok
+test cognitive_resources::provider_bridge::tests::b3_context_signal_bounded_monotonic_zero_and_no_overflow ... ok
+test cognitive_resources::provider_bridge::tests::b3_defaults_are_explicit_conservative_without_thresholds ... ok
+test cognitive_resources::provider_bridge::tests::b3_determinism_independent_of_registry_and_catalog_order ... ok
+test cognitive_resources::provider_bridge::tests::b3_economy_expansion_selects_effort_and_preserves_original_timeouts ... ok
+test cognitive_resources::provider_bridge::tests::b3_expansion_overflow_fails_closed_without_truncation_or_adapter_checks ... ok
+test cognitive_resources::provider_bridge::tests::b3_explicit_ranking_and_execution_preserve_original_operational_distinction ... ok
+test cognitive_resources::provider_bridge::tests::b3_fixed_and_preferred_ignore_paid_exhausted_expensive_catalog ... ok
+test cognitive_resources::provider_bridge::tests::b3_known_effort_absent_is_not_reintroduced ... ok
+test cognitive_resources::provider_bridge::tests::b3_known_model_contradiction_wins_operational_support ... ok
+test cognitive_resources::provider_bridge::tests::b3_known_unavailable_resource_model_and_effort_remain_excluded ... ok
+test cognitive_resources::provider_bridge::tests::b3_lr8_dtos_are_immutable_and_generation_mismatch_is_typed ... ok
+test cognitive_resources::provider_bridge::tests::b3_lr8_provider_exact_model_exclude_and_sibling_does_not_interfere_unknown_catalog ... ok
+test cognitive_resources::provider_bridge::tests::b3_mismatched_binding_class_and_runtime_facts_fail_closed ... ok
+test cognitive_resources::provider_bridge::tests::b3_negative_b2_score_serializes_through_selected_event_without_private_payload ... ok
+test cognitive_resources::provider_bridge::tests::b3_operational_proof_cannot_be_reused_for_sibling_or_other_effort ... ok
+test cognitive_resources::provider_bridge::tests::b3_operational_rate_gate_revalidates_after_frozen_plan_without_rescore ... ok
+test cognitive_resources::provider_bridge::tests::b3_paid_deny_excludes_before_reservation_and_real_loopback_http ... ok
+test cognitive_resources::provider_bridge::tests::b3_partial_output_still_prevents_retry_and_fallback ... ok
+test cognitive_resources::provider_bridge::tests::b3_plan_is_sanitized_and_ranking_does_not_mutate_catalog_or_dtos ... ok
+test cognitive_resources::provider_bridge::tests::b3_production_catalog_is_identity_only_unknown_economics_and_models ... ok
+test cognitive_resources::provider_bridge::tests::b3_proof_is_bound_to_exact_timeouts_and_invocation_mode ... ok
+test cognitive_resources::provider_bridge::tests::b3_quality_floor_below_and_unknown_remain_inviolable_with_runtime_proof ... ok
+test cognitive_resources::provider_bridge::tests::b3_readonly_ranking_keeps_usage_reservations_blocks_and_boundary_projection ... ok
+test cognitive_resources::provider_bridge::tests::b3_registry_only_provider_never_enters_authorized_universe ... ok
+test cognitive_resources::provider_bridge::tests::b3_reserve_reorders_but_single_reserve_remains_usable_exhausted_excludes ... ok
+test cognitive_resources::provider_bridge::tests::b3_retry_fallback_freezes_variants_scores_order_and_call_budget ... ok
+test cognitive_resources::provider_bridge::tests::b3_run_and_ranked_ids_and_taskgraph_targets_share_variant_engine ... ok
+test cognitive_resources::provider_bridge::tests::b3_unknown_effort_support_keeps_described_model_economics_and_b1_evidence ... ok
+test cognitive_resources::provider_bridge::tests::b3_unknown_enabled_runtime_capability_and_availability_resolve_without_known_fabrication ... ok
+test cognitive_resources::provider_bridge::tests::b3_unknown_exact_invocation_scores_only_real_signals_without_fabrication ... ok
+test cognitive_resources::provider_bridge::tests::b3_unknown_model_with_explicit_effort_is_exactly_proven_not_expanded ... ok
+test cognitive_resources::provider_bridge::tests::b3_xhigh_ultra_reasoning4_are_typed_bridge_exclusions_without_downgrade ... ok
+test cognitive_resources::scoring_tests::b2_429_retry_hint_and_scarcity_never_authorize_spend ... ok
+test cognitive_resources::scoring_tests::b2_all_inputs_remain_equal_after_decision_no_debit ... ok
+test cognitive_resources::scoring_tests::b2_allowance_fact_vec_and_capability_map_order_independent ... ok
+test cognitive_resources::scoring_tests::b2_applicable_saturated_constraint_excluded_even_without_remaining ... ok
+test cognitive_resources::scoring_tests::b2_budget_exceeded ... ok
+test cognitive_resources::scoring_tests::b2_context_not_in_selected_universe_rejected ... ok
+test cognitive_resources::scoring_tests::b2_currency_mismatch_without_fx ... ok
+test cognitive_resources::scoring_tests::b2_decision_json_contains_typed_evidence_not_opaque_quality_or_usage ... ok
+test cognitive_resources::scoring_tests::b2_different_zero_cost_currency_has_no_monetary_comparison ... ok
+test cognitive_resources::scoring_tests::b2_duplicate_context_rejected ... ok
+test cognitive_resources::scoring_tests::b2_duplicate_raw_constraints_and_telemetry_scopes_rejected ... ok
+test cognitive_resources::scoring_tests::b2_duplicate_selected_variant_rejected ... ok
+test cognitive_resources::scoring_tests::b2_effort_only_dimension_added_model_only_preserved ... ok
+test cognitive_resources::scoring_tests::b2_effort_unknown_amount_overrides_model_known_amount ... ok
+test cognitive_resources::scoring_tests::b2_empty_selection_returns_no_winner ... ok
+test cognitive_resources::scoring_tests::b2_equal_cloned_descriptor_context_valid ... ok
+test cognitive_resources::scoring_tests::b2_exhausted_cannot_cover_next_execution ... ok
+test cognitive_resources::scoring_tests::b2_exhausted_remaining_zero ... ok
+test cognitive_resources::scoring_tests::b2_fast_large_factual_latency_continuity_can_overcome_reserve ... ok
+test cognitive_resources::scoring_tests::b2_fast_never_selects_exhausted_even_with_maximum_advantages ... ok
+test cognitive_resources::scoring_tests::b2_fix1_absent_preference_is_neutral_with_other_signals ... ok
+test cognitive_resources::scoring_tests::b2_fix1_all_explicit_ordinal_distances_are_preserved_each_profile ... ok
+test cognitive_resources::scoring_tests::b2_fix1_explicit_only_decision_preserves_old_totals_differences_and_winner ... ok
+test cognitive_resources::scoring_tests::b2_fix1_full_preference_order_with_identical_evidence ... ok
+test cognition::tests::transient_mocks_repeat_per_task_with_same_runtime_and_cooldown_persists ... ok
+test cognitive_resources::scoring_tests::b2_fix1_none_vs_maximum_ordinal_uses_policy_tie_break ... ok
+test cognitive_resources::scoring_tests::b2_fix1_none_vs_ordinal_one_explicit_preference_wins ... ok
+test cognitive_resources::scoring_tests::b2_fix1_updated_score_extrema_checked_sum_without_overflow ... ok
+test cognitive_resources::scoring_tests::b2_fraction_floor_zero_is_not_remaining_zero_and_threshold_extremes ... ok
+test cognitive_resources::scoring_tests::b2_higher_tier_has_no_free_bonus ... ok
+test cognitive_resources::scoring_tests::b2_identical_evidence_and_signals_repeated_decisions_are_identical ... ok
+test cognitive_resources::scoring_tests::b2_incidental_candidate_context_and_lr8_constraint_order_independent ... ok
+test cognitive_resources::scoring_tests::b2_ineligible_b1_rejected_by_request_even_when_cheap ... ok
+test cognitive_resources::scoring_tests::b2_full_bounded_universe_ranked_deterministically ... ok
+test cognitive_resources::scoring_tests::b2_known_exhaustion_dominates_reserve_and_retains_unknown_flag ... ok
+test cognitive_resources::scoring_tests::b2_least_sufficient_relative_cost_and_b1_higher_floor ... ok
+test cognitive_resources::scoring_tests::b2_lr8_generation_mismatch_rejected ... ok
+test cognitive_resources::scoring_tests::b2_lr8_provider_scope_applies_to_both_models ... ok
+test cognitive_resources::scoring_tests::b2_lr8_rate_and_telemetry_no_double_counting ... ok
+test cognitive_resources::scoring_tests::b2_lr8_exact_model_saturation_excludes_only_exact_candidate ... ok
+test cognitive_resources::scoring_tests::b2_lr8_retained_unknown_rate_cannot_be_overridden_by_telemetry ... ok
+test cognitive_resources::scoring_tests::b2_lr8_sources_and_reset_evidence_preserved_without_refill ... ok
+test cognitive_resources::scoring_tests::b2_lr8_sibling_model_constraint_and_global_saturation_do_not_leak ... ok
+test cognitive_resources::scoring_tests::b2_lr8_telemetry_fallback_when_corresponding_rate_absent ... ok
+test cognitive_resources::scoring_tests::b2_max_model_effort_allowance_union_keeps_32_dimensions_bounded ... ok
+test cognitive_resources::scoring_tests::b2_maximum_latency_clamp_does_not_overflow_or_reverse_ordering ... ok
+test cognitive_resources::scoring_tests::b2_metered_does_not_require_prepaid_balance ... ok
+test cognitive_resources::scoring_tests::b2_lr8_telemetry_provider_quota_not_sibling_model_quota ... ok
+test cognitive_resources::scoring_tests::b2_model_effort_unit_conflict_without_state_fails_closed ... ok
+test cognitive_resources::scoring_tests::b2_model_effort_dimension_override_without_mutation ... ok
+test cognitive_resources::scoring_tests::b2_multidimensional_preserves_worst_known_and_unknown ... ok
+test cognitive_resources::scoring_tests::b2_monetary_score_comparable_only_after_guard ... ok
+test cognitive_resources::scoring_tests::b2_multiple_variants_same_resource_effort_selection ... ok
+test cognitive_resources::scoring_tests::b2_paid_allowed_known_cost_at_budget ... ok
+test cognitive_resources::scoring_tests::b2_no_reserve_policy_and_zero_limit_preserve_unknown ... ok
+test cognitive_resources::scoring_tests::b2_paid_unknown_cost_excluded ... ok
+test cognitive_resources::scoring_tests::b2_percentage_overflow_safe_at_maximum ... ok
+test cognitive_resources::scoring_tests::b2_paid_deny_includes_zero_cost_paid_paths ... ok
+test cognitive_resources::scoring_tests::b2_policy_ordinal_is_explicit_and_can_change_winner ... ok
+test cognitive_resources::scoring_tests::b2_policy_ordinal_tie_break_and_missing_ordinal_last ... ok
+test cognitive_resources::scoring_tests::b2_prepaid_balance_currency_mismatch ... ok
+test cognitive_resources::scoring_tests::b2_prepaid_insufficient_balance ... ok
+test cognitive_resources::scoring_tests::b2_positive_monetary_cost_alone_proves_paid_evidence ... ok
+test cognitive_resources::scoring_tests::b2_prepaid_unknown_balance ... ok
+test cognitive_resources::scoring_tests::b2_prepaid_sufficient_balance ... ok
+test cognitive_resources::scoring_tests::b2_prepaid_zero_still_requires_known_balance_under_allow ... ok
+test cognitive_resources::scoring_tests::b2_provider_context_cannot_attach_to_local_or_agent ... ok
+test cognitive_resources::scoring_tests::b2_raw_lr8_bounds_and_impossible_pairs_rejected ... ok
+test cognitive_resources::scoring_tests::b2_registry_priority_continuity_and_switching_are_independent_components ... ok
+test cognitive_resources::scoring_tests::b2_relative_cost_zero_is_not_monetary_zero ... ok
+test cognitive_resources::scoring_tests::b2_registry_is_secondary_to_one_policy_ordinal_step ... ok
+test cognitive_resources::scoring_tests::b2_request_cardinality_bounds_checked_before_processing ... ok
+test cognitive_resources::scoring_tests::b2_reserve_only_capable_candidate_still_wins ... ok
+test cognitive_resources::scoring_tests::b2_reserve_loses_to_comfortable_economy_and_balanced ... ok
+test cognitive_resources::scoring_tests::b2_same_resource_changed_economic_snapshot_rejected ... ok
+test cognitive_resources::scoring_tests::b2_scalar_effort_known_override_unknown_fallback_matches_b1 ... ok
+test cognitive_resources::scoring_tests::b2_same_resource_changed_noneconomic_snapshot_also_rejected ... ok
+test cognitive_resources::scoring_tests::b2_score_formula_auditable_with_maximum_inputs_each_profile ... ok
+test cognitive_resources::scoring_tests::b2_shared_billing_domain_conflict_fails_before_ranking ... ok
+test cognitive_resources::scoring_tests::b2_shared_billing_domain_equal_facts_are_valid ... ok
+test cognitive_resources::scoring_tests::b2_shared_billing_domain_provenance_and_timestamp_conflicts ... ok
+test cognitive_resources::scoring_tests::b2_signal_bounds_fail_closed_and_none_is_possible ... ok
+test cognitive_resources::scoring_tests::b2_small_affinity_does_not_overcome_reserve ... ok
+test cognitive_resources::scoring_tests::b2_telemetry_reset_is_historical_evidence_not_countdown ... ok
+test cognitive_resources::scoring_tests::b2_unknown_amount_is_relevant_and_zero_remaining_proves_exhaustion ... ok
+test cognitive_resources::scoring_tests::b2_thresholds_strict_below_and_floor_percent ... ok
+test cognitive_resources::scoring_tests::b2_unknown_billing_and_unknown_cost_neither_free_nor_paid ... ok
+test cognitive_resources::scoring_tests::b2_unknown_limit_does_not_turn_remaining_into_percent ... ok
+test cognitive_resources::scoring_tests::b2_unknown_latency_neutral_between_factual_fast_and_slow ... ok
+test cognitive_resources::scoring_tests::b2_unknown_scalar_components_have_zero_influence ... ok
+test cognitive_resources::scoring_tests::b2_unreferenced_exhausted_allowance_is_ignored ... ok
+test cognitive_resources::scoring_tests::b2_unresolved_b1_rejected_by_request ... ok
+test cognitive_resources::scoring_tests::b2_variant_outside_b1_universe_rejected ... ok
+test cognitive_resources::scoring_tests::b2_wrong_provider_context_rejected_at_capture ... ok
+test cognitive_resources::scoring_tests::b2_unknown_remaining_is_neutral ... ok
+test cognitive_resources::scoring_tests::b2_zero_consumption_never_creates_scarcity ... ok
+test cognitive_resources::scoring_tests::b2_zero_monetary_cost_zero_budget ... ok
+test cognitive_resources::tests::capability_bridges_preserve_all_declared_flags_in_their_own_domains ... ok
+test cognitive_resources::tests::config_enabled_never_proves_remote_availability_and_disabled_is_explicit ... ok
+test cognitive_resources::tests::independent_registries_and_safe_config_bridges_exclude_all_private_material ... ok
+test cognitive_resources::tests::catalog_registration_rejects_duplicates_and_invalid_origins_atomically ... ok
+test cognitive_resources::tests::lr8_generation_mismatch_and_duplicate_captures_fail_closed ... ok
+test cognitive_resources::tests::lr8_exact_model_scope_and_runtime_binding_prevent_quota_leaks ... ok
+test cognitive_resources::tests::lr8_local_policy_and_external_sources_remain_separate ... ok
+test cognitive_resources::tests::missing_model_catalog_and_efforts_are_unknown_even_for_legacy_named_models ... ok
+test cognitive_resources::tests::lr8_measured_usage_stays_provider_scoped_and_preserves_provenance ... ok
+test cognitive_resources::tests::snapshot_normalization_preserves_every_lr8_provenance_and_unknown ... ok
+test cognitive_resources::tests::synthetic_heterogeneous_resources_access_paths_and_billing_domains_are_independent ... ok
+test cognitive_resources::tests::synthetic_model_specific_efforts_xhigh_and_legacy_bridge_do_not_approximate ... ok
+test cognitive_resources::tests::synthetic_unavailable_unknown_and_model_capability_divergence_survive_snapshot ... ok
+test cognitive_resources::tests::typed_identifiers_validate_bounds_and_deserialization_without_silent_normalization ... ok
+test cognitive_resources::tests::variants_preserve_unavailable_and_unknown_efforts_without_default_invention ... ok
+test execution::pty::boundary_tests::input_queue_full_is_nonblocking_and_bounded ... ok
+test execution::pty::boundary_tests::output_history_caps_tiny_chunks_and_sequence_exhaustion_is_explicit ... ok
+test cognitive_resources::tests::numeric_facts_and_cardinality_are_bounded ... ok
+test cognition::rate_tests::successful_secret_mutations_invalidate_api_keys_cloudflare_token_and_account ... ok
+test execution::tests::agent_provenance_never_grants_execution_or_human_pty_input ... ok
+test execution::tests::cwd_canonical_scope_valid_and_symlink_escape_rejected ... ok
+test execution::tests::fixture_authority_is_scoped_to_program_and_controlled_environment ... ok
+test execution::tests::controlled_environment_does_not_inherit_artificial_secret_human_can_opt_in ... ok
+test execution::tests::ids_concurrent_monotonic_zero_invalid_exhaustion_without_wrap ... ok
+test execution::tests::lifecycle_trace_has_mode_identity_correlation_and_no_process_content ... ok
+test execution::tests::lr9e_replaced_workspace_root_fails_closed_and_ids_never_grant_authority ... ok
+test execution::tests::max_active_admission_and_shutdown_are_bounded ... ok
+test execution::tests::human_shell_resolution_and_native_open_have_human_owner ... ok
+test execution::tests::cancellation_term_grace_kill_and_reap ... ok
+test execution::tests::process_group_cleanup_kills_ordinary_descendant ... ok
+test execution::tests::presentation_detach_does_not_shutdown_execution_plane_or_pty ... ok
+test execution::tests::pty_batch_cursor_limits_and_input_budget ... ok
+test execution::tests::pty_close_escalates_to_kill_for_term_ignoring_child ... ok
+test execution::tests::pty_explicit_close_reaps_and_rejects_later_input ... ok
+test cognition::telemetry_tests::lr8a_fix_groq_invalid_usage_and_http_error_body_never_supply_tokens ... ok
+test execution::tests::pty_raw_input_and_non_utf8_output_are_bytes ... ok
+test execution::tests::pty_real_tty_shell_input_pwd_cd_command_and_simple_interaction ... ok
+test execution::tests::pty_job_control_cleanup_preserves_separate_structured_process ... ok
+test execution::tests::pty_resize_reaches_real_slave_stty_and_rejects_invalid_dimensions ... ok
+test execution::tests::request_limits_and_paths_reject_before_admission ... ok
+test execution::tests::signal_exit_is_distinct_from_exit_code ... ok
+test execution::tests::pty_session_limits_ids_human_owner_and_shutdown_readers_stop ... ok
+test execution::tests::simultaneous_stdout_stderr_overflow_drains_without_deadlock ... ok
+test execution::tests::spawn_failure_returns_terminal_without_child ... ok
+test execution::tests::singleton_and_deferred_reap_preserve_terminal_cause_and_cleanup_facts ... ok
+test execution::tests::structured_executable_argv_is_literal_bytes_without_implicit_shell ... ok
+test execution::tests::stdout_stderr_binary_exit_and_nonzero_are_factual ... ok
+test execution::tests::pty_timeout_and_spawn_failure_are_factual ... ok
+test execution::tests::timeout_wins_over_late_cancel_in_terminal_control ... ok
+test execution::tests::trace_rejection_and_absent_ui_do_not_control_execution ... ok
+test execution::tests::zero_capture_still_drains_and_accounts_every_byte ... ok
+test luna::events::tests::headless_safe_broken_subscriber_terminal_and_reattach_are_scoped ... ok
+test execution::tests::structured_multi_process_stress_gate ... ok
+test luna::events::tests::ui_bound_remains_fail_closed ... ok
+test execution::tests::timeout_is_sticky_even_if_term_handler_exits_zero ... ok
+test luna::events::tests::replay_is_bounded_gaps_reported_and_future_events_ordered ... ok
+test execution::tests::pty_no_subscriber_overflow_cursor_resize_then_command_exit_stress_gate ... ok
+test cognition::telemetry_tests::lr8a_fix_groq_http_absent_partial_and_invalid_headers_stay_unknown has been running for over 60 seconds
+test cognition::telemetry_tests::telemetry_production_all_adapters_http_usage_and_preflight_boundaries ... ok
+test cognition::telemetry_tests::lr8a_fix_groq_http_absent_partial_and_invalid_headers_stay_unknown ... ok
+test luna::runtime::conversation_preflight_tests::cancellation_before_preflight_work_has_one_terminal_no_call_or_exchange ... ok
+test luna::runtime::conversation_preflight_tests::cancellation_stays_cancelled_when_preflight_and_history_db_are_unavailable ... ok
+test luna::runtime::conversation_preflight_tests::cancellation_wins_over_failed_preflight ... ok
+test luna::runtime::conversation_preflight_tests::cheap_invalid_input_is_rejected_before_registration ... ok
+test luna::runtime::conversation_preflight_tests::blocked_credential_lookup_does_not_block_task_registration_or_cancellation ... ok
+test luna::runtime::conversation_preflight_tests::cancellation_after_successful_preflight_prevents_provider_selection ... ok
+test luna::runtime::conversation_preflight_tests::durable_cancel_keeps_input_rejects_duplicate_and_never_invokes_provider ... ok
+test cognition::telemetry_tests::telemetry_production_retry_after_is_normalized_without_changing_cooldown ... ok
+test luna::runtime::conversation_preflight_tests::durable_permission_gate_precedes_secret_access_and_any_provider_effect ... ok
+test luna::runtime::conversation_preflight_tests::credential_batch_failure_never_selects_provider_and_status_is_fail_closed ... ok
+test luna::runtime::conversation_preflight_tests::invalid_sessions_fail_closed_with_exactly_one_terminal ... ok
+test luna::runtime::conversation_preflight_tests::absent_credentials_fail_closed_for_fixed_and_every_multi_target ... ok
+test luna::runtime::conversation_preflight_tests::headless_same_task_id_is_cancelable_and_shutdown_blocks_new_work ... ok
+test cognition::telemetry_tests::telemetry_production_invalid_and_absent_usage_never_create_tokens has been running for over 60 seconds
+test luna::runtime::conversation_preflight_tests::b4_conversation_real_preflight_freezes_routing_and_allocation_before_save ... ok
+test luna::runtime::conversation_preflight_tests::headless_conversation_survives_detach_rehydrates_same_id_without_another_provider_call ... ok
+test luna::runtime::headless_registry_tests::detach_policy_and_quit_are_explicit_and_keep_the_same_cancel_controls ... ok
+test luna::runtime::lr9d_trace_publication_is_independent_of_failed_functional_channel ... ok
+test luna::runtime::tests::background_and_foreground_ids_share_one_monotonic_sequence ... ok
+test luna::runtime::tests::c4_old_active_guard_does_not_remove_resumed_root_registration ... ok
+test luna::runtime::tests::cancellation_is_controlled ... ok
+test luna::runtime::tests::channel_failure_is_failed_and_removes_active_task ... ok
+test luna::runtime::conversation_preflight_tests::b4_conversation_real_preflight_missing_corrupt_auto_and_explicit_independence ... ok
+test luna::runtime::tests::chat_policy_is_snapshot_for_each_request ... ok
+test luna::runtime::tests::ids_are_monotonic_and_tasks_are_removed ... ok
+test operational_trace::adapters::tests::agent_lifecycle_all_facts_and_safe_terminal_classes ... ok
+test operational_trace::adapters::tests::all_internal_roles_fail_closed_and_coalesce_output_per_selection ... ok
+test operational_trace::adapters::tests::conservative_worker_accounting_and_requests_match_noop_trace ... ok
+test operational_trace::adapters::tests::context_counts_steps_pause_only ... ok
+test operational_trace::adapters::tests::conversation_chunks_exact_and_in_order ... ok
+test operational_trace::adapters::tests::exact_utf8_fragmentation_above_eight_kib_and_boundaries ... ok
+test operational_trace::adapters::tests::generic_mock_backend_passive_contract_is_reusable_and_failure_isolated ... ok
+test operational_trace::adapters::tests::invalid_ids_drafts_sequence_and_publisher_failure_have_no_functional_result ... ok
+test operational_trace::adapters::tests::invalid_scheduler_correlation_never_changes_provider_execution ... ok
+test operational_trace::adapters::tests::lr9e_adapter_allocation_cost_probe ... ok
+test luna::runtime::tests::foreground_counter_is_raii_for_parallel_cancel_channel_close_and_panic ... ok
+test operational_trace::adapters::tests::result_markers_never_copy_task_plan_or_graph_bodies ... ok
+test operational_trace::adapters::tests::scheduler_routing_admission_retry_fallback_attribution_and_dedup ... ok
+test operational_trace::adapters::tests::scheduler_zero_extra_inference_requests_attempts_usage_output_and_failures_gate ... ok
+test operational_trace::adapters::tests::separate_invocations_tasks_subtasks_and_attempts_never_coalesce_together ... ok
+test operational_trace::adapters::tests::subtask_lifecycle_preserves_authorship_and_ids_without_handoff_debug ... ok
+test operational_trace::adapters::tests::task_adapter_ignores_every_scheduler_projection ... ok
+test operational_trace::adapters::tests::task_completed_cancelled_failed_are_safe_critical ... ok
+test operational_trace::adapters::tests::task_started_provenance_and_class ... ok
+test operational_trace::adapters::tests::taskgraph_dedup_keeps_lifecycle_and_scheduler_facts_once ... ok
+test operational_trace::bus::boundary_tests::counters_saturate_and_sequence_exhaustion_is_explicit ... ok
+test operational_trace::bus::boundary_tests::cumulative_published_live_and_disconnect_counts_are_saturating ... ok
+test operational_trace::bus::boundary_tests::disconnected_receiver_is_removed_without_publisher_error ... ok
+test operational_trace::adapters::tests::multi_source_stress_and_reproducible_overhead_gate ... ok
+test operational_trace::tests::batch_limits_reject_oversize_zero_and_nonprogressing_bytes ... ok
+test operational_trace::tests::byte_accounting_includes_all_provenance_and_payload_strings ... ok
+test operational_trace::tests::class_is_derived_from_closed_kind_without_a_priority_flag ... ok
+test operational_trace::tests::coalescing_cannot_cross_any_provenance_dimension_or_channel ... ok
+test operational_trace::tests::coalescing_caps_fragments_text_and_input_batch ... ok
+test operational_trace::tests::coalescing_does_not_cross_critical_state_or_sequence_gaps ... ok
+test operational_trace::tests::coalescing_is_exact_utf8_with_identity_ranges_and_originals_unchanged ... ok
+test operational_trace::tests::core_observation_path_has_no_provider_execution_network_or_presentation_dependency ... ok
+test operational_trace::tests::counters_reconcile_retained_evicted_dropped_and_live_attempts ... ok
+test operational_trace::tests::disappearing_subscriber_releases_slot_and_does_not_break_publish ... ok
+test operational_trace::tests::extreme_critical_overflow_is_bounded_accounted_and_incomplete ... ok
+test operational_trace::tests::healthy_subscriber_is_independent_of_slow_peer_and_live_loss_can_replay ... ok
+test operational_trace::tests::identifiers_validate_source_instance_correlation_codes_and_keys ... ok
+test operational_trace::tests::large_critical_events_enforce_byte_cap_alongside_event_cap ... ok
+test operational_trace::tests::live_registration_starts_at_current_sequence_and_delivers_batches ... ok
+test operational_trace::tests::oversize_is_rejected_before_publication_without_identity_or_silent_truncation ... ok
+test operational_trace::tests::process_wide_identity_and_bus_remain_after_presentation_lifecycle_changes ... ok
+test operational_trace::tests::publish_without_subscriber_is_ordered_and_timestamped ... ok
+test operational_trace::tests::replay_byte_cap_and_live_lookahead_never_lose_an_event ... ok
+test operational_trace::tests::replay_event_pagination_is_bounded_and_not_confused_with_loss ... ok
+test operational_trace::tests::reservations_exist_for_events_and_bytes_before_high_priority_arrives ... ok
+test operational_trace::tests::state_byte_reserve_and_stream_drops_do_not_masquerade_as_complete_replay ... ok
+test operational_trace::tests::state_precedes_stream_and_critical_precedes_state ... ok
+test operational_trace::tests::stream_flood_cannot_evict_critical_and_sparse_replay_reports_internal_holes ... ok
+test operational_trace::tests::subscriber_count_is_bounded_and_slots_are_reusable ... ok
+test operational_trace::tests::synthetic_multi_source_stress_gate ... ok
+test operational_trace::tests::task_identity_preserves_core_contract_and_taskless_events_work ... ok
+test operational_trace::tests::undrained_subscriber_cannot_backpressure_thread_and_tail_loss_is_visible ... ok
+test operational_trace::tests::utf8_payload_boundary_is_bytes_and_never_truncated ... ok
+test persistence::checkpoints::tests::c2_a_exact_identity_allocation_policy_and_context_roundtrip ... ok
+test persistence::checkpoints::tests::c2_absence_still_has_unknown_replay_fence ... ok
+test persistence::checkpoints::tests::c2_auto_reuses_b4_dto_without_score_or_new_authorization ... ok
+test persistence::checkpoints::tests::c2_b_failed_commit_rolls_back_policy_checkpoint_and_deferred_write ... ok
+test persistence::checkpoints::tests::c2_b_prepared_observations_are_not_committed_before_write ... ok
+test persistence::checkpoints::tests::c2_c_restart_preserves_committed_identity_and_forbids_replay ... ok
+test persistence::checkpoints::tests::c2_completed_subtask_remains_committed_under_cancelled_root ... ok
+test persistence::checkpoints::tests::c2_concurrent_conflicts_never_store_two_contents ... ok
+test persistence::checkpoints::tests::c2_concurrent_identical_writes_have_one_identical_receipt ... ok
+test persistence::checkpoints::tests::c2_contradictory_history_rejects_write_and_later_lookup ... ok
+test persistence::checkpoints::tests::c2_corrupt_dependency_after_write_invalidates_context_on_load ... ok
+test persistence::checkpoints::tests::c2_d_identical_write_is_idempotent_including_timestamp_after_reopen ... ok
+test persistence::checkpoints::tests::c2_dependencies_require_exact_durable_safe_receipts ... ok
+test persistence::checkpoints::tests::c2_e_conflicting_effect_or_allocation_never_overwrites_identity ... ok
+test persistence::checkpoints::tests::c2_f_wrong_unit_or_unconfirmed_boundary_is_rejected ... ok
+test persistence::checkpoints::tests::c2_g_root_mismatch_rejected_in_facts_and_dependency ... ok
+test persistence::checkpoints::tests::c2_h_one_final_checkpoint_per_unit_no_regressive_or_new_sequence ... ok
+test persistence::checkpoints::tests::c2_h_predecessor_and_dependencies_must_advance_sequence ... ok
+test persistence::checkpoints::tests::c2_i_unknown_effect_survives_reload_without_safe_boundary ... ok
+test persistence::checkpoints::tests::c2_j_completed_without_effects_still_forbids_replay ... ok
+test persistence::checkpoints::tests::c2_k_corrupt_json_and_extra_fields_fail_closed ... ok
+test persistence::checkpoints::tests::c2_k_corrupt_policy_and_timestamp_not_promoted ... ok
+test persistence::checkpoints::tests::c2_k_invalid_ids_lifecycle_boundary_and_index_linkage_fail_closed ... ok
+test persistence::checkpoints::tests::c2_l_provenance_roundtrip_has_only_public_identity_and_enum_fields ... ok
+test persistence::checkpoints::tests::c2_m_context_bounds_duplicates_and_canonical_order ... ok
+test persistence::checkpoints::tests::c2_migration_014_failure_is_atomic_and_retryable ... ok
+test persistence::checkpoints::tests::c2_migration_014_upgrades_v13_preserving_history_and_b4_settings ... ok
+test luna::runtime::conversation_preflight_tests::task_id_and_started_exist_before_preflight_and_policy_is_read_in_worker ... ok
+test persistence::checkpoints::tests::c2_n_schema_and_wire_have_no_generic_content_or_commercial_binding ... ok
+test persistence::checkpoints::tests::c2_nonterminal_unit_is_never_checkpointed ... ok
+test persistence::checkpoints::tests::c2_policy_is_immutable_for_task_role_and_independent_of_settings ... ok
+test persistence::checkpoints::tests::c2_outer_transaction_and_non_durable_modes_are_rejected ... ok
+test persistence::checkpoints::tests::c2_reference_checkpoint_sequence_must_match_exactly ... ok
+test persistence::checkpoints::tests::c2_root_checkpoint_validity_and_cancelled_root_contradiction ... ok
+test persistence::checkpoints::tests::c2_schema_rejects_invalid_indexed_id_and_state ... ok
+test persistence::checkpoints::tests::c2_source_ids_are_bounded_public_machine_labels ... ok
+test persistence::checkpoints::tests::c2_source_cannot_be_rebound_to_another_unit ... ok
+test persistence::checkpoints::tests::c2_temp_tables_cannot_shadow_durable_ledger_or_terminal_evidence ... ok
+test persistence::checkpoints::tests::c2_terminal_history_without_checkpoint_is_never_not_started ... ok
+test persistence::conversation_runs::tests::admission_history_and_completion_are_atomic_and_restart_never_duplicates ... ok
+test persistence::checkpoints::tests::c2_transitive_verification_is_bounded_and_fails_closed ... ok
+test persistence::conversation_runs::tests::failed_completion_rolls_back_assistant_history_and_state_together ... ok
+test persistence::conversation_runs::tests::uncertain_running_and_pending_recover_once_with_original_input_and_ids ... ok
+test persistence::ownership::tests::writer_lease_rejects_duplicates_and_symlinks ... ok
+test persistence::shell_settings::tests::migration_defaults_persistence_clamp_and_cognitive_independence ... ok
+test persistence::task_history::tests::root_and_subtask_provenance_commit_atomically ... ok
+test security::audit::tests::audit_format_has_only_allowed_fields ... ok
+test persistence::conversation_runs::tests::event_provenance_is_durable_without_raw_chunks_or_errors_and_is_bounded ... ok
+test security::secrets::tests::corrupt_snapshot_and_invalid_legacy_fail_closed ... ok
+test security::secrets::tests::existing_locked_reader_fails_closed_without_writes_or_reconstruction ... ok
+test security::secrets::tests::existing_only_missing_store_never_creates_or_stores_key ... ok
+test luna::runtime::conversation_preflight_tests::perf1a_core_baseline_conversation_fixture ... ok
+test cognition::telemetry_tests::telemetry_production_invalid_and_absent_usage_never_create_tokens ... ok
+test operational_trace::bus::invariants::lr9e_incremental_counters_and_frozen_oracle_preserve_exact_retention_replay_and_losses ... ok
+test luna::runtime::conversation_preflight_tests::preferred_auto_affinity_and_session_history_use_the_same_scheduler_contract ... ok
+test security::secrets::tests::existing_only_reads_synthetic_snapshot_without_chmod_save_or_migration ... ok
+test security::secrets::tests::first_run_reopen_and_fail_closed ... ok
+test security::secrets::tests::concurrent_presence_batches_remain_serialized_without_deadlock ... ok
+test security::secrets::tests::presence_first_run_verification_is_constant_not_per_target ... ok
+test luna::runtime::conversation_preflight_tests::routing_status_batches_presence_but_task_revalidates_after_credential_change ... ok
+test security::validation::tests::task_id_rejects_zero_and_javascript_overflow ... ok
+test security::secrets::tests::permissions_are_revalidated_on_reopen ... ok
+test security::secrets::tests::presence_errors_remain_fail_closed_and_never_return_partial_map ... ok
+test luna::runtime::conversation_preflight_tests::durable_shared_engine_fixed_preferred_auto_persist_provenance_and_exclude_current_input_from_history has been running for over 60 seconds
+test security::secrets::tests::migration_verification_failure_keeps_legacy_for_retry ... ok
+test security::secrets::tests::presence_batch_is_boolean_deduplicated_single_open_and_read_only ... ok
+test luna::runtime::conversation_preflight_tests::durable_shared_engine_fixed_preferred_auto_persist_provenance_and_exclude_current_input_from_history ... ok
+test security::secrets::tests::legacy_migration_preserves_secret ... ok
+test security::secrets::tests::value_batch_and_cloudflare_mutations_use_one_snapshot_operation ... ok
+
+failures:
+
+---- cognition::fix5_tests::fix5_conservative_planner_calls_and_output_exhaustion_prevent_extra_http stdout ----
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=0
+[SecretStore][diag] secret_unlock_ms=1
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=8844
+[SecretStore][diag] secret_unlock_ms=8844
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+
+thread '<unnamed>' (87376) panicked at src/cognition/fix5_tests.rs:137:25:
+local fixture did not receive expected call
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[Scheduler][diag] retry_skipped reason=call_budget
+
+thread 'cognition::fix5_tests::fix5_conservative_planner_calls_and_output_exhaustion_prevent_extra_http' (87365) panicked at src/cognition/fix5_tests.rs:508:9:
+assertion `left == right` failed
+  left: "unavailable"
+ right: "timeout"
+
+---- cognition::fix5_tests::fix5_http_timeout_phases_are_real_and_diagnostics_sanitized stdout ----
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=0
+[SecretStore][diag] secret_unlock_ms=1
+[SecretStore][diag] secret_lookup_ms=0
+
+thread '<unnamed>' (87417) panicked at src/cognition/fix5_tests.rs:137:25:
+local fixture did not receive expected call
+
+thread 'cognition::fix5_tests::fix5_http_timeout_phases_are_real_and_diagnostics_sanitized' (87408) panicked at src/cognition/fix5_tests.rs:646:13:
+assertion `left == right` failed
+  left: Unavailable { retry_after_ms: None }
+ right: Timeout
+
+---- cognition::cloudflare::tests::local_http_lifecycle_covers_split_valid_eof_timeout_and_internal_code stdout ----
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=0
+[SecretStore][diag] secret_unlock_ms=0
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=5
+[SecretStore][diag] secret_unlock_ms=5
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] secret_open_client_ms=8336
+[SecretStore][diag] secret_unlock_ms=8337
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=9622
+[SecretStore][diag] secret_unlock_ms=9622
+[SecretStore][diag] secret_lookup_ms=0
+[Cloudflare][diag] provider=cloudflare model=@cf/zai-org/glm-4.7-flash phase=complete done=true finish=stop usage_present=true usage_valid=true content_bytes=7 error=none
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=2
+[SecretStore][diag] secret_unlock_ms=349
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=10149
+[SecretStore][diag] secret_unlock_ms=10149
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[Cloudflare][diag] provider=cloudflare model=@cf/zai-org/glm-4.7-flash phase=terminal done=true finish=length usage_present=true usage_valid=true content_bytes=29 error=incomplete
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=0
+[SecretStore][diag] secret_unlock_ms=1
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] secret_open_client_ms=6537
+[SecretStore][diag] secret_unlock_ms=6537
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=7379
+[SecretStore][diag] secret_unlock_ms=7379
+[SecretStore][diag] secret_lookup_ms=0
+[SecretStore][diag] secret_open_client_ms=6373
+[SecretStore][diag] secret_unlock_ms=6373
+[SecretStore][diag] secret_lookup_ms=0
+[Provider][diag] provider=cloudflare model=@cf/zai-org/glm-4.7-flash phase=request_overall_timeout attempt=0 configured_ms=500 elapsed_ms=520 status=none
+
+thread 'cognition::cloudflare::tests::local_http_lifecycle_covers_split_valid_eof_timeout_and_internal_code' (87356) panicked at src/cognition/cloudflare.rs:1164:9:
+assertion failed: matches!(result, Err(ProviderError::Incomplete))
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+
+---- cognition::fix5_tests::fix5_structured_groq_invalid_syntax_shape_and_semantics_fail_closed stdout ----
+[SecretStore][diag] operation_wait_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] key_store_load_ms=0
+[SecretStore][diag] secret_open_client_ms=3
+[SecretStore][diag] secret_unlock_ms=3
+[SecretStore][diag] secret_lookup_ms=0
+[Orchestrator][diag] provider=groq model=openai/gpt-oss-20b phase=json_syntax line=1 column=1 response_bytes=1 error=json_syntax_invalid
+[Orchestrator][diag] provider=groq model=openai/gpt-oss-20b phase=json_syntax line=1 column=1 response_bytes=316 error=json_syntax_invalid
+[Orchestrator][diag] provider=groq model=openai/gpt-oss-20b phase=json_syntax line=1 column=306 response_bytes=311 error=json_syntax_invalid
+[Orchestrator][diag] provider=groq model=openai/gpt-oss-20b phase=json_syntax line=1 column=305 response_bytes=608 error=json_syntax_invalid
+
+thread '<unnamed>' (87521) panicked at src/cognition/fix5_tests.rs:137:25:
+local fixture did not receive expected call
+[Scheduler][diag] retry provider=groq attempt=2 reason=unavailable backoff_ms=0
+[Scheduler][diag] retry_skipped reason=call_budget
+
+thread 'cognition::fix5_tests::fix5_structured_groq_invalid_syntax_shape_and_semantics_fail_closed' (87421) panicked at src/cognition/fix5_tests.rs:428:9:
+assertion `left == right` failed
+  left: "unavailable"
+ right: "orchestrator_plan_semantic_invalid"
+
+
+failures:
+    cognition::cloudflare::tests::local_http_lifecycle_covers_split_valid_eof_timeout_and_internal_code
+    cognition::fix5_tests::fix5_conservative_planner_calls_and_output_exhaustion_prevent_extra_http
+    cognition::fix5_tests::fix5_http_timeout_phases_are_real_and_diagnostics_sanitized
+    cognition::fix5_tests::fix5_structured_groq_invalid_syntax_shape_and_semantics_fail_closed
+
+test result: FAILED. 1055 passed; 4 failed; 2 ignored; 0 measured; 0 filtered out; finished in 366.41s
+
+error: test failed, to rerun pass `--lib`

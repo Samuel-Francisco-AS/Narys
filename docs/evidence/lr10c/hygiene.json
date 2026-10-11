@@ -1,0 +1,42 @@
+[
+  {
+    "argv": [
+      "git",
+      "diff",
+      "e77c721beb091d6191b79f18b14cfa882b77babe",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "narys-core/Cargo.toml",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/home/sam/.cargo/bin/rustfmt",
+      "--edition",
+      "2021",
+      "--config",
+      "skip_children=true",
+      "--check",
+      "narys-domain/src/agents/authority.rs",
+      "narys-domain/src/agents/mod.rs",
+      "narys-domain/src/persistence/migrations.rs"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

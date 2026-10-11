@@ -1,5 +1,12 @@
 # Narys 0.1 — entrega agentiva com ferramentas reais (até 17/10/2026)
 
+**Checkpoint LR-10C:** [candidata entregue para auditoria Luna](LR-10C-DELIVERY-REPORT.md).
+Authority/approvals transacionais e provas offline delimitadas não habilitam os
+perfis nativos Copilot. Approval positiva operacional, boundary completo e execução
+autenticada permanecem BLOCKED/NOT_VERIFIED. O marco agentivo0.1 segue sem aceite;
+o prazo17/10 não amplia permissões nem autoriza custo. Não promover essa candidata
+por quantidade de testes ou pelo PASS histórico da LR-10B.
+
 **Estado vigente (10/10/2026): SERVER-1A–D PASS DELIMITADO; LR-10B PASS DELIMITADO após FIX-1 e [auditoria independente](LR-10B-INDEPENDENT-AUDIT-2026-10-10.md).** Marco S encerrado. Marco A parcialmente preparado no lifecycle/supervisor, mas **ferramentas agentivas reais NÃO IMPLEMENTADAS**; próximo gate obrigatório LR-10C (authority/approvals/sandbox). LR-10D/E/F, LR-11 e Marco R permanecem pendentes. Exigir teste de desconexão durante tarefa ativa e cancelamento ativo no gate real. Desktop legado aguarda adapter IPC.
 
 **Criado em 10/10/2026. Estado: META VINCULANTE DE PRODUTO / NÃO IMPLEMENTADA.** O usuário exige Narys operacional até **17/10/2026**, com agentes capazes de executar **trabalho real** e ferramentas disponíveis para LLMs/agentes; não apenas conversar, planejar ou simular ações.

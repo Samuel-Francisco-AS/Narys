@@ -1,5 +1,12 @@
 # LR-10 — GitHub Copilot SpecialistAgent
 
+**Checkpoint LR-10C:** [implementação candidata](LR-10C-DELIVERY-REPORT.md),
+aguardando auditoria independente da Luna. Contratos/grants/SQLite e diagnóstico
+offline estão implementados; execução nativa e approval positiva humana continuam
+BLOCKED. Hooks/permission handlers não são alegados como sandbox. Nenhuma inferência
+ou ferramenta autenticada está liberada. O estado LR-10B abaixo é preservado como
+base aprovada; LR-10D/E/F e LR-11 conservam seus gates.
+
 **Estado vigente (10/10/2026): LR-10A PASS FINAL; NARYS-SERVER-1A–D PASS DELIMITADO; LR-10B PASS FINAL DELIMITADO após FIX-1 e [reauditoria independente](LR-10B-INDEPENDENT-AUDIT-2026-10-10.md). Próxima etapa operacional: LR-10C — Authority, Approval Policy, Sandbox & YOLO. LR-10D/E/F e LR-11 ainda NÃO IMPLEMENTADAS.** [Meta Narys 0.1 agentiva até 17/10/2026](NARYS-01-AGENT-TOOLS-DELIVERY.md): ainda não alcançada. Nenhuma inferência/ferramenta Copilot está liberada pela LR-10B.
 **Sequência vigente:** LR-9 PASS → LR-10A PASS → SERVER-1 PASS → LR-10B PASS → **LR-10C próxima** → LR-10D/E/F (gates próprios) → LR-11 executor Codex em trilha separada.
 **Base histórica:** a referência antiga de `main` abaixo era marco de entrada da trilha e não representa o HEAD pós-LR-10B. A validação e os commits da etapa B estão no [relatório de entrega](LR-10B-DELIVERY-REPORT.md) e no [parecer final](LR-10B-INDEPENDENT-AUDIT-2026-10-10.md).
