@@ -1,6 +1,6 @@
 # LR-10B — relatório de entrega para auditoria independente
 
-**LR-10B — CANDIDATA CORRIGIDA, AGUARDANDO REAUDITORIA INDEPENDENTE DA LUNA.**
+**ESTADO VIGENTE: LR-10B ENCERRADA — PASS FINAL DELIMITADO** por [auditoria independente](LR-10B-INDEPENDENT-AUDIT-2026-10-10.md) e [PR #26 integrada](LR-10B-FINAL-CLOSURE-2026-10-10.md). O relatório abaixo conserva o histórico original da candidata e da FIX-1; afirmações históricas de “aguardando auditoria”, “sem PR” e “sem merge” referem-se às datas de sua redação, não ao estado vigente.
 Não é PASS definitivo. Não há PR, merge, squash, rebase ou force-push.
 
 ## Git e escopo
