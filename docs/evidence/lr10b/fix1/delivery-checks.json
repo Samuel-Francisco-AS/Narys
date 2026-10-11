@@ -1,0 +1,42 @@
+{
+  "audited_base": "45bc5ad0cabfd49ccf1967a8ba7fda5a9d4fea75",
+  "implementation_commit": "eaba03e98b54f5cde2b5968fbb1cbc4808f20576",
+  "branch": "lr-10b-copilot-adapter-supervisor",
+  "main_preserved": "21be6382d146c99056d8dc99e6a13e2fa0dbe489",
+  "runtime_code_uncommitted_diff": "",
+  "protected_contract_paths": [
+    "narys-core/ops",
+    "narys-core/Cargo.toml",
+    "narys-core/Cargo.lock",
+    "narys-core/src/worker.rs",
+    "narys-core/src/authorization.rs",
+    "narys-core/src/policy.rs",
+    "narys-core/src/copilot/sdk_policy.rs",
+    "narys-domain"
+  ],
+  "protected_authority_contract_diff": "",
+  "schema_migration_added": false,
+  "new_sdk_production_has_session_send": false,
+  "final_results": {
+    "core_unit": 81,
+    "core_integration": 11,
+    "new_tests": 17,
+    "domain_unit": 1059,
+    "domain_doctest": 2,
+    "domain_real_provider_gates_ignored": 2,
+    "python": 17
+  },
+  "build": "offline locked; COPILOT_SKIP_CLI_DOWNLOAD=1; jobs=2",
+  "native_cli_started_for_fix": false,
+  "authenticated_agent_new_or_resume_for_fix": false,
+  "real_inference_calls_for_fix": 0,
+  "billing_account_meter": "NOT_VERIFIED; no quota/billing RPC performed",
+  "installed_source_commit": "eaba03e98b54f5cde2b5968fbb1cbc4808f20576",
+  "installed_source_dirty_reason": "Only FIX-1 report/evidence documentation differed; runtime code equals implementation commit",
+  "unit_and_keyring_dropin_sha_unchanged": true,
+  "schema21_integrity": "ok",
+  "post_update_authority_backup": "/home/sam/.local/state/narys/core/backups/lr10b-fix1-post-update-lo_gjm3n/authority-schema021.sqlite3",
+  "format_diff_check": "approved",
+  "pull_request_created": false,
+  "merge_performed": false
+}

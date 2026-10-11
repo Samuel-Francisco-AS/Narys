@@ -30,7 +30,7 @@ fn read(path: &Path) -> Result<Connection, &'static str> {
     let version: u64 = db
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .map_err(|_| "migration_schema_invalid")?;
-    if !(18..=20).contains(&version) {
+    if !(18..=21).contains(&version) {
         return Err("migration_source_schema_unsupported");
     }
     let check: String = db
@@ -86,6 +86,30 @@ pub fn initialize(config: &Config) -> Result<(), &'static str> {
     let directory = config.state.join("db");
     mkdir(&directory)?;
     let target = directory.join("luna.sqlite3");
+    // Before any Database::open can migrate the authority, preserve a consistent
+    // online snapshot under its writer fence. Never roll it back automatically.
+    if target.exists() {
+        let _lease = WriterLease::acquire(&target.with_extension("sqlite3.writer.lock"))
+            .map_err(|e| e.code())?;
+        let original = read(&target)?;
+        let version: u64 = original
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .map_err(|_| "migration_schema_invalid")?;
+        if version < 21 {
+            let backups = config.state.join("backups");
+            mkdir(&backups)?;
+            let backup = tempfile::Builder::new()
+                .prefix("lr10b-schema021-")
+                .tempdir_in(&backups)
+                .map_err(|_| "migration_backup_directory_failed")?
+                .keep();
+            snapshot(
+                &original,
+                &backup.join("authority-before-schema021.sqlite3"),
+            )?;
+            sync_parent(&backup.join("authority-before-schema021.sqlite3"))?;
+        }
+    }
     let desktop = config
         .home
         .join(".local/share/br.com.assistente3d.app/luna.sqlite3");
@@ -418,7 +442,7 @@ mod tests {
             upgraded
                 .pragma_query_value(None, "user_version", |r| r.get::<_, u64>(0))
                 .unwrap(),
-            20
+            21
         );
         assert_eq!(
             upgraded
@@ -431,7 +455,7 @@ mod tests {
         drop(c);
         let c = config(temp.path());
         initialize(&c).unwrap();
-        assert_eq!(fs::read_dir(c.state.join("backups")).unwrap().count(), 2);
+        assert_eq!(fs::read_dir(c.state.join("backups")).unwrap().count(), 3);
     }
     #[test]
     fn conflicting_populated_databases_are_preserved() {

@@ -30,7 +30,7 @@ async fn main() {
             return narys_core::credentials::unlock(false);
         }
         let request=match operation{
-            "status"|"credentials"|"stronghold"|"copilot"|"events"|"session-check"|"capabilities"|"sessions"|"providers"|"session-create"=>json!({"operation":operation}),
+            "status"|"credentials"|"stronghold"|"copilot"|"events"|"session-check"|"capabilities"|"sessions"|"providers"|"session-create"|"agent-status"|"agent-session-create"|"agent-runtime-recover"|"agent-runtime-stop"=>json!({"operation":operation}),
             "session-get"|"session-resume"|"session-close" if args.len()==3=>json!({"operation":operation,"session_id":args[2].parse::<i64>().map_err(|_|"session_invalid")?}),
             "conversation" if args.len()==4=>json!({"operation":"conversation","session_id":args[2].parse::<i64>().map_err(|_|"session_invalid")?,"text":args[3]}),
             "task-get"|"task-cancel" if args.len()==3=>json!({"operation":operation,"task":{"namespace":"product","id":args[2].parse::<u64>().map_err(|_|"invalid_task_id")?}}),

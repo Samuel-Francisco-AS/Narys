@@ -17,6 +17,25 @@ pub struct Request {
 #[serde(tag = "operation", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum Command {
     Status {},
+    AgentStatus {},
+    AgentRuntimeRecover {},
+    AgentRuntimeStop {},
+    AgentSessionCreate {},
+    AgentSessionGet {
+        session_ref: crate::agents::lifecycle::AgentSessionRef,
+    },
+    AgentSessionResume {
+        session_ref: crate::agents::lifecycle::AgentSessionRef,
+    },
+    AgentSessionAttach {
+        session_ref: crate::agents::lifecycle::AgentSessionRef,
+    },
+    AgentSessionDetach {
+        attachment_id: String,
+    },
+    AgentSessionClose {
+        session_ref: crate::agents::lifecycle::AgentSessionRef,
+    },
     Credentials {},
     Stronghold {},
     Copilot {},
@@ -172,6 +191,19 @@ impl Request {
             return Err("invalid_request_id");
         }
         match &self.command {
+            Command::AgentSessionGet { session_ref }
+            | Command::AgentSessionResume { session_ref }
+            | Command::AgentSessionAttach { session_ref }
+            | Command::AgentSessionClose { session_ref } => {
+                session_ref.validate()?;
+            }
+            Command::AgentSessionDetach { attachment_id }
+                if attachment_id.len() != 35
+                    || !attachment_id.starts_with("ca-")
+                    || !attachment_id[3..].bytes().all(|b| b.is_ascii_hexdigit()) =>
+            {
+                return Err("invalid_agent_attachment_id");
+            }
             Command::ResumeCheck { task_id }
             | Command::Submit { task_id }
             | Command::Cancel { task_id }

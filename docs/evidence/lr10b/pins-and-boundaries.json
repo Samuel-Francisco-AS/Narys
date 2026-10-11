@@ -1,0 +1,19 @@
+{
+  "sdk_crate": "github-copilot-sdk",
+  "sdk_version": "1.0.17",
+  "cli_expected_version": "1.0.95",
+  "rpc_expected": 3,
+  "cli_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+  "expected_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+  "pin_matches": true,
+  "regular_file": true,
+  "symlink": false,
+  "owner_is_current_user": true,
+  "native_cli_was_executed": false,
+  "provider_rpc_sent": false,
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Fedora 1.98.1-1.fc44)",
+  "build_mode": "offline locked COPILOT_SKIP_CLI_DOWNLOAD=1",
+  "msrv_1_94": "NOT_VERIFIED; toolchain unavailable, no download",
+  "real_sdk_lifecycle": "NOT_VERIFIED; only official SDK synthetic peer exercised",
+  "billing_account_meter": "NOT_VERIFIED; no quota/billing RPC performed"
+}

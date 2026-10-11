@@ -1,0 +1,225 @@
+{
+  "phase": "after_update",
+  "sample_start": {
+    "pid": 20432,
+    "rss_kib": 26160,
+    "cpu_ticks": 28
+  },
+  "sample_end": {
+    "pid": 20432,
+    "rss_kib": 26416,
+    "cpu_ticks": 28
+  },
+  "elapsed_seconds": 10.021781047999866,
+  "clock_ticks_per_second": 100,
+  "lazy_status_queries": 50,
+  "status": {
+    "data": {
+      "active_task": null,
+      "agent_execution_authority": false,
+      "authority": "narys-core",
+      "conversation_integrated": true,
+      "copilot": "on_demand",
+      "copilot_runtime": {
+        "active_tasks": 0,
+        "attachments": 0,
+        "capabilities": {
+          "inference_admission_integrated": false,
+          "permissions_integrated": false,
+          "textual": true,
+          "tools": false
+        },
+        "inference_gate": "not_integrated_no_send",
+        "planner_routing_enabled": false,
+        "process_observation": {
+          "processes": [],
+          "source": "core_ownership_no_runtime"
+        },
+        "registered": true,
+        "runtime": {
+          "admission_closed": false,
+          "cleanup_verified": true,
+          "generation": 0,
+          "last_error": null,
+          "leases": 0,
+          "process_id": null,
+          "runtime_ref": null,
+          "state": "dormant"
+        },
+        "specialist_id": "copilot",
+        "tools_gate": "LR-10C_required"
+      },
+      "core": "running",
+      "database": "core/db/luna.sqlite3",
+      "execution_workers": 0,
+      "graphical_environment_present": false,
+      "product_active_tasks": 0,
+      "profile": "HOST_ASSISTED_NOT_SANDBOX",
+      "protocol_version": 1,
+      "tools": 0,
+      "trace_events": 0
+    },
+    "ok": true,
+    "request_id": "cli-20558",
+    "version": 1
+  },
+  "agent_status": {
+    "data": {
+      "active_tasks": 0,
+      "attachments": 0,
+      "capabilities": {
+        "inference_admission_integrated": false,
+        "permissions_integrated": false,
+        "textual": true,
+        "tools": false
+      },
+      "inference_gate": "not_integrated_no_send",
+      "planner_routing_enabled": false,
+      "process_observation": {
+        "processes": [],
+        "source": "core_ownership_no_runtime"
+      },
+      "registered": true,
+      "runtime": {
+        "admission_closed": false,
+        "cleanup_verified": true,
+        "generation": 0,
+        "last_error": null,
+        "leases": 0,
+        "process_id": null,
+        "runtime_ref": null,
+        "state": "dormant"
+      },
+      "specialist_id": "copilot",
+      "tools_gate": "LR-10C_required"
+    },
+    "ok": true,
+    "request_id": "cli-20559",
+    "version": 1
+  },
+  "sha256": {
+    "core": "2db263de71f5abe9c755cd2ebec70e2b5853cebcf39d8bee7faf3e19b9f37c4f",
+    "unit": "df7b3205ebfcf5f673e9c72fd8aea4c0bba2c697d3f15a76feaaf4028b1a0810",
+    "cli": "ce65b0b28c16ade3cea863b17f58fb536b078041e332a4c28aef600ee4e88a25",
+    "keyring_dropin": "1f57eb258f83f856998575b5e0aeb4e1cdb72370f7887117817f2fb8124f8f38"
+  },
+  "systemd": "ActiveState=active\nSubState=running\nNRestarts=0\nControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/narys-core.service\nMemoryCurrent=6377472\nCPUUsageNSec=301633000\nKillMode=control-group\n",
+  "cgroup_pids": [
+    "20432"
+  ],
+  "authority_versions": [
+    20,
+    21
+  ],
+  "authority_integrity": "ok",
+  "authority_foreign_key_errors": 0,
+  "authority_old_table_counts": {
+    "identity_snapshots": {
+      "before": 1,
+      "after": 1
+    },
+    "memory_records": {
+      "before": 4,
+      "after": 4
+    },
+    "conversation_sessions": {
+      "before": 39,
+      "after": 39
+    },
+    "conversation_messages": {
+      "before": 102,
+      "after": 102
+    },
+    "task_records": {
+      "before": 193,
+      "after": 193
+    },
+    "general_settings": {
+      "before": 1,
+      "after": 1
+    },
+    "gemini_provider_settings": {
+      "before": 1,
+      "after": 1
+    },
+    "provider_timeout_settings": {
+      "before": 4,
+      "after": 4
+    },
+    "cognitive_role_policies": {
+      "before": 4,
+      "after": 4
+    },
+    "cognitive_role_targets": {
+      "before": 4,
+      "after": 4
+    },
+    "task_subtask_records": {
+      "before": 39,
+      "after": 39
+    },
+    "cognitive_rate_state": {
+      "before": 0,
+      "after": 0
+    },
+    "cognitive_role_allocation_policies": {
+      "before": 4,
+      "after": 4
+    },
+    "checkpoint_task_policies": {
+      "before": 0,
+      "after": 0
+    },
+    "cognitive_checkpoints": {
+      "before": 0,
+      "after": 0
+    },
+    "cognitive_continuations": {
+      "before": 0,
+      "after": 0
+    },
+    "cognitive_continuation_units": {
+      "before": 0,
+      "after": 0
+    },
+    "shell_settings": {
+      "before": 1,
+      "after": 1
+    },
+    "headless_tasks": {
+      "before": 4,
+      "after": 4
+    },
+    "server_migrations": {
+      "before": 1,
+      "after": 1
+    },
+    "server_events": {
+      "before": 70,
+      "after": 71
+    },
+    "conversation_runs": {
+      "before": 5,
+      "after": 5
+    },
+    "server_provider_permissions": {
+      "before": 4,
+      "after": 4
+    }
+  },
+  "new_agent_tables_counts": {
+    "agent_sessions": 0,
+    "agent_runs": 0,
+    "agent_runtime_owners": 0
+  },
+  "schema_backup": "/home/sam/.local/state/narys/core/backups/lr10b-schema021-6RzQTu/authority-before-schema021.sqlite3",
+  "server_events_difference": "one expected ready event in runtime namespace; all other table counts unchanged",
+  "boot_event": {
+    "code": "ready",
+    "created_at": "2026-10-10T22:44:27.098Z",
+    "details": null,
+    "namespace": "runtime",
+    "sequence": 71,
+    "task_id": null
+  }
+}

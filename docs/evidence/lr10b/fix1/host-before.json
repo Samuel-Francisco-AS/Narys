@@ -1,0 +1,94 @@
+{
+  "phase": "before_fix1_update",
+  "status": {
+    "data": {
+      "active_task": null,
+      "agent_execution_authority": false,
+      "authority": "narys-core",
+      "conversation_integrated": true,
+      "copilot": "on_demand",
+      "copilot_runtime": {
+        "active_tasks": 0,
+        "attachments": 0,
+        "capabilities": {
+          "inference_admission_integrated": false,
+          "permissions_integrated": false,
+          "textual": true,
+          "tools": false
+        },
+        "inference_gate": "not_integrated_no_send",
+        "planner_routing_enabled": false,
+        "process_observation": {
+          "processes": [],
+          "source": "core_ownership_no_runtime"
+        },
+        "registered": true,
+        "runtime": {
+          "admission_closed": false,
+          "cleanup_verified": true,
+          "generation": 0,
+          "last_error": null,
+          "leases": 0,
+          "process_id": null,
+          "runtime_ref": null,
+          "state": "dormant"
+        },
+        "specialist_id": "copilot",
+        "tools_gate": "LR-10C_required"
+      },
+      "core": "running",
+      "database": "core/db/luna.sqlite3",
+      "execution_workers": 0,
+      "graphical_environment_present": false,
+      "product_active_tasks": 0,
+      "profile": "HOST_ASSISTED_NOT_SANDBOX",
+      "protocol_version": 1,
+      "tools": 0,
+      "trace_events": 0
+    },
+    "ok": true,
+    "request_id": "cli-26077",
+    "version": 1
+  },
+  "agent_status": {
+    "data": {
+      "active_tasks": 0,
+      "attachments": 0,
+      "capabilities": {
+        "inference_admission_integrated": false,
+        "permissions_integrated": false,
+        "textual": true,
+        "tools": false
+      },
+      "inference_gate": "not_integrated_no_send",
+      "planner_routing_enabled": false,
+      "process_observation": {
+        "processes": [],
+        "source": "core_ownership_no_runtime"
+      },
+      "registered": true,
+      "runtime": {
+        "admission_closed": false,
+        "cleanup_verified": true,
+        "generation": 0,
+        "last_error": null,
+        "leases": 0,
+        "process_id": null,
+        "runtime_ref": null,
+        "state": "dormant"
+      },
+      "specialist_id": "copilot",
+      "tools_gate": "LR-10C_required"
+    },
+    "ok": true,
+    "request_id": "cli-26086",
+    "version": 1
+  },
+  "systemd": "ActiveState=active\nSubState=running\nMainPID=20432\nNRestarts=0\n",
+  "sha256": {
+    "core": "2db263de71f5abe9c755cd2ebec70e2b5853cebcf39d8bee7faf3e19b9f37c4f",
+    "cli": "ce65b0b28c16ade3cea863b17f58fb536b078041e332a4c28aef600ee4e88a25",
+    "unit": "df7b3205ebfcf5f673e9c72fd8aea4c0bba2c697d3f15a76feaaf4028b1a0810",
+    "keyring_dropin": "1f57eb258f83f856998575b5e0aeb4e1cdb72370f7887117817f2fb8124f8f38"
+  }
+}

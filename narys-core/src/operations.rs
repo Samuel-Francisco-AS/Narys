@@ -9,7 +9,7 @@ pub fn tasks(
     limit: u16,
 ) -> Result<Value, &'static str> {
     let (name, sql) = match namespace {
-        TaskNamespace::Product => ("product", "SELECT id,state FROM (SELECT task_id AS id,state FROM conversation_runs UNION ALL SELECT task_id AS id,state FROM task_records WHERE task_id NOT IN (SELECT task_id FROM conversation_runs)) WHERE id>?1 ORDER BY id LIMIT ?2"),
+        TaskNamespace::Product => ("product", "SELECT id,state FROM (SELECT task_id AS id,state FROM conversation_runs UNION ALL SELECT task_id AS id,state FROM agent_runs UNION ALL SELECT task_id AS id,state FROM task_records WHERE task_id NOT IN (SELECT task_id FROM conversation_runs UNION ALL SELECT task_id FROM agent_runs)) WHERE id>?1 ORDER BY id LIMIT ?2"),
         TaskNamespace::Lr10a => ("lr10a", "SELECT id,state FROM headless_tasks WHERE id>?1 ORDER BY id LIMIT ?2"),
     };
     let mut query = conn.prepare(sql).map_err(|_| "task_read_failed")?;

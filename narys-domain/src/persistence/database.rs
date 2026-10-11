@@ -46,6 +46,9 @@ impl Database {
             lease: Arc::default(),
         }
     }
+    pub fn directory(&self) -> &std::path::Path {
+        self.path.parent().expect("database parent")
+    }
     pub fn open(&self) -> Result<Connection, PersistenceError> {
         let parent = self.path.parent().ok_or(PersistenceError::Unavailable)?;
         fs::create_dir_all(parent).map_err(|_| PersistenceError::Unavailable)?;

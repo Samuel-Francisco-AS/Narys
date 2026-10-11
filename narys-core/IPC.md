@@ -109,3 +109,33 @@ de consultas, com envelope v1 e checks; erros locais usam category=cli. Unlock
 usa envelope local v1 e category=credentials. Nenhum desses envelopes locais dá
 autoridade ao servidor. Os contratos approve_once/deny permanecem recusados com
 `capability_not_integrated`, sem execução simulada.
+
+## LR-10B — lifecycle do SpecialistAgent Copilot (candidata)
+
+Adições estritas e compatíveis ao envelope v1; same UID/socket0600 permanecem.
+Nenhuma operação aceita prompt, perfil, authority, origin, programa ou env.
+
+| Operação | Campos | Semântica |
+|---|---|---|
+| agent-status | nenhum | Snapshot supervisor/capabilities/processos/attachments; nunca lança SDK |
+| agent-session-create | nenhum | Admissão assíncrona create SDK sem prompt/tools; recibo TaskRef product + cs-HEX |
+| agent-session-get | session_ref | Estado autoritativo/prova necessária de resume, sem raw provider ID/path |
+| agent-session-resume | session_ref | Resume explícito de Detached comprovada; mesmo ID/anchor; nenhum fallback/send |
+| agent-session-attach | session_ref | Receipt ca-HEX de observação; máximo32; sem ownership de tarefa |
+| agent-session-detach | attachment_id | Remove attachment idempotentemente; nunca cancela tarefa |
+| agent-session-close | session_ref | Close local explícito; recusa tarefa ativa; bloqueia resume |
+| agent-runtime-recover | nenhum | Reconciliar prova de cleanup sem launch/replay; limite7s |
+| agent-runtime-stop | nenhum | Fecha admissão/cancela/drena especialista; Conversation permanece operacional |
+
+Referências cs-/ca- seguidas de32 hex; IDs/correlação não concedem autoridade.
+Tasks/Get/Cancel e Events existentes incluem lifecycle no namespace product.
+No máximo2 demandas, sem fila ilimitada; desconexão deixa tarefa no Core.
+Pending/Running no restart tornam-se Interrupted, sem reenvio. Attachments são
+voláteis e podem ser refeitos. Leases anteriores ao último podem terminar com
+cleanup_verified=false até a prova global; a evidência é atualizada posteriormente.
+Gap de observação nunca é interpretado como sucesso/falha funcional.
+
+O adapter está registrado, mas eleição de planner/inferência continuam bloqueadas.
+Approval/tool requests seguem capability_not_integrated. Submit LR-10A está fechado;
+legacy copilot/session-check/resume-check não acionam mais o harness experimental.
+[Contrato técnico completo](../docs/LR-10B-COPILOT-ADAPTER-SUPERVISOR.md).
