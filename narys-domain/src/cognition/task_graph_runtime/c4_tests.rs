@@ -717,7 +717,7 @@ async fn lr85c_final_z_v14_upgrade_preserves_b4_checkpoints_history_and_rate_sch
     assert_eq!(
         conn.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        22
+        23
     );
 }
 

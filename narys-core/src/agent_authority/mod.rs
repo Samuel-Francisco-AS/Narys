@@ -1,6 +1,8 @@
 //! LR-10C: Core-only authority. Audit IDs and wire intents are never capabilities.
 //! The native Copilot execution gate remains closed: see availability().
+pub mod local;
 mod sandbox;
+mod seccomp;
 #[cfg(test)]
 mod tests;
 use crate::agents::authority::*;
@@ -13,7 +15,10 @@ use std::{
     io::Read,
     os::unix::fs::MetadataExt,
     path::{Component, Path},
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -32,9 +37,10 @@ struct Grant {
     cancelled: bool,
     financial_deadline: Instant,
     boundary_deadline: Instant,
+    workspace_identity: (u64, u64),
 }
-// Independently issued, sealed Core proofs. No production issuer is installed
-// in C; synthetic tests construct them within this private module only.
+// Independently issued, sealed Core proofs. The offline local issuer requires
+// operational OS preflight; native Copilot has no admitted issuer.
 struct ExecutionBoundary {
     binding: String,
     deadline: Instant,
@@ -44,14 +50,21 @@ struct FinancialAdmission {
     deadline: Instant,
     paid_use_allowed: bool,
 }
+struct ExecutionClaim {
+    id: String,
+    cancelled: Arc<AtomicBool>,
+    deadline: Instant,
+    workspace_identity: (u64, u64),
+}
 struct State {
     grants: BTreeMap<[u8; 32], Grant>,
+    claims: BTreeMap<String, (u64, Arc<AtomicBool>)>,
     yolo: Option<YoloConsent>,
     cancelled_tasks: BTreeSet<u64>,
     admission_closed: bool,
 }
-/// A Core-owned, non-wire proof. Production has no constructor until the native
-/// runtime and operator transport have a demonstrated separation of trust.
+/// Core-owned non-wire proof. Only the separate offline operator endpoint may
+/// issue it after namespace exclusion is proved. Ordinary/native IPC never does.
 struct HumanChannel {
     epoch: String,
 }
@@ -289,6 +302,7 @@ impl AuthorityService {
             epoch: hex(&random()?),
             state: Mutex::new(State {
                 grants: BTreeMap::new(),
+                claims: BTreeMap::new(),
                 yolo: None,
                 cancelled_tasks: BTreeSet::new(),
                 admission_closed: false,
@@ -328,6 +342,7 @@ impl AuthorityService {
             return Err("authority_limit");
         }
         let digest = binding(&context)?;
+        let workspace_identity = validate_workspace(&context.workspace)?;
         if boundary.binding != digest || boundary.deadline <= Instant::now() {
             return Err("execution_boundary_unavailable");
         }
@@ -356,6 +371,7 @@ impl AuthorityService {
                 cancelled: false,
                 financial_deadline: financial.deadline,
                 boundary_deadline: boundary.deadline,
+                workspace_identity,
             },
         );
         Ok((id, authority))
@@ -384,14 +400,35 @@ impl AuthorityService {
         event(&tx, id, "approved", "human_approve_once")?;
         tx.commit().map_err(|_| "approval_persist_failed")
     }
-    // Called only by a Core-owned executor. The same mutex orders cancellation
-    // and effect start. There is no closure/shell/authority path through the IPC.
+    // Test adapter only: operational effects use claim + supervised local runner.
+    #[cfg(test)]
     fn execute<T>(
         &self,
         authority: &AgentAuthority,
         context: &AgentOperationContext,
         effect: impl FnOnce() -> Result<T>,
     ) -> Result<T> {
+        let claim = self.claim(authority, context)?;
+        if claim.cancelled.load(Ordering::Acquire) {
+            return Err("authority_cancelled");
+        }
+        let result = effect();
+        self.state
+            .lock()
+            .map_err(|_| "authority_faulted")?
+            .claims
+            .remove(&claim.id);
+        if claim.cancelled.load(Ordering::Acquire) {
+            Err("authority_cancelled")
+        } else {
+            result
+        }
+    }
+    fn claim(
+        &self,
+        authority: &AgentAuthority,
+        context: &AgentOperationContext,
+    ) -> Result<ExecutionClaim> {
         let mut state = self.state.lock().map_err(|_| "authority_faulted")?;
         let grant = state.grants.get(&authority.0).ok_or("authority_unknown")?;
         if grant.cancelled {
@@ -403,7 +440,10 @@ impl AuthorityService {
         if grant.boundary_deadline <= Instant::now() || grant.financial_deadline <= Instant::now() {
             return Err("authority_gate_closed");
         }
-        if &grant.context != context || grant.digest != binding(context)? {
+        if &grant.context != context
+            || grant.digest != binding(context)?
+            || validate_workspace(&context.workspace)? != grant.workspace_identity
+        {
             return Err("authority_context_mismatch");
         }
         let mut conn = connection(&self.database)?;
@@ -412,10 +452,34 @@ impl AuthorityService {
             .map_err(|_| "approval_persist_failed")?;
         if tx.execute("UPDATE agent_approvals SET state='consumed',reason='execution_claimed',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE approval_id=?1 AND epoch=?2 AND binding_digest=?3 AND state='approved' AND expires_at>?4", params![grant.approval_id,self.epoch,grant.digest,now()?]).map_err(|_| "approval_persist_failed")? != 1 { return Err("approval_not_approved_or_consumed"); }
         event(&tx, &grant.approval_id, "consumed", "execution_claimed")?;
+        let local:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM agent_local_tasks WHERE task_id=?1 AND session_id=?2 AND workspace=?3 AND epoch=?4 AND state='active')",params![context.task_id,context.session_id,context.workspace.to_str(),self.epoch],|r|r.get(0)).map_err(|_|"claim_journal_failed")?;
+        if local {
+            tx.execute("INSERT INTO agent_tool_executions(approval_id,task_id,phase) VALUES(?1,?2,'claimed')",params![grant.approval_id,context.task_id]).map_err(|_|"claim_journal_failed")?;
+            tx.execute(
+                "INSERT INTO agent_execution_events(approval_id,phase) VALUES(?1,'claimed')",
+                [&grant.approval_id],
+            )
+            .map_err(|_| "claim_journal_failed")?;
+        }
         tx.commit().map_err(|_| "approval_persist_failed")?;
+        let deadline = grant
+            .deadline
+            .min(grant.boundary_deadline)
+            .min(grant.financial_deadline);
+        let workspace_identity = grant.workspace_identity;
+        let id = grant.approval_id.clone();
+        let cancelled = Arc::new(AtomicBool::new(false));
         state.grants.remove(&authority.0);
-        // A crash after the claim never replays an effect. Consumed != success.
-        effect()
+        state
+            .claims
+            .insert(id.clone(), (context.task_id, cancelled.clone()));
+        // No global mutex survives the claim. Consumed != started/success.
+        Ok(ExecutionClaim {
+            id,
+            cancelled,
+            deadline,
+            workspace_identity,
+        })
     }
     pub fn deny(&self, id: &str) -> Result<Value> {
         validate_id(id)?;
@@ -452,6 +516,9 @@ impl AuthorityService {
             g.cancelled = true;
         }
         state.grants.retain(|_, g| g.context.task_id != task);
+        for (_, flag) in state.claims.values().filter(|(t, _)| *t == task) {
+            flag.store(true, Ordering::Release);
+        }
         if state
             .yolo
             .as_ref()
@@ -544,12 +611,28 @@ impl AuthorityService {
             let mut state = self.state.lock().map_err(|_| "authority_faulted")?;
             state.admission_closed = true;
             state.yolo = None;
-            state.grants.values().map(|g| g.context.task_id).collect()
+            // Signal every live effect before any fallible persistence. A
+            // failed first revocation must not leave later tools running.
+            for (_, flag) in state.claims.values() {
+                flag.store(true, Ordering::Release);
+            }
+            for grant in state.grants.values_mut() {
+                grant.cancelled = true;
+            }
+            state
+                .grants
+                .values()
+                .map(|g| g.context.task_id)
+                .chain(state.claims.values().map(|(id, _)| *id))
+                .collect()
         };
+        let mut failure = None;
         for task in tasks {
-            self.cancel_task(task)?;
+            if let Err(e) = self.cancel_task(task) {
+                failure.get_or_insert(e);
+            }
         }
-        Ok(())
+        failure.map_or(Ok(()), Err)
     }
     pub fn revoke_yolo(&self) -> Result<()> {
         self.state.lock().map_err(|_| "authority_faulted")?.yolo = None;

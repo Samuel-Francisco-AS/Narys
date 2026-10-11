@@ -23,6 +23,9 @@ async fn main() {
         return;
     }
     let outcome=async {
+        if args.get(1).map(String::as_str)==Some("boundary-serve") && args.len()==3 {
+            return narys_core::agent_authority::local::serve(std::path::PathBuf::from(&args[2])).await;
+        }
         let cfg=Config::discover()?;
         if args.get(1).map(String::as_str)==Some("serve"){return serve(cfg).await;}
         let operation=args.get(1).map(String::as_str).ok_or("operation_required")?;

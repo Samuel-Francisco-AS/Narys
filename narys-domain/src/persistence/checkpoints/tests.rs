@@ -883,7 +883,7 @@ fn c2_migration_014_upgrades_v13_preserving_history_and_b4_settings() {
         reopened
             .pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        22
+        23
     );
     assert_eq!(
         policy::load(&reopened, CognitiveRole::Worker).unwrap(),

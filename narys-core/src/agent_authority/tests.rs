@@ -499,7 +499,10 @@ fn cancellation_pending_approved_and_racing_execution_is_ordered() {
                 Ok(())
             });
             a.join().unwrap();
-            assert_eq!(effects.load(Ordering::SeqCst), usize::from(result.is_ok()));
+            assert!(effects.load(Ordering::SeqCst) <= 1);
+            if result.is_ok() {
+                assert_eq!(effects.load(Ordering::SeqCst), 1);
+            }
         });
         assert!(f
             .service
@@ -719,13 +722,13 @@ fn sandbox_absent_disabled_or_partial_never_enables_profile() {
 fn additive_migration_from_21_preserves_history_and_is_idempotent() {
     let f = Fixture::new();
     let mut conn = connection(&f.service.database).unwrap();
-    conn.execute_batch("DROP TABLE agent_approval_events; DROP TABLE agent_approvals; PRAGMA user_version=21; INSERT INTO server_events(namespace,code) VALUES('product','preserved_fixture');").unwrap();
+    conn.execute_batch("DROP TABLE agent_execution_events; DROP TABLE agent_tool_executions; DROP TABLE agent_local_tasks; DROP TABLE agent_approval_events; DROP TABLE agent_approvals; PRAGMA user_version=21; INSERT INTO server_events(namespace,code) VALUES('product','preserved_fixture');").unwrap();
     crate::persistence::migrations::apply(&conn).unwrap();
     crate::persistence::migrations::apply(&conn).unwrap();
     assert_eq!(
         conn.pragma_query_value::<i64, _>(None, "user_version", |r| r.get(0))
             .unwrap(),
-        22
+        23
     );
     assert_eq!(
         conn.query_row::<i64, _, _>(
@@ -742,4 +745,57 @@ fn additive_migration_from_21_preserves_history_and_is_idempotent() {
             .unwrap(),
         "ok"
     );
+}
+
+#[test]
+fn long_fixture_callback_does_not_hold_global_lock_or_publish_late_success() {
+    let f = Fixture::new();
+    let (id, cap) = f.request();
+    f.approve(&id);
+    let entered = Barrier::new(2);
+    std::thread::scope(|scope| {
+        let task = scope.spawn(|| {
+            f.service.execute::<()>(&cap, &f.context(), || {
+                entered.wait();
+                std::thread::sleep(Duration::from_millis(300));
+                Ok(())
+            })
+        });
+        entered.wait();
+        let start = Instant::now();
+        f.service.cancel_task(1).unwrap();
+        assert!(start.elapsed() < Duration::from_millis(200));
+        assert_eq!(task.join().unwrap(), Err("authority_cancelled"));
+    });
+    assert!(f.service.state.lock().unwrap().claims.is_empty());
+}
+
+#[test]
+fn real_mount_uses_pinned_directory_after_host_path_replacement() {
+    use std::os::{fd::AsRawFd, unix::process::CommandExt};
+    let f = Fixture::new();
+    let (mut command,directory)=sandbox::pinned(&f.workspace,"/usr/bin/python3", &["-I","-c","from pathlib import Path;Path('/workspace/pinned-effect').write_text('original inode')"],false).unwrap();
+    let old = f.workspace.with_extension("original");
+    fs::rename(&f.workspace, &old).unwrap();
+    fs::create_dir(&f.workspace).unwrap();
+    let fd = directory.as_raw_fd();
+    unsafe {
+        command.pre_exec(move || {
+            if libc::fcntl(fd, libc::F_SETFD, 0) < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    let out = command.output().unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(
+        fs::read_to_string(old.join("pinned-effect")).unwrap(),
+        "original inode"
+    );
+    assert!(!f.workspace.join("pinned-effect").exists());
 }

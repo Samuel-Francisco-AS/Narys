@@ -281,6 +281,9 @@ pub async fn run(mut args: Vec<String>) -> Result<(), &'static str> {
         println!("{HELP}");
         return Ok(());
     }
+    if args.first().map(String::as_str) == Some("boundary") {
+        return crate::agent_authority::local::cli(&args[1..]).await;
+    }
     let mut after = 0;
     let mut limit = 50;
     let mut namespace = "product".to_string();

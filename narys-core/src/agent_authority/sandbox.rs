@@ -1,8 +1,13 @@
-//! Diagnostic boundary for offline, disposable subprocesses only.
+//! Boundary for explicitly offline, Core-owned disposable subprocesses only.
 //! This is NOT an admission certificate for the Copilot runtime. In particular,
 //! mounting credentials or enabling provider networking invalidates this proof.
-#[cfg(test)]
-use std::{os::unix::fs::MetadataExt, path::Path, process::Command};
+use std::{
+    fs::File,
+    os::fd::AsRawFd,
+    os::unix::fs::{MetadataExt, OpenOptionsExt},
+    path::Path,
+    process::Command,
+};
 
 #[cfg(test)]
 pub(super) fn command(
@@ -10,10 +15,45 @@ pub(super) fn command(
     executable: &str,
     arguments: &[&str],
 ) -> super::Result<Command> {
+    command_mode(workspace, executable, arguments, false)
+}
+#[cfg(test)]
+pub(super) fn command_mode(
+    workspace: &Path,
+    executable: &str,
+    arguments: &[&str],
+    readonly: bool,
+) -> super::Result<Command> {
+    build(workspace, executable, arguments, readonly, None)
+}
+fn build(
+    workspace: &Path,
+    executable: &str,
+    arguments: &[&str],
+    readonly: bool,
+    fd: Option<i32>,
+) -> super::Result<Command> {
     super::validate_workspace(workspace)?;
+    // Host mount aliases are not admissible in the operational local boundary.
+    let mounts = std::fs::read_to_string("/proc/self/mountinfo")
+        .map_err(|_| "sandbox_mounts_unavailable")?;
+    for line in mounts.lines() {
+        let fields: Vec<_> = line.split_whitespace().collect();
+        if let Some(mount) = fields.get(4) {
+            let decoded = mount
+                .replace("\\040", " ")
+                .replace("\\011", "\t")
+                .replace("\\012", "\n")
+                .replace("\\134", "\\");
+            let path = Path::new(&decoded);
+            if path == workspace || path.starts_with(workspace) {
+                return Err("sandbox_workspace_submount_denied");
+            }
+        }
+    }
     // A writable bind must not contain host sockets, devices, hardlinked files
-    // or entries on another filesystem. Same-device bind mounts are not detected;
-    // this diagnostic accepts only a fresh ordinary disposable tree.
+    // or entries on another filesystem. Operational admission additionally rejects
+    // submounts using mountinfo; only Core-owned fresh disposable trees qualify.
     // Concurrent hostile host writers are outside this diagnostic's guarantee;
     // production admission remains unavailable.
     fn tree(path: &Path, device: u64, budget: &mut usize) -> super::Result<()> {
@@ -64,9 +104,17 @@ pub(super) fn command(
             "ALL",
             "--disable-userns",
             "--assert-userns-disabled",
+            "--dir",
+            "/usr",
             "--ro-bind",
-            "/usr",
-            "/usr",
+            "/usr/bin",
+            "/usr/bin",
+            "--ro-bind",
+            "/usr/lib64",
+            "/usr/lib64",
+            "--ro-bind",
+            "/usr/lib",
+            "/usr/lib",
             "--symlink",
             "usr/bin",
             "/bin",
@@ -80,10 +128,16 @@ pub(super) fn command(
             "/proc",
             "--dev",
             "/dev",
+            "--size",
+            "16777216",
             "--tmpfs",
             "/tmp",
+            "--size",
+            "16777216",
             "--tmpfs",
             "/home",
+            "--size",
+            "16777216",
             "--tmpfs",
             "/run",
             "--clearenv",
@@ -96,9 +150,17 @@ pub(super) fn command(
             "--setenv",
             "LANG",
             "C.UTF-8",
-            "--bind",
         ])
-        .arg(workspace)
+        .arg(match (readonly, fd.is_some()) {
+            (true, true) => "--ro-bind-fd",
+            (false, true) => "--bind-fd",
+            (true, false) => "--ro-bind",
+            (false, false) => "--bind",
+        })
+        .arg(
+            fd.map(|n| n.to_string())
+                .unwrap_or_else(|| workspace.to_string_lossy().into_owned()),
+        )
         .args([
             "/workspace",
             "--chdir",
@@ -110,4 +172,32 @@ pub(super) fn command(
         ])
         .args(arguments);
     Ok(command)
+}
+
+pub(super) fn pinned(
+    workspace: &Path,
+    executable: &str,
+    arguments: &[&str],
+    readonly: bool,
+) -> super::Result<(Command, File)> {
+    let identity = super::validate_workspace(workspace)?;
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(workspace)
+        .map_err(|_| "workspace_unavailable")?;
+    let m = file.metadata().map_err(|_| "workspace_unavailable")?;
+    if identity != (m.dev(), m.ino()) {
+        return Err("workspace_identity_changed");
+    }
+    Ok((
+        build(
+            workspace,
+            executable,
+            arguments,
+            readonly,
+            Some(file.as_raw_fd()),
+        )?,
+        file,
+    ))
 }

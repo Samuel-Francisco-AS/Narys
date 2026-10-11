@@ -30,7 +30,7 @@ fn read(path: &Path) -> Result<Connection, &'static str> {
     let version: u64 = db
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .map_err(|_| "migration_schema_invalid")?;
-    if !(18..=22).contains(&version) {
+    if !(18..=23).contains(&version) {
         return Err("migration_source_schema_unsupported");
     }
     let check: String = db
@@ -95,19 +95,19 @@ pub fn initialize(config: &Config) -> Result<(), &'static str> {
         let version: u64 = original
             .pragma_query_value(None, "user_version", |r| r.get(0))
             .map_err(|_| "migration_schema_invalid")?;
-        if version < 22 {
+        if version < 23 {
             let backups = config.state.join("backups");
             mkdir(&backups)?;
             let backup = tempfile::Builder::new()
-                .prefix("lr10c-schema022-")
+                .prefix("lr10c-fix1-schema023-")
                 .tempdir_in(&backups)
                 .map_err(|_| "migration_backup_directory_failed")?
                 .keep();
             snapshot(
                 &original,
-                &backup.join("authority-before-schema022.sqlite3"),
+                &backup.join("authority-before-schema023.sqlite3"),
             )?;
-            sync_parent(&backup.join("authority-before-schema022.sqlite3"))?;
+            sync_parent(&backup.join("authority-before-schema023.sqlite3"))?;
         }
     }
     let desktop = config
@@ -442,7 +442,7 @@ mod tests {
             upgraded
                 .pragma_query_value(None, "user_version", |r| r.get::<_, u64>(0))
                 .unwrap(),
-            22
+            23
         );
         assert_eq!(
             upgraded
