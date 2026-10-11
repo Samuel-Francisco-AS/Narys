@@ -1,0 +1,271 @@
+{
+  "generated_utc": "2026-10-11T03:45:01.830892+00:00",
+  "classification": "CANDIDATA PARA REAUDITORIA; no final LR-10C PASS",
+  "source_commit": "05ea03dcab73839140dad2911282110941895183",
+  "audited_head": "e80943df2dd6c71ca927230167166c94da9281d2",
+  "main_preserved": "e77c721beb091d6191b79f18b14cfa882b77babe",
+  "branch": "lr-10c-authority-approval-sandbox",
+  "scope": {
+    "offline_core_cli_trusted_domain_chain": "PASS scoped to mandatory sandbox and trusted host operator domain",
+    "operator_confirmation": "real CLI; scripted confirmation, not physical human authentication",
+    "same_uid_malicious_peer": "PASS for peer and descendants within mandatory instance containment",
+    "copilot_authenticated": "NOT_VERIFIED; no session/send/inference",
+    "native_copilot_execution": "BLOCKED",
+    "autonomous_isolated_complete": "BLOCKED",
+    "real_yolo": "BLOCKED",
+    "ssh_actual_transport": "NOT_VERIFIED",
+    "host_compromise_or_uncontained_same_uid_process": "outside demonstrated trust boundary; ordinary IPC positive approval stays BLOCKED"
+  },
+  "final_suites": {
+    "core": {
+      "blocks": [
+        {
+          "passed": 105,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 35.03
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.0
+        },
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.0
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.91
+        },
+        {
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 2.08
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.56
+        }
+      ],
+      "passed": 119,
+      "failed": 0,
+      "ignored": 0,
+      "test_seconds": 38.58
+    },
+    "domain": {
+      "blocks": [
+        {
+          "passed": 1059,
+          "failed": 0,
+          "ignored": 2,
+          "seconds": 671.36
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.09
+        }
+      ],
+      "passed": 1061,
+      "failed": 0,
+      "ignored": 2,
+      "test_seconds": 671.45
+    },
+    "python": {
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 12.703
+    },
+    "release_boundary_repeat": {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 8.376
+    },
+    "total_core_domain_python_passed": 1224,
+    "total_ignored": 2
+  },
+  "commands": {
+    "core": "CARGO_BUILD_JOBS=1 cargo test --manifest-path narys-core/Cargo.toml --offline --locked -- --test-threads=1",
+    "domain": "CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=narys-core/target cargo test --manifest-path narys-domain/Cargo.toml --offline --locked -- --test-threads=1",
+    "python": "NARYS_TEST_CORE=/home/sam/Projetos/Narys/narys-core/target/debug/narys-core NARYS_TEST_CLI=/home/sam/Projetos/Narys/narys-core/target/debug/narys python3 -W error::ResourceWarning -m unittest discover -s narys-core/tests -p test_*.py -v",
+    "release": "CARGO_BUILD_JOBS=1 CARGO_TARGET_DIR=src-tauri/target cargo build --manifest-path narys-core/Cargo.toml --release --offline --locked",
+    "release_boundary": "NARYS_TEST_CORE=/home/sam/Projetos/Narys/src-tauri/target/release/narys-core NARYS_TEST_CLI=/home/sam/Projetos/Narys/src-tauri/target/release/narys python3 -W error::ResourceWarning -m unittest discover -s narys-core/tests -p test_boundary.py -v",
+    "chain_export": "NARYS_TEST_CORE=/home/sam/Projetos/Narys/src-tauri/target/release/narys-core NARYS_TEST_CLI=/home/sam/Projetos/Narys/src-tauri/target/release/narys python3 -W error::ResourceWarning docs/evidence/lr10c/fix1/export-chain.py",
+    "native_inventory": "python3 scripts/lr10c-native-inventory.py --cli <pinned installed CLI binary> --output docs/evidence/lr10c/fix1/native-tools.json"
+  },
+  "ignored": [
+    {
+      "name": "agents::codex::app_server::tests::real_app_server_handshake",
+      "reason": "requires a local real Codex app-server; excluded real-provider gate"
+    },
+    {
+      "name": "agents::codex::backend::lifecycle_tests::manual_final_codex_agent_bridge_gate",
+      "reason": "requires authenticated Codex, isolated inference and quota; not authorized"
+    }
+  ],
+  "not_run": [
+    "authenticated Copilot/Codex/provider inference or tools",
+    "physical human/actual SSH transport",
+    "desktop/APK GUI",
+    "exact MSRV Rust1.94",
+    "Windows/macOS",
+    "cgroup or aggregate fork/memory endurance",
+    "production deployment/restart"
+  ],
+  "prior_runs": [
+    {
+      "log": "core-before-final-shutdown-fix.log",
+      "status": "119 passed; before final revocation correction"
+    },
+    {
+      "log": "python-before-final-shutdown-fix.log",
+      "status": "43 passed; before final shutdown failure test"
+    },
+    {
+      "log": "release-before-shutdown-fix.log",
+      "status": "PASS build3m27s; intermediate"
+    },
+    {
+      "log": "release-boundary-before-shutdown-fix.log",
+      "status": "26 passed; before final shutdown failure test"
+    },
+    {
+      "log": "operational-chain-before-shutdown-fix.log",
+      "status": "PASS local chain; intermediate binary checksums in corresponding JSON"
+    },
+    {
+      "log": "check.log",
+      "status": "FAIL",
+      "reason": "non-Send Transaction across await; lexical DB scope fixed"
+    },
+    {
+      "log": "check2.log",
+      "status": "PASS; intermediate compile"
+    },
+    {
+      "log": "core-initial.log",
+      "status": "102 passed,1 failed",
+      "reason": "older-version fixture retained newly-created tables; additive migration made idempotent like existing migrations"
+    },
+    {
+      "log": "boundary-initial.log",
+      "status": "15 passed,5 failed",
+      "reason": "immediate pidfd polling, premature cleanup conclusion, before-start effect labeling; await readiness + explicit started fixed; no assertions relaxed"
+    },
+    {
+      "log": "core-final.log",
+      "status": "FAIL compile",
+      "reason": "peer pidfd liveness signature/call mismatch fixed"
+    },
+    {
+      "log": "core-second.log",
+      "status": "117 passed; intermediate"
+    },
+    {
+      "log": "core-final2.log",
+      "status": "118 passed; intermediate"
+    },
+    {
+      "log": "core-final3.log",
+      "status": "119 passed; intermediate"
+    },
+    {
+      "log": "core-final4.log",
+      "status": "119 passed; before admission-slot additions"
+    },
+    {
+      "log": "core-final5.log",
+      "status": "119 passed; intermediate admission-slot build"
+    },
+    {
+      "log": "boundary-second.log",
+      "status": "20 passed; intermediate"
+    },
+    {
+      "log": "boundary-third.log",
+      "status": "23 passed; intermediate"
+    },
+    {
+      "log": "python-final.log",
+      "status": "41 passed with ResourceWarning; SQLite fixture handles corrected"
+    },
+    {
+      "log": "python-final2.log",
+      "status": "41 passed; before two admission tests"
+    },
+    {
+      "log": "domain-initial.log",
+      "status": "1058 passed,1 failed,2 ignored",
+      "reason": "future-schema fixture used23, now valid; changed sentinel to24 and repeated full suite"
+    }
+  ],
+  "binaries": {
+    "core": {
+      "path": "/home/sam/Projetos/Narys/src-tauri/target/release/narys-core",
+      "sha256": "220c86f5e3ecea2c04a2ada2672239c904f1448a69063a64550fcd72d0d418ee"
+    },
+    "cli": {
+      "path": "/home/sam/Projetos/Narys/src-tauri/target/release/narys",
+      "sha256": "7ccebba24acb62182dcc7e382a56d0a0e59399175dce840d72802fd2a980cc8c"
+    }
+  },
+  "sdk_pin": "github-copilot-sdk1.0.17, no updates",
+  "native_inventory": {
+    "cli_version": "1.0.95",
+    "cli_sha256": "9cf62455c0fef57658c976b737f57ddc4b87c2f513a17864846f2d0e16a18a99",
+    "tools": 15,
+    "inference_requests": 0,
+    "tool_executions": 0,
+    "scope": "offline metadata only; not authenticated boundary proof"
+  },
+  "build": "PASS optimized release; 2m 07s",
+  "warnings": "existing unused Domain code/irrefutable test pattern; Core activate_yolo unused intentionally; no warning suppressed to open execution",
+  "resource_measurements": {
+    "startup_seconds": 0.024443,
+    "core_memory_kib": {
+      "VmHWM": 13784,
+      "VmRSS": 13784
+    }
+  },
+  "cancel_measurements": {
+    "ack_seconds": 0.002358,
+    "cleanup_seconds": 0.015234
+  },
+  "cost": {
+    "financial_authorization": false,
+    "provider_requests": 0,
+    "authenticated_agent_tool_executions": 0,
+    "ai_credits_or_overage_authorized": false
+  },
+  "host_changes": {
+    "global_installs": false,
+    "privileged_changes": false,
+    "production_deploy": false,
+    "production_service_restart": false,
+    "real_credential_tests": false
+  },
+  "git_actions": {
+    "created_branch": false,
+    "modified_main": false,
+    "created_pr_or_merge": false,
+    "pr_api_inventory": "not queried successfully: gh has no authenticated API session; no login or credential inspection attempted"
+  },
+  "hygiene": {
+    "core_fmt": "PASS",
+    "migration_rustfmt": "PASS",
+    "staged_source_diff_check": "PASS",
+    "all_artifact_json_and_sha256": "checked separately by final hygiene script"
+  }
+}

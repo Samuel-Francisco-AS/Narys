@@ -1,0 +1,17 @@
+{
+  "generated_utc": "2026-10-11T03:25:44.664990+00:00",
+  "os": {
+    "NAME": "Fedora Linux",
+    "VERSION_ID": "44",
+    "PRETTY_NAME": "Fedora Linux 44 (Workstation Edition)"
+  },
+  "kernel": "7.2.8-200.fc44.x86_64",
+  "architecture": "x86_64",
+  "bubblewrap": "bubblewrap 0.12.0",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01) (Fedora 1.98.1-1.fc44)",
+  "host_changes": "none; only child namespaces/rlimits/seccomp and disposable directories",
+  "heavy_suite_peak_rss": "not instrumented; no measurement claimed",
+  "tests_concurrency": "Rust jobs1/test-threads1, heavy suites/build serial; limited earlier Core/Python overlap documented",
+  "max_user_namespaces": "31024",
+  "unprivileged_userns_clone": "not exposed by this kernel"
+}

@@ -1,0 +1,73 @@
+test_boundary_operationally_incapable_does_not_issue_approval (test_boundary.Boundary.test_boundary_operationally_incapable_does_not_issue_approval) ... ok
+test_cancel_pending_no_claim_no_effect (test_boundary.Boundary.test_cancel_pending_no_claim_no_effect) ... ok
+test_cancel_vs_completion_never_late_success_after_cancel_wins (test_boundary.Boundary.test_cancel_vs_completion_never_late_success_after_cancel_wins) ... ok
+test_clean_shutdown_and_restart_does_not_restore_grants (test_boundary.Boundary.test_clean_shutdown_and_restart_does_not_restore_grants) ... ok
+test_concurrent_operator_approval_single_claim (test_boundary.Boundary.test_concurrent_operator_approval_single_claim) ... ok
+test_explicit_approval_cli_wrong_confirmation_has_no_effect (test_boundary.Boundary.test_explicit_approval_cli_wrong_confirmation_has_no_effect) ... ok
+test_host_operator_disconnect_reconnect_and_wrong_digest (test_boundary.Boundary.test_host_operator_disconnect_reconnect_and_wrong_digest) ... ok
+test_long_tool_cancel_is_responsive_and_other_task_progresses (test_boundary.Boundary.test_long_tool_cancel_is_responsive_and_other_task_progresses) ... ok
+test_no_operator_timeout_and_deny (test_boundary.Boundary.test_no_operator_timeout_and_deny) ... ok
+test_operator_cannot_change_arguments_or_supply_authority_fields (test_boundary.Boundary.test_operator_cannot_change_arguments_or_supply_authority_fields) ... ok
+test_peer_output_without_newline_is_bounded_and_exits_without_approval (test_boundary.Boundary.test_peer_output_without_newline_is_bounded_and_exits_without_approval) ... ok
+test_pid_namespace_kills_daemonized_peer_descendants (test_boundary.Boundary.test_pid_namespace_kills_daemonized_peer_descendants) ... ok
+test_positive_cli_confirmation_write_verify_durable_and_replay (test_boundary.Boundary.test_positive_cli_confirmation_write_verify_durable_and_replay) ... ok
+test_restart_after_claim_and_running_has_uncertain_result (test_boundary.Boundary.test_restart_after_claim_and_running_has_uncertain_result) ... ok
+test_restart_approved_before_claim_has_no_replay (test_boundary.Boundary.test_restart_approved_before_claim_has_no_replay) ... ok
+test_restart_claimed_before_effect_fixture_is_uncertain_no_replay (test_boundary.Boundary.test_restart_claimed_before_effect_fixture_is_uncertain_no_replay) ... ok
+test_restart_pending_no_grants_no_auto_replay (test_boundary.Boundary.test_restart_pending_no_grants_no_auto_replay) ... ok
+test_same_uid_malicious_peer_cannot_approve_or_escape_or_alter_workspace (test_boundary.Boundary.test_same_uid_malicious_peer_cannot_approve_or_escape_or_alter_workspace) ... ok
+test_shutdown_racing_preflight_certifies_cleanup_and_no_start_after_stop (test_boundary.Boundary.test_shutdown_racing_preflight_certifies_cleanup_and_no_start_after_stop) ... ok
+test_sqlite_failure_after_effect_blocks_admission_no_replay (test_boundary.Boundary.test_sqlite_failure_after_effect_blocks_admission_no_replay) ... ok
+test_sqlite_failure_before_claim_is_atomic_no_effect (test_boundary.Boundary.test_sqlite_failure_before_claim_is_atomic_no_effect) ... ok
+test_sqlite_failure_before_start_records_not_started (test_boundary.Boundary.test_sqlite_failure_before_start_records_not_started) ... ok
+test_symlinks_hardlinks_and_workspace_identity_changed_before_approval (test_boundary.Boundary.test_symlinks_hardlinks_and_workspace_identity_changed_before_approval) ... ok
+test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied (test_boundary.Boundary.test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied) ... ok
+test_chat_select_create_send_follow_and_exit (test_cli.CliTests.test_chat_select_create_send_follow_and_exit) ... ok
+test_ctrl_c_at_prompt_after_follow_exits_without_replay (test_cli.CliTests.test_ctrl_c_at_prompt_after_follow_exits_without_replay) ... ok
+test_send_stdin_bound_and_private_runtime (test_cli.CliTests.test_send_stdin_bound_and_private_runtime) ... ok
+test_version_correlation_response_limits_and_uncertain_send_never_replay (test_cli.CliTests.test_version_correlation_response_limits_and_uncertain_send_never_replay) ... ok
+test_agent_allocated_pty_is_not_ssh (test_credential_manager.GateTests.test_agent_allocated_pty_is_not_ssh) ... ok
+test_existing_collection_only_no_create_prompt_or_plain_session (test_credential_manager.GateTests.test_existing_collection_only_no_create_prompt_or_plain_session) ... ok
+test_missing_service_status_is_sanitized (test_credential_manager.GateTests.test_missing_service_status_is_sanitized) ... ok
+test_native_password_no_echo_wiped_and_tty_restored (test_credential_manager.GateTests.test_native_password_no_echo_wiped_and_tty_restored) ... ok
+test_pipe_and_automation_refused_before_service_or_password (test_credential_manager.GateTests.test_pipe_and_automation_refused_before_service_or_password) ... ok
+test_signal_wipes_and_restores_tty (test_credential_manager.GateTests.test_signal_wipes_and_restores_tty) ... ok
+test_ssh_session_properties_and_interactive_shell_gate (test_credential_manager.GateTests.test_ssh_session_properties_and_interactive_shell_gate) ... /usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f0336ff7880>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f0336ff7790>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f03364f7d30>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f03364f7790>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f03364f71f0>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f03364f7010>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f03364f76a0>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f03364f73d0>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib64/python3.14/unittest/mock.py:460: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f03364f7970>
+  new = type(cls.__name__, bases, {'__doc__': cls.__doc__})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_durable_scope_never_overwritten_and_receipt_never_reused (test_final_authorization.Consent.test_durable_scope_never_overwritten_and_receipt_never_reused) ... ok
+test_install_does_not_restart_keyring_or_change_boot (test_units.Units.test_install_does_not_restart_keyring_or_change_boot) ... ok
+test_no_public_listener (test_units.Units.test_no_public_listener) ... ok
+test_password_uses_existing_human_helper_only (test_units.Units.test_password_uses_existing_human_helper_only) ... ok
+test_service_no_gui_or_auto_provider_start (test_units.Units.test_service_no_gui_or_auto_provider_start) ... ok
+test_update_stops_only_owned_core_and_requires_reviewed_hashes (test_units.Units.test_update_stops_only_owned_core_and_requires_reviewed_hashes) ... ok
+
+----------------------------------------------------------------------
+Ran 41 tests in 10.820s
+
+OK

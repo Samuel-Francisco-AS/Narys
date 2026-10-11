@@ -1,0 +1,4 @@
+PASS cargo fmt --manifest-path narys-core/Cargo.toml -- --check
+PASS /home/sam/.cargo/bin/rustfmt --edition 2021 --config skip_children=true --check narys-domain/src/persistence/migrations.rs
+PASS git diff HEAD --check
+PASS JSON parse: 9 files

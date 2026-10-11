@@ -1,0 +1,83 @@
+test_cancel_pending_no_claim_no_effect (test_boundary.Boundary.test_cancel_pending_no_claim_no_effect) ... ok
+test_cancel_vs_completion_never_late_success_after_cancel_wins (test_boundary.Boundary.test_cancel_vs_completion_never_late_success_after_cancel_wins) ... ok
+test_clean_shutdown_and_restart_does_not_restore_grants (test_boundary.Boundary.test_clean_shutdown_and_restart_does_not_restore_grants) ... ok
+test_concurrent_operator_approval_single_claim (test_boundary.Boundary.test_concurrent_operator_approval_single_claim) ... ok
+test_explicit_approval_cli_wrong_confirmation_has_no_effect (test_boundary.Boundary.test_explicit_approval_cli_wrong_confirmation_has_no_effect) ... ok
+test_host_operator_disconnect_reconnect_and_wrong_digest (test_boundary.Boundary.test_host_operator_disconnect_reconnect_and_wrong_digest) ... ok
+test_long_tool_cancel_is_responsive_and_other_task_progresses (test_boundary.Boundary.test_long_tool_cancel_is_responsive_and_other_task_progresses) ... FAIL
+test_no_operator_timeout_and_deny (test_boundary.Boundary.test_no_operator_timeout_and_deny) ... ok
+test_operator_cannot_change_arguments_or_supply_authority_fields (test_boundary.Boundary.test_operator_cannot_change_arguments_or_supply_authority_fields) ... ok
+test_pid_namespace_kills_daemonized_peer_descendants (test_boundary.Boundary.test_pid_namespace_kills_daemonized_peer_descendants) ... FAIL
+test_positive_cli_confirmation_write_verify_durable_and_replay (test_boundary.Boundary.test_positive_cli_confirmation_write_verify_durable_and_replay) ... ok
+test_restart_after_claim_and_running_has_uncertain_result (test_boundary.Boundary.test_restart_after_claim_and_running_has_uncertain_result) ... ok
+test_restart_approved_before_claim_has_no_replay (test_boundary.Boundary.test_restart_approved_before_claim_has_no_replay) ... ok
+test_restart_pending_no_grants_no_auto_replay (test_boundary.Boundary.test_restart_pending_no_grants_no_auto_replay) ... ok
+test_same_uid_malicious_peer_cannot_approve_or_escape_or_alter_workspace (test_boundary.Boundary.test_same_uid_malicious_peer_cannot_approve_or_escape_or_alter_workspace) ... ok
+test_sqlite_failure_after_effect_blocks_admission_no_replay (test_boundary.Boundary.test_sqlite_failure_after_effect_blocks_admission_no_replay) ... ok
+test_sqlite_failure_before_claim_is_atomic_no_effect (test_boundary.Boundary.test_sqlite_failure_before_claim_is_atomic_no_effect) ... ok
+test_sqlite_failure_before_start_records_not_started (test_boundary.Boundary.test_sqlite_failure_before_start_records_not_started) ... FAIL
+test_symlinks_hardlinks_and_workspace_identity_changed_before_approval (test_boundary.Boundary.test_symlinks_hardlinks_and_workspace_identity_changed_before_approval) ... FAIL
+test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied (test_boundary.Boundary.test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied) ... FAIL
+
+======================================================================
+FAIL: test_long_tool_cancel_is_responsive_and_other_task_progresses (test_boundary.Boundary.test_long_tool_cancel_is_responsive_and_other_task_progresses)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 153, in test_long_tool_cancel_is_responsive_and_other_task_progresses
+    self.assertEqual(done['executions'][0]['phase'],'cancelled');self.assertTrue(done['executions'][0]['cleanup_verified'])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'uncertain' != 'cancelled'
+- uncertain
++ cancelled
+
+
+======================================================================
+FAIL: test_pid_namespace_kills_daemonized_peer_descendants (test_boundary.Boundary.test_pid_namespace_kills_daemonized_peer_descendants)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 276, in test_pid_namespace_kills_daemonized_peer_descendants
+    self.good('cancel',task_id=t['task_id']);done=self.terminal(t['task_id']);self.assertTrue(done['peer_cleanup_verified'])
+                                                                              ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_sqlite_failure_before_start_records_not_started (test_boundary.Boundary.test_sqlite_failure_before_start_records_not_started)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 233, in test_sqlite_failure_before_start_records_not_started
+    self.assertFalse(done['executions'][0]['effect_started'])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_symlinks_hardlinks_and_workspace_identity_changed_before_approval (test_boundary.Boundary.test_symlinks_hardlinks_and_workspace_identity_changed_before_approval)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 202, in test_symlinks_hardlinks_and_workspace_identity_changed_before_approval
+    t=self.start(peer(write()));r=self.pending(t['task_id']);shown=self.good('show',approval_id=r['approval_id']);w=Path(t['workspace'])
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 80, in start
+    return self.good('start_synthetic_peer', source=source, ttl_seconds=ttl)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 76, in good
+    self.assertTrue(r['ok'], r)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: False is not true : {'error_code': 'local_admission_closed', 'ok': False}
+
+======================================================================
+FAIL: test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied (test_boundary.Boundary.test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 196, in test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied
+    t=self.start(source);done=self.terminal(t['task_id']);self.assertEqual(done['executions'],[])
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 80, in start
+    return self.good('start_synthetic_peer', source=source, ttl_seconds=ttl)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sam/Projetos/Narys/narys-core/tests/test_boundary.py", line 76, in good
+    self.assertTrue(r['ok'], r)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: False is not true : {'error_code': 'local_admission_closed', 'ok': False}
+
+----------------------------------------------------------------------
+Ran 20 tests in 6.742s
+
+FAILED (failures=5)

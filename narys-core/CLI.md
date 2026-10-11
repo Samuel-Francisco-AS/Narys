@@ -116,3 +116,42 @@ conferidos. Instalação desconhecida é preservada; trabalho ativo bloqueia upd
 backups do Core/unit/CLI são privados. CLI/status/credentials não dependem do
 checkout. O supervisor legado LR-10A/Copilot ainda mantém dependências históricas
 do checkout e do CLI Copilot, fora da substituição criptográfica desta etapa.
+
+## LR-10C FIX-1: operação offline descartável
+
+Este modo não usa o serviço instalado ou credenciais. Copilot autenticado,
+Autônomo isolado e YOLO permanecem bloqueados. Apenas fontes públicas de peer
+sintético e marcadores de teste são admissíveis; não fornecer secrets.
+
+```bash
+# Em sessão separada, manter o Core de teste vivo (nohup é opcional para SSH).
+root=$(mktemp -d /tmp/narys-boundary-XXXXXX)
+narys-core boundary-serve "$root"
+# Outro terminal/SSH, usando o socket impresso no startup:
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock status
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock start-synthetic-peer /tmp/peer-publico.py 60
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock approvals
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock show ap-ID
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock approve ap-ID
+# O CLI mostra programa/argv/cwd/path/conteúdo e exige approve ID DIGEST.
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock deny ap-ID
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock task 1
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock cancel 1
+narys boundary /tmp/narys-boundary-XXXXXX/operator.sock shutdown
+```
+
+Exemplo de peer público (Python; init é recebido automaticamente por stdin):
+
+```python
+print(json.dumps({'kind':'write','path':'artifact.txt','content':'NARYS_OFFLINE_TEST:approved\n'}), flush=True)
+assert json.loads(sys.stdin.buffer.readline())['ok']
+print(json.dumps({'kind':'command','program':'/usr/bin/sha256sum','arguments':['/workspace/artifact.txt']}), flush=True)
+assert json.loads(sys.stdin.buffer.readline())['ok']
+```
+
+Cada intent exige aprovação própria. Histórico `approvals [cursor]` é paginado;
+nenhum comando reexecuta receipt. Termux usa SSH para executar o cliente no host;
+o transporte SSH real não foi revalidado. Para sobreviver logout, iniciar o Core
+de teste por um launcher confiável que preserve o processo, sem instalar/reiniciar
+systemd. O código peer fica em sandbox read-only; o endpoint não é montado nele.
+Não usar esse endpoint com agentes host-assisted. Ver threat model FIX-1.

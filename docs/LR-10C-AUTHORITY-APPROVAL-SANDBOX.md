@@ -1,5 +1,214 @@
 # LR-10C — Authority, Approval Policy, Sandbox & YOLO
 
+## FIX-1 — Trusted Approval & Operational Boundary
+
+**CANDIDATA PARA REAUDITORIA.** Esta seção descreve a correção do HEAD auditado
+`e80943df2dd6c71ca927230167166c94da9281d2` e prevalece sobre o registro histórico
+inicial abaixo. Não concede PASS final. O caminho **local offline** está conectado
+a componentes executáveis do Core; Copilot autenticado e seus perfis continuam
+BLOCKED/NOT_VERIFIED. Não há substituição do SDK oficial por um chatbot.
+
+### Problemas e correções
+
+1. HumanChannel existia apenas em fixtures: agora há um endpoint de operador
+   exclusivo do modo `narys-core boundary-serve`, cujo domínio de confiança fica
+   fora de todos os namespaces executáveis geridos por essa instância.
+2. Request/approve/execute não tinham consumidor operacional: `local.rs` utiliza
+   a mesma AuthorityService para request, aprovação exata e claim, com ferramenta
+   Python real, escrita exclusiva de arquivo e verificação real por sha256sum.
+3. Mutex global abrangia o efeito: claim transacional retorna um lease privado
+   cancelável. Nenhum mutex global é mantido durante processos/read/wait. A
+   publicação terminal usa seção curta e ordenada com cancelamento.
+
+```mermaid
+flowchart TD
+  H[Operador no host confiável: CLI / SSH / Termux] --> O[Endpoint exclusivo operator.sock]
+  O --> P[Preview exato + confirmação ID e digest]
+  P --> A[AuthorityService: aprovação única e claim atômico]
+  A --> D[SQLite única da instância: receipts / execução / eventos]
+  A --> X[Executor real: Python fixo + sleep ou sha256sum restritos]
+  X --> B[Bubblewrap: FD do workspace + PID 1 / pidfd + seccomp]
+  B --> W[Workspace novo descartável: escrita permitida após aprovação]
+  X --> V[Core verifica exit status e arquivo por openat/nofollow]
+  V --> D
+  S[Peer Python sintético, explicitamente fornecido pelo operador] --> R[Sandbox separada, workspace somente leitura]
+  R --> I[Pipe de intents tipados: sem grants nem aprovação]
+  I --> A
+  R -. socket / SQLite / HOME / rede inacessíveis .-> O
+  C[SDK oficial 1.0.17 e CLI 1.0.95 preservados] -. ferramentas nativas BLOCKED .-> X
+```
+
+### Canal confiável: hipótese e prova delimitadas
+
+O operador pertence ao domínio do host confiável. **UID, socket0600, TTY, texto
+`trusted=true` e digest de confirmação não autenticam um humano.** O digest
+apenas vincula a decisão ao preview. A separação é o boundary de OS obrigatório:
+**todo código não confiável que essa instância admite**, incluindo o peer e
+subprocessos, é lançado em namespaces separados; não há executor host-assisted
+ou runtime nativo nessa instância. Peer só recebe pipes de intents/resultados.
+
+Antes de registrar um peer, o Core executa preflight real: socket de operador,
+marker privado sintético e `/proc` do Core inacessíveis; escrita no workspace
+read-only falha; conexão ao listener TCP real do host falha; fd privados não
+herdados; user namespaces adicionais não funcionam. Exige exit0 e cleanup por
+wait/pidfd. Falha fecha admission, sem emitir approval positiva. Não existe um
+campo wire ou variável de ambiente que emita esse certificado.
+
+Core/CLI usam PR_SET_DUMPABLE=0; serve verifica o estado. Root/produtos privados,
+SQLite e endpoint não são montados no agente. Não há credencial humana, challenge
+secreto em argv/env, arquivo de grant, secret no workspace ou capability enviada
+ao peer. Seccomp ainda impede sockets de qualquer família, ptrace, process_vm,
+setns/unshare/mount, handles de filesystem, keyring, BPF, io_uring e interfaces
+selecionadas. Filtro selado em memfd, instalado pelo Bubblewrap após setup,
+herdado pelos descendentes; ABIs incompatíveis são recusadas. Não é uma allowlist
+universal de syscalls nem prova contra bugs do kernel.
+
+**Limite explícito:** isso não identifica humanos frente a um invasor com execução
+arbitrária já no domínio confiável do host/conta, ou a outro agente lançado fora
+dessa contenção. Não instalar esse endpoint no Core host-assisted, nem montar o
+socket em ambientes agentivos. A IPC ordinária continua recusando approve_once.
+A prova cobre subprocesso agentivo malicioso com mesmo UID **dentro do boundary
+obrigatório desta instância**. Host comprometido/root/operador hostil permanecem
+fora da garantia. Nenhuma declaração de origem altera essa separação.
+
+Testes usam confirmação roteirizada pelo cliente real no domínio do operador.
+Isso prova protocolo/isolamento, não a presença física de uma pessoa ou uma
+conexão SSH real. CLI funciona sem monitor/GNOME; SSH/Termux executam o cliente no
+host via sessão existente. Desconexão/reconexão do transporte de operador é testada
+com sockets reais; o transporte SSH específico permanece NOT_VERIFIED.
+
+### Contrato mínimo executável
+
+`boundary-serve` é um modo explícito do **mesmo Core**, anterior a Config::discover,
+sem acessar HOME, keyring ou serviço instalado. Só aceita root privado canônico
+`/tmp/narys-boundary-NOME`; a única SQLite autoritativa dessa instância descartável
+é `ROOT/db/luna.sqlite3`, usando Database e writer lease existentes. Não é segunda
+base autoritativa do produto nem importação de dados pessoais. Não acompanha
+conversa/TaskGraph de produção e não habilita sessão Copilot. Isso é uma prova
+operacional local deliberadamente limitada, não a entrega agentiva Narys0.1.
+
+Core cria TaskId durável em `agent_local_tasks`, sessão aleatória e workspace
+novo. ID considera IDs persistidos existentes. O peer não escolhe TaskId,
+sessão, especialista, perfil, workspace, versão de política ou TTL. O intent
+estrito só aceita:
+
+- `write`: criação exclusiva de um nome simples no workspace, conteúdo público
+  ASCII com prefixo `NARYS_OFFLINE_TEST:`, até4096bytes; nenhum overwrite/delete.
+- `command`: `/usr/bin/sha256sum` de um único `/workspace/NOME` regular sem
+  symlink/hardlink, ou `/usr/bin/sleep` com um único inteiro0..30. Sem shell,
+  argumentos gerais, git, rede, plugins, MCP ou extensão.
+
+Todo intent exige aprovação, inclusive verificação. Contexto completo, path,
+conteúdo exato, programa/argv/cwd, runner fixo e seu SHA256 aparecem como JSON
+escapado no preview. O CLI exige `approve ID DIGEST` após mostrá-lo. Não aprova
+argumento material oculto/redigido; strings fora do contrato são bloqueadas.
+Nenhum conteúdo/argv bruto é gravado no audit ledger. O operador pode consultar,
+negar/cancelar e observar expiry sem emitir um grant. Não há autorização de custo:
+a admission independente só admite operações locais sem provider/rede/inferência.
+
+A ferramenta usa código fixo Core, JSON por stdin e `O_EXCL|O_NOFOLLOW`. Mount usa
+`--bind-fd`/`--ro-bind-fd`, não resolução tardia de path. Identidade dev/ino do
+grant é comparada ao handle antes de enviar o efeito. Core retém esse mesmo
+handle e verifica arquivos por openat/O_NOFOLLOW, regular/nlink1/limite de bytes,
+conteúdo esperado e hash. Um teste real troca o path no host depois de abrir o
+handle: efeito fica no inode original, não na substituição. Peer não pode modificar
+o workspace antes de approval, nem alcançar o parent do mount. Não se promete
+executor geral TOCTOU-safe para comandos arbitrários ou writers hostis no host.
+
+Árvore/mountinfo rejeitam alias, devices, sockets, FIFOs, outros devices/submounts.
+Montagens públicas são `/usr/bin`, `/usr/lib`, `/usr/lib64`, proc interno/dev mínimo
+mais tmpfs privados; não monta `/usr/local`, `/usr/share`, /etc, HOME, DBus, SSH,
+keyring ou banco. Quatro peers simultâneos, oito intents por peer,128tasks por
+instância, payloads bounded; CPU40s, AS256MiB, file size64KiB,64fds, core dumps0;
+tmpfs16MiB por montagem. Esses limites **não substituem cgroups** nem certificam
+endurance/DoS agregado por fork/memória. Autônomo isolado continua BLOCKED.
+
+### Execução, cancelamento e recovery
+
+Migration023 aditiva: tarefas locais, execuções e eventos, mantendo migration022,
+receipts e dados legados. Não persiste capability/contexto bruto/HumanChannel.
+Backup de autoridade existente antes de schema023 segue writer fence e snapshot
+online. Schema futuro é rejeitado; regressões ajustam apenas expectativas.
+
+`pending → approved → consumed` continua CAS/BEGIN IMMEDIATE. Na mesma transação
+que consome, Core grava `claimed` da execução e seu evento. Claim não significa
+lançamento. Runner inicia como PID1, espera payload, e só recebe a operação após
+commit de `started`. Esse estado é conservador: o efeito **pode ter começado**, não
+é um atestado de sucesso. Falha de journal antes disso produz failed/not_started.
+
+Cancelamento sinaliza o lease em memória antes de escrever SQLite. Pedido durável
+`cancel_requested` difere de terminal `cancelled` e de `cleanup_verified`. Core
+sinaliza PID1 via pidfd, mata/recolhe o wrapper e aguarda readiness do pidfd: saída
+de PID1 elimina os descendentes de sua namespace, inclusive fork/setsid. Não usa
+PID numérico reutilizável para sinalizar processos. Shutdown sinaliza todos os
+claims antes de persistência, tenta todas as revogações mesmo se a primeira falha
+e não declara encerramento limpo quando há erro durável. Drop é safety net, nunca um
+certificado de cleanup. Timeout/wait/EOF não viram cleanup positivo sem pidfd.
+
+Resultado tem phase, effect_started, cancel_requested, cleanup_verified,
+exit_code e evidência Core, mais eventos atômicos. Sucesso vem do OS/arquivo,
+nunca de texto do peer. Publicação e cancelamento têm ordenação curta; se cancel
+vence, callback tardio não publica completed. Operação longa não bloqueia tarefa
+em outro workspace. Lease/deadlines são verificados antes/durante execução.
+
+Se SQLite falha após efeito, não há retry nem sucesso publicado; admission fecha
+com resultado durável ainda não resolvido. Pending/approved ficam interrupted
+no restart; claimed/started viram uncertain; cleanup não é inventado e grants
+não são reconstituídos. Tarefas com cleanup incerto bloqueiam reentrada dessa
+instância. Não existe API de reset/replay. Shutdown aguarda preflight/admissions
+bounded antes de drenar jobs; não aborta um lançamento sem registrar sua segurança.
+
+### Fronteira Copilot e decisão A/B
+
+SDK/CLI pinados permanecem oficiais e inalterados, handlers/preToolUse deny em
+create/resume, availableTools vazio, scripts/extensões/MCP/plugins/skills disabled.
+Falha de hook `{output:{}}` não possui caminho para emitir grant no Core. Prova
+por peer SDK segue sendo **sintética**, não veto nativo completo.
+
+**Seleção para runtime Copilot: opção A, contenção do processo/runtime completo.**
+Opção B isolada (custom ToolHandler/availableTools) não prova ausência de rota
+nativa alternativa; ferramentas nativas rodam no próprio CLI e hooks podem falhar
+sem veto. O executor local já demonstra mediação + peer read-only, mas não é uma
+ponte de ferramentas Copilot nem mediação nativa pelo ExecutionBroker.
+
+Inspeção de SessionConfig/ToolHandler/ProviderConfig1.0.17 confirma ferramentas
+customizadas e endpoints BYOK, porém bearer_token_provider entrega tokens ao CLI.
+Isso não estabelece proxy de autenticação Copilot/Student nem equivalência de
+entitlement/custo. Não passar token ao CLI/tool, nem alterar provider para alegar
+Copilot autenticado. Headers/token não podem entrar em Debug/logs.
+
+Uma contenção autenticada precisaria de gateway externo ao ambiente executável:
+segredos no Core/broker protegido, destinos/métodos fixos, autenticação aplicada
+fora do CLI, admission financeira independente por request, limites de conteúdo/
+rede e transporte de resultados. Compatibilidade desse gateway com autenticação,
+TLS/RPC e entitlement do CLI1.0.95 **não está demonstrada**. Não há implementação
+fictícia de proxy habilitado. Filtro offline nega rede totalmente; não flexibilizá-lo
+nem montar HOME/keyring/socket/SQLite para fazer login funcionar. Só teste
+separadamente autorizado do serviço real pode verificar a cadeia autenticada.
+Essa capacidade permanece BLOCKED, seus caminhos NOT_VERIFIED, sem transferir o
+bloqueio para LR-10D/E. YOLO real permanece desabilitado.
+
+### Rollback e limites da candidata
+
+Sem deploy/restart do serviço instalado. Encerrar a instância de teste com
+`narys boundary SOCKET shutdown`, observar saída e certificados SQLite. Não
+reduzir user_version nem apagar receipts para reaplicar efeito. Root com cleanup
+incerto deve permanecer preservado/bloqueado até reconciliação independente; não
+editar estados para liberar. Rollback de binário exige snapshot pré023 em diretório
+isolado, sem reaplicação de efeitos e considerando dados posteriores.
+
+Regressões/evidências e matriz26: [entrega](LR-10C-DELIVERY-REPORT.md),
+[matriz](evidence/lr10c/VALIDATION-MATRIX.md) e `evidence/lr10c/fix1/`.
+Referências de mecanismos Linux:
+[Bubblewrap0.12.0](https://github.com/containers/bubblewrap/blob/v0.12.0/bubblewrap.c),
+[seccomp kernel](https://docs.kernel.org/userspace-api/seccomp_filter.html).
+São fontes de mecanismo, não substituem os testes reais da candidata.
+
+---
+
+## Registro histórico da implementação inicial (antes da FIX-1)
+
+
 **IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE DA LUNA.**
 Base: `e77c721beb091d6191b79f18b14cfa882b77babe`; branch
 `lr-10c-authority-approval-sandbox`. Não concede PASS definitivo ou libera

@@ -1,0 +1,25 @@
+test_cancel_pending_no_claim_no_effect (test_boundary.Boundary.test_cancel_pending_no_claim_no_effect) ... ok
+test_cancel_vs_completion_never_late_success_after_cancel_wins (test_boundary.Boundary.test_cancel_vs_completion_never_late_success_after_cancel_wins) ... ok
+test_clean_shutdown_and_restart_does_not_restore_grants (test_boundary.Boundary.test_clean_shutdown_and_restart_does_not_restore_grants) ... ok
+test_concurrent_operator_approval_single_claim (test_boundary.Boundary.test_concurrent_operator_approval_single_claim) ... ok
+test_explicit_approval_cli_wrong_confirmation_has_no_effect (test_boundary.Boundary.test_explicit_approval_cli_wrong_confirmation_has_no_effect) ... ok
+test_host_operator_disconnect_reconnect_and_wrong_digest (test_boundary.Boundary.test_host_operator_disconnect_reconnect_and_wrong_digest) ... ok
+test_long_tool_cancel_is_responsive_and_other_task_progresses (test_boundary.Boundary.test_long_tool_cancel_is_responsive_and_other_task_progresses) ... ok
+test_no_operator_timeout_and_deny (test_boundary.Boundary.test_no_operator_timeout_and_deny) ... ok
+test_operator_cannot_change_arguments_or_supply_authority_fields (test_boundary.Boundary.test_operator_cannot_change_arguments_or_supply_authority_fields) ... ok
+test_pid_namespace_kills_daemonized_peer_descendants (test_boundary.Boundary.test_pid_namespace_kills_daemonized_peer_descendants) ... ok
+test_positive_cli_confirmation_write_verify_durable_and_replay (test_boundary.Boundary.test_positive_cli_confirmation_write_verify_durable_and_replay) ... ok
+test_restart_after_claim_and_running_has_uncertain_result (test_boundary.Boundary.test_restart_after_claim_and_running_has_uncertain_result) ... ok
+test_restart_approved_before_claim_has_no_replay (test_boundary.Boundary.test_restart_approved_before_claim_has_no_replay) ... ok
+test_restart_pending_no_grants_no_auto_replay (test_boundary.Boundary.test_restart_pending_no_grants_no_auto_replay) ... ok
+test_same_uid_malicious_peer_cannot_approve_or_escape_or_alter_workspace (test_boundary.Boundary.test_same_uid_malicious_peer_cannot_approve_or_escape_or_alter_workspace) ... ok
+test_sqlite_failure_after_effect_blocks_admission_no_replay (test_boundary.Boundary.test_sqlite_failure_after_effect_blocks_admission_no_replay) ... ok
+test_sqlite_failure_before_claim_is_atomic_no_effect (test_boundary.Boundary.test_sqlite_failure_before_claim_is_atomic_no_effect) ... ok
+test_sqlite_failure_before_start_records_not_started (test_boundary.Boundary.test_sqlite_failure_before_start_records_not_started) ... ok
+test_symlinks_hardlinks_and_workspace_identity_changed_before_approval (test_boundary.Boundary.test_symlinks_hardlinks_and_workspace_identity_changed_before_approval) ... ok
+test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied (test_boundary.Boundary.test_unmediated_native_tools_profile_changes_and_sensitive_contents_denied) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 8.998s
+
+OK

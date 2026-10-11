@@ -1,5 +1,133 @@
 # LR-10C — relatório de entrega
 
+## FIX-1 — Trusted Approval & Operational Boundary
+
+**CANDIDATA PARA REAUDITORIA**, sem PASS final. Corrige a candidata auditada
+`e80943df2dd6c71ca927230167166c94da9281d2` na mesma branch. A seção inicial abaixo
+fica preservada como histórico pré-FIX-1, não como disponibilidade vigente local.
+
+### Resultado e alcance
+
+A cadeia operacional **local/offline** foi executada através do Core/CLI reais:
+peer sintético confinado → pedido tipado → preview/decisão no endpoint do operador
+→ approval única → claim+ledger atômicos → ferramenta real confinada → arquivo
+verificado por Core → resultado SQLite → cleanup/cancel/recovery verificáveis.
+Não depende de fixtures privadas que fabriquem HumanChannel na engine: o emissor
+operacional existe no modo explicitamente descartável `boundary-serve`.
+
+O peer Python é um recurso de prova explicitamente selecionado, não um agente
+Copilot reimplementado nem simulador permanente do produto. O SDK/CLI oficiais
+permanecem pinados e sua política nativa restrita. **Copilot autenticado, Assistido
+nativo, Autônomo isolado e YOLO real continuam BLOCKED; cobertura autenticada
+NOT_VERIFIED.** Não equivale a entrega agentiva Narys0.1 ou integração de conversa/
+TaskGraph de produção. Não houve deploy, restart do serviço instalado ou inferência.
+
+A confiança do operador vem da **exclusão de todos os executáveis não confiáveis
+dessa instância** do domínio do endpoint. Não vem de UID/TTY/challenge/flag. Não
+protege host/conta comprometidos ou agentes lançados fora dessa contenção; por
+isso não abre approve_once no servidor host-assisted. Confirmações de teste são
+roteirizadas no domínio do operador: prova da interface/isolamento, não presença
+física de humano ou transporte SSH autenticado real. Ver
+[fronteiras e limitações](LR-10C-AUTHORITY-APPROVAL-SANDBOX.md#fix-1--trusted-approval--operational-boundary).
+
+### Componentes operacionais
+
+`agent_authority/local.rs` é executável no Core release e utiliza a AuthorityService
+existente; não há segunda engine de approval. Usa a Database/writer lease SQLite
+existente, migration023 aditiva, TaskId e sessão criados pelo Core, contextos
+agent-neutral, proofs limitadas de boundary/zero-cost, capacidade somente em memória.
+
+Canal de intents é pipe, workspace do peer read-only. Canal do operador fica
+fora dos namespaces, sem secrets/grants em env/prompt/workspace. Preflight testa
+negativas reais. Ferramenta é runner Python fixo, criação exclusiva de marker
+ASCII e comandos estritamente sleep/sha256sum; não existe shell genérico pela IPC.
+Preview mostra programa/argv/cwd/conteúdo/path/digest; falta de preview seguro
+bloqueia. Todas as ações exigem approval. Timeout/deny/cancel/restart não aprovam.
+
+Claim e journal são transacionais antes do efeito. Mutex não cobre execução longa.
+PID1/pidfd+wait certificam cleanup; AtomicBool transmite cancelamento. Kernel
+namespaces/cap-drop/userns-disabled, mounts por FD e seccomp formam o boundary.
+Core verifica bytes/hash por openat/nofollow após cleanup. Resultado distingue
+claimed, started, cancel_requested, completed, failed, cancelled e uncertain.
+Falha de SQLite pós-efeito/recovery incerto fecha reentrada, sem replay/reset.
+Shutdown também cobre a corrida com preflight anterior ao registro do peer.
+Reserva atômica limita quatro peers incluindo admissions concorrentes em preflight.
+
+### Validação final e evidências
+
+Commit de código FIX-1: `05ea03dcab73839140dad2911282110941895183`; publicação de evidências em commit posterior.
+
+| Validação final FIX-1 | Resultado | Duração observada |
+|---|---|---|
+| Core completo + protocolo + doctests | 119PASS,0fail | 38.58s |
+| Domain completo + doctests | 1061PASS,0fail,2ignored | 671.45s |
+| Python completo, com 27 testes operacionais | 44PASS,0fail | 12.703s |
+| Repetição operacional com binários release | 27PASS,0fail | 8.376s |
+| Build release offline/locked | PASS | 2m 07s |
+
+Total da passagem Core/Domain/Python: **1224PASS,2ignored**. Os 27 testes release
+são repetição dos mesmos casos, não aumento de cobertura. Prova exportada release:
+startup0.024443s; cancel ack0.002358s; cleanup0.015234s; Core RSS/HWM13784KiB
+(snapshot, não pico da suíte). Nenhuma dessas métricas representa provider/Copilot.
+
+Comandos/totais/durações/checksums: [results.json](evidence/lr10c/fix1/results.json).
+Prova exportada da cadeia: [operational-chain.json](evidence/lr10c/fix1/operational-chain.json).
+Matriz26: [VALIDATION-MATRIX.md](evidence/lr10c/VALIDATION-MATRIX.md).
+Logs, falhas iniciais e regressões estão em `docs/evidence/lr10c/fix1/`.
+
+A primeira compilação detectou Transaction não-Send atravessando await; a conexão
+passou a ser lexicalmente encerrada antes do preflight. Uma assinatura parcial
+ao adicionar liveness do peer produziu E0425 e foi corrigida. Primeira suíte Core:
+102pass/1fail, fixture de schema antigo mantendo tabelas novas; migration023 segue
+o padrão idempotente IF NOT EXISTS. Primeiros testes operacionais:15pass/5fail;
+corrigidos wait de readiness do pidfd (não basta poll instantâneo), status
+not_started antes do payload e fechamento indevido por cleanup ainda pendente.
+Primeira regressão Domain:1058pass/1fail/2ignored; sentinela de schema futuro
+ainda era23 e passou para24 após a migration023. Nova execução integral serial
+foi exigida. Também foram corrigidas reservas concorrentes de peers e o limite
+transacional128tasks. Shutdown sinaliza todos os claims antes de qualquer
+persistência; erro na primeira revogação não deixa ferramentas seguintes rodando.
+Essas falhas não são contadas como PASS. Novo teste físico de mount por FD confirma
+que trocar o path não redireciona o efeito. Nenhuma negativa de isolamento/timeout
+operacional foi relaxada. A fixture
+antiga de corrida foi ajustada ao novo contrato: cancelamento após início pode
+ter efeito, mas não publicar sucesso; o novo teste callback300ms comprova esse
+caso e os testes de processos certificam cleanup.
+
+Execuções pesadas usam CARGO_BUILD_JOBS=1 e testes Rust serializados; Domain sem
+build concorrente. Duas rodadas leves Core/Python tiveram concorrência limitada
+após a compilação, não carga de linkedição junto das fixtures HTTP. Os dois gates
+Domain reais continuam ignorados: Codex app-server real e bridge autenticado.
+Não foram usados --ignored, providers, quota/billing ou credenciais reais.
+Frontend/GUI e MSRV Rust1.94 exato não foram revalidados (sem alterações nesse
+escopo; host1.98.1). SSH real permanece NOT_VERIFIED; sockets reais provam a
+semântica de desconexão/reconexão sem replay.
+
+### Recursos, custo, risco e rollback
+
+Medições release locais no JSON de cadeia e logs; não são latência de inferência
+ou benchmark de Copilot autenticado. Quatro peers simultâneos, oito intents/peer,
+128tasks por instância, payload/saídas bounded; rlimits do filho CPU40s, AS256MiB,
+file64KiB/fds64/core dumps0; tmpfs16MiB. Não certifica DoS agregado/endurance ou
+contenção por cgroups. Perfis automáticos seguem bloqueados.
+
+Zero autorização financeira, zero chamadas de inferência/autenticadas, zero
+AI Credits/overage. Opção A foi selecionada para Copilot futuro, por impossibilidade
+de provar ausência de rota nativa só com hooks/custom tools. Gateway de credenciais/
+rede externo ao executor é arquitetura necessária, ainda não provada com o pin;
+não foi implementado proxy fictício nem relaxada rede para autenticar.
+
+Rollback: nenhuma instalação foi alterada. Encerrar a instância descartável,
+observar certificados; preservar root bloqueado se cleanup incerto. Não apagar
+receipts/reduzir user_version/reexecutar claims. Binário anterior exige snapshot
+pré023 isolado e avaliação dos dados posteriores. `main` é preservada; publicação
+somente nessa branch, sem PR/merge. Auditoria Luna decide fechamento/PASS final.
+
+---
+
+## Registro histórico da entrega inicial (pré-FIX-1)
+
+
 **LR-10C — IMPLEMENTAÇÃO CANDIDATA, AGUARDANDO AUDITORIA INDEPENDENTE DA LUNA.**
 Não autoriza fechamento/PASS definitivo ou efeitos autenticados.
 

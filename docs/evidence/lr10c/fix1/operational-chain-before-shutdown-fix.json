@@ -1,0 +1,456 @@
+{
+  "generated_utc": "2026-10-11T03:26:30.704001+00:00",
+  "classification": "offline local operational proof only; candidate for independent re-audit",
+  "layers": [
+    "real release Core",
+    "real release CLI/operator socket",
+    "scripted operator confirmation in trusted host domain",
+    "synthetic Python peer",
+    "real isolated subprocess tools",
+    "authoritative instance SQLite"
+  ],
+  "physical_human_tested": false,
+  "ssh_transport_tested": false,
+  "copilot_authenticated_tested": false,
+  "provider_requests": 0,
+  "cost_authorized": false,
+  "temporary_root": "/tmp/narys-boundary-m765brnw",
+  "binaries": {
+    "core": {
+      "path": "/home/sam/Projetos/Narys/src-tauri/target/release/narys-core",
+      "sha256": "eb0beaabc74804b32cb193cbafadc5931f518fc7ca500487620037c13d750d3c"
+    },
+    "cli": {
+      "path": "/home/sam/Projetos/Narys/src-tauri/target/release/narys",
+      "sha256": "78fc4566c7ccadf705f05e4fa9e6347fe2abfbbdb5cdf2235ae86acc48a5f776"
+    }
+  },
+  "measurements": {
+    "startup_seconds": 0.024449,
+    "core_memory_kib": {
+      "VmHWM": 14344,
+      "VmRSS": 14344
+    }
+  },
+  "positive_chain": {
+    "request": {
+      "cost_authorized": false,
+      "namespace": "product",
+      "peer": "synthetic Python, not Copilot",
+      "session_id": "local-7e680ab671f62fec39984ed47e22aaf92d4ec91dcb1351f8f401c284f3d8f28f",
+      "task_id": 1,
+      "workspace": "/tmp/narys-boundary-m765brnw/workspaces/1"
+    },
+    "confirmations": [
+      {
+        "approval_id": "ap-e108f79a4b7bbad6cef40072a556595ba28b54dc362ebb4587157a8250d0bff9",
+        "operator_client_exit": 0,
+        "confirmation": "scripted exact approve ID digest, after CLI showed preview",
+        "preview": {
+          "context": {
+            "operation": {
+              "content": "NARYS_OFFLINE_TEST:approved\n",
+              "kind": "write",
+              "relative_path": "artifact.txt"
+            },
+            "policy_version": 1,
+            "profile": "assisted",
+            "session_id": "local-7e680ab671f62fec39984ed47e22aaf92d4ec91dcb1351f8f401c284f3d8f28f",
+            "specialist_id": "synthetic-peer",
+            "task_id": 1,
+            "tool": "narys.write",
+            "workspace": "/tmp/narys-boundary-m765brnw/workspaces/1"
+          },
+          "cwd": "/workspace",
+          "digest": "99096bdd03b6e66d9a2a33cf62de60653295be0243df6b669f7ae07ae99292c9",
+          "effect": {
+            "content": "NARYS_OFFLINE_TEST:approved\n",
+            "kind": "write",
+            "path": "artifact.txt"
+          },
+          "requires_explicit_confirmation": true,
+          "risk": "Only disposable workspace effects; no network, credentials, billing or host execution. Write is exclusive creation; commands limited to sleep/sha256sum.",
+          "runner_arguments": [
+            "-I",
+            "-c",
+            "import os,sys,json,hashlib,subprocess\nfrom pathlib import Path\np=json.loads(sys.stdin.buffer.readline())\nif p['kind']=='write':\n fd=os.open(p['path'],os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)\n with os.fdopen(fd,'wb') as f:\n  f.write(p['content'].encode('ascii')); f.flush(); os.fsync(f.fileno())\nelif p['kind']=='command':\n r=subprocess.run([p['program']]+p['arguments'],capture_output=True,check=False)\n if r.returncode: sys.exit(r.returncode if r.returncode>0 else 1)\n if p['program']=='/usr/bin/sha256sum':\n  print(json.dumps({'sha256':r.stdout.decode('ascii').split()[0]}),flush=True)\nelse: sys.exit(1)\n"
+          ],
+          "runner_program": "/usr/bin/python3",
+          "runner_sha256": "07c6a12a3b556cf491a1439fe5120582730a3c43e07ba7aa212310bfdfc6fab0"
+        }
+      },
+      {
+        "approval_id": "ap-e328fcdcaac38c3f6b3cf2ba5f86a44b8dd9ee56e2ed20fdf792df141d4a95b4",
+        "operator_client_exit": 0,
+        "confirmation": "scripted exact approve ID digest, after CLI showed preview",
+        "preview": {
+          "context": {
+            "operation": {
+              "arguments": [
+                "/workspace/artifact.txt"
+              ],
+              "kind": "command",
+              "program": "/usr/bin/sha256sum"
+            },
+            "policy_version": 1,
+            "profile": "assisted",
+            "session_id": "local-7e680ab671f62fec39984ed47e22aaf92d4ec91dcb1351f8f401c284f3d8f28f",
+            "specialist_id": "synthetic-peer",
+            "task_id": 1,
+            "tool": "narys.command",
+            "workspace": "/tmp/narys-boundary-m765brnw/workspaces/1"
+          },
+          "cwd": "/workspace",
+          "digest": "fa3c55cb25ad1262cdb297ea09307b1097e2ffe991c574ef74c2e805a2dd46f3",
+          "effect": {
+            "arguments": [
+              "/workspace/artifact.txt"
+            ],
+            "kind": "command",
+            "program": "/usr/bin/sha256sum"
+          },
+          "requires_explicit_confirmation": true,
+          "risk": "Only disposable workspace effects; no network, credentials, billing or host execution. Write is exclusive creation; commands limited to sleep/sha256sum.",
+          "runner_arguments": [
+            "-I",
+            "-c",
+            "import os,sys,json,hashlib,subprocess\nfrom pathlib import Path\np=json.loads(sys.stdin.buffer.readline())\nif p['kind']=='write':\n fd=os.open(p['path'],os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)\n with os.fdopen(fd,'wb') as f:\n  f.write(p['content'].encode('ascii')); f.flush(); os.fsync(f.fileno())\nelif p['kind']=='command':\n r=subprocess.run([p['program']]+p['arguments'],capture_output=True,check=False)\n if r.returncode: sys.exit(r.returncode if r.returncode>0 else 1)\n if p['program']=='/usr/bin/sha256sum':\n  print(json.dumps({'sha256':r.stdout.decode('ascii').split()[0]}),flush=True)\nelse: sys.exit(1)\n"
+          ],
+          "runner_program": "/usr/bin/python3",
+          "runner_sha256": "07c6a12a3b556cf491a1439fe5120582730a3c43e07ba7aa212310bfdfc6fab0"
+        }
+      }
+    ],
+    "durable_result": {
+      "executions": [
+        {
+          "approval_id": "ap-e108f79a4b7bbad6cef40072a556595ba28b54dc362ebb4587157a8250d0bff9",
+          "cancel_requested": false,
+          "cleanup_verified": true,
+          "effect_started": true,
+          "phase": "completed",
+          "result": {
+            "approval_id": "ap-e108f79a4b7bbad6cef40072a556595ba28b54dc362ebb4587157a8250d0bff9",
+            "cancel_requested": false,
+            "cleanup_verified": true,
+            "effect_started": true,
+            "phase": "completed",
+            "result": {
+              "evidence": {
+                "bytes": 28,
+                "path": "artifact.txt",
+                "sha256": "357bb4f9f96d2c666970d2b16b848991975c2dfa0a2bc2a423f9495d149323fd",
+                "verified_by": "Core nofollow file handle, after process cleanup"
+              },
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        },
+        {
+          "approval_id": "ap-e328fcdcaac38c3f6b3cf2ba5f86a44b8dd9ee56e2ed20fdf792df141d4a95b4",
+          "cancel_requested": false,
+          "cleanup_verified": true,
+          "effect_started": true,
+          "phase": "completed",
+          "result": {
+            "approval_id": "ap-e328fcdcaac38c3f6b3cf2ba5f86a44b8dd9ee56e2ed20fdf792df141d4a95b4",
+            "cancel_requested": false,
+            "cleanup_verified": true,
+            "effect_started": true,
+            "phase": "completed",
+            "result": {
+              "evidence": {
+                "bytes": 28,
+                "path": "artifact.txt",
+                "sha256": "357bb4f9f96d2c666970d2b16b848991975c2dfa0a2bc2a423f9495d149323fd",
+                "verified_by": "Core nofollow file handle, after process cleanup"
+              },
+              "exit_code": 0,
+              "stdout_bytes": 79,
+              "stdout_sha256": "9273193adbb89aaec707f09cabe08e47372c6ddc525c7a35d2f5713d439ac147"
+            }
+          }
+        }
+      ],
+      "peer_cleanup_verified": true,
+      "session_id": "local-7e680ab671f62fec39984ed47e22aaf92d4ec91dcb1351f8f401c284f3d8f28f",
+      "state": "completed",
+      "task_id": 1,
+      "workspace": "/tmp/narys-boundary-m765brnw/workspaces/1"
+    },
+    "independent_artifact": {
+      "bytes": 28,
+      "sha256": "357bb4f9f96d2c666970d2b16b848991975c2dfa0a2bc2a423f9495d149323fd",
+      "exact_bytes": "NARYS_OFFLINE_TEST:approved\n"
+    },
+    "duration_seconds": 0.261229
+  },
+  "receipt_replay_attempt": {
+    "error_code": "approval_not_live",
+    "ok": false
+  },
+  "cancellation": {
+    "request": {
+      "cost_authorized": false,
+      "namespace": "product",
+      "peer": "synthetic Python, not Copilot",
+      "session_id": "local-ead4ae44e28239182d0909118895aab824220337786b65ce1b56c68c7d95c6a2",
+      "task_id": 2,
+      "workspace": "/tmp/narys-boundary-m765brnw/workspaces/2"
+    },
+    "confirmation": {
+      "approval_id": "ap-86326e536840cf4054c6ec355ce1b7cfb730e1752413638dc9bdfd769b1f2ded",
+      "operator_client_exit": 0,
+      "confirmation": "scripted exact approve ID digest, after CLI showed preview",
+      "preview": {
+        "context": {
+          "operation": {
+            "arguments": [
+              "30"
+            ],
+            "kind": "command",
+            "program": "/usr/bin/sleep"
+          },
+          "policy_version": 1,
+          "profile": "assisted",
+          "session_id": "local-ead4ae44e28239182d0909118895aab824220337786b65ce1b56c68c7d95c6a2",
+          "specialist_id": "synthetic-peer",
+          "task_id": 2,
+          "tool": "narys.command",
+          "workspace": "/tmp/narys-boundary-m765brnw/workspaces/2"
+        },
+        "cwd": "/workspace",
+        "digest": "142685ef81e975b8b37d4c51ff5128b744b1b756d380fae53678ebec526f413a",
+        "effect": {
+          "arguments": [
+            "30"
+          ],
+          "kind": "command",
+          "program": "/usr/bin/sleep"
+        },
+        "requires_explicit_confirmation": true,
+        "risk": "Only disposable workspace effects; no network, credentials, billing or host execution. Write is exclusive creation; commands limited to sleep/sha256sum.",
+        "runner_arguments": [
+          "-I",
+          "-c",
+          "import os,sys,json,hashlib,subprocess\nfrom pathlib import Path\np=json.loads(sys.stdin.buffer.readline())\nif p['kind']=='write':\n fd=os.open(p['path'],os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)\n with os.fdopen(fd,'wb') as f:\n  f.write(p['content'].encode('ascii')); f.flush(); os.fsync(f.fileno())\nelif p['kind']=='command':\n r=subprocess.run([p['program']]+p['arguments'],capture_output=True,check=False)\n if r.returncode: sys.exit(r.returncode if r.returncode>0 else 1)\n if p['program']=='/usr/bin/sha256sum':\n  print(json.dumps({'sha256':r.stdout.decode('ascii').split()[0]}),flush=True)\nelse: sys.exit(1)\n"
+        ],
+        "runner_program": "/usr/bin/python3",
+        "runner_sha256": "07c6a12a3b556cf491a1439fe5120582730a3c43e07ba7aa212310bfdfc6fab0"
+      }
+    },
+    "ack": {
+      "cancel_requested": true,
+      "cleanup_verified": false,
+      "task_id": 2
+    },
+    "durable_result": {
+      "executions": [
+        {
+          "approval_id": "ap-86326e536840cf4054c6ec355ce1b7cfb730e1752413638dc9bdfd769b1f2ded",
+          "cancel_requested": true,
+          "cleanup_verified": true,
+          "effect_started": true,
+          "phase": "cancelled",
+          "result": {
+            "approval_id": "ap-86326e536840cf4054c6ec355ce1b7cfb730e1752413638dc9bdfd769b1f2ded",
+            "cancel_requested": true,
+            "cleanup_verified": true,
+            "effect_started": true,
+            "phase": "cancelled",
+            "result": {
+              "evidence": {
+                "effect": "may_have_occurred",
+                "success": false
+              },
+              "exit_code": -1,
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        }
+      ],
+      "peer_cleanup_verified": true,
+      "session_id": "local-ead4ae44e28239182d0909118895aab824220337786b65ce1b56c68c7d95c6a2",
+      "state": "cancelled",
+      "task_id": 2,
+      "workspace": "/tmp/narys-boundary-m765brnw/workspaces/2"
+    },
+    "ack_seconds": 0.001972,
+    "cleanup_seconds": 0.015968,
+    "other_workspace_completed_before_cancel": {
+      "executions": [
+        {
+          "approval_id": "ap-308ba08cbca883520ff6d8263615e42e597d794bd064fff6315aaf7e9cc31200",
+          "cancel_requested": false,
+          "cleanup_verified": true,
+          "effect_started": true,
+          "phase": "completed",
+          "result": {
+            "approval_id": "ap-308ba08cbca883520ff6d8263615e42e597d794bd064fff6315aaf7e9cc31200",
+            "cancel_requested": false,
+            "cleanup_verified": true,
+            "effect_started": true,
+            "phase": "completed",
+            "result": {
+              "evidence": {
+                "bytes": 28,
+                "path": "parallel.txt",
+                "sha256": "357bb4f9f96d2c666970d2b16b848991975c2dfa0a2bc2a423f9495d149323fd",
+                "verified_by": "Core nofollow file handle, after process cleanup"
+              },
+              "exit_code": 0,
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            }
+          }
+        }
+      ],
+      "peer_cleanup_verified": true,
+      "session_id": "local-ffdffe2ad2c4f725a60d0380f58878bdb519440eee7cda3f0c48b294a7a1c1a9",
+      "state": "completed",
+      "task_id": 3,
+      "workspace": "/tmp/narys-boundary-m765brnw/workspaces/3"
+    }
+  },
+  "sqlite": {
+    "user_version": 23,
+    "events": [
+      {
+        "sequence": 1,
+        "approval_id": "ap-e108f79a4b7bbad6cef40072a556595ba28b54dc362ebb4587157a8250d0bff9",
+        "phase": "claimed",
+        "created_at": "2026-10-11T03:26:30.895Z"
+      },
+      {
+        "sequence": 2,
+        "approval_id": "ap-e108f79a4b7bbad6cef40072a556595ba28b54dc362ebb4587157a8250d0bff9",
+        "phase": "started",
+        "created_at": "2026-10-11T03:26:30.899Z"
+      },
+      {
+        "sequence": 3,
+        "approval_id": "ap-e108f79a4b7bbad6cef40072a556595ba28b54dc362ebb4587157a8250d0bff9",
+        "phase": "completed",
+        "created_at": "2026-10-11T03:26:30.949Z"
+      },
+      {
+        "sequence": 4,
+        "approval_id": "ap-e328fcdcaac38c3f6b3cf2ba5f86a44b8dd9ee56e2ed20fdf792df141d4a95b4",
+        "phase": "claimed",
+        "created_at": "2026-10-11T03:26:30.979Z"
+      },
+      {
+        "sequence": 5,
+        "approval_id": "ap-e328fcdcaac38c3f6b3cf2ba5f86a44b8dd9ee56e2ed20fdf792df141d4a95b4",
+        "phase": "started",
+        "created_at": "2026-10-11T03:26:30.984Z"
+      },
+      {
+        "sequence": 6,
+        "approval_id": "ap-e328fcdcaac38c3f6b3cf2ba5f86a44b8dd9ee56e2ed20fdf792df141d4a95b4",
+        "phase": "completed",
+        "created_at": "2026-10-11T03:26:31.040Z"
+      },
+      {
+        "sequence": 7,
+        "approval_id": "ap-86326e536840cf4054c6ec355ce1b7cfb730e1752413638dc9bdfd769b1f2ded",
+        "phase": "claimed",
+        "created_at": "2026-10-11T03:26:31.167Z"
+      },
+      {
+        "sequence": 8,
+        "approval_id": "ap-86326e536840cf4054c6ec355ce1b7cfb730e1752413638dc9bdfd769b1f2ded",
+        "phase": "started",
+        "created_at": "2026-10-11T03:26:31.172Z"
+      },
+      {
+        "sequence": 9,
+        "approval_id": "ap-308ba08cbca883520ff6d8263615e42e597d794bd064fff6315aaf7e9cc31200",
+        "phase": "claimed",
+        "created_at": "2026-10-11T03:26:31.296Z"
+      },
+      {
+        "sequence": 10,
+        "approval_id": "ap-308ba08cbca883520ff6d8263615e42e597d794bd064fff6315aaf7e9cc31200",
+        "phase": "started",
+        "created_at": "2026-10-11T03:26:31.301Z"
+      },
+      {
+        "sequence": 11,
+        "approval_id": "ap-308ba08cbca883520ff6d8263615e42e597d794bd064fff6315aaf7e9cc31200",
+        "phase": "completed",
+        "created_at": "2026-10-11T03:26:31.346Z"
+      },
+      {
+        "sequence": 12,
+        "approval_id": "ap-86326e536840cf4054c6ec355ce1b7cfb730e1752413638dc9bdfd769b1f2ded",
+        "phase": "cancel_requested",
+        "created_at": "2026-10-11T03:26:31.361Z"
+      },
+      {
+        "sequence": 13,
+        "approval_id": "ap-86326e536840cf4054c6ec355ce1b7cfb730e1752413638dc9bdfd769b1f2ded",
+        "phase": "cancelled",
+        "created_at": "2026-10-11T03:26:31.368Z"
+      }
+    ],
+    "receipts": [
+      {
+        "approval_id": "ap-e108f79a4b7bbad6cef40072a556595ba28b54dc362ebb4587157a8250d0bff9",
+        "task_id": 1,
+        "state": "consumed",
+        "policy_version": 1
+      },
+      {
+        "approval_id": "ap-e328fcdcaac38c3f6b3cf2ba5f86a44b8dd9ee56e2ed20fdf792df141d4a95b4",
+        "task_id": 1,
+        "state": "consumed",
+        "policy_version": 1
+      },
+      {
+        "approval_id": "ap-86326e536840cf4054c6ec355ce1b7cfb730e1752413638dc9bdfd769b1f2ded",
+        "task_id": 2,
+        "state": "consumed",
+        "policy_version": 1
+      },
+      {
+        "approval_id": "ap-308ba08cbca883520ff6d8263615e42e597d794bd064fff6315aaf7e9cc31200",
+        "task_id": 3,
+        "state": "consumed",
+        "policy_version": 1
+      }
+    ]
+  },
+  "status": {
+    "admission_closed": false,
+    "cost_authorized": false,
+    "isolated": "BLOCKED",
+    "mode": "offline_local_boundary",
+    "native_copilot": "BLOCKED",
+    "socket": "/tmp/narys-boundary-m765brnw/operator.sock",
+    "trusted_operator": "namespace exclusion, not UID",
+    "yolo": "BLOCKED"
+  },
+  "clean_restart": {
+    "history_preserved": true,
+    "effects_replayed": 0,
+    "old_receipt_approval": {
+      "error_code": "approval_not_live",
+      "ok": false
+    },
+    "status": {
+      "admission_closed": false,
+      "cost_authorized": false,
+      "isolated": "BLOCKED",
+      "mode": "offline_local_boundary",
+      "native_copilot": "BLOCKED",
+      "socket": "/tmp/narys-boundary-m765brnw/operator.sock",
+      "trusted_operator": "namespace exclusion, not UID",
+      "yolo": "BLOCKED"
+    }
+  },
+  "elapsed_seconds": 0.736074
+}

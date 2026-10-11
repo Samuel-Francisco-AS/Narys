@@ -1,5 +1,13 @@
 # LR-10 — GitHub Copilot SpecialistAgent
 
+**FIX-1 LR-10C:** [candidata para reauditoria](LR-10C-DELIVERY-REPORT.md#fix-1--trusted-approval--operational-boundary).
+Cadeia local offline com Core/CLI, aprovação separada por OS, ferramenta real,
+resultado SQLite e cancel/recovery comprovados por testes. Peer sintético não
+comprova Copilot autenticado; perfis nativos/YOLO continuam BLOCKED/NOT_VERIFIED.
+A IPC host-assisted não ganha aprovação positiva. O checkpoint inicial abaixo é
+histórico e não substitui esse alcance delimitado. Narys0.1 segue sem aceite.
+
+
 **Checkpoint LR-10C:** [implementação candidata](LR-10C-DELIVERY-REPORT.md),
 aguardando auditoria independente da Luna. Contratos/grants/SQLite e diagnóstico
 offline estão implementados; execução nativa e approval positiva humana continuam

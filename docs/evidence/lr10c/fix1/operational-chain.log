@@ -1,0 +1,1 @@
+{"output": "docs/evidence/lr10c/fix1/operational-chain.json", "write_sha256": "357bb4f9f96d2c666970d2b16b848991975c2dfa0a2bc2a423f9495d149323fd", "startup_seconds": 0.024443, "cancel_ack_seconds": 0.002358, "cancel_cleanup_seconds": 0.015234, "core_memory_kib": {"VmHWM": 13784, "VmRSS": 13784}, "elapsed_seconds": 0.755913}

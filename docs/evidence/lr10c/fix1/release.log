@@ -1,0 +1,72 @@
+warning: unused imports: `ProviderInvocationConfig`, `ProviderSelection`, and `ProviderTarget`
+  --> /home/sam/Projetos/Narys/narys-domain/src/luna/runtime.rs:18:46
+   |
+18 |         ContextBundle, ProviderCapabilities, ProviderInvocationConfig, ProviderMessage,
+   |                                              ^^^^^^^^^^^^^^^^^^^^^^^^
+19 |         ProviderRole, ProviderSelection, ProviderTarget, ProviderTaskRequest, SchedulerError,
+   |                       ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `context_generation` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `label` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/transport.rs:21:8
+   |
+20 | impl TimeoutPhase {
+   | ----------------- method in this implementation
+21 |     fn label(self) -> &'static str {
+   |        ^^^^^
+
+warning: fields `provider`, `model`, `phase`, `attempt`, `configured_ms`, and `elapsed_ms` are never read
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/transport.rs:33:9
+   |
+32 | pub(super) struct TimeoutDiagnostic {
+   |                   ----------------- fields in this struct
+33 |     pub provider: &'static str,
+   |         ^^^^^^^^
+34 |     pub model: String,
+   |         ^^^^^
+35 |     pub phase: TimeoutPhase,
+   |         ^^^^^
+36 |     pub attempt: u32,
+   |         ^^^^^^^
+37 |     pub configured_ms: u64,
+   |         ^^^^^^^^^^^^^
+38 |     pub elapsed_ms: u64,
+   |         ^^^^^^^^^^
+   |
+   = note: `TimeoutDiagnostic` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `safe_line` is never used
+  --> /home/sam/Projetos/Narys/narys-domain/src/cognition/transport.rs:41:12
+   |
+40 | impl TimeoutDiagnostic {
+   | ---------------------- method in this implementation
+41 |     pub fn safe_line(&self) -> String {
+   |            ^^^^^^^^^
+
+warning: `narys-domain` (lib) generated 5 warnings (run `cargo fix --lib -p narys-domain` to apply 1 suggestion)
+   Compiling narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+warning: method `activate_yolo` is never used
+   --> src/agent_authority/mod.rs:581:8
+    |
+298 | impl AuthorityService {
+    | --------------------- method in this implementation
+...
+581 |     fn activate_yolo(
+    |        ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `narys-core` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 2m 07s

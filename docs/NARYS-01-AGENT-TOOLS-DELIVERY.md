@@ -1,5 +1,13 @@
 # Narys 0.1 — entrega agentiva com ferramentas reais (até 17/10/2026)
 
+**FIX-1 LR-10C:** [candidata para reauditoria](LR-10C-DELIVERY-REPORT.md#fix-1--trusted-approval--operational-boundary).
+Cadeia local offline com Core/CLI, aprovação separada por OS, ferramenta real,
+resultado SQLite e cancel/recovery comprovados por testes. Peer sintético não
+comprova Copilot autenticado; perfis nativos/YOLO continuam BLOCKED/NOT_VERIFIED.
+A IPC host-assisted não ganha aprovação positiva. O checkpoint inicial abaixo é
+histórico e não substitui esse alcance delimitado. Narys0.1 segue sem aceite.
+
+
 **Checkpoint LR-10C:** [candidata entregue para auditoria Luna](LR-10C-DELIVERY-REPORT.md).
 Authority/approvals transacionais e provas offline delimitadas não habilitam os
 perfis nativos Copilot. Approval positiva operacional, boundary completo e execução

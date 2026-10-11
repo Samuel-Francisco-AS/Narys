@@ -1,0 +1,21 @@
+warning: method `context_generation` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `narys-domain` (lib) generated 1 warning
+   Compiling narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+error[E0425]: cannot find value `peer_init` in this scope
+   --> src/agent_authority/local.rs:661:22
+    |
+661 |             if ready(peer_init) {
+    |                      ^^^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `narys-core` (lib) due to 1 previous error

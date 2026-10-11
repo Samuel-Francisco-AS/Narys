@@ -1,0 +1,86 @@
+    Checking narys-domain v0.1.0 (/home/sam/Projetos/Narys/narys-domain)
+warning: method `context_generation` is never used
+   --> /home/sam/Projetos/Narys/narys-domain/src/cognition/telemetry.rs:387:19
+    |
+228 | impl TelemetryStore {
+    | ------------------- method in this implementation
+...
+387 |     pub(super) fn context_generation(&self, id: &str) -> Option<u64> {
+    |                   ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `narys-domain` (lib) generated 1 warning
+    Checking narys-core v0.1.0 (/home/sam/Projetos/Narys/narys-core)
+warning: variable does not need to be mutable
+   --> src/agent_authority/local.rs:430:13
+    |
+430 |         let mut out = p.output.take().ok_or("probe_unavailable")?;
+    |             ----^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/agent_authority/local.rs:650:13
+    |
+650 |         let mut output = process.output.take().ok_or("tool_output_closed")?;
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+error: future cannot be sent between threads safely
+   --> src/agent_authority/local.rs:874:185
+    |
+874 | ...{continue};let c=core.clone();handlers.spawn(async move{let _permit=permit;let mut bytes=Vec::new();let read=tokio::time::timeou...
+    |                                           ^^^^^ future created by async block is not `Send`
+    |
+    = help: within `rusqlite::Connection`, the trait `std::marker::Sync` is not implemented for `RefCell<rusqlite::inner_connection::InnerConnection>`
+    = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock` instead
+note: future is not `Send` as this value is used across an await
+   --> src/agent_authority/local.rs:475:52
+    |
+465 |         let tx = conn
+    |             -- has type `Transaction<'_>` which is not `Send`
+...
+475 |         if let Err(e) = self.preflight(&workspace).await {
+    |                                                    ^^^^^ await occurs here, with `tx` maybe used later
+note: required by a bound in `JoinSet::<T>::spawn`
+   --> /home/sam/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.52.3/src/task/join_set.rs:145:12
+    |
+142 |     pub fn spawn<F>(&mut self, task: F) -> AbortHandle
+    |            ----- required by a bound in this associated function
+...
+145 |         F: Send + 'static,
+    |            ^^^^ required by this bound in `JoinSet::<T>::spawn`
+
+error: future cannot be sent between threads safely
+   --> src/agent_authority/local.rs:874:185
+    |
+874 | ...{continue};let c=core.clone();handlers.spawn(async move{let _permit=permit;let mut bytes=Vec::new();let read=tokio::time::timeou...
+    |                                           ^^^^^ future created by async block is not `Send`
+    |
+    = help: within `rusqlite::Connection`, the trait `std::marker::Sync` is not implemented for `RefCell<LruCache<Arc<str>, RawStatement>>`
+    = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock` instead
+note: future is not `Send` as this value is used across an await
+   --> src/agent_authority/local.rs:475:52
+    |
+465 |         let tx = conn
+    |             -- has type `Transaction<'_>` which is not `Send`
+...
+475 |         if let Err(e) = self.preflight(&workspace).await {
+    |                                                    ^^^^^ await occurs here, with `tx` maybe used later
+note: required by a bound in `JoinSet::<T>::spawn`
+   --> /home/sam/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.52.3/src/task/join_set.rs:145:12
+    |
+142 |     pub fn spawn<F>(&mut self, task: F) -> AbortHandle
+    |            ----- required by a bound in this associated function
+...
+145 |         F: Send + 'static,
+    |            ^^^^ required by this bound in `JoinSet::<T>::spawn`
+    = note: the full name for the type has been written to '/home/sam/Projetos/Narys/narys-core/target/debug/deps/narys_core-17a0c00b174848e5.long-type-8021326711943570725.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+warning: `narys-core` (lib) generated 2 warnings
+error: could not compile `narys-core` (lib) due to 2 previous errors; 2 warnings emitted

@@ -181,3 +181,27 @@ narys agent yolo-revoke
 Paginação também está na CLI: `narys approvals --pending --after SEQUENCE --limit 100`.
 `ap-HEX64` no exemplo é placeholder, não um ID válido nem token.
 [Boundary/threat model](../docs/LR-10C-AUTHORITY-APPROVAL-SANDBOX.md).
+
+## FIX-1 — endpoint separado de operador offline
+
+O wire ordinário mantém approve_once bloqueado. `boundary-serve ROOT` usa
+`ROOT/operator.sock` exclusivo e root descartável `/tmp/narys-boundary-NOME`, sem
+configuração/HOME/credenciais do serviço instalado. O modo **não** inicia runtimes
+host-assisted. A autoridade positiva depende do preflight de OS e exclusão do
+endpoint de todo executável não confiável admitido pela instância, não de UID/0600.
+
+Requests JSON estritos, conexão por comando com shutdown da escrita:
+`status`; `start_synthetic_peer {source,ttl_seconds}` (somente peer sintético em
+sandbox); `approvals {after?,limit?,pending_only?}` (default20, máximo20);
+`show {approval_id}`; `approve {approval_id,digest}` após preview/confirm;
+`deny {approval_id}`; `task {task_id}`; `cancel {task_id}`; `shutdown`.
+Response `{ok,result}` ou `{ok:false,error_code}`. Limite request20KB/3s, oito
+conexões simultâneas; cliente recebe no máximo64KB. Nenhum request aceita
+capability, HumanLocal, trusted, profile, workspace ou programa genérico do host.
+
+Intents chegam só pelo pipe de peer sandboxed: write de marker público novo ou
+sleep/sha256sum de escopo fixo. Contexto TaskId/sessão/especialista/workspace/policy
+é criado pelo Core, não pelo peer. Confirmação mostra contexto/efeito completo;
+digest/receipt isolados não são authority. Não há API de replay/reset/grant.
+Aprovação por esse endpoint não libera o Copilot ou a IPC comum. Root/conta host
+comprometidos e agentes fora da contenção não recebem essa garantia.
